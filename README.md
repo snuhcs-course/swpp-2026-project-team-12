@@ -1,28 +1,25 @@
-# SNU-SWPP-Template
+# 토닥 (Talk Dock)
+AI-Powered Family Communication Manager (SNU SWPP 2026)
 
-You can use the README file to showcase and promote your mobile app. The template provided below is just a starting point. Feel free to craft your README as you see fit. 
+A mobile app for Korean families to share photos and updates with older adults, listen to AI-adapted messages, send voice replies, and review summaries.
 
-Please note that the README doesn't affect your grade and is not included in documentation(Wiki).
+## Structure
 
-# [Your Application Name]
+```text
+client/                 Android app (placeholder)
+backend/
+  configs/              Django configuration TODOs
+  apps/{accounts,families,posts,replies,digests}/  Feature TODOs
+  integrations/ai/      AI integration TODOs
+  developer/            Developer tools and sample data TODOs
+  media/                Image storage
+```
 
-[Short application description here]
+This repository currently contains directory placeholders and TODOs only. 
 
-![Application Screenshot](path_to_screenshot.png)
+## Local Setup
 
-## Features
+## Iteration 1 - TODO
 
-- Feature 1: Brief description
-- Feature 2: Brief description
-- ...
+## Iteration 1 - Limitations
 
-## Getting Started
-
-### Prerequisites
-
-- Android Studio [version, e.g., 4.2.1]
-- Minimum Android SDK Version [e.g., 21]
-
-### Installation
-
-[Installation link here]

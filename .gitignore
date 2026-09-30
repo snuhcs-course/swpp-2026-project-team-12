@@ -1,0 +1,17 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+
+# Local database and uploaded files
+*.sqlite3
+*.sqlite3-*
+backend/media/*
+backend/developer/family_tree.html
+*.log
+
+# Context documents for each developer
+documents/*
