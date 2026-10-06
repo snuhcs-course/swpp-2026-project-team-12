@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.urls import path
 
 from apps.accounts import views as accounts
+from apps.families import views as families
 
 def test_reply(request):
     return JsonResponse({"status": "ok"})
@@ -13,4 +14,8 @@ urlpatterns = [
     path("api/accounts/login/", accounts.login, name="account-login"),
     path("api/accounts/logout/", accounts.logout, name="account-logout"),
     path("api/accounts/me/", accounts.me, name="account-me"),
+    path("api/families/create/", families.create, name="family-create"),
+    path("api/families/lookup/", families.lookup, name="family-lookup"),
+    path("api/families/join/", families.join, name="family-join"),
+    path("api/families/current/", families.current, name="family-current"),
 ]

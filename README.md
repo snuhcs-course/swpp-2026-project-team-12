@@ -10,7 +10,7 @@ client/                 Android app (placeholder)
 backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
-  apps/families/        Family room and membership models
+  apps/families/        Family room models and APIs
   apps/{posts,replies,digests}/  Feature TODOs
   integrations/ai/      AI integration TODOs
   developer/            Developer tools and sample data TODOs
@@ -30,6 +30,33 @@ The server reads process environment variables in `.env`.
 python backend/manage.py migrate
 python backend/manage.py runserver 127.0.0.1:8000
 ```
+## APIs
+### Account APIs
+
+Send JSON request bodies for registration and login. Protected endpoints require `Authorization: Bearer <token>`; registration and login return a token along with `user_id`, `username`, `name`, and `gender`.
+
+| Endpoint | Authentication | Request body | Result |
+| --- | --- | --- | --- |
+| `POST /api/accounts/register/` | Not required | `username`, `password`, `name`, optional `gender` (`unknown`, `male`, `female`) | Creates an account and returns its profile and token. |
+| `POST /api/accounts/login/` | Not required | `username`, `password` | Returns the account profile and a new token. |
+| `POST /api/accounts/logout/` | Required | None | Revokes the presented token; returns `{"ok": true}`. |
+| `GET /api/accounts/me/` | Required | None | Returns the current account profile without a token. |
+
+Tokens expire after 30 days. Logging out revokes only the token used for that request.
+
+### Family APIs
+
+Family rooms use the accounts created through `/api/accounts/register/`. Creating or joining a room attaches the authenticated user to it; it does not create another account. Send the account token as `Authorization: Bearer <token>` for the protected endpoints.
+
+| Endpoint | Authentication | Request body | Result |
+| --- | --- | --- | --- |
+| `POST /api/families/create/` | Required | `room_name`, `password`, optional `digest_time` (`HH:MM`) | Creates a room and owner membership; returns `room`. |
+| `POST /api/families/lookup/` | Not required | `invite_code`, `password` | Returns room information when the invitation matches. |
+| `POST /api/families/join/` | Required | `invite_code`, `password`, `slot` | Adds the current account as a member; returns `room`. |
+| `GET /api/families/current/` | Required | None | Returns the current user's family room. |
+| `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
+
+Room passwords are hashed in the database. A room currently permits one user per family slot; see `backend/apps/families/TODO.md` for the multiple-children limitation.
 
 ## Iteration 1 - TODO
 

@@ -6,7 +6,7 @@ backend\developer\samples
 ```
 
 ## Developer tests
-Run the account API and family model tests from the repository root:
+Run the account and family API/model tests from the repository root:
 
 ```bash
 python backend/manage.py test developer.test_codes
@@ -27,5 +27,11 @@ The registration test prints every stored column for its two accounts and their 
 - `test_room_defaults_and_owner_protection`: Checks room defaults, unique invitation codes, and protection against deleting a room owner.
 - `test_membership_is_unique_per_user_and_slot_within_a_room`: Enforces one membership per user and one user per slot in a room, while allowing membership in another room.
 - `test_deleting_a_room_removes_its_memberships`: Confirms deleting a room removes its memberships without deleting its users.
+- `test_create_uses_existing_account_and_current_updates_digest_time`: Creates a room with a registered account, checks its owner membership and hashed room password, then reads and updates the digest time.
+- `test_lookup_checks_invitation_password`: Finds a room using a case-insensitive invitation code and rejects an incorrect password.
+- `test_join_uses_existing_account_and_rejects_occupied_slot`: Joins an existing account, checks relationship output, and rejects repeat joins, occupied slots, unknown slots, and non-owner updates.
+- `test_invalid_requests_and_missing_membership`: Rejects invalid room input and access to `current` without a family membership.
+
+After the family workflow tests, the CLI prints an owner-relative family graph with arrows from each child toward their parent. Slots do not identify which child is the parent of a grandchild.
 
 All tests use Django's temporary test database, which is deleted after the run.
