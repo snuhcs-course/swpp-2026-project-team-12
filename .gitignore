@@ -5,6 +5,7 @@
 
 # Python
 __pycache__/
+.venv/
 
 # Local database and uploaded files
 *.sqlite3
@@ -15,3 +16,10 @@ backend/developer/family_tree.html
 
 # Context documents for each developer
 documents/*
+
+# Android / local build outputs
+client/.gradle/
+client/.kotlin/
+client/**/build/
+client/local.properties
+*.apk
