@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "apps.accounts",
+    "apps.families",
 ]
 MIDDLEWARE = []
 ROOT_URLCONF = "configs.urls"

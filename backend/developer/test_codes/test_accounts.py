@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
+from apps.families.models import FamilyRoom, Membership
 
 
 class AccountAuthenticationTests(TestCase):
@@ -54,6 +55,8 @@ class AccountAuthenticationTests(TestCase):
         self.assertTrue(user.check_password(self.password))
         self.assertNotEqual(user.password, self.password)
         self.assertEqual(User.objects.count(), 1)
+        self.assertEqual(FamilyRoom.objects.count(), 0)
+        self.assertEqual(Membership.objects.count(), 0)
         self.assertTrue(AccessToken.objects.filter(digest=hashlib.sha256(token.encode()).hexdigest()).exists())
         self.assertFalse(AccessToken.objects.filter(digest=token).exists())
 

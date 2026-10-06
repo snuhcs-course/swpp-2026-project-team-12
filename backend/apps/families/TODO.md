@@ -1,6 +1,5 @@
 # TODO
 
-Design family groups, relationships, and the family browsing experience together with the accounts feature.
-
-The owner may choose the data model, API, file layout, and implementation approach.
-This directory is a placeholder, not a registered Django app.
+## Generalized Tree Structure
+- Support multiple members with the same role in one family room (for example, two sons). The current `unique_family_slot` constraint on `(room, slot)` rejects the second `son`; update the model and migration when implementing this.
+- Represent relationships between members explicitly instead of relying only on fixed slots. Keep the `(room, user)` uniqueness rule so one user has one membership per room.
