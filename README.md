@@ -8,16 +8,27 @@ A mobile app for Korean families to share photos and updates with older adults, 
 ```text
 client/                 Android app (placeholder)
 backend/
-  configs/              Django configuration TODOs
-  apps/{accounts,families,posts,replies,digests}/  Feature TODOs
+  configs/              Django settings and API routes
+  apps/accounts/        Account registration and authentication
+  apps/{families,posts,replies,digests}/  Feature TODOs
   integrations/ai/      AI integration TODOs
   developer/            Developer tools and sample data TODOs
-  media/                Image storage
+  media/                Image storage (placeholder)
 ```
 
-This repository currently contains directory placeholders and TODOs only. 
+## Quick Start
 
-## Local Setup
+From the repository root, install the backend dependencies (Python 3.11+):
+```bash
+python -m pip install -r backend/requirements.txt
+cp .env.example .env
+```
+The server reads process environment variables in `.env`. 
+
+```bash
+python backend/manage.py migrate
+python backend/manage.py runserver 127.0.0.1:8000
+```
 
 ## Iteration 1 - TODO
 
