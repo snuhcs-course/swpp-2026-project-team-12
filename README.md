@@ -10,7 +10,8 @@ client/                 Android app (placeholder)
 backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
-  apps/{families,posts,replies,digests}/  Feature TODOs
+  apps/families/        Family room and membership models
+  apps/{posts,replies,digests}/  Feature TODOs
   integrations/ai/      AI integration TODOs
   developer/            Developer tools and sample data TODOs
   media/                Image storage (placeholder)
