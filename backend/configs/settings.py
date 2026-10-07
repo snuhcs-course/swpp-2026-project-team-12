@@ -1,11 +1,28 @@
-"""Django settings for the backend baseline and account authentication."""
+"""Django settings for account, family, and post APIs."""
 
 import os
 from pathlib import Path
 
+from .public_origin import normalize_public_origin
+
 
 # ============ BASE_DIR and path ============
 BASE_DIR = Path(__file__).resolve().parent.parent  # BASE_DIR = backend/
+
+
+def load_local_env(path):
+    """Apply local .env values without overriding process environment variables."""
+    if not path.is_file():
+        return
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
+
+
+load_local_env(BASE_DIR.parent / ".env")
 
 # ============ Django Environment Settings ============
 # Environment variables supplied by the process take precedence.
@@ -16,7 +33,15 @@ if not DEBUG and SECRET_KEY == "local-test-only":
     raise RuntimeError("Set DJANGO_SECRET_KEY before running with DEBUG=0.")
 
 # Allowed hosts settings
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "testserver"]
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
+    if host.strip()
+]
+try:
+    PUBLIC_ORIGIN = normalize_public_origin(os.getenv("PUBLIC_ORIGIN", ""))
+except ValueError as error:
+    raise RuntimeError(str(error)) from error
 
 # Apps and middleware settings
 # Account APIs can run without AI credentials; providers will validate their keys when added.
@@ -25,6 +50,7 @@ INSTALLED_APPS = [
     "django.contrib.contenttypes",
     "apps.accounts",
     "apps.families",
+    "apps.posts",
 ]
 MIDDLEWARE = []
 ROOT_URLCONF = "configs.urls"
@@ -47,6 +73,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"  # AutoField type for primary keys in models
 
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"
+
 # ============ other settings ============
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"
@@ -54,3 +83,6 @@ USE_TZ = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_IMAGE_PIXELS = 20_000_000
+MAX_IMAGE_DIMENSION = 1600

@@ -3,6 +3,7 @@ from django.urls import path
 
 from apps.accounts import views as accounts
 from apps.families import views as families
+from apps.posts import views as posts
 
 def test_reply(request):
     return JsonResponse({"status": "ok"})
@@ -18,4 +19,7 @@ urlpatterns = [
     path("api/families/lookup/", families.lookup, name="family-lookup"),
     path("api/families/join/", families.join, name="family-join"),
     path("api/families/current/", families.current, name="family-current"),
+    path("api/posts/", posts.feed, name="post-feed"),
+    path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
+    path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
 ]

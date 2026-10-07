@@ -34,7 +34,8 @@ def api(*methods, anonymous=False):
                 response = result if hasattr(result, "status_code") else JsonResponse(result)
             except APIError as error:
                 response = JsonResponse({"error": error.message}, status=error.status)
-            response["Cache-Control"] = "no-store"
+            if "Cache-Control" not in response:
+                response["Cache-Control"] = "no-store"
             return response
 
         return wrapped

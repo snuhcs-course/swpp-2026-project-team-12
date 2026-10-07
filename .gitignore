@@ -11,6 +11,7 @@ __pycache__/
 *.sqlite3
 *.sqlite3-*
 backend/media/*
+backend/developer/test_media/
 backend/developer/family_tree.html
 *.log
 
