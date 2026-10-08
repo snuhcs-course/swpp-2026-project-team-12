@@ -11,7 +11,8 @@ backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
   apps/families/        Family room models and APIs
-  apps/{posts,replies,digests}/  Feature TODOs
+  apps/posts/           Photo posts and family feed
+  apps/{replies,digests}/  Feature TODOs
   integrations/ai/      AI integration TODOs
   developer/            Developer tools and sample data TODOs
   media/                Image storage (placeholder)
@@ -57,6 +58,19 @@ Family rooms use the accounts created through `/api/accounts/register/`. Creatin
 | `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
 
 Room passwords are hashed in the database. A room currently permits one user per family slot; see `backend/apps/families/TODO.md` for the multiple-children limitation.
+
+### Post APIs
+
+All post endpoints require a bearer token and a family membership. Upload a photo with `multipart/form-data`; `caption` is optional.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /api/posts/` | Lists up to 100 posts in the current family room, newest first. |
+| `POST /api/posts/` | Creates a post from `image` and optional `caption`; returns the new post (200). |
+| `GET /api/posts/<id>/` | Returns a post in the current family room. |
+| `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
+
+Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Comment counts and lists are empty until the replies feature is added.
 
 ## Iteration 1 - TODO
 

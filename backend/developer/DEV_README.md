@@ -6,7 +6,7 @@ backend\developer\samples
 ```
 
 ## Developer tests
-Run the account and family API/model tests from the repository root:
+Run the account, family, and post API/model tests from the repository root:
 
 ```bash
 python backend/manage.py test developer.test_codes
@@ -34,4 +34,12 @@ The registration test prints every stored column for its two accounts and their 
 
 After the family workflow tests, the CLI prints an owner-relative family graph with arrows from each child toward their parent. Slots do not identify which child is the parent of a grandchild.
 
-All tests use Django's temporary test database, which is deleted after the run.
+### 3. `test_codes\test_posts.py`
+
+- `test_upload_converts_sample_and_returns_feed_and_detail`: Uploads a sample PNG and checks JPEG conversion, post persistence, room feed, detail, and author relationship.
+- `test_upload_resizes_large_sample`: Enlarges a sample PNG and checks that the stored JPEG fits within the configured dimensions.
+- `test_photo_requires_membership_and_stays_within_room`: Checks image authentication and isolation between family rooms.
+- `test_invalid_uploads_do_not_create_posts`: Rejects missing, invalid, oversized images and overly long captions.
+- `test_image_url_uses_configured_public_origin`: Checks the absolute photo URL used for a public HTTPS backend.
+
+All tests use Django's temporary test database, which is deleted after the run. Post tests save converted images in `backend/developer/test_media/` and write `backend/developer/test_media/posts_report.html` with image previews and the saved post fields. Open that HTML file after the tests; the CLI prints its relative path. 

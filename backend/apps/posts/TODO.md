@@ -1,6 +1,5 @@
 # TODO
 
-Implement posting and the family feed, including any required media handling.
+Connect comment counts and comment lists to the post API when replies are implemented.
 
-The owner may choose the data model, API, file layout, and implementation approach.
-This directory is a placeholder, not a registered Django app.
+Add viewer-specific adapted messages when the AI integration is implemented.
