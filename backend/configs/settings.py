@@ -76,6 +76,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"  # AutoField type for prima
 MEDIA_ROOT = BASE_DIR / "media"
 MEDIA_URL = "/media/"
 
+# ============ Third-party API settings ============
+# Account and family APIs can run without AI credentials. Providers validate keys when called.
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
 # ============ other settings ============
 LANGUAGE_CODE = "ko-kr"
 TIME_ZONE = "Asia/Seoul"

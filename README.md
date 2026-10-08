@@ -13,7 +13,7 @@ backend/
   apps/families/        Family room models and APIs
   apps/posts/           Photo posts and family feed
   apps/{replies,digests}/  Feature TODOs
-  integrations/ai/      AI integration TODOs
+  integrations/ai/      AI adapter for viewer-specific post messages
   developer/            Developer tools and sample data TODOs
   media/                Image storage (placeholder)
 ```
@@ -69,8 +69,10 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `POST /api/posts/` | Creates a post from `image` and optional `caption`; returns the new post (200). |
 | `GET /api/posts/<id>/` | Returns a post in the current family room. |
 | `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
+| `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
+| `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
 
-Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Comment counts and lists are empty until the replies feature is added.
+Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Comment counts and lists are empty until the replies feature is added.
 
 ## Iteration 1 - TODO
 
