@@ -33,6 +33,9 @@ def post_for(request, pk):
 def serialize(post, request):
     image_path = f"/api/posts/{post.pk}/image/"
     origin = settings.PUBLIC_ORIGIN
+    comment_count = getattr(post, "comment_count", None)
+    if comment_count is None:
+        comment_count = post.comments.count()
     return {
         "id": post.pk,
         "author_id": post.author_id,
@@ -41,7 +44,7 @@ def serialize(post, request):
         "created_at": timezone.localtime(post.created_at).isoformat(),
         "image_url": origin + image_path if origin else request.build_absolute_uri(image_path),
         "caption": post.caption,
-        "comment_count": 0,
+        "comment_count": comment_count,
     }
 
 

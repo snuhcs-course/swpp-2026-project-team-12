@@ -53,3 +53,13 @@ def body(request):
     if not isinstance(data, dict):
         raise APIError("입력한 내용을 다시 확인해 주세요.")
     return data
+
+
+def required(data, key, max_length=60):
+    raw = data.get(key, "")
+    if not isinstance(raw, str):
+        raise APIError("입력한 내용을 다시 확인해 주세요.")
+    value = raw.strip()
+    if not value or len(value) > max_length:
+        raise APIError("입력한 내용을 다시 확인해 주세요.")
+    return value

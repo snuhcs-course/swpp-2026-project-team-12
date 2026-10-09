@@ -12,7 +12,8 @@ backend/
   apps/accounts/        Account registration and authentication
   apps/families/        Family room models and APIs
   apps/posts/           Photo posts and family feed
-  apps/{replies,digests}/  Feature TODOs
+  apps/replies/         Text comments; voice replies planned
+  apps/digests/         Daily digest TODO
   integrations/ai/      AI adapter for viewer-specific post messages
   integrations/speech/  ElevenLabs speech playback for adapted messages
   developer/            Developer tools and sample data TODOs
@@ -72,8 +73,9 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
+| `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
-Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Comment counts and lists are empty until the replies feature is added.
+Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
 
 ### Speech API
 

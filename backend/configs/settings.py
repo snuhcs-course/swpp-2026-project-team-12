@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.families",
     "apps.posts",
+    "apps.replies",
 ]
 MIDDLEWARE = []
 ROOT_URLCONF = "configs.urls"
