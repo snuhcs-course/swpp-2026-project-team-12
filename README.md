@@ -110,7 +110,3 @@ python backend/manage.py run_digest_scheduler
 python backend/manage.py run_digest_scheduler --once
 ```
 
-## Iteration 1 - TODO
-
-## Iteration 1 - Limitations
-
