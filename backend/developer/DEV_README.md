@@ -6,7 +6,7 @@ backend\developer\samples
 ```
 
 ## Developer tests
-Run the account, family, and post API/model tests from the repository root:
+Run the account, family, post, and speech API/model tests from the repository root:
 
 ```bash
 python backend/manage.py test developer.test_codes
@@ -48,6 +48,13 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 - `test_ai_provider_rejects_incomplete_response`: Checks that an incomplete response does not become a ready message.
 - `test_grandma_post_summaries`: Recreates the family from `test_families.py`, uploads the two sample images as 정아, and requests AI summaries as 경자. It calls OpenAI by default; `MOCK_AI_TESTS=1` uses two fixed responses instead.
 
+### 4. `test_codes\test_speech.py`
+
+- `test_speech_request_and_room_cache`: Checks the ElevenLabs request, MP3 response, and reuse of cached audio within a family room. The provider call is mocked.
+- `test_grandma_post_summaries_are_spoken_live`: Recreates the seven-member family and two posts from the post tests, gets 경자's summaries, and sends both to the real ElevenLabs TTS API on every run. It saves MP3 files and `backend/developer/test_media/grandma_tts_report.html` for playback. OpenAI is live by default; `MOCK_AI_TESTS=1` uses fixed text while TTS stays live.
+- `test_speech_authentication_and_input_validation`: Rejects requests without a token or family membership, and invalid text or content type.
+- `test_speech_provider_failures_do_not_cache_audio`: Returns 503 for missing voice configuration or an invalid provider response without storing audio.
+
 ### Summary
 All tests use Django's temporary test database, which is deleted after the run. Post tests save converted images in `backend/developer/test_media/` and write `backend/developer/test_media/posts_report.html` with image previews and the saved post fields. Open that HTML file after the tests; the CLI prints its relative path.
 
@@ -58,3 +65,5 @@ $env:MOCK_AI_TESTS = "1"
 python backend/manage.py test developer.test_codes.test_posts.PostAPITests.test_grandma_post_summaries
 Remove-Item Env:MOCK_AI_TESTS
 ```
+
+The speech test requires `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`. It calls ElevenLabs twice per run and writes `grandma_post_1_tts.mp3`, `grandma_post_2_tts.mp3`, and `grandma_tts_report.html` under `backend/developer/test_media/`. Its audio cache is new for each run, so repeated test runs generate fresh speech. With live AI enabled, this test also makes two OpenAI requests. Without speech credentials the live test is skipped; the other speech tests use mocked provider responses.
