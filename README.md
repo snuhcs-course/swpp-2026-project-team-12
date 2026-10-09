@@ -3,6 +3,11 @@ AI-Powered Family Communication Manager (SNU SWPP 2026)
 
 A mobile app for Korean families to share photos and updates with older adults, listen to AI-adapted messages, send voice replies, and review summaries.
 
+## Demo Video
+
+- [Iteration 1 demo video, 정아's view](./T12_demo_video_1.mp4)
+- [Iteration 1 demo video, 할머니's view](./T12_demo_video_2.mp4)
+
 ## Structure
 
 ```text
