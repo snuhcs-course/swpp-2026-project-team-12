@@ -19,8 +19,20 @@ backend/developer/family_tree.html
 documents/*
 
 # Android / local build outputs
+.idea/
 client/.gradle/
 client/.kotlin/
 client/**/build/
 client/local.properties
-*.apk
+
+# Keep only the installable debug APK from Android build outputs
+!client/app/build/
+client/app/build/*
+!client/app/build/outputs/
+client/app/build/outputs/*
+!client/app/build/outputs/apk/
+client/app/build/outputs/apk/*
+!client/app/build/outputs/apk/debug/
+client/app/build/outputs/apk/debug/*
+!client/app/build/outputs/apk/debug/app-debug.apk
+!client/app/build/outputs/apk/debug/app.apk
