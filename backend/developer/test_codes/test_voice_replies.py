@@ -2,6 +2,7 @@ import io
 import json
 import tempfile
 import wave
+from datetime import datetime, time, timedelta
 from html import escape
 from pathlib import Path
 from unittest.mock import patch
@@ -12,6 +13,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
+from apps.digests.models import Digest
 from apps.families.models import FamilyRoom, Membership
 from apps.posts.models import Post
 from apps.replies.models import Comment, VoiceDraft
@@ -177,6 +179,28 @@ class VoiceReplyAPITests(TestCase):
             summaries[post_id] = message.json()["text"]
             self.assertTrue(summaries[post_id].strip())
 
+        digest_date = timezone.localdate() - timedelta(days=1)
+        digest_cutoff = timezone.make_aware(datetime.combine(digest_date, time(21)))
+        Post.objects.filter(pk=game_id).update(created_at=digest_cutoff - timedelta(minutes=30))
+        Post.objects.filter(pk=self.post.pk).update(created_at=digest_cutoff - timedelta(minutes=20))
+        self.post.refresh_from_db()
+        digest_response = self.client.get(
+            f"/api/digests/?date={digest_date.isoformat()}", **self.auth(self.grandma_token)
+        )
+        self.assertEqual(digest_response.status_code, 200, digest_response.content)
+        digest = digest_response.json()
+        self.assertEqual(digest["status"], "ready", digest)
+        self.assertCountEqual([post["id"] for post in digest["posts"]], [game_id, self.post.pk])
+        self.assertTrue(digest["text"].strip())
+        saved_digest = Digest.objects.get(room=self.post.room, date=digest_date)
+        self.assertEqual(saved_digest.text, digest["text"])
+        with patch.object(ai_provider, "summarize") as summarize:
+            cached = self.client.get(
+                f"/api/digests/?date={digest_date.isoformat()}", **self.auth(self.grandma_token)
+            )
+        self.assertEqual(cached.json(), digest)
+        summarize.assert_not_called()
+
         entries = (
             ("sample_img_1.png", Post.objects.get(pk=game_id), game_comment, ""),
             ("sample_img_2.png", self.post, paper_comment, recognized),
@@ -212,8 +236,12 @@ class VoiceReplyAPITests(TestCase):
             'img{max-width:240px;object-fit:contain}audio{display:block;margin-top:1rem}'
             'table{border-collapse:collapse;width:100%;margin-top:1rem}'
             'th,td{border:1px solid #ccc;padding:.5rem;text-align:left;overflow-wrap:anywhere}'
+            '.digest{white-space:pre-wrap;border:1px solid #ccc;padding:1rem}'
             '</style></head><body><h1>정아의 게시글, 경자 관점 요약, 댓글</h1>'
             + "".join(cards)
+            + f'<section><h2>{digest_date.isoformat()} 가족의 하루 요약</h2>'
+            f'<p>포함된 게시글: {escape(entries[0][1].caption)} / {escape(entries[1][1].caption)}</p>'
+            f'<p class="digest">{escape(digest["text"])}</p></section>'
             + '<h2>테스트 DB의 게시글·댓글</h2><table><thead><tr>'
             '<th>Post ID</th><th>Room</th><th>Author</th><th>Caption</th>'
             '<th>Image path</th><th>Created at</th><th>Comment ID</th><th>Source</th>'
@@ -223,6 +251,7 @@ class VoiceReplyAPITests(TestCase):
         print(f"Paper STT recognized: {recognized}", flush=True)
         print(f"Paper voice reply: {paper_comment.text}", flush=True)
         print(f"Game text reply: {game_comment.text}", flush=True)
+        print(f"Two-post daily digest: {digest['text']}", flush=True)
         print(f"Grandma report: {GRANDMA_REPORT.relative_to(settings.BASE_DIR.parent).as_posix()}", flush=True)
 
     @override_settings(ELEVENLABS_API_KEY="test-only", ELEVENLABS_STT_MODEL="scribe_v2")
