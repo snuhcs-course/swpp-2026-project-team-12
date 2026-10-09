@@ -6,7 +6,7 @@ A mobile app for Korean families to share photos and updates with older adults, 
 ## Structure
 
 ```text
-client/                 Android app (placeholder)
+client/                 Kotlin Android app (accounts, family, posts, voice, digest)
 backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
@@ -33,6 +33,9 @@ The server reads process environment variables in `.env`.
 python backend/manage.py migrate
 python backend/manage.py runserver 127.0.0.1:8000
 ```
+
+Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
+
 ## APIs
 ### Account APIs
 
