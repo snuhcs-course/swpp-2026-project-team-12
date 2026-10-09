@@ -13,7 +13,7 @@ backend/
   apps/families/        Family room models and APIs
   apps/posts/           Photo posts and family feed
   apps/replies/         Text comments and reviewed voice replies
-  apps/digests/         Daily digest TODO
+  apps/digests/         Daily summaries and scheduler
   integrations/ai/      AI adapter for viewer-specific post messages
   integrations/speech/  ElevenLabs speech playback and voice recognition
   developer/            Developer tools and sample data TODOs
@@ -92,6 +92,23 @@ Voice replies use three authenticated requests for a post in the user's family r
 | `POST /api/replies/<draft_id>/send/` | None | Publishes the reviewed draft as a voice-sourced comment. Repeating this request returns the same comment. |
 
 The client should show `converted` to the user before sending. Set `ELEVENLABS_API_KEY` and `OPENAI_API_KEY` on the backend; `ELEVENLABS_STT_MODEL` defaults to `scribe_v2`. Uploaded recordings are sent to ElevenLabs and are not stored by the backend.
+
+### Daily Digest APIs
+
+Daily digests summarize posts in one family room from the previous digest time up to the chosen day's digest time (exclusive), using Asia/Seoul time. The default time is 21:00 and the room owner can change it through `PATCH /api/families/current/`. Set `OPENAI_API_KEY` for nonempty summaries.
+
+| Endpoint | Result |
+| --- | --- |
+| `GET /api/digests/?date=YYYY-MM-DD` | Returns the room's digest for that date, or `pending` before its scheduled time. Omitting `date` selects today in Korea. |
+| `POST /api/digests/` | With JSON `{"date": "YYYY-MM-DD"}`, retries a failed digest. |
+| `GET /api/digests/history/` | Lists dates with posts or saved digests, plus today. |
+
+Digest responses include `date`, `status` (`pending`, `processing`, `ready`, `empty`, or `failed`), `text`, `digest_time`, and the included `posts`. Completed summaries are cached. To play a ready digest, send its text to the existing `POST /api/speech/` endpoint. Start the scheduler as a separate process after migration; it checks rooms every 30 seconds. Use `--once` for one pass:
+
+```bash
+python backend/manage.py run_digest_scheduler
+python backend/manage.py run_digest_scheduler --once
+```
 
 ## Iteration 1 - TODO
 
