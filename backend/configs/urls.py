@@ -5,6 +5,7 @@ from apps.accounts import views as accounts
 from apps.families import views as families
 from apps.posts import views as posts
 from apps.replies import views as replies
+from apps.digests import views as digests
 from integrations.speech import views as speech
 
 def test_reply(request):
@@ -30,4 +31,6 @@ urlpatterns = [
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),
     path("api/speech/", speech.speak, name="speech"),
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),
+    path("api/digests/", digests.daily, name="digest-daily"),
+    path("api/digests/history/", digests.history, name="digest-history"),
 ]

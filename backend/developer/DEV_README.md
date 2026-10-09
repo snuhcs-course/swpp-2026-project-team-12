@@ -6,7 +6,7 @@ backend\developer\samples
 ```
 
 ## Developer tests
-Run the account, family, post, comment, speech, and voice reply API/model tests from the repository root:
+Run the account, family, post, comment, speech, voice reply, and digest API/model tests from the repository root:
 
 ```bash
 python backend/manage.py test developer.test_codes
@@ -63,7 +63,7 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 ### 6. `test_codes\test_voice_replies.py`
 
 - `test_stt_review_and_send_creates_one_comment`: Uploads `samples/sample_reply_2.m4a` to the mocked STT provider, prepares a draft for 경자 to review, and sends it as one voice comment on 정아's paper post. Checks repeated sends do not duplicate the comment.
-- `test_sample_replies_use_text_for_game_and_live_stt_for_paper`: Posts both sample images as 정아. 경자 replies to the Pokémon post with text only and to the paper post by sending `sample_reply_2.m4a` through the real ElevenLabs STT and OpenAI draft API. It also requests both real OpenAI post summaries as 경자. The single `backend/developer/test_media/grandma_report.html` shows both posts, summaries, comments, STT text, the original recording, and saved database fields. Requires `ELEVENLABS_API_KEY` and `OPENAI_API_KEY`; skips without them.
+- `test_sample_replies_use_text_for_game_and_live_stt_for_paper`: Posts both sample images as 정아. 경자 replies to the Pokémon post with text only and to the paper post by sending `sample_reply_2.m4a` through the real ElevenLabs STT and OpenAI draft API. It requests both post summaries and a daily digest containing the two posts. The single `backend/developer/test_media/grandma_report.html` shows the posts, summaries, comments, digest, STT text, original recording, and saved database fields. Requires `ELEVENLABS_API_KEY` and `OPENAI_API_KEY`; skips without them.
 - `test_stt_provider_request_and_errors`: Checks the ElevenLabs STT request, Korean language setting, empty transcript, missing key, and invalid or oversized uploads with a mocked provider response.
 - `test_voice_reply_room_author_and_input_validation`: Rejects requests without authentication or room access, invalid recognized text, and attempts to send someone else's or an unknown draft.
 - `test_rewrite_failure_does_not_create_draft`: Confirms failed AI rewriting saves no draft and checks the rewrite prompt preserves the recognized message.
@@ -79,6 +79,25 @@ Run the two-post sample test with live STT and AI:
 ```bash
 python backend/manage.py test developer.test_codes.test_voice_replies.VoiceReplyAPITests.test_sample_replies_use_text_for_game_and_live_stt_for_paper
 ```
+
+### 7. `test_codes\test_digests.py`
+
+- `test_digest_waits_for_cutoff_and_caches_daily_window`: Checks that a digest starts only after its configured time, includes posts in the correct daily window, and reuses its saved summary.
+- `test_empty_window_reopens_only_after_later_cutoff`: Checks an empty digest can include late posts after the owner moves today's digest time later, without creating a second digest.
+- `test_completed_digest_keeps_its_original_window`: Checks that changing the room's digest time does not rewrite a completed summary.
+- `test_failed_digest_retries_only_on_post_and_keeps_window`: Checks a failed AI call stays failed on GET and retries on POST using the original post window.
+- `test_in_progress_digest_waits_and_stale_work_retries`: Avoids duplicate AI calls for active work and reclaims a task that has stalled for over two minutes.
+- `test_digest_api_history_room_isolation_and_bad_dates`: Checks returned posts, family room isolation, date history, authentication, and invalid dates.
+- `test_scheduler_once_is_repeatable`: Runs the scheduler twice and confirms it creates one summary.
+- `test_ai_summary_receives_post_text_and_image`: Checks the data passed to the OpenAI adapter with a mocked response.
+
+Run digest tests without external API calls:
+
+```bash
+python backend/manage.py test developer.test_codes.test_digests
+```
+
+To run the scheduler once after applying migrations, use `python backend/manage.py run_digest_scheduler --once`. Keep `python backend/manage.py run_digest_scheduler` running as a separate process for 30-second checks.
 
 ### Summary
 All tests use Django's temporary test database, which is deleted after the run. The two-post integration test writes the only HTML report, `backend/developer/test_media/grandma_report.html`, so the posts, 경자's summaries, and both kinds of comments appear together.
