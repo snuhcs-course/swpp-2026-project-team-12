@@ -4,10 +4,8 @@ import json
 import os
 from contextlib import nullcontext
 from datetime import timedelta
-from html import escape
 from pathlib import Path
 from unittest.mock import patch
-from urllib.parse import quote
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -23,81 +21,13 @@ from integrations.ai import provider
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[1] / "test_media"
-POST_REPORT = TEST_MEDIA_DIR / "posts_report.html"
-LIVE_POST_REPORT = TEST_MEDIA_DIR / "grandma_ai_report.html"
-MOCK_POST_REPORT = TEST_MEDIA_DIR / "grandma_mock_report.html"
 
 
 def sample_image(name="sample_img_1.png"):
     return SimpleUploadedFile(name, (SAMPLES_DIR / name).read_bytes(), content_type="image/png")
 
 
-def write_post_report(posts, report_path=POST_REPORT, summary_mode="live"):
-    rows = []
-    grandma_cards = []
-    for post in posts:
-        image_path = escape(quote(post["image"], safe="/"), quote=True)
-        cells = (
-            post["test"], post["id"], post["room_id"], post["room_name"],
-            post["author_id"], post["author_name"], post["image"],
-            post["caption"], post["created_at"],
-        )
-        rows.append(
-            "<tr>"
-            + f'<td><a href="{image_path}"><img src="{image_path}" alt="Post image"></a></td>'
-            + "".join(f"<td>{escape(str(value))}</td>" for value in cells)
-            + "</tr>"
-        )
-        if post.get("grandma_summary"):
-            grandma_cards.append(
-                '<article class="card">'
-                + f'<a href="{image_path}"><img src="{image_path}" alt="게시글 사진"></a>'
-                + '<div><h3>정아의 게시글</h3>'
-                + f'<p>{escape(post["caption"])}</p>'
-                + '<h3>경자(친할머니)가 보는 요약</h3>'
-                + f'<p>{escape(post["grandma_summary"])}</p></div>'
-                + '</article>'
-            )
-
-    grandma_section = (
-        "<h2>정아의 게시글 → 경자 관점 요약</h2>"
-        + ("<p>아래 요약은 경자 계정으로 요청한 실제 OpenAI 응답입니다.</p>"
-           if summary_mode == "live" else "<p>아래 요약은 테스트용 모의 응답입니다.</p>")
-        + "".join(grandma_cards)
-        if grandma_cards else ""
-    )
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(
-        "<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\">"
-        "<title>Post test DB</title>"
-        "<style>body{font:15px sans-serif;margin:2rem;color:#222}"
-        "table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:.6rem;"
-        "text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#f3f3f3}"
-        "img{max-width:180px;max-height:140px}td:nth-child(2){max-width:220px}"
-        ".card{display:flex;gap:1.5rem;align-items:start;border:1px solid #ccc;padding:1rem;"
-        "margin:1rem 0;max-width:780px}.card img{max-width:260px;max-height:220px}"
-        ".card h3{margin:.2rem 0}.card p{margin:.3rem 0 1rem}</style>"
-        "</head><body><h1>Post test DB</h1>"
-        "<p>Each test uses an isolated database, so post IDs may repeat. "
-        "This report shows rows captured during the latest test run.</p>"
-        + grandma_section
-        + "<h2>게시글 DB 행</h2>"
-        "<table><thead><tr><th>Preview</th><th>Test</th><th>ID</th><th>Room ID</th>"
-        "<th>Room</th><th>Author ID</th><th>Author</th><th>Image path</th>"
-        "<th>Caption</th><th>Created at</th></tr></thead><tbody>"
-        + "".join(rows)
-        + "</tbody></table></body></html>",
-        encoding="utf-8",
-    )
-
-
 class PostAPITests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.post_snapshots = []
-        cls.grandma_summary_mode = None
-
     def setUp(self):
         media_settings = override_settings(MEDIA_ROOT=TEST_MEDIA_DIR)
         media_settings.enable()
@@ -125,44 +55,6 @@ class PostAPITests(TestCase):
         self.relative_token = AccessToken.issue(self.relative)
         self.outsider_token = AccessToken.issue(self.outsider)
 
-    def tearDown(self):
-        for post in Post.objects.select_related("room", "author").order_by("pk"):
-            grandma_message = post.messages.filter(
-                viewer__display_name="경자", status="ready"
-            ).first()
-            type(self).post_snapshots.append({
-                "test": self._testMethodName,
-                "id": post.pk,
-                "room_id": post.room_id,
-                "room_name": post.room.name,
-                "author_id": post.author_id,
-                "author_name": post.author.display_name,
-                "image": post.image.name,
-                "caption": post.caption,
-                "grandma_summary": grandma_message.text if grandma_message else "",
-                "created_at": timezone.localtime(post.created_at).isoformat(timespec="seconds"),
-            })
-        super().tearDown()
-
-    @classmethod
-    def tearDownClass(cls):
-        write_post_report(cls.post_snapshots, summary_mode=cls.grandma_summary_mode)
-        if any(post["grandma_summary"] for post in cls.post_snapshots):
-            report = LIVE_POST_REPORT if cls.grandma_summary_mode == "live" else MOCK_POST_REPORT
-            write_post_report(cls.post_snapshots, report, summary_mode=cls.grandma_summary_mode)
-        super().tearDownClass()
-        print(
-            f"Post test DB and images ({len(cls.post_snapshots)} posts): "
-            f"{POST_REPORT.relative_to(settings.BASE_DIR.parent).as_posix()}",
-            flush=True,
-        )
-        if any(post["grandma_summary"] for post in cls.post_snapshots):
-            print(
-                f"Grandma {cls.grandma_summary_mode} AI report: "
-                f"{report.relative_to(settings.BASE_DIR.parent).as_posix()}",
-                flush=True,
-            )
-
     def auth(self, token):
         return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
 
@@ -176,7 +68,6 @@ class PostAPITests(TestCase):
 
     def test_grandma_post_summaries(self):
         use_mock = os.getenv("MOCK_AI_TESTS") == "1"
-        type(self).grandma_summary_mode = "mock" if use_mock else "live"
         if not use_mock and not settings.OPENAI_API_KEY:
             self.skipTest("Set OPENAI_API_KEY for live summaries, or MOCK_AI_TESTS=1 for fixed responses")
 
@@ -237,7 +128,7 @@ class PostAPITests(TestCase):
 
         feed = self.client.get("/api/posts/", **self.auth(grandma_token))
         self.assertEqual([post["relationship"] for post in feed.json()["posts"]], ["손녀", "손녀"])
-        print(f"Grandma {type(self).grandma_summary_mode} AI summaries test pass", flush=True)
+        print(f"Grandma {'mock' if use_mock else 'live'} AI summaries test pass", flush=True)
 
     def test_upload_converts_sample_and_returns_feed_and_detail(self):
         response = self.upload("오늘 산책했어요", sample_image("sample_img_1.png"))

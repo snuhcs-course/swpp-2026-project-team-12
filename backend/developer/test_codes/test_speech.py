@@ -3,7 +3,6 @@ import json
 import os
 import tempfile
 from contextlib import nullcontext
-from html import escape
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +18,6 @@ from .test_posts import sample_image
 
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[1] / "test_media"
-TTS_REPORT = TEST_MEDIA_DIR / "grandma_tts_report.html"
 
 
 class AudioResponse(io.BytesIO):
@@ -125,7 +123,6 @@ class SpeechAPITests(TestCase):
             patch("apps.posts.views.provider.adapt", side_effect=mock_summaries)
             if use_mock_ai else nullcontext()
         )
-        report_entries = []
         with ai_generation:
             for number, (image_name, caption) in enumerate((
                 ("sample_img_1.png", "포챔스에서 독개굴 이로치 잡았다~ 간지 ㅁㅌㅊ?"),
@@ -155,25 +152,7 @@ class SpeechAPITests(TestCase):
                 self.assertTrue(spoken.content)
                 audio_name = f"grandma_post_{number}_tts.mp3"
                 (TEST_MEDIA_DIR / audio_name).write_bytes(spoken.content)
-                report_entries.append((image_name, caption, summary, audio_name))
-
-        cards = "".join(
-            f'<article><img src="../samples/{escape(image_name, quote=True)}" alt="게시글 사진">'
-            f'<div><h2>정아의 게시글</h2><p>{escape(caption)}</p>'
-            f'<h2>경자 관점 요약</h2><p>{escape(summary)}</p>'
-            f'<audio controls src="{escape(audio_name, quote=True)}"></audio></div></article>'
-            for image_name, caption, summary, audio_name in report_entries
-        )
-        TTS_REPORT.write_text(
-            '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
-            '<title>Grandma TTS report</title><style>body{font:16px sans-serif;margin:2rem}'
-            'article{display:flex;gap:1.5rem;margin:1.5rem 0;padding:1rem;border:1px solid #ccc}'
-            'img{max-width:240px;object-fit:contain}audio{display:block;margin-top:1rem}</style>'
-            '</head><body><h1>정아의 게시글과 경자의 음성 요약</h1>'
-            + cards + '</body></html>',
-            encoding="utf-8",
-        )
-        print(f"Grandma live TTS test pass: {TTS_REPORT.relative_to(settings.BASE_DIR.parent).as_posix()}", flush=True)
+        print("Grandma live TTS test pass: grandma_post_1_tts.mp3, grandma_post_2_tts.mp3", flush=True)
 
     def test_speech_authentication_and_input_validation(self):
         self.assertEqual(self.client.post("/api/speech/").status_code, 401)
