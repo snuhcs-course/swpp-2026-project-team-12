@@ -6,7 +6,7 @@ backend\developer\samples
 ```
 
 ## Developer tests
-Run the account, family, post, and speech API/model tests from the repository root:
+Run the account, family, post, comment, and speech API/model tests from the repository root:
 
 ```bash
 python backend/manage.py test developer.test_codes
@@ -48,7 +48,12 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 - `test_ai_provider_rejects_incomplete_response`: Checks that an incomplete response does not become a ready message.
 - `test_grandma_post_summaries`: Recreates the family from `test_families.py`, uploads the two sample images as 정아, and requests AI summaries as 경자. It calls OpenAI by default; `MOCK_AI_TESTS=1` uses two fixed responses instead.
 
-### 4. `test_codes\test_speech.py`
+### 4. `test_codes\test_comments.py`
+
+- `test_comment_appears_in_post_detail_and_feed`: Adds a comment from 경자 to 정아's sample post, checks the saved comment, author relationship, detail list, and feed count.
+- `test_comments_reject_invalid_input_and_other_rooms`: Rejects unauthenticated or unrelated users, invalid JSON input, oversized text, and unknown posts.
+
+### 5. `test_codes\test_speech.py`
 
 - `test_speech_request_and_room_cache`: Checks the ElevenLabs request, MP3 response, and reuse of cached audio within a family room. The provider call is mocked.
 - `test_grandma_post_summaries_are_spoken_live`: Recreates the seven-member family and two posts from the post tests, gets 경자's summaries, and sends both to the real ElevenLabs TTS API on every run. It saves MP3 files and `backend/developer/test_media/grandma_tts_report.html` for playback. OpenAI is live by default; `MOCK_AI_TESTS=1` uses fixed text while TTS stays live.
