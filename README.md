@@ -113,3 +113,36 @@ python backend/manage.py run_digest_scheduler
 python backend/manage.py run_digest_scheduler --once
 ```
 
+## Iteration 1 - Limitations and TODO
+
+### Photos and feed
+
+- [ ] **Edit a published photo:** A post currently stores one image (`Post.image`), and there is no update API. Design and implement a way to replace or remove a photo after publication. This is separate from choosing a different photo before posting.
+- [ ] **Upload multiple photos:** Add a data model, upload API, and feed/detail navigation for multiple photos in one post.
+- [ ] **Decide how photos should open and fit:** Tapping a feed photo currently opens the detail or listening screen, with no full-screen view. Compare full-screen viewing, aspect-ratio preservation, and square frames with padding on real phones.
+
+### Older adult experience and accessibility
+
+- [ ] **Shorten the path to comments:** In the large-text feed, users must open the listening and reply screen before they can start a voice reply. Place text and voice comment options closer to the post, then test whether older adults can find them unaided.
+- [ ] **Consolidate audio controls:** Playback and stop, as well as recording start and finish, use separate buttons or actions. Use a single control that clearly reflects the current state, and test playback, recording, and error states.
+- [ ] **Continue usability testing:** Check button size, wording, wait times, and recovery from mistakes in addition to text size. Record daily use and feedback.
+
+### Accounts and family relationships
+
+- [ ] **Edit account details:** The account API currently supports registration, login, logout, and read-only profile access. Define which fields can change (name, gender used for relationship labels, and password), the reauthentication rules, and the corresponding screen and API.
+- [ ] **Expand the relationship model:** Relationships are computed from eight fixed slots around the room owner. Some relationships between non-owner members display only “family,” and a second person cannot join the same slot (for example, a second son). Model relationships explicitly and revise display rules (see `backend/apps/families/`).
+
+### AI messages and speech
+
+- [ ] **Add family context to adapted messages:** The current adaptation receives only the author's name, relationship, caption, and photo. Define how to explain family members and unfamiliar terms (such as game jargon) to older adults. Evaluate accuracy, context length, and cost. Explicit prompt caching and context compression are not implemented.
+- [ ] **Improve voice reply rewriting:** `rewrite(recognized, name)` receives only the transcribed words and post author's name. Add relevant family relationships and forms of address, and test whether names, numbers, negation, and conditions retain their meaning. Measure Korean proper-name errors in STT separately.
+- [ ] **Personalize and evaluate TTS:** The TTS voice ID and model are server-wide settings; only the cache key is separated by family room. Compare Korean pronunciation and speaking speed across models, then add a stored voice preference for each listener.
+- [ ] **Decide whether to share original recordings:** Voice replies currently publish the STT/LLM-converted **text comment**, not the recording. Use requirements and user testing to decide whether families should hear the original audio; if so, design storage and playback.
+- [ ] **Define an evaluation plan for the main AI feature:** Choose a primary problem, such as name recognition or family-context delivery, and create test cases, metrics, and model/prompt comparisons. Build a reusable test bed from observed failures.
+
+## AI-Collaboration-Report
+
+AI generated the project's code. Because this applies to nearly the entire codebase, we disclose it here instead of adding AI attribution comments to individual files. The team provided detailed requirements for each app's responsibilities, module boundaries, and refactoring, then read and reviewed the generated code. Issues found during that review informed much of the [Iteration 1 limitations and TODO list](#iteration-1---limitations-and-todo).
+
+See the [AI Collaboration Report](https://github.com/DaehyeopKim/SWPP_team12/wiki/AI-Collaboration-Report) for more details.
+
