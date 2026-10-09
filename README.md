@@ -14,8 +14,9 @@ backend/
   apps/posts/           Photo posts and family feed
   apps/{replies,digests}/  Feature TODOs
   integrations/ai/      AI adapter for viewer-specific post messages
+  integrations/speech/  ElevenLabs speech playback for adapted messages
   developer/            Developer tools and sample data TODOs
-  media/                Image storage (placeholder)
+  media/                Uploaded images and cached speech
 ```
 
 ## Quick Start
@@ -73,6 +74,10 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
 
 Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Comment counts and lists are empty until the replies feature is added.
+
+### Speech API
+
+After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the backend; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
 
 ## Iteration 1 - TODO
 

@@ -4,6 +4,7 @@ from django.urls import path
 from apps.accounts import views as accounts
 from apps.families import views as families
 from apps.posts import views as posts
+from integrations.speech import views as speech
 
 def test_reply(request):
     return JsonResponse({"status": "ok"})
@@ -23,4 +24,5 @@ urlpatterns = [
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
     path("api/posts/<int:pk>/message/", posts.message, name="post-message"),
+    path("api/speech/", speech.speak, name="speech"),
 ]
