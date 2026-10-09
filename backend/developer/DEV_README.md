@@ -41,5 +41,20 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 - `test_photo_requires_membership_and_stays_within_room`: Checks image authentication and isolation between family rooms.
 - `test_invalid_uploads_do_not_create_posts`: Rejects missing, invalid, oversized images and overly long captions.
 - `test_image_url_uses_configured_public_origin`: Checks the absolute photo URL used for a public HTTPS backend.
+- `test_message_is_private_and_cached_per_viewer`: Checks room access, viewer-specific AI messages, and reuse of cached results.
+- `test_message_failure_requires_explicit_retry`: Checks the missing-key failure and retry only on POST.
+- `test_message_processing_is_claimed_once_and_stale_work_retries`: Checks in-progress and timed-out message generation.
+- `test_ai_provider_sends_photo_and_caption_and_reads_completed_text`: Mocks the OpenAI response and checks the image, caption, model, and result parsing without a live API call.
+- `test_ai_provider_rejects_incomplete_response`: Checks that an incomplete response does not become a ready message.
+- `test_grandma_post_summaries`: Recreates the family from `test_families.py`, uploads the two sample images as 정아, and requests AI summaries as 경자. It calls OpenAI by default; `MOCK_AI_TESTS=1` uses two fixed responses instead.
 
-All tests use Django's temporary test database, which is deleted after the run. Post tests save converted images in `backend/developer/test_media/` and write `backend/developer/test_media/posts_report.html` with image previews and the saved post fields. Open that HTML file after the tests; the CLI prints its relative path. 
+### Summary
+All tests use Django's temporary test database, which is deleted after the run. Post tests save converted images in `backend/developer/test_media/` and write `backend/developer/test_media/posts_report.html` with image previews and the saved post fields. Open that HTML file after the tests; the CLI prints its relative path.
+
+With `OPENAI_API_KEY` configured, an ordinary post test run makes two billable OpenAI requests and writes `backend/developer/test_media/grandma_ai_report.html`. To use fixed responses and write `backend/developer/test_media/grandma_mock_report.html` instead:
+
+```powershell
+$env:MOCK_AI_TESTS = "1"
+python backend/manage.py test developer.test_codes.test_posts.PostAPITests.test_grandma_post_summaries
+Remove-Item Env:MOCK_AI_TESTS
+```

@@ -22,4 +22,5 @@ urlpatterns = [
     path("api/posts/", posts.feed, name="post-feed"),
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
+    path("api/posts/<int:pk>/message/", posts.message, name="post-message"),
 ]
