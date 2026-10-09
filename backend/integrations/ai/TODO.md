@@ -1,7 +1,7 @@
 # TODO
 
-The Responses API adapter currently creates viewer-specific post messages from a photo and caption.
+The Responses API adapter creates viewer-specific post messages from a photo and caption and rewrites recognized voice replies.
 
-Add reply rewriting when voice replies are implemented, and daily post summarization when digests are implemented.
+Add daily post summarization when digests are implemented.
 
 (important, key feature) Add more spefici family contex.

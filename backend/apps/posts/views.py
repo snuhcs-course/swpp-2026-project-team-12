@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.http import FileResponse
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api import APIError, api
@@ -16,7 +16,7 @@ from .services import current_room, post_for, prepare_image, serialize
 def feed(request):
     room = current_room(request)
     if request.method == "GET":
-        posts = room.posts.select_related("author")[:100]
+        posts = room.posts.select_related("author").annotate(comment_count=Count("comments"))[:100]
         return {"posts": [serialize(post, request) for post in posts]}
 
     caption = request.POST.get("caption", "").strip()
@@ -30,7 +30,20 @@ def feed(request):
 @api("GET")
 def detail(request, pk):
     post = post_for(request, pk)
-    return {**serialize(post, request), "comments": []}
+    return {
+        **serialize(post, request),
+        "comments": [
+            {
+                "id": comment.pk,
+                "author_name": comment.author.display_name,
+                "relationship": relationship(request.user, comment.author, post.room),
+                "text": comment.text,
+                "source": comment.source,
+                "created_at": timezone.localtime(comment.created_at).isoformat(),
+            }
+            for comment in post.comments.select_related("author")
+        ],
+    }
 
 
 @api("GET")

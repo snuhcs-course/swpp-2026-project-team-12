@@ -1,6 +1,3 @@
 # TODO
 
-Implement the voice reply experience, including review and sending.
-
-The owner may choose the data model, API, file layout, and implementation approach.
-This directory is a placeholder, not a registered Django app.
+Text comments and the STT → AI draft → reviewed voice reply flow are implemented. Connect recording and draft review in the Android client.

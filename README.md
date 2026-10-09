@@ -12,9 +12,10 @@ backend/
   apps/accounts/        Account registration and authentication
   apps/families/        Family room models and APIs
   apps/posts/           Photo posts and family feed
-  apps/{replies,digests}/  Feature TODOs
+  apps/replies/         Text comments and reviewed voice replies
+  apps/digests/         Daily digest TODO
   integrations/ai/      AI adapter for viewer-specific post messages
-  integrations/speech/  ElevenLabs speech playback for adapted messages
+  integrations/speech/  ElevenLabs speech playback and voice recognition
   developer/            Developer tools and sample data TODOs
   media/                Uploaded images and cached speech
 ```
@@ -72,12 +73,25 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
+| `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
-Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. Comment counts and lists are empty until the replies feature is added.
+Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
 
 ### Speech API
 
 After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the backend; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
+
+### Voice Reply APIs
+
+Voice replies use three authenticated requests for a post in the user's family room:
+
+| Endpoint | Request body | Result |
+| --- | --- | --- |
+| `POST /api/posts/<id>/replies/transcribe/` | `multipart/form-data` with `audio` (up to 5 MB; M4A/MP4, WAV, Ogg, or WebM) | Returns `recognized` text from ElevenLabs STT. |
+| `POST /api/posts/<id>/replies/prepare/` | JSON `{"recognized": "..."}` (up to 2,000 characters) | Rewrites the recognized speech with OpenAI and saves a draft; returns its `id`, `converted` text, and post details for review. |
+| `POST /api/replies/<draft_id>/send/` | None | Publishes the reviewed draft as a voice-sourced comment. Repeating this request returns the same comment. |
+
+The client should show `converted` to the user before sending. Set `ELEVENLABS_API_KEY` and `OPENAI_API_KEY` on the backend; `ELEVENLABS_STT_MODEL` defaults to `scribe_v2`. Uploaded recordings are sent to ElevenLabs and are not stored by the backend.
 
 ## Iteration 1 - TODO
 
