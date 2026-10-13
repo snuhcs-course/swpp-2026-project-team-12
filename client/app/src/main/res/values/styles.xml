@@ -1,0 +1,12 @@
+<resources>
+    <style name="Theme.TalkDock" parent="Theme.TalkDock.Base"/>
+    <style name="Theme.TalkDock.Base" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">@font/noto_kr</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:colorAccent">#2F5D4B</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+    </style>
+</resources>

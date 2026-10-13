@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+.venv/
+
+# Local database and uploaded files
+*.sqlite3
+*.sqlite3-*
+backend/media/*
+backend/developer/test_media/
+backend/developer/family_tree.html
+*.log
+
+# Context documents for each developer
+documents/*
+
+# Android / local build outputs
+.idea/
+client/.gradle/
+client/.kotlin/
+client/**/build/
+client/local.properties
+
+# Keep only the installable debug APK from Android build outputs
+!client/app/build/
+client/app/build/*
+!client/app/build/outputs/
+client/app/build/outputs/*
+!client/app/build/outputs/apk/
+client/app/build/outputs/apk/*
+!client/app/build/outputs/apk/debug/
+client/app/build/outputs/apk/debug/*
+!client/app/build/outputs/apk/debug/app-debug.apk
+!client/app/build/outputs/apk/debug/app.apk

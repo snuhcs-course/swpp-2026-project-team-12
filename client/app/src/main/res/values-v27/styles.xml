@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.TalkDock" parent="Theme.TalkDock.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>
