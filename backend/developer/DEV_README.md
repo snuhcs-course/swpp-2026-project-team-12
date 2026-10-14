@@ -12,6 +12,18 @@ Run the account, family, post, comment, speech, voice reply, and digest API/mode
 python backend/manage.py test developer.test_codes
 ```
 
+For family graph ingestion, run this in a separate terminal:
+
+```bash
+python backend/manage.py run_construction_worker --family-id 12
+```
+
+Add `--once` for one batch of up to 100 posts. This replaces `run_memory_worker`.
+Searching uses the Django process's
+shared thread pool automatically; it does not require a separate worker command.
+Run the mocked history and construction tests with
+`python backend/manage.py test developer.test_codes.test_searching`.
+
 ### 1. `test_codes\test_accounts.py`
 
 - `test_registration_creates_an_account_and_hashed_session`: Registers two accounts, checks password and token hashing, verifies `/me`, and confirms registration does not create a family room or membership.
@@ -44,7 +56,7 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 - `test_message_is_private_and_cached_per_viewer`: Checks room access, viewer-specific AI messages, and reuse of cached results.
 - `test_message_failure_requires_explicit_retry`: Checks the missing-key failure and retry only on POST.
 - `test_message_processing_is_claimed_once_and_stale_work_retries`: Checks in-progress and timed-out message generation.
-- `test_ai_provider_sends_photo_and_caption_and_reads_completed_text`: Mocks the OpenAI response and checks the image, caption, model, and result parsing without a live API call.
+- `test_ai_provider_sends_photo_and_caption_and_reads_completed_text`: Mocks OpenAI and Graphiti, then checks the full post API → worker → LLM → family-scoped search → LLM path, including image and caption retention.
 - `test_ai_provider_rejects_incomplete_response`: Checks that an incomplete response does not become a ready message.
 - `test_grandma_post_summaries`: Recreates the family from `test_families.py`, uploads the two sample images as 정아, and requests AI summaries as 경자. It calls OpenAI by default; `MOCK_AI_TESTS=1` uses two fixed responses instead.
 
@@ -66,7 +78,7 @@ After the family workflow tests, the CLI prints an owner-relative family graph w
 - `test_sample_replies_use_text_for_game_and_live_stt_for_paper`: Posts both sample images as 정아. 경자 replies to the Pokémon post with text only and to the paper post by sending `sample_reply_2.m4a` through the real ElevenLabs STT and OpenAI draft API. It requests both post summaries and a daily digest containing the two posts. The single `backend/developer/test_media/grandma_report.html` shows the posts, summaries, comments, digest, STT text, original recording, and saved database fields. Requires `ELEVENLABS_API_KEY` and `OPENAI_API_KEY`; skips without them.
 - `test_stt_provider_request_and_errors`: Checks the ElevenLabs STT request, Korean language setting, empty transcript, missing key, and invalid or oversized uploads with a mocked provider response.
 - `test_voice_reply_room_author_and_input_validation`: Rejects requests without authentication or room access, invalid recognized text, and attempts to send someone else's or an unknown draft.
-- `test_rewrite_failure_does_not_create_draft`: Confirms failed AI rewriting saves no draft and checks the rewrite prompt preserves the recognized message.
+- `test_rewrite_failure_does_not_create_draft`: Confirms failed AI rewriting saves no draft and checks the STT feature, family ID, and recognized message passed to the shared flow.
 
 Run the mocked voice reply tests without external API calls:
 
@@ -90,6 +102,7 @@ python backend/manage.py test developer.test_codes.test_voice_replies.VoiceReply
 - `test_digest_api_history_room_isolation_and_bad_dates`: Checks returned posts, family room isolation, date history, authentication, and invalid dates.
 - `test_scheduler_once_is_repeatable`: Runs the scheduler twice and confirms it creates one summary.
 - `test_ai_summary_receives_post_text_and_image`: Checks the data passed to the OpenAI adapter with a mocked response.
+- `test_summary_rejects_posts_from_different_families`: Rejects a mixed-family digest before calling the AI flow.
 
 Run digest tests without external API calls:
 

@@ -5,7 +5,8 @@ import os
 from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,7 +17,8 @@ from PIL import Image
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
 from apps.posts.models import AdaptedMessage, Post
-from integrations.ai import provider
+from integrations.ai import flow, provider
+from integrations.ai_workers import graphiti_client
 
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
@@ -262,34 +264,46 @@ class PostAPITests(TestCase):
     @override_settings(OPENAI_API_KEY="test-only", OPENAI_MODEL="gpt-4.1-mini")
     def test_ai_provider_sends_photo_and_caption_and_reads_completed_text(self):
         post_id = self.upload(caption="오늘 산책했어요").json()["id"]
-        response = {
-            "status": "completed",
-            "output": [{"type": "message", "content": [
-                {"type": "output_text", "text": "정아가 오늘 산책했어요."}
-            ]}],
-        }
-        with patch("urllib.request.urlopen", return_value=io.BytesIO(json.dumps(response).encode())) as call:
+        first = SimpleNamespace(status="completed", output_text="", output=[
+            SimpleNamespace(type="function_call", name="search_family_memory", call_id="relation",
+                            arguments=json.dumps({"query": "정아의 가족 관계"})),
+        ])
+        final = SimpleNamespace(status="completed", output_text="정아가 오늘 산책했어요.")
+        graph = SimpleNamespace(search=AsyncMock(return_value=[]))
+        with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, final])
             result = self.client.get(f"/api/posts/{post_id}/message/", **self.auth(self.relative_token))
         self.assertEqual(result.json(), {"text": "정아가 오늘 산책했어요.", "status": "ready"})
-        request = call.call_args.args[0]
-        self.assertEqual(request.full_url, "https://api.openai.com/v1/responses")
-        self.assertEqual(request.get_header("Authorization"), "Bearer test-only")
-        payload = json.loads(request.data)
+        graph.search.assert_awaited_once_with(
+            query="정아의 가족 관계", group_ids=[f"family_{self.room.pk}"], num_results=5,
+        )
+        close.assert_awaited_once_with(graph)
+        payload = client.responses.create.await_args_list[0].kwargs
         self.assertEqual(payload["model"], "gpt-4.1-mini")
         self.assertFalse(payload["store"])
+        self.assertIn("두 문장", payload["instructions"])
         content = payload["input"][0]["content"]
         self.assertIn("오늘 산책했어요", content[0]["text"])
         self.assertIn("어머니", content[0]["text"])
         self.assertEqual(content[1]["detail"], "low")
         self.assertTrue(base64.b64decode(content[1]["image_url"].split(",", 1)[1]).startswith(b"\xff\xd8"))
+        self.assertEqual(client.responses.create.call_args.kwargs["input"][0]["content"], content)
         print("Post AI provider request test pass", flush=True)
 
     @override_settings(OPENAI_API_KEY="test-only")
     def test_ai_provider_rejects_incomplete_response(self):
         post_id = self.upload().json()["id"]
-        with patch("urllib.request.urlopen", return_value=io.BytesIO(b'{"status":"incomplete","output":[]}')):
+        with patch.object(graphiti_client, "create_graphiti", return_value="graph"), \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="incomplete"))
             response = self.client.get(
                 f"/api/posts/{post_id}/message/", **self.auth(self.relative_token)
             )
         self.assertEqual(response.json(), {"text": "", "status": "failed"})
+        close.assert_awaited_once_with("graph")
         print("Post AI provider failure test pass", flush=True)
