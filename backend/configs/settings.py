@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.posts",
     "apps.replies",
     "apps.digests",
+    "apps.searching",
 ]
 MIDDLEWARE = []
 ROOT_URLCONF = "configs.urls"
@@ -82,6 +83,11 @@ MEDIA_URL = "/media/"
 # Account and family APIs can run without AI credentials. Providers validate keys when called.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", "gpt-4.1-mini")
+GRAPHITI_SEARCH_WORKERS = int(os.getenv("GRAPHITI_SEARCH_WORKERS", "4"))
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
+NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
 ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2")

@@ -20,7 +20,7 @@ def prepare(request, pk):
     post = post_for(request, pk)
     recognized = required(body(request), "recognized", 2000)
     try:
-        converted = provider.rewrite(recognized, post.author.display_name)
+        converted = provider.rewrite(recognized, post.author.display_name, family_id=post.room_id)
     except provider.AIUnavailable as error:
         raise APIError("댓글을 정리하지 못했어요. 다시 시도해 주세요.", 503) from error
     draft = VoiceDraft.objects.create(

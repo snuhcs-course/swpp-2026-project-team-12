@@ -6,6 +6,7 @@ from apps.families import views as families
 from apps.posts import views as posts
 from apps.replies import views as replies
 from apps.digests import views as digests
+from apps.searching import views as searching
 from integrations.speech import views as speech
 
 def test_reply(request):
@@ -33,4 +34,6 @@ urlpatterns = [
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),
     path("api/digests/", digests.daily, name="digest-daily"),
     path("api/digests/history/", digests.history, name="digest-history"),
+    path("api/searching/history/", searching.history, name="search-family-history"),
+    path("api/searching/memories/", searching.memories, name="search-family-memories"),
 ]
