@@ -1,0 +1,33 @@
+// Neo4j Desktop > Query > test 인스턴스 > neo4j DB > 실행 > Graph
+// 아래 쿼리를 하나씩 실행한다.
+
+// 1. 사람·반려동물·장소 등 엔티티 사이의 관계
+MATCH p=(a:Entity)-[r:RELATES_TO]->(b:Entity)
+WHERE a.group_id = 'family_900040'
+  AND r.group_id = 'family_900040'
+  AND b.group_id = 'family_900040'
+RETURN p
+LIMIT 300;
+
+// 2. 특정 사람 주변 관계만 보기
+MATCH p=(a:Entity)-[r:RELATES_TO]-(b:Entity)
+WHERE a.group_id = 'family_900040'
+  AND r.group_id = 'family_900040'
+  AND b.group_id = 'family_900040'
+  AND a.name CONTAINS '지민'
+RETURN p
+LIMIT 100;
+
+// 3. 게시글 원문(Episodic)과 등장 엔티티의 연결
+MATCH p=(e:Episodic)-[:MENTIONS]->(n:Entity)
+WHERE e.group_id = 'family_900040'
+  AND n.group_id = 'family_900040'
+RETURN p
+LIMIT 200;
+
+// 4. 관계의 실제 내용과 시간 보기 (Table)
+MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity)
+WHERE r.group_id = 'family_900040'
+RETURN a.name AS source, r.name AS relation, b.name AS target,
+       r.fact AS fact, r.valid_at AS valid_from, r.invalid_at AS valid_until
+ORDER BY source, relation;

@@ -231,11 +231,17 @@ class DigestAPITests(TestCase):
         print("Digest scheduler repeatability test pass", flush=True)
 
     def test_ai_summary_receives_post_text_and_image(self):
-        with patch.object(provider, "generate", return_value="가족의 하루") as generate:
+        with patch.object(provider, "answer_with_memory", return_value="가족의 하루") as answer:
             self.assertEqual(provider.summarize([self.post]), "가족의 하루")
-        self.assertIn("하루 요약", generate.call_args.args[0])
-        self.assertEqual(json.loads(generate.call_args.args[1]), [
+        self.assertEqual(answer.call_args.args[:2], ("digest", self.room.pk))
+        self.assertEqual(json.loads(answer.call_args.args[2]), [
             {"작성자": "정아", "원문": self.post.caption}
         ])
-        self.assertEqual(generate.call_args.args[2], [self.post.image])
+        self.assertEqual(answer.call_args.args[3], [self.post.image])
         print("Digest AI input test pass", flush=True)
+
+    def test_summary_rejects_posts_from_different_families(self):
+        with patch.object(provider, "answer_with_memory") as answer:
+            with self.assertRaises(provider.AIUnavailable):
+                provider.summarize([self.post, Post(room=self.other_room)])
+        answer.assert_not_called()

@@ -104,7 +104,7 @@ class VoiceReplyAPITests(TestCase):
                 f"/api/posts/{self.post.pk}/replies/prepare/", transcript.json()
             )
         self.assertEqual(prepared.status_code, 200)
-        rewrite.assert_called_once_with("정아 고생했다고 전해줘", "정아")
+        rewrite.assert_called_once_with("정아 고생했다고 전해줘", "정아", family_id=self.post.room_id)
         self.assertEqual(prepared.json()["converted"], "정아야, 고생 많았다.")
         self.assertEqual(prepared.json()["author_name"], "정아")
         draft = VoiceDraft.objects.get(pk=prepared.json()["id"])
@@ -316,10 +316,11 @@ class VoiceReplyAPITests(TestCase):
             self.assertEqual(self.json_post(path, {"recognized": "안녕"}).status_code, 503)
         self.assertFalse(VoiceDraft.objects.exists())
         self.assertFalse(Comment.objects.exists())
-        with patch.object(ai_provider, "generate", return_value="정아야, 고생 많았다.") as generate:
-            self.assertEqual(ai_provider.rewrite("정아 고생했다고 전해줘", "정아"), "정아야, 고생 많았다.")
-        self.assertIn("전달 요청", generate.call_args.args[0])
-        self.assertEqual(json.loads(generate.call_args.args[1]), {
+        with patch.object(ai_provider, "answer_with_memory", return_value="정아야, 고생 많았다.") as answer:
+            self.assertEqual(ai_provider.rewrite("정아 고생했다고 전해줘", "정아", family_id=self.post.room_id),
+                             "정아야, 고생 많았다.")
+        self.assertEqual(answer.call_args.args[:2], ("stt_correction", self.post.room_id))
+        self.assertEqual(json.loads(answer.call_args.args[2]), {
             "게시물 작성자": "정아", "인식된 말": "정아 고생했다고 전해줘"
         })
         print("Voice reply AI rewrite and failure test pass", flush=True)

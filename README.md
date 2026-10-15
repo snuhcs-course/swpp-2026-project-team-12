@@ -19,7 +19,9 @@ backend/
   apps/posts/           Photo posts and family feed
   apps/replies/         Text comments and reviewed voice replies
   apps/digests/         Daily summaries and scheduler
-  integrations/ai/      AI adapter for viewer-specific post messages
+  apps/searching/       Family history search and construction worker
+  integrations/ai/      LLM adapters and shared 2-way/3-way flow
+  integrations/ai_workers/ Graphiti construction, retrieval, and worker management
   integrations/speech/  ElevenLabs speech playback and voice recognition
   developer/            Developer tools and sample data TODOs
   media/                Uploaded images and cached speech
@@ -37,9 +39,41 @@ The server reads process environment variables in `.env`.
 ```bash
 python backend/manage.py migrate
 python backend/manage.py runserver 127.0.0.1:8000
+
+# Run Graphiti Construction Worker
+python backend/manage.py run_construction_worker --family-id 12
+# Note that Searching Workers are automatically started when the first searching occurs.
 ```
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
+
+## Graphiti family history
+
+Graphiti stores each family's post history in Neo4j. Start Neo4j and configure
+`OPENAI_API_KEY`, `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env`.
+
+### Construction (storing posts)
+
+Run this in a separate terminal for each family and keep it running:
+
+```powershell
+python backend/manage.py run_construction_worker --family-id 12
+```
+
+Uploading a post saves it to the app DB. The worker finds posts not yet stored in
+Graphiti, processes up to 100 author/caption records in creation order, then waits
+5 seconds before checking again. Uploads do not enqueue work directly.
+Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
+
+### Search (retrieving history)
+
+Search and AI requests submit work to a shared thread pool inside the Django
+process and wait for the result. Threads are reused across families, while each
+request searches only its own family's records. No separate search command is needed.
+
+Family history uses `search -> LLM`. Post summaries, voice reply rewriting, and
+daily digests use `LLM -> search -> LLM`, skipping retrieval when the LLM can answer
+from the current input alone.
 
 ## APIs
 ### Account APIs
