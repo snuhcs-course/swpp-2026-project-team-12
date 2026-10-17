@@ -12,7 +12,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-/** One square preview at a time, horizontal paging, and a thumbnail strip. */
+/** Photos retain their original aspect ratio, with horizontal paging and thumbnails. */
 class PhotoCarousel(
     context: Context,
     private val photoCount: Int,
@@ -43,16 +43,26 @@ class PhotoCarousel(
         private var flung = false
         init { isHorizontalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER }
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val side = View.MeasureSpec.getSize(widthMeasureSpec)
-            super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(side, View.MeasureSpec.EXACTLY))
+            val width = View.MeasureSpec.getSize(widthMeasureSpec)
+            val photo = (cards.getChildAt(currentIndex) as? ViewGroup)?.getChildAt(0) as? ImageView
+            val drawable = photo?.drawable
+            val height = if (drawable != null && drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
+                (width.toDouble() * drawable.intrinsicHeight / drawable.intrinsicWidth).roundToInt().coerceAtLeast(1)
+            } else width
+            for (i in 0 until cards.childCount) {
+                val card = cards.getChildAt(i)
+                if (card.layoutParams.width != width || card.layoutParams.height != height) {
+                    card.layoutParams = LinearLayout.LayoutParams(width, height)
+                }
+            }
+            super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
         }
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
             val selected = currentIndex
             super.onSizeChanged(w, h, oldw, oldh)
-            for (i in 0 until cards.childCount) {
-                cards.getChildAt(i).layoutParams = LinearLayout.LayoutParams(w, w)
+            if (w != oldw) {
+                post { if (width > 0) { scrollTo(selected * width, 0); updateIndex(selected) } }
             }
-            post { if (width > 0) { scrollTo(selected * width, 0); updateIndex(selected) } }
         }
         override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
             super.onScrollChanged(l, t, oldl, oldt)
@@ -79,7 +89,7 @@ class PhotoCarousel(
         require(photoCount > 0)
         orientation = VERTICAL
         for (index in 0 until photoCount) {
-            val card = FrameLayout(context).apply { background = ui.shape(ui.sage); clipToOutline = true }
+            val card = FrameLayout(context).apply { background = ui.shape(ui.paper); clipToOutline = true }
             val photo = ImageView(context).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = "사진 ${index + 1} / $photoCount" + if (open != null) ", 누르면 크게 보기" else ""
@@ -148,7 +158,7 @@ class PhotoCarousel(
     private fun updateIndex(index: Int) {
         val safe = index.coerceIn(0, photoCount - 1)
         if (safe != currentIndex) {
-            currentIndex = safe; render(); changed(safe)
+            currentIndex = safe; pager.requestLayout(); render(); changed(safe)
         }
     }
     private fun render() {
