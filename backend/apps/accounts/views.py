@@ -2,7 +2,7 @@ from django.http import JsonResponse
 
 from apps.api import api, body
 
-from .services import account_data, login_account, register_account
+from .services import account_data, login_account, register_account, update_account
 
 
 @api("POST", anonymous=True)
@@ -21,6 +21,8 @@ def logout(request):
     return {"ok": True}
 
 
-@api("GET")
+@api("GET", "PATCH")
 def me(request):
+    if request.method == "PATCH":
+        return update_account(request.user, body(request))
     return account_data(request.user)

@@ -313,6 +313,7 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "우리 가족 방 만들기") { create() }
         ui.button(content, "초대받은 방에 들어가기", false) { join() }
         ui.gap(content)
+        ui.button(content, "내 계정 수정", false) { editAccount() }
         ui.button(content, "다른 계정으로 로그인", false) { login() }
         if (BuildConfig.DEBUG) ui.button(content, "테스트 연결 설정", false) { connectionSettings() }
     }
@@ -332,7 +333,9 @@ class MainActivity : ComponentActivity() {
         navigation("계정 만들기", { welcome() }, name = "register")
         heading("먼저 내 계정을\n만들어 주세요.", "아이디와 비밀번호로 다음에도 로그인할 수 있어요.")
         val username = ui.input(content, "아이디", "로그인할 아이디", identifier = true)
-        val password = ui.input(content, "계정 비밀번호", "10자 이상", password = true)
+        ui.label(content, "비밀번호는 10~128자로 만들어 주세요.\n아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요.", 16f, color = ui.muted)
+        ui.gap(content)
+        val password = ui.input(content, "계정 비밀번호", "10~128자", password = true)
         val name = ui.input(content, "내 이름", "예: 홍정아")
         ui.label(content, "가족에게 표시할 관계", 16f, true)
         val genders = Spinner(this)
@@ -343,6 +346,10 @@ class MainActivity : ComponentActivity() {
             if (username.text.isBlank() || password.text.isBlank() || name.text.isBlank()) {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
             }
+            if (password.text.length !in 10..128) {
+                password.error = "비밀번호는 10~128자로 입력해 주세요."; return@button
+            }
+            if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
                 "name" to name.text.toString().trim(), "gender" to listOf("unknown", "male", "female")[genders.selectedItemPosition])
             val client = ApiClient(baseUrl = sessions.serverUrl())
@@ -902,6 +909,36 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun editAccount() {
+        val account = session ?: return login()
+        navigation("내 계정 수정", { if (room.has("id")) members() else roomChoice() }, name = "editAccount")
+        heading("내 정보를 수정해요.")
+        ui.label(content, "아이디: " + account.getString("username") + " · 변경할 수 없어요.", 16f, color = ui.muted)
+        ui.gap(content)
+        val name = ui.input(content, "이름", "가족에게 표시할 이름", initial = account.getString("name"))
+        name.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
+        ui.label(content, "비밀번호를 바꿀 때만 아래 두 칸을 입력해 주세요. 변경하면 다른 기기에서는 다시 로그인해야 해요.", 17f, color = ui.muted)
+        val current = ui.input(content, "현재 비밀번호", "변경할 때만 입력", password = true)
+        ui.label(content, "새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요. 최대 128자예요.", 16f, color = ui.muted)
+        val replacement = ui.input(content, "새 비밀번호", "10자 이상 · 숫자 포함", password = true)
+        ui.button(content, "수정 내용 저장하기") {
+            if (name.text.isBlank()) { name.error = "이름을 입력해 주세요."; return@button }
+            val changingPassword = current.text.isNotEmpty() || replacement.text.isNotEmpty()
+            if (changingPassword && (current.text.isEmpty() || replacement.text.length !in 10..128 || replacement.text.none { it in '0'..'9' })) {
+                replacement.error = "현재 비밀번호를 입력하고, 새 비밀번호는 10자 이상·숫자 포함으로 만들어 주세요."; return@button
+            }
+            val data = json("name" to name.text.toString().trim())
+            if (changingPassword) data.put("current_password", current.text.toString()).put("new_password", replacement.text.toString())
+            val client = api; val saved = JSONObject(account.toString()); val big = large
+            async({ client.request("accounts/me/", "PATCH", data) }) { updated ->
+                // Persist a rotated token before a separate room request can fail.
+                updated.keys().forEach { key -> saved.put(key, updated.get(key)) }
+                saveSession(saved, big); toast("계정 정보를 수정했어요.")
+                if (room.has("id")) members() else roomChoice()
+            }
+        }
+    }
+
     private fun members() {
         navigation("우리 가족", tab = 2, name = "members")
         val client = api
@@ -916,6 +953,7 @@ class MainActivity : ComponentActivity() {
                 content.addView(row); ui.gap(content, 12)
             }
             ui.gap(content)
+            ui.button(content, "내 계정 수정", false) { editAccount() }
             ui.button(content, "가족 초대하기", false) { invite() }
             ui.button(content, if (large) "기본 글씨로 보기" else "큰 글씨로 보기", false) {
                 saveSession(session!!, !large); members()

@@ -57,7 +57,7 @@ class Ui(val context: Context) {
     }
     fun input(parent: LinearLayout, title: String, hintText: String, password: Boolean = false, multiline: Boolean = false, initial: String = "", identifier: Boolean = false): EditText {
         label(parent, title, 16f, true); gap(parent, 8)
-        return EditText(context).apply {
+        val input = EditText(context).apply {
             hint = hintText; textSize = 18f; typeface = font
             fontVariationSettings = "'wght' 400"
             setTextColor(ink); setHintTextColor(muted)
@@ -74,6 +74,23 @@ class Ui(val context: Context) {
             parent.addView(this, LinearLayout.LayoutParams(-1, if (multiline) dp(128) else -2))
             gap(parent)
         }
+        if (password) {
+            input.transformationMethod = android.text.method.PasswordTransformationMethod.getInstance()
+            // Never save passwords in the view hierarchy state across recreation.
+            input.isSaveEnabled = false
+            parent.addView(CheckBox(context).apply {
+                text = "$title 보기"; textSize = 16f; typeface = font
+                minHeight = dp(48)
+                setOnCheckedChangeListener { _, checked ->
+                    val start = input.selectionStart.coerceAtLeast(0)
+                    val end = input.selectionEnd.coerceAtLeast(0)
+                    input.transformationMethod = if (checked) null else android.text.method.PasswordTransformationMethod.getInstance()
+                    input.setSelection(minOf(start, input.text.length), minOf(end, input.text.length))
+                }
+            })
+            gap(parent, 8)
+        }
+        return input
     }
     fun iconButton(symbol: String, description: String, action: () -> Unit): View = IconView(context, symbol, green).apply {
         contentDescription = description; isClickable = true; isFocusable = true
