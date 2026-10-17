@@ -46,6 +46,8 @@ def memory_context(memories):
                       for memory in memories], "sources": list(sources.values())}
 
 def two_way_ro_three_way(feature):
+    if feature == "post_summary":
+        return 1
     if feature == "family_history":
         return 2
     if feature in FEATURE_INSTRUCTIONS:
@@ -54,6 +56,9 @@ def two_way_ro_three_way(feature):
 
 
 def choose_instruciton(feature):
+    if feature in {"post_summary", "post_qa"}:
+        from . import prompts
+        return prompts.POST_SUMMARY if feature == "post_summary" else prompts.POST_QA + "\n" + prompts.POST_QA_RETRIEVAL
     if two_way_ro_three_way(feature) == 2:
         return HISTORY_INSTRUCTIONS
     return FEATURE_INSTRUCTIONS[feature] + RETRIEVAL_INSTRUCTIONS
@@ -61,6 +66,9 @@ def choose_instruciton(feature):
 
 async def answer_with_memory(search, text, feature, *, images=(), timings=None):
     """The search callback is bound to a family by the server, not the model."""
+    if feature in {"post_summary", "post_qa"}:
+        from .post_flow import answer
+        return await answer(search, text, feature, images=images, timings=timings)
     instructions = choose_instruciton(feature)
     two_way = two_way_ro_three_way(feature) == 2
     timings = timings if timings is not None else {}

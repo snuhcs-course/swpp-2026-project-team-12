@@ -32,11 +32,35 @@ def run_search(feature, family_id, value, *, images=()):
 
 
 def search_worker(feature, family_id, value, images=()):
+    if feature in {"post_summary", "post_qa"}:
+        return asyncio.run(post_answer(feature, family_id, value, images))
     from .graphiti_client import create_graphiti
 
     # A driver and its SDK client belong to this worker's event loop.
     graphiti = create_graphiti()
     return asyncio.run(search_and_close(graphiti, feature, family_id, value, images))
+
+
+async def post_answer(feature, family_id, value, images):
+    from integrations.ai.post_flow import answer
+    from integrations.ai.prompts import MAX_QUERIES
+    from .graphiti_client import create_graphiti, close_graphiti, family_group
+    from .searching_graphiti import search_many
+
+    family_group(family_id)
+    graphiti = None
+
+    async def search(queries):
+        nonlocal graphiti
+        if graphiti is None:
+            graphiti = create_graphiti()
+        return await search_many(graphiti, family_id, queries, max_queries=MAX_QUERIES)
+
+    try:
+        return await answer(search, value, feature, images=images)
+    finally:
+        if graphiti is not None:
+            await close_graphiti(graphiti)
 
 
 async def search_and_close(graphiti, feature, family_id, value, images=()):

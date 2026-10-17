@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
     path("api/posts/<int:pk>/message/", posts.message, name="post-message"),
+    path("api/posts/<int:pk>/questions/", posts.question, name="post-question"),
     path("api/posts/<int:pk>/comments/", replies.text_comment, name="post-comment"),
     path("api/posts/<int:pk>/replies/prepare/", replies.prepare, name="reply-prepare"),
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),

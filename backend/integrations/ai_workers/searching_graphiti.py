@@ -5,12 +5,15 @@ import asyncio
 from .graphiti_client import family_group
 
 
-async def search_many(graphiti, family_id, queries):
-    if not isinstance(queries, (list, tuple)) or not 1 <= len(queries) <= 3 or any(
+async def search_many(graphiti, family_id, queries, *, max_queries=3):
+    # Server-owned limit; never accept a query limit chosen by the model.
+    if type(max_queries) is not int or not 1 <= max_queries <= 5:
+        raise ValueError("검색 질문 상한은 1~5 사이 정수여야 합니다.")
+    if not isinstance(queries, (list, tuple)) or not 1 <= len(queries) <= max_queries or any(
         not isinstance(query, str) or not query.strip() or len(query) > 1000
         for query in queries
     ):
-        raise ValueError("검색 질문은 1~3개, 각 1,000자 이내로 입력하세요.")
+        raise ValueError(f"검색 질문은 1~{max_queries}개, 각 1,000자 이내로 입력하세요.")
     group_id = family_group(family_id)
     # Cancel sibling searches before their shared client is closed on failure.
     async with asyncio.TaskGroup() as group:

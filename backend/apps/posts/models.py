@@ -20,6 +20,7 @@ class AdaptedMessage(models.Model):
     viewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     text = models.TextField(blank=True)
     status = models.CharField(max_length=12, default="pending")
+    prompt_version = models.CharField(max_length=64, blank=True, default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
