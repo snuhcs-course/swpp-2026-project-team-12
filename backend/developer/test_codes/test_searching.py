@@ -182,7 +182,7 @@ class MemoryFlowTests(SimpleTestCase):
                 client = sdk.return_value.__aenter__.return_value
                 client.responses.create = AsyncMock(side_effect=[first, final])
                 result = await flow.answer_with_memory(
-                    partial(searching_graphiti.search_many, graph, 1), "가족 소식", "post_summary",
+                    partial(searching_graphiti.search_many, graph, 1), "가족 소식", "stt_correction",
                     images=[SimpleUploadedFile("photo.jpg", b"photo")],
                 )
                 inputs = client.responses.create.call_args.kwargs["input"]
@@ -190,7 +190,7 @@ class MemoryFlowTests(SimpleTestCase):
                 self.assertEqual([item["call_id"] for item in outputs], ["0", "1"])
                 self.assertEqual(len(result["memories"]), 1)
                 self.assertEqual(result["queries"], ["부모", "반려견"])
-                self.assertTrue(all(call.kwargs["instructions"].startswith(provider.FEATURE_INSTRUCTIONS["post_summary"])
+                self.assertTrue(all(call.kwargs["instructions"].startswith(provider.FEATURE_INSTRUCTIONS["stt_correction"])
                                     for call in client.responses.create.await_args_list))
                 self.assertEqual(inputs[0]["content"][1]["image_url"], "data:image/jpeg;base64,cGhvdG8=")
 
@@ -228,6 +228,8 @@ class MemoryFlowTests(SimpleTestCase):
     def test_three_way_can_answer_current_input_without_search(self):
         response = SimpleNamespace(status="completed", output=[], output_text="현재 입력만으로 답했어요.")
         for feature, instruction in provider.FEATURE_INSTRUCTIONS.items():
+            if feature in {"post_summary", "post_qa"}:
+                continue  # Dedicated post flow is covered in test_post_qa.py.
             with self.subTest(feature=feature), patch.object(flow, "AsyncOpenAI") as sdk:
                 search = AsyncMock()
                 client = sdk.return_value.__aenter__.return_value

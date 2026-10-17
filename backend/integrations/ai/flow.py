@@ -45,7 +45,9 @@ def memory_context(memories):
     return {"facts": [{key: value for key, value in memory.items() if key != "sources"}
                       for memory in memories], "sources": list(sources.values())}
 
-def two_way_ro_three_way(feature):
+def two_way_or_three_way(feature):
+    if feature == "post_summary":
+        return 1
     if feature == "family_history":
         return 2
     if feature in FEATURE_INSTRUCTIONS:
@@ -53,16 +55,22 @@ def two_way_ro_three_way(feature):
     raise ValueError("지원하지 않는 AI 기능이에요.")
 
 
-def choose_instruciton(feature):
-    if two_way_ro_three_way(feature) == 2:
+def choose_instruction(feature):
+    if feature in {"post_summary", "post_qa"}:
+        from . import prompts
+        return prompts.POST_SUMMARY if feature == "post_summary" else prompts.POST_QA + "\n" + prompts.POST_QA_RETRIEVAL
+    if two_way_or_three_way(feature) == 2:
         return HISTORY_INSTRUCTIONS
     return FEATURE_INSTRUCTIONS[feature] + RETRIEVAL_INSTRUCTIONS
 
 
 async def answer_with_memory(search, text, feature, *, images=(), timings=None):
     """The search callback is bound to a family by the server, not the model."""
-    instructions = choose_instruciton(feature)
-    two_way = two_way_ro_three_way(feature) == 2
+    if feature in {"post_summary", "post_qa"}:
+        from .post_flow import answer
+        return await answer(search, text, feature, images=images, timings=timings)
+    instructions = choose_instruction(feature)
+    two_way = two_way_or_three_way(feature) == 2
     timings = timings if timings is not None else {}
     timings.update(decision=0.0, search=0.0, answer=0.0)
     queries = [text]
