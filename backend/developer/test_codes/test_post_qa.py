@@ -147,15 +147,29 @@ class PostQATests(TestCase):
     def test_older_summary_cannot_overwrite_a_newer_claim(self):
         path = f"/api/posts/{self.post.pk}/message/"
 
-        def newer_request_finishes(*args):
-            AdaptedMessage.objects.filter(post=self.post, viewer=self.viewer).update(
-                text="새 요청의 답변", status="ready", updated_at=timezone.now() + timedelta(seconds=1)
-            )
-            return "늦게 도착한 이전 답변"
+        for newer_status in ("processing", "ready"):
+            for older_fails in (False, True):
+                with self.subTest(newer_status=newer_status, older_fails=older_fails):
+                    AdaptedMessage.objects.filter(post=self.post, viewer=self.viewer).delete()
+                    newer_claim_at = timezone.now() + timedelta(minutes=3)
+                    expected_text = "새 요청의 답변" if newer_status == "ready" else ""
 
-        with patch.object(provider, "adapt", side_effect=newer_request_finishes):
-            response = self.client.get(path, **self.auth)
-        self.assertEqual(response.json(), {"text": "새 요청의 답변", "status": "ready"})
+                    def newer_request_takes_over(*args):
+                        # Simulate a replacement claim after the two-minute lease expires.
+                        # The older provider then completes, either successfully or with an error.
+                        AdaptedMessage.objects.filter(post=self.post, viewer=self.viewer).update(
+                            text=expected_text, status=newer_status, updated_at=newer_claim_at
+                        )
+                        if older_fails:
+                            raise provider.AIUnavailable("Older generation timed out")
+                        return "늦게 도착한 이전 답변"
+
+                    with patch.object(provider, "adapt", side_effect=newer_request_takes_over):
+                        response = self.client.get(path, **self.auth)
+                    self.assertEqual(response.json(), {"text": expected_text, "status": newer_status})
+                    saved = AdaptedMessage.objects.get(post=self.post, viewer=self.viewer)
+                    self.assertEqual((saved.text, saved.status, saved.updated_at),
+                                     (expected_text, newer_status, newer_claim_at))
 
     def test_model_configuration_change_invalidates_summary_cache(self):
         path = f"/api/posts/{self.post.pk}/message/"
