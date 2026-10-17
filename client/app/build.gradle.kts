@@ -25,8 +25,10 @@ android {
     }
 }
 dependencies {
+    implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

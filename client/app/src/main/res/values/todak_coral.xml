@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TalkDock.Coral" parent="Theme.TalkDock">
+        <item name="android:colorAccent">#A64E44</item>
+        <item name="android:windowBackground">#FFFDF7</item>
+        <item name="android:statusBarColor">#FFFDF7</item>
+        <item name="android:navigationBarColor">#FFFDF7</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+</resources>

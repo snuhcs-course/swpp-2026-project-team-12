@@ -5,7 +5,7 @@
     <queries>
         <intent><action android:name="android.media.action.IMAGE_CAPTURE"/></intent>
     </queries>
-    <application android:label="토닥" android:theme="@style/Theme.TalkDock"
+    <application android:label="토닥" android:theme="@style/Theme.TalkDock.Coral"
         android:allowBackup="false" android:fullBackupContent="false"
         android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@drawable/ic_launcher"
         android:usesCleartextTraffic="${cleartextAllowed}" android:supportsRtl="true">
