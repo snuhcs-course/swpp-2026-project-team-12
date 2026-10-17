@@ -45,6 +45,21 @@ Before starting the updated backend:
 
 Migration `posts.0003_adaptedmessage_prompt_version` adds a cache version. Ready summaries from the old prompt regenerate on access. Failed requests still require explicit retry. An older timed-out request cannot overwrite a newer cache claim.
 
+## Compatibility with photo uploads and profile edits
+
+Summaries and follow-up questions receive all attached photos in upload order.
+Text-only posts pass an empty image list. The summary cache version includes the
+image-input policy so summaries created with only the first photo regenerate.
+
+When integrating the photo-upload branch, keep both existing `0003` migrations.
+`posts.0004_merge_post_photos_summary_cache` joins their histories without rewriting
+already-applied migrations. Run `migrate` to apply any missing photo/cache schema
+changes and record the merge; it also works if either `0003` is already applied.
+
+Summary writes must still match the processing status, claim timestamp, and
+prompt version. This retains protection against stale requests and profile edits
+that invalidate an explanation while generation is in progress.
+
 ## Verification
 
 From the repository root:

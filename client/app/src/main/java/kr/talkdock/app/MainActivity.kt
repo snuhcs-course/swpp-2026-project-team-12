@@ -3,6 +3,7 @@ package kr.talkdock.app
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Dialog
 import android.app.TimePickerDialog
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -22,6 +23,8 @@ import android.widget.*
 import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import kr.talkdock.app.data.*
 import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
@@ -60,6 +63,7 @@ class MainActivity : ComponentActivity() {
     private var foreground = false
     private var selectedPost: JSONObject? = null
     private var photo: File? = null
+    private val extraPhotos = mutableListOf<File>()
     private var pendingPhoto: File? = null
     private var caption = ""
     private var captionInput: EditText? = null
@@ -75,8 +79,22 @@ class MainActivity : ComponentActivity() {
     private val large get() = session?.optBoolean("large", false) ?: false
     private val api get() = ApiClient(session?.optString("token", "") ?: "", sessions.serverUrl())
     private val cameraCode = 10
-    private val galleryCode = 11
     private val microphoneCode = 12
+    private val photoPicker = registerForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(5)
+    ) { selected ->
+        val uris = selected.distinct()
+        if (uris.isEmpty()) return@registerForActivityResult
+        // The document-picker fallback on older devices cannot enforce maxItems.
+        if (uris.size > 5) {
+            toast("사진은 한 번에 5장까지 선택해 주세요.")
+            return@registerForActivityResult
+        }
+        async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.") { files ->
+            selectedPhotos().forEach { it.delete() }
+            photo = files.first(); extraPhotos.clear(); extraPhotos.addAll(files.drop(1)); composer()
+        }
+    }
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -102,6 +120,7 @@ class MainActivity : ComponentActivity() {
             }
         })
         photo = state?.getString("photo")?.let { File(it) }?.takeIf { it.exists() }
+        extraPhotos.addAll(state?.getStringArrayList("extraPhotos").orEmpty().map { File(it) }.filter { it.exists() })
         pendingPhoto = state?.getString("pendingPhoto")?.let { File(it) }
         caption = state?.getString("caption", "") ?: ""
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
@@ -119,6 +138,7 @@ class MainActivity : ComponentActivity() {
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
         out.putString("screen", screen); out.putString("photo", photo?.absolutePath)
+        out.putStringArrayList("extraPhotos", ArrayList(extraPhotos.map { it.absolutePath }))
         out.putString("pendingPhoto", pendingPhoto?.absolutePath)
         out.putString("caption", captionInput?.text?.toString() ?: caption)
         out.putString("post", selectedPost?.toString())
@@ -247,9 +267,10 @@ class MainActivity : ComponentActivity() {
         }
         dialog.show()
     }
-    private fun remotePhoto(view: ImageView, post: JSONObject) {
-        val url = post.getString("image_url")
+    private fun remotePhoto(view: ImageView, post: JSONObject, url: String = post.getString("image_url")) {
         val client = api; val key = client.token.hashCode().toString() + url; val number = pageNumber
+        view.tag = key
+        view.setImageDrawable(null)
         bitmaps.get(key)?.let { view.setImageBitmap(it); return }
         view.contentDescription = post.optString("author_name") + "님의 사진"
         images.execute {
@@ -258,7 +279,7 @@ class MainActivity : ComponentActivity() {
                 BitmapFactory.decodeByteArray(data, 0, data.size, BitmapFactory.Options().apply { inSampleSize = 2 })
             }.getOrNull()
             runOnUiThread {
-                if (number == pageNumber && !isDestroyed) {
+                if (number == pageNumber && !isDestroyed && view.tag == key) {
                     if (bitmap != null) { bitmaps.put(key, bitmap); view.setImageBitmap(bitmap) }
                     else {
                         view.contentDescription = "사진을 불러오지 못했어요."; view.setImageDrawable(null)
@@ -473,10 +494,7 @@ class MainActivity : ComponentActivity() {
             }
             posts.forEach { post ->
                 author(content, post)
-                val image = ui.photo(content, square = true)
-                remotePhoto(image, post)
-                image.isClickable = true; image.isFocusable = true
-                image.setOnClickListener { if (large) senior(post) else detail(post) }
+                postPhotos(content, post)
                 ui.gap(content, 14)
                 val text = post.optString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }
                 ui.label(content, text, if (large) 23f else 18f)
@@ -488,6 +506,68 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun photoItems(post: JSONObject): List<JSONObject> =
+        post.optJSONArray("images")?.let { objects(it) }?.takeIf { it.isNotEmpty() }
+            ?: listOf(json("url" to post.getString("image_url")))
+
+    private fun postPhotos(parent: LinearLayout, post: JSONObject) {
+        val photos = photoItems(post)
+        var index = 0
+        val image = ui.photo(parent, square = true).apply {
+            isClickable = true; isFocusable = true
+            setOnClickListener { fullPhoto(post, index) }
+        }
+        val label = ui.label(parent, "", if (large) 19f else 15f, color = ui.muted)
+        label.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        fun display() {
+            remotePhoto(image, post, photos[index].getString("url"))
+            image.contentDescription = post.optString("author_name") + "님의 사진 ${index + 1}/${photos.size}, 누르면 크게 보기"
+            label.text = "사진 ${index + 1} / ${photos.size} · 누르면 크게 보기"
+        }
+        if (photos.size > 1) {
+            val row = ui.row(); parent.addView(row)
+            lateinit var previous: Button; lateinit var next: Button
+            fun refresh() {
+                display(); previous.isEnabled = index > 0; next.isEnabled = index < photos.lastIndex
+                previous.alpha = if (previous.isEnabled) 1f else 0.4f
+                next.alpha = if (next.isEnabled) 1f else 0.4f
+            }
+            previous = ui.button(row, "이전 사진", false, 56) { if (index > 0) { index--; refresh() } }
+            next = ui.button(row, "다음 사진", false, 56) { if (index < photos.lastIndex) { index++; refresh() } }
+            previous.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(4) }
+            next.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(4) }
+            refresh()
+        } else display()
+    }
+
+    private fun fullPhoto(post: JSONObject, initial: Int = 0) {
+        val photos = photoItems(post); var index = initial.coerceIn(0, photos.lastIndex)
+        val dialog = Dialog(this)
+        val container = ui.column(16).apply { setBackgroundColor(Color.WHITE) }
+        val image = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER }
+        val label = ui.label(container, "", 20f, true)
+        container.addView(image, LinearLayout.LayoutParams(-1, 0, 1f))
+        val controls = ui.row(); container.addView(controls)
+        lateinit var previous: Button; lateinit var next: Button
+        fun refresh() {
+            remotePhoto(image, post, photos[index].getString("url"))
+            label.text = "사진 ${index + 1} / ${photos.size}"
+            previous.isEnabled = index > 0; next.isEnabled = index < photos.lastIndex
+            previous.alpha = if (previous.isEnabled) 1f else 0.4f
+            next.alpha = if (next.isEnabled) 1f else 0.4f
+        }
+        previous = ui.button(controls, "이전 사진", false) { if (index > 0) { index--; refresh() } }
+        next = ui.button(controls, "다음 사진", false) { if (index < photos.lastIndex) { index++; refresh() } }
+        previous.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(4) }
+        next.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(4) }
+        controls.visibility = if (photos.size > 1) View.VISIBLE else View.GONE
+        ui.button(container, "닫기") { dialog.dismiss() }
+        dialog.setContentView(container)
+        dialog.setOnDismissListener { image.tag = null }
+        dialog.show(); dialog.window?.setLayout(-1, -1)
+        refresh()
+    }
+
     private fun author(parent: LinearLayout, post: JSONObject) {
         val row = ui.row()
         val initials = post.getString("author_name").takeLast(2)
@@ -509,7 +589,7 @@ class MainActivity : ComponentActivity() {
         val client = api
         async({ client.request("posts/" + post.getInt("id") + "/") }) { data ->
             selectedPost = data; author(content, data)
-            remotePhoto(ui.photo(content, square = true), data); ui.gap(content)
+            postPhotos(content, data); ui.gap(content)
             ui.label(content, data.getString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 19f)
             ui.gap(content)
             ui.button(content, "소식 듣기", false) { senior(data) }
@@ -542,8 +622,11 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "사진첩에서 고르기", false) { launchGallery() }
     }
     private fun launchGallery() {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply { type = "image/*"; addCategory(Intent.CATEGORY_OPENABLE) }
-        runCatching { startActivityForResult(intent, galleryCode) }.onFailure { toast("사진첩을 열 수 없어요.") }
+        // Snapshot the caption before opening the external picker, including on rotation.
+        caption = captionInput?.text?.toString() ?: caption
+        runCatching {
+            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }.onFailure { toast("사진첩을 열 수 없어요.") }
     }
     private fun launchCamera() {
         val directory = File(filesDir, "camera").apply { mkdirs() }
@@ -564,44 +647,99 @@ class MainActivity : ComponentActivity() {
         if (requestCode == cameraCode) {
             val output = pendingPhoto; pendingPhoto = null
             if (resultCode == RESULT_OK && output != null && output.length() > 0) {
-                if (photo != output) photo?.delete()
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(output.absolutePath, bounds)
+                if (output.length() > 10 * 1024 * 1024 || bounds.outWidth <= 0 || bounds.outHeight <= 0 ||
+                    bounds.outWidth.toLong() * bounds.outHeight > 20_000_000) {
+                    output.delete(); toast("사진이 너무 크거나 읽을 수 없어요. 다른 사진을 선택해 주세요.")
+                    if (photo != null) composer() else camera()
+                    return
+                }
+                selectedPhotos().filter { it != output }.forEach { it.delete() }; extraPhotos.clear()
                 photo = output; composer()
             } else { output?.delete(); if (photo != null) composer() else camera() }
         }
-        if (requestCode == galleryCode && resultCode == RESULT_OK) {
-            val uri = data?.data ?: return
-            val directory = File(filesDir, "camera").apply { mkdirs() }
-            val output = File.createTempFile("picked-", ".jpg", directory)
-            async({
-                try {
-                    contentResolver.openInputStream(uri)?.use { source ->
-                        output.outputStream().use { destination ->
-                            val buffer = ByteArray(8192); var total = 0
-                            while (true) {
-                                val count = source.read(buffer); if (count < 0) break
-                                total += count
-                                if (total > 10 * 1024 * 1024) throw ApiException("사진은 10MB까지 선택할 수 있어요.")
-                                destination.write(buffer, 0, count)
+    }
+    private fun selectedPhotos(): List<File> = listOfNotNull(photo) + extraPhotos
+    private fun clearPhotoDraft() {
+        selectedPhotos().forEach { it.delete() }
+        photo = null; extraPhotos.clear(); caption = ""
+    }
+    private fun copyGalleryPhotos(uris: List<Uri>): List<File> {
+        val directory = File(filesDir, "camera").apply { mkdirs() }
+        val files = mutableListOf<File>()
+        var combined = 0L
+        try {
+            uris.forEach { uri ->
+                val output = File.createTempFile("picked-", ".jpg", directory)
+                files.add(output)
+                contentResolver.openInputStream(uri)?.use { source ->
+                    output.outputStream().use { destination ->
+                        val buffer = ByteArray(8192); var total = 0L
+                        while (true) {
+                            val count = source.read(buffer); if (count < 0) break
+                            total += count; combined += count
+                            if (total > 10 * 1024 * 1024 || combined > 30 * 1024 * 1024) {
+                                throw ApiException("사진 한 장은 10MB, 전체 사진은 30MB까지 선택할 수 있어요.")
                             }
+                            destination.write(buffer, 0, count)
                         }
-                    } ?: throw ApiException("사진을 읽지 못했어요.")
-                    output
-                } catch (error: Exception) { output.delete(); throw error }
-            }) { photo?.delete(); photo = it; composer() }
-        }
+                    }
+                } ?: throw ApiException("사진을 읽지 못했어요.")
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(output.absolutePath, bounds)
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 20_000_000) {
+                    throw ApiException("읽을 수 없거나 너무 큰 사진이에요. 다른 사진을 선택해 주세요.")
+                }
+            }
+            return files
+        } catch (error: Exception) { files.forEach { it.delete() }; throw error }
     }
     private fun composer() {
-        val file = photo ?: return camera()
+        val files = selectedPhotos()
+        if (files.isEmpty()) return camera()
         navigation("사진 올리기", { discardPhoto() }, name = "post")
         heading("가족에게 보여줄\n오늘의 이야기")
-        val preview = ui.photo(content, square = true)
+        var hasInvalidPhoto = false
+        files.forEachIndexed { index, file ->
+            val preview = ui.photo(content, 180)
+            val bitmap = localPreview(file)
+            if (bitmap == null) { hasInvalidPhoto = true; ui.label(content, "사진을 읽을 수 없어요. 다시 선택해 주세요.", 18f) }
+            else preview.setImageBitmap(bitmap)
+            ui.label(content, "사진 ${index + 1} / ${files.size}", 16f, color = ui.muted)
+            if (files.size > 1) ui.button(content, "이 사진 빼기", false, 52) {
+                caption = captionInput?.text?.toString() ?: caption
+                val remaining = selectedPhotos().filter { it != file }
+                file.delete(); photo = remaining.first(); extraPhotos.clear(); extraPhotos.addAll(remaining.drop(1)); composer()
+            }
+            ui.gap(content)
+        }
+        ui.label(content, "사진 최대 5장 · 한 장당 10MB · 전체 30MB", 16f, color = ui.muted)
+        ui.gap(content, 24)
+        val text = ui.input(content, "함께 남길 이야기 · 선택", "학교에서 점심 먹었어요", multiline = true, initial = caption)
+        captionInput = text
+        ui.button(content, "가족에게 사진 올리기") {
+            caption = text.text.toString()
+            if (caption.length > 2000) { toast("이야기는 2,000자까지 남길 수 있어요."); return@button }
+            if (hasInvalidPhoto) { toast("읽을 수 없는 사진을 다시 선택해 주세요."); return@button }
+            val client = api
+            async({ client.uploadPost(files, caption) }) {
+                clearPhotoDraft(); bitmaps.evictAll()
+                toast("가족에게 사진을 올렸어요."); home()
+            }
+        }
+        ui.button(content, "사진 다시 고르기 · 최대 5장", false) { caption = text.text.toString(); launchGallery() }
+        ui.button(content, "새로 촬영하기 · 사진 한 장으로 바꾸기", false) { caption = text.text.toString(); launchCamera() }
+    }
+    private fun localPreview(file: File): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 20_000_000) return null
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 640) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample }
         val bitmap = BitmapFactory.decodeFile(file.absolutePath, options)
-        if (bitmap == null) { toast("읽을 수 없는 사진이에요. 다시 골라 주세요."); file.delete(); photo = null; camera(); return }
+        if (bitmap == null) return null
         val orientation = runCatching {
             android.media.ExifInterface(file.absolutePath).getAttributeInt(android.media.ExifInterface.TAG_ORIENTATION, 1)
         }.getOrDefault(1)
@@ -617,30 +755,17 @@ class MainActivity : ComponentActivity() {
         }
         val upright = if (matrix.isIdentity) bitmap else Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         if (upright !== bitmap) bitmap.recycle()
-        preview.setImageBitmap(upright)
-        ui.gap(content, 24)
-        val text = ui.input(content, "함께 남길 이야기 · 선택", "학교에서 점심 먹었어요", multiline = true, initial = caption)
-        captionInput = text
-        ui.button(content, "가족에게 사진 올리기") {
-            caption = text.text.toString()
-            if (caption.length > 2000) { toast("이야기는 2,000자까지 남길 수 있어요."); return@button }
-            val client = api
-            async({ client.upload(file, caption) }) {
-                file.delete(); photo = null; caption = ""; toast("가족에게 사진을 올렸어요."); home()
-            }
-        }
-        ui.button(content, "다시 촬영하기", false) { caption = text.text.toString(); launchCamera() }
-        ui.button(content, "사진첩에서 바꾸기", false) { caption = text.text.toString(); launchGallery() }
+        return upright
     }
     private fun discardPhoto() {
-        AlertDialog.Builder(this).setTitle("사진 올리기를 그만할까요?")
-            .setPositiveButton("그만하기") { _, _ -> photo?.delete(); photo = null; caption = ""; home() }
+        AlertDialog.Builder(this).setTitle("사진 작성을 그만할까요?")
+            .setPositiveButton("그만하기") { _, _ -> clearPhotoDraft(); home() }
             .setNegativeButton("계속 쓰기", null).show()
     }
     private fun senior(post: JSONObject, retry: Boolean = false) {
         selectedPost = post
         navigation("가족 소식 듣기", { if (large) home() else detail(post) }, name = "senior")
-        author(content, post); remotePhoto(ui.photo(content, square = true), post); ui.gap(content, 24)
+        author(content, post); postPhotos(content, post); ui.gap(content, 24)
         val summary = ui.note(content, "가족 소식을 준비하고 있어요.", true)
         val client = api
         async({ client.request("posts/" + post.getInt("id") + "/message/", if (retry) "POST" else "GET", if (retry) JSONObject() else null) }) { data ->

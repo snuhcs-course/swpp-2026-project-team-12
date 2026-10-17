@@ -1,4 +1,6 @@
 """API → provider → worker → real post flow, with external SDKs mocked."""
+import base64
+import hashlib
 import io
 import json
 import tempfile
@@ -13,7 +15,7 @@ from PIL import Image
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
-from apps.posts.models import AdaptedMessage, Post
+from apps.posts.models import AdaptedMessage, Post, PostPhoto
 from integrations.ai import post_flow, prompts, provider
 from integrations.ai_workers import graphiti_client
 
@@ -165,3 +167,68 @@ class PostQATests(TestCase):
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
             self.assertEqual(adapt.call_count, 2)
+
+    def test_text_only_summary_and_question_reach_the_post_flow_without_images(self):
+        self.post.image = ""
+        self.post.caption = "오늘 산책했어요."
+        self.post.save(update_fields=["image", "caption"])
+        answer = SimpleNamespace(status="completed", output=[], output_text="산책 소식이에요.")
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=answer)
+            question = self.ask({"question": "어떤 소식이야?"})
+            summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
+        self.assertEqual(question.status_code, 200, question.content)
+        self.assertEqual(summary.json(), {"text": answer.output_text, "status": "ready"})
+        self.assertEqual(client.responses.create.await_count, 2)
+        for call in client.responses.create.await_args_list:
+            content = call.kwargs["input"][0]["content"]
+            self.assertEqual([item["type"] for item in content], ["input_text"])
+            self.assertEqual(json.loads(content[0]["text"])["원문"], self.post.caption)
+        graph.assert_not_called()
+
+    def test_summary_and_question_receive_every_photo_in_upload_order(self):
+        for position, color in [(2, "blue"), (1, "red")]:
+            image = io.BytesIO(); Image.new("RGB", (3, 3), color).save(image, "JPEG")
+            PostPhoto.objects.create(post=self.post, position=position,
+                image=SimpleUploadedFile(f"extra-{position}.jpg", image.getvalue(), content_type="image/jpeg"))
+        expected = []
+        for image in self.post.photo_files():
+            with image.open("rb") as file:
+                expected.append(file.read())
+        answer = SimpleNamespace(status="completed", output=[], output_text="세 장의 사진 소식이에요.")
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=answer)
+            question = self.ask({"question": "사진들을 설명해 줘"})
+            summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
+        self.assertEqual(question.status_code, 200, question.content)
+        self.assertEqual(summary.json()["status"], "ready")
+        self.assertEqual(client.responses.create.await_count, 2)
+        for call in client.responses.create.await_args_list:
+            content = call.kwargs["input"][0]["content"]
+            images = [item for item in content if item["type"] == "input_image"]
+            self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in images], expected)
+            self.assertTrue(all(item["detail"] == "high" for item in images))
+        graph.assert_not_called()
+
+    def test_single_photo_policy_cache_is_regenerated_once(self):
+        legacy = (prompts.POST_SUMMARY, "gpt-6-luna", "fast", "none", "high", prompts.ANSWER_MAX_TOKENS)
+        legacy_version = hashlib.sha256(json.dumps(legacy, ensure_ascii=False).encode()).hexdigest()
+        AdaptedMessage.objects.create(post=self.post, viewer=self.viewer, status="ready",
+            text="첫 사진만 본 이전 설명", prompt_version=legacy_version)
+        path = f"/api/posts/{self.post.pk}/message/"
+        with patch.object(provider, "adapt", return_value="전체 사진 설명") as adapt:
+            self.assertEqual(self.client.get(path, **self.auth).json()["text"], "전체 사진 설명")
+            self.assertEqual(self.client.get(path, **self.auth).json()["text"], "전체 사진 설명")
+            adapt.assert_called_once()
+        self.assertNotEqual(legacy_version, provider.summary_cache_version())
+
+    def test_failed_stale_request_does_not_override_invalidated_summary(self):
+        def invalidate_then_fail(*args):
+            AdaptedMessage.objects.filter(post=self.post, viewer=self.viewer).update(
+                status="pending", text="", updated_at=timezone.now())
+            raise provider.AIUnavailable("interrupted")
+        with patch.object(provider, "adapt", side_effect=invalidate_then_fail):
+            response = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
+        self.assertEqual(response.json(), {"text": "", "status": "pending"})
