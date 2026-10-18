@@ -1,8 +1,10 @@
 import io
 import secrets
+import logging
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -10,7 +12,7 @@ from apps.api import APIError
 from apps.families.models import Membership
 from apps.families.services import relationship
 
-from .models import Post
+from .models import Post, PostPhoto
 
 def current_room(request):
     membership = Membership.objects.select_related("room").filter(
@@ -22,7 +24,7 @@ def current_room(request):
 
 
 def post_for(request, pk):
-    post = Post.objects.select_related("author", "room").filter(
+    post = Post.objects.select_related("author", "room").prefetch_related("photos").filter(
         pk=pk, room=current_room(request)
     ).first()
     if post is None:
@@ -36,13 +38,20 @@ def serialize(post, request):
     comment_count = getattr(post, "comment_count", None)
     if comment_count is None:
         comment_count = post.comments.count()
+    def url(path):
+        return origin + path if origin else request.build_absolute_uri(path)
+    images = [{"id": 0, "url": url(image_path)}] if post.image else []
+    images.extend({"id": photo.pk, "url": url(f"/api/posts/{post.pk}/photos/{photo.pk}/")}
+                  for photo in post.photos.all())
     return {
         "id": post.pk,
         "author_id": post.author_id,
         "author_name": post.author.display_name,
         "relationship": relationship(request.user, post.author, post.room),
         "created_at": timezone.localtime(post.created_at).isoformat(),
-        "image_url": origin + image_path if origin else request.build_absolute_uri(image_path),
+        "image_url": url(image_path) if post.image else "",
+        "images": images,
+        "image_count": len(images),
         "caption": post.caption,
         "comment_count": comment_count,
     }
@@ -65,3 +74,42 @@ def prepare_image(uploaded):
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as error:
         raise APIError("읽을 수 없는 사진이에요. 다시 선택해 주세요.") from error
     return ContentFile(output.getvalue(), name=secrets.token_hex(12) + ".jpg")
+
+
+def prepare_uploads(request):
+    singles, multiples = request.FILES.getlist("image"), request.FILES.getlist("images")
+    if singles and multiples:
+        raise APIError("사진은 image 또는 images 중 한 방식으로 보내 주세요.")
+    uploads = multiples or singles
+    if len(uploads) > settings.MAX_POST_IMAGES:
+        raise APIError("사진은 한 번에 5장까지 올릴 수 있어요.")
+    if sum(photo.size for photo in uploads) > settings.MAX_POST_UPLOAD_BYTES:
+        raise APIError("사진의 전체 크기는 30MB까지 올릴 수 있어요.")
+    return [prepare_image(photo) for photo in uploads]
+
+
+def save_post(room, author, caption, images):
+    """Validate all files first; roll back DB and clean stored files on failure."""
+    if not images and not caption.strip():
+        raise APIError("글이나 사진을 하나 이상 남겨 주세요.")
+    created_files = []
+    try:
+        with transaction.atomic():
+            post = Post.objects.create(room=room, author=author, caption=caption, image="")
+            field = Post._meta.get_field("image")
+            for index, image in enumerate(images):
+                name = field.storage.save(field.generate_filename(post, image.name), image)
+                created_files.append((field.storage, name))
+                if index == 0:
+                    post.image = name
+                else:
+                    PostPhoto.objects.create(post=post, image=name, position=index)
+            post.save(update_fields=["image"])
+        return post
+    except Exception:
+        for storage, name in created_files:
+            try:
+                storage.delete(name)
+            except Exception:
+                logging.getLogger(__name__).exception("Could not clean up failed post upload")
+        raise

@@ -14,7 +14,7 @@ class AIUnavailable(Exception):
 
 def summary_cache_version():
     value = (prompts.POST_SUMMARY, settings.POST_AI_MODEL, settings.POST_AI_SERVICE_TIER,
-             settings.POST_AI_REASONING_EFFORT, "high", prompts.ANSWER_MAX_TOKENS)
+             settings.POST_AI_REASONING_EFFORT, "high", prompts.ANSWER_MAX_TOKENS, "ordered-post-images-v1")
     return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()
 
 
@@ -57,7 +57,7 @@ def adapt(post, relation):
     return answer_with_memory(
         "post_summary", post.room_id,
         json.dumps({"작성자": post.author.display_name, "관계": relation, "원문": post.caption, "게시시각": post.created_at.isoformat()}, ensure_ascii=False),
-        [post.image],
+        post.photo_files(),
     )
 
 
@@ -74,7 +74,7 @@ def summarize(posts):
     return answer_with_memory(
         "digest", posts[0].room_id,
         json.dumps([{"작성자": post.author.display_name, "원문": post.caption} for post in posts], ensure_ascii=False),
-        [post.image for post in posts[:8]],
+        [image for post in posts[:8] for image in post.photo_files()][:8],
     )
 
 
@@ -84,5 +84,5 @@ def ask(post, relation, question, prior_dialogue, viewer_name):
         json.dumps({"작성자": post.author.display_name, "관계": relation, "원문": post.caption,
                     "게시시각": post.created_at.isoformat(), "질문": question,
                     "질문자": viewer_name, "이전대화": prior_dialogue, "현재시각": timezone.now().isoformat()}, ensure_ascii=False),
-        [post.image],
+        post.photo_files(),
     )

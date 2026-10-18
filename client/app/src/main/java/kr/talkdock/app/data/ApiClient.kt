@@ -26,22 +26,41 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         return multipart("posts/", "image", "photo.jpg", "image/jpeg", photo, mapOf("caption" to caption))
     }
 
+    fun uploadPost(photos: List<File>, caption: String): JSONObject =
+        multipartParts("posts/",
+            photos.mapIndexed { index, file -> UploadPart("images", "photo-$index.jpg", "image/jpeg", file) },
+            mapOf("caption" to caption))
+
     fun transcribe(postId: Int, audio: File): JSONObject =
         multipart("posts/$postId/replies/transcribe/", "audio", "recording.m4a", "audio/mp4", audio, emptyMap())
 
     private fun multipart(path: String, field: String, filename: String, type: String, file: File, values: Map<String, String>): JSONObject {
+        return multipartParts(path, listOf(UploadPart(field, filename, type, file)), values)
+    }
+
+    private data class UploadPart(val field: String, val filename: String, val type: String, val file: File)
+
+    private fun multipartParts(path: String, files: List<UploadPart>, values: Map<String, String>): JSONObject {
         val boundary = "TalkDock" + java.util.UUID.randomUUID().toString().replace("-", "")
         val connection = open(baseUrl + path, "POST")
         connection.doOutput = true
         val fields = values.entries.joinToString("") { (key, value) -> "--$boundary\r\nContent-Disposition: form-data; name=\"$key\"\r\n\r\n$value\r\n" }
-        val prefix = (fields + "--$boundary\r\nContent-Disposition: form-data; name=\"$field\"; filename=\"$filename\"\r\nContent-Type: $type\r\n\r\n").toByteArray(StandardCharsets.UTF_8)
-        val suffix = ("\r\n--" + boundary + "--\r\n").toByteArray(StandardCharsets.UTF_8)
-        connection.setFixedLengthStreamingMode(prefix.size.toLong() + file.length() + suffix.size)
+        val fieldBytes = fields.toByteArray(StandardCharsets.UTF_8)
+        val prefixes = files.map { part ->
+            "--$boundary\r\nContent-Disposition: form-data; name=\"${part.field}\"; filename=\"${part.filename}\"\r\nContent-Type: ${part.type}\r\n\r\n".toByteArray(StandardCharsets.UTF_8)
+        }
+        val suffix = "--$boundary--\r\n".toByteArray(StandardCharsets.UTF_8)
+        val length = fieldBytes.size.toLong() + suffix.size + files.indices.sumOf { prefixes[it].size.toLong() + files[it].file.length() + 2 }
+        connection.setFixedLengthStreamingMode(length)
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
         try {
             connection.outputStream.buffered().use { stream ->
-                stream.write(prefix)
-                file.inputStream().use { it.copyTo(stream) }
+                stream.write(fieldBytes)
+                files.forEachIndexed { index, part ->
+                    stream.write(prefixes[index])
+                    part.file.inputStream().use { it.copyTo(stream) }
+                    stream.write("\r\n".toByteArray(StandardCharsets.UTF_8))
+                }
                 stream.write(suffix)
             }
             return response(connection)

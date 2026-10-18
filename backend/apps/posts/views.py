@@ -9,7 +9,7 @@ from apps.families.services import relationship
 from integrations.ai import provider
 
 from .models import AdaptedMessage, Post
-from .services import current_room, post_for, prepare_image, serialize
+from .services import current_room, post_for, prepare_uploads, save_post, serialize
 
 
 @api("POST")
@@ -36,14 +36,14 @@ def question(request, pk):
 def feed(request):
     room = current_room(request)
     if request.method == "GET":
-        posts = room.posts.select_related("author").annotate(comment_count=Count("comments"))[:100]
+        posts = room.posts.select_related("author").prefetch_related("photos").annotate(comment_count=Count("comments"))[:100]
         return {"posts": [serialize(post, request) for post in posts]}
 
     caption = request.POST.get("caption", "").strip()
     if len(caption) > 2000:
         raise APIError("글은 2000자까지 올릴 수 있어요.")
-    image = prepare_image(request.FILES.get("image"))
-    post = Post.objects.create(room=room, author=request.user, caption=caption, image=image)
+    images = prepare_uploads(request)
+    post = save_post(room=room, author=request.user, caption=caption, images=images)
     return serialize(post, request)
 
 
@@ -69,7 +69,20 @@ def detail(request, pk):
 @api("GET")
 def photo(request, pk):
     post = post_for(request, pk)
+    if not post.image:
+        raise APIError("이 게시물에는 사진이 없어요.", 404)
     response = FileResponse(post.image.open("rb"), content_type="image/jpeg")
+    response["Cache-Control"] = "private, max-age=300"
+    return response
+
+
+@api("GET")
+def extra_photo(request, pk, photo_id):
+    post = post_for(request, pk)
+    photo = post.photos.filter(pk=photo_id).first()
+    if photo is None:
+        raise APIError("사진을 찾을 수 없어요.", 404)
+    response = FileResponse(photo.image.open("rb"), content_type="image/jpeg")
     response["Cache-Control"] = "private, max-age=300"
     return response
 
@@ -91,13 +104,15 @@ def message(request, pk):
     )
     if claimed:
         try:
-            obj.text = provider.adapt(post, relationship(request.user, post.author, post.room))
-            obj.status = "ready"
+            text = provider.adapt(post, relationship(request.user, post.author, post.room))
+            status = "ready"
         except provider.AIUnavailable:
-            obj.status = "failed"
-        # A timed-out older request must not overwrite a newer claim.
-        AdaptedMessage.objects.filter(pk=obj.pk, updated_at=claimed_at, prompt_version=version).update(
-            text=obj.text if obj.status == "ready" else "", status=obj.status, updated_at=timezone.now()
+            text, status = "", "failed"
+        # Preserve both cache-version claims and invalidation after profile changes.
+        AdaptedMessage.objects.filter(
+            pk=obj.pk, status="processing", updated_at=claimed_at, prompt_version=version
+        ).update(
+            text=text, status=status, updated_at=timezone.now()
         )
     obj.refresh_from_db()
     return {"text": obj.text, "status": obj.status}
