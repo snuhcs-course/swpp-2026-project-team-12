@@ -76,8 +76,18 @@ class FeedRefreshTest {
                     server.accept().use { socket ->
                         socket.soTimeout = 5000
                         val input = socket.getInputStream().bufferedReader()
+                        val requestLine = input.readLine().orEmpty()
                         var line = input.readLine()
                         while (!line.isNullOrEmpty()) line = input.readLine()
+                        if (requestLine.contains("/api/families/current/")) {
+                            val room = JSONObject().put("id",1).put("name","테스트 가족방").put("members",JSONArray())
+                            val bytes = room.toString().toByteArray(Charsets.UTF_8)
+                            socket.getOutputStream().apply {
+                                write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
+                                write(bytes); flush()
+                            }
+                            return@use
+                        }
                         requests.incrementAndGet()
                         val response = responses.poll(5, TimeUnit.SECONDS) ?: error("Unexpected feed request")
                         response.gate?.await(5, TimeUnit.SECONDS)

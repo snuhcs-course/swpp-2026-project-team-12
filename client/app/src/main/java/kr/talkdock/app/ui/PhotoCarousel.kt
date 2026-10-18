@@ -12,7 +12,7 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
-/** One square preview at a time, horizontal paging, and a thumbnail strip. */
+/** Photos retain their original aspect ratio, with horizontal paging and thumbnails. */
 class PhotoCarousel(
     context: Context,
     private val photoCount: Int,
@@ -22,6 +22,8 @@ class PhotoCarousel(
     private val open: ((Int) -> Unit)? = null,
     private val remove: ((Int) -> Unit)? = null,
     private val changed: (Int) -> Unit = {},
+    private val loadThumbnail: ((ImageView, Int) -> Unit)? = null,
+    private val release: (ImageView) -> Unit = { it.setImageDrawable(null) },
 ) : LinearLayout(context) {
     private val ui = Ui(context)
     private val cards = LinearLayout(context).apply { orientation = HORIZONTAL }
@@ -33,6 +35,8 @@ class PhotoCarousel(
         gravity = Gravity.CENTER; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private val thumbs = mutableListOf<FrameLayout>()
+    private val photos = mutableListOf<ImageView>()
+    private val loadedPages = mutableSetOf<Int>()
     private var previous: Button? = null
     private var next: Button? = null
     private var removeButton: Button? = null
@@ -79,7 +83,7 @@ class PhotoCarousel(
         require(photoCount > 0)
         orientation = VERTICAL
         for (index in 0 until photoCount) {
-            val card = FrameLayout(context).apply { background = ui.shape(ui.sage); clipToOutline = true }
+            val card = FrameLayout(context).apply { background = ui.shape(ui.paper); clipToOutline = true }
             val photo = ImageView(context).apply {
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = "사진 ${index + 1} / $photoCount" + if (open != null) ", 누르면 크게 보기" else ""
@@ -88,7 +92,7 @@ class PhotoCarousel(
                 }
             }
             card.addView(photo, FrameLayout.LayoutParams(-1, -1))
-            load(photo, index)
+            photos.add(photo)
             if (remove != null && !large) {
                 // The visible circle is small; its 48dp touch target remains easy to hit.
                 val close = FrameLayout(context).apply {
@@ -107,6 +111,7 @@ class PhotoCarousel(
         }
         pager.addView(cards, ViewGroup.LayoutParams(-2, -1))
         addView(pager, LinearLayout.LayoutParams(-1, -2))
+        loadPages()
         if (photoCount > 1 || large || remove != null) addView(indicator, LinearLayout.LayoutParams(-1, -2))
         if (photoCount > 1) {
             addView(dots, LinearLayout.LayoutParams(-1, -2))
@@ -123,7 +128,7 @@ class PhotoCarousel(
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }
                 holder.addView(thumbnail, FrameLayout.LayoutParams(-1, -1))
-                load(thumbnail, index); thumbs.add(holder)
+                (loadThumbnail ?: load).invoke(thumbnail, index); thumbs.add(holder)
                 row.addView(holder, LinearLayout.LayoutParams(ui.dp(if (large) 72 else 58), ui.dp(if (large) 72 else 58)).apply { marginEnd = ui.dp(6) })
             }
             strip.addView(row); addView(strip, LinearLayout.LayoutParams(-1, -2))
@@ -140,6 +145,14 @@ class PhotoCarousel(
         render()
     }
 
+    private fun loadPages() {
+        photos.forEachIndexed { index, view ->
+            if (kotlin.math.abs(index - currentIndex) <= 1) {
+                if (loadedPages.add(index)) load(view, index)
+            } else if (loadedPages.remove(index)) release(view)
+        }
+    }
+
     private fun show(index: Int) {
         val target = index.coerceIn(0, photoCount - 1)
         updateIndex(target)
@@ -148,7 +161,7 @@ class PhotoCarousel(
     private fun updateIndex(index: Int) {
         val safe = index.coerceIn(0, photoCount - 1)
         if (safe != currentIndex) {
-            currentIndex = safe; render(); changed(safe)
+            currentIndex = safe; loadPages(); pager.requestLayout(); render(); changed(safe)
         }
     }
     private fun render() {

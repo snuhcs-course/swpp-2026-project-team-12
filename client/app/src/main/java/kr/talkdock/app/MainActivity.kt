@@ -32,6 +32,7 @@ import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.Ui
 import kr.talkdock.app.ui.PhotoCarousel
+import kr.talkdock.app.ui.ViewportPhotoLoader
 import kr.talkdock.app.ui.DraftPhotoStrip
 import kr.talkdock.app.ui.TodakArtView
 import kr.talkdock.app.ui.TodakWaitingView
@@ -60,10 +61,7 @@ class MainActivity : ComponentActivity() {
     private val summaries = Executors.newFixedThreadPool(2)
     private var summaryRequest: java.util.concurrent.Future<*>? = null
     private var summaryGeneration = 0
-    private val images = Executors.newFixedThreadPool(2)
-    private val bitmaps = object : android.util.LruCache<String, Bitmap>(12 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: Bitmap) = value.byteCount
-    }
+    private lateinit var imageLoader: ViewportPhotoLoader
     private var session: JSONObject? = null
     private var room = JSONObject()
     private var screen = "welcome"
@@ -114,6 +112,7 @@ class MainActivity : ComponentActivity() {
         session?.optJSONObject("room")?.let { room = it }
         root = FrameLayout(this).apply { setBackgroundColor(ui.milk) }
         setContentView(root)
+        imageLoader = ViewportPhotoLoader(root)
         if (android.os.Build.VERSION.SDK_INT >= 30) {
             root.setOnApplyWindowInsetsListener { view, insets ->
                 val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
@@ -138,13 +137,30 @@ class MainActivity : ComponentActivity() {
         draftPhotoIndex = state?.getInt("draftPhotoIndex") ?: 0
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
         val restoredScreen = state?.getString("screen")
-        when {
+        fun restoreScreen() {
+            if (!room.has("id")) { clearPhotoDraft(); selectedPost = null; roomChoice(); return }
+            when {
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
             restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
             restoredScreen == "senior" && selectedPost != null -> senior(selectedPost!!)
             session != null && session?.optJSONObject("room") != null -> home()
             session != null -> roomChoice()
             else -> welcome()
+            }
+        }
+        val savedAccount = session
+        if (savedAccount == null) welcome()
+        else {
+            val previousRoom = room.optInt("id", -1)
+            val big = large
+            navigation("가족방 확인", name = "roomSync")
+            async({ loadRoom(JSONObject(savedAccount.toString())) }, "가족방을 확인하고 있어요.") { current ->
+                saveSession(current, big)
+                if (previousRoom != room.optInt("id", -1)) {
+                    clearPhotoDraft(); selectedPost = null
+                    if (room.has("id")) home() else roomChoice()
+                } else restoreScreen()
+            }
         }
     }
     override fun onSaveInstanceState(out: Bundle) {
@@ -167,7 +183,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onDestroy() {
         summaryRequest?.cancel(true); summaries.shutdownNow()
-        speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); images.shutdownNow()
+        speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
@@ -180,6 +196,7 @@ class MainActivity : ComponentActivity() {
         speaker.stop(); recorder?.close(); recorder = null
         recording?.delete(); recording = null
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
+        imageLoader.clearViews()
         root.removeAllViews()
         page = ui.column(); root.addView(page, FrameLayout.LayoutParams(-1, -1))
         val header = ui.row().apply { setPadding(ui.dp(16), ui.dp(10), ui.dp(16), ui.dp(10)); minimumHeight = ui.dp(72) }
@@ -251,7 +268,7 @@ class MainActivity : ComponentActivity() {
                         val username = session?.optString("username").orEmpty()
                         val userId = session?.optInt("user_id")
                         val big = large
-                        sessions.removeCurrent(); session = null; room = JSONObject(); bitmaps.evictAll()
+                        sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
                         login(username, userId, big)
                         AlertDialog.Builder(this).setTitle("로그인이 만료되었어요")
                             .setMessage("비밀번호를 입력해 다시 로그인해 주세요.")
@@ -304,43 +321,48 @@ class MainActivity : ComponentActivity() {
                     input.error = "예: http://192.168.0.10:8000/api/"; return@setOnClickListener
                 }
                 sessions.changeServer(url); session = sessions.current(); room = session?.optJSONObject("room") ?: JSONObject()
-                bitmaps.evictAll(); dialog.dismiss()
+                imageLoader.clear(); dialog.dismiss()
                 if (session == null) welcome() else if (room.has("id")) members() else roomChoice()
             }
         }
         dialog.show()
     }
-    private fun remotePhoto(view: ImageView, post: JSONObject, url: String = post.getString("image_url")) {
-        val client = api; val key = client.token.hashCode().toString() + url; val number = pageNumber
-        view.tag = key
-        view.setImageDrawable(null)
-        bitmaps.get(key)?.let { view.setImageBitmap(it); return }
+    private fun remotePhoto(view: ImageView, post: JSONObject, url: String = post.getString("image_url"), thumbnail: Boolean = false) {
         view.contentDescription = post.optString("author_name") + "님의 사진"
-        images.execute {
-            val bitmap = runCatching {
-                val data = client.image(url)
-                BitmapFactory.decodeByteArray(data, 0, data.size, BitmapFactory.Options().apply { inSampleSize = 2 })
-            }.getOrNull()
-            runOnUiThread {
-                if (number == pageNumber && !isDestroyed && view.tag == key) {
-                    if (bitmap != null) { bitmaps.put(key, bitmap); view.setImageBitmap(bitmap) }
-                    else {
-                        view.contentDescription = "사진을 불러오지 못했어요."; view.setImageDrawable(null)
-                        val parent = view.parent as? LinearLayout
-                        parent?.addView(ui.text("사진을 불러오지 못했어요. 소식을 눌러 다시 확인해 주세요.", 15f, color = ui.muted), parent.indexOfChild(view) + 1)
-                    }
-                }
-            }
-        }
+        imageLoader.bind(view, api, url, thumbnail)
     }
     private fun saveSession(value: JSONObject, big: Boolean) {
         sessions.save(value, big); session = value; room = value.optJSONObject("room") ?: JSONObject()
-        bitmaps.evictAll()
+        imageLoader.clear()
     }
-    private fun saveRoom(value: JSONObject, big: Boolean = large) {
+    private fun saveRoom(value: JSONObject, big: Boolean = large, complete: () -> Unit) {
         val account = session ?: return
-        account.put("room", value.getJSONObject("room"))
-        saveSession(account, big)
+        val expected = value.getJSONObject("room").getInt("id")
+        async({ loadRoom(JSONObject(account.toString())) }, "가족방을 확인하고 있어요.") { current ->
+            saveSession(current, big)
+            if (room.optInt("id", -1) == expected) complete()
+            else {
+                clearPhotoDraft(); selectedPost = null
+                if (room.has("id")) home() else roomChoice()
+                AlertDialog.Builder(this).setTitle("가족방을 다시 확인했어요")
+                    .setMessage("서버에서 확인한 현재 가족방을 사용해요. 다른 가족방으로 소식을 보내지 않았어요.")
+                    .setPositiveButton("확인", null).show()
+            }
+        }
+    }
+    private fun withoutRoom(complete: () -> Unit) {
+        val account = session ?: return login()
+        val big = large
+        async({ loadRoom(JSONObject(account.toString())) }, "가족방을 확인하고 있어요.") { current ->
+            saveSession(current, big)
+            if (room.has("id")) { roomChoice(); toast("이미 참여한 가족방이 있어요. 현재 가족방을 이용해 주세요.") }
+            else complete()
+        }
+    }
+    private fun blockAdditionalRoom(): Boolean {
+        if (!room.has("id")) return false
+        roomChoice(); toast("이미 참여한 가족방이 있어요. 현재 가족방을 이용해 주세요.")
+        return true
     }
     private fun loadRoom(account: JSONObject): JSONObject {
         val client = ApiClient(account.getString("token"), sessions.serverUrl())
@@ -447,6 +469,7 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "새 계정 만들기", false) { register() }
     }
     private fun create() {
+        if (blockAdditionalRoom()) return
         navigation("우리 가족 방", { roomChoice() }, name = "create")
         ui.art(content, width = 200); ui.gap(content, 20)
         heading("우리 가족만의\n공간을 만들어요", "초대 코드와 가족방 비밀번호로 함께할 수 있어요.")
@@ -467,8 +490,10 @@ class MainActivity : ComponentActivity() {
             if (roomName.text.isBlank() || password.text.isBlank()) { toast("가족 방 이름과 비밀번호를 입력해 주세요."); return@button }
             val data = json("room_name" to roomName.text.toString(), "password" to password.text.toString(), "digest_time" to at)
             val client = api
-            async({ client.request("families/create/", "POST", data) }) {
-                saveRoom(it); invite(password.text.toString())
+            withoutRoom {
+                async({ client.request("families/create/", "POST", data) }) {
+                    saveRoom(it) { invite(password.text.toString()) }
+                }
             }
         }
     }
@@ -490,6 +515,7 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "가족 소식으로 가기") { home() }
     }
     private fun join() {
+        if (blockAdditionalRoom()) return
         navigation("가족 방에 들어가기", { roomChoice() }, name = "join")
         ui.label(content, "초대받으셨나요?", 14f, color = ui.muted); ui.gap(content, 16)
         heading("가족이 보낸 코드를\n입력해 주세요.", "초대 코드와 가족방 비밀번호를 입력해 주세요.")
@@ -539,6 +565,7 @@ class MainActivity : ComponentActivity() {
         if (generation == 0) ui.label(content, "할머니라면 위 화살표를 두 번 눌러 주세요.", 17f, color = ui.muted)
     }
     private fun profile() {
+        if (blockAdditionalRoom()) return
         val slot = pickedSlot ?: return
         navigation("가족 방 참여", { tree() }, name = "profile")
         heading(joinRoom.getString("owner_name") + "님의\n" + slot.relation + "로 함께해요.")
@@ -547,7 +574,11 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "가족 방에 들어가기") {
             val data = JSONObject(invitation.toString()).put("slot", slot.key)
             val client = api
-            async({ client.request("families/join/", "POST", data) }) { saveRoom(it, big.isChecked); home() }
+            withoutRoom {
+                async({ client.request("families/join/", "POST", data) }) {
+                    saveRoom(it, big.isChecked) { home() }
+                }
+            }
         }
     }
     private fun home(refresh: SwipeRefreshLayout? = null) {
@@ -632,7 +663,9 @@ class MainActivity : ComponentActivity() {
         if (photos.isEmpty()) return
         parent.addView(PhotoCarousel(this, photos.size, large,
             load = { image, index -> remotePhoto(image, post, photos[index].getString("url")) },
-            open = { index -> fullPhoto(post, index) }), LinearLayout.LayoutParams(-1, -2))
+            open = { index -> fullPhoto(post, index) },
+            loadThumbnail = { image, index -> remotePhoto(image, post, photos[index].getString("url"), thumbnail = true) },
+            release = { image -> imageLoader.release(image) }), LinearLayout.LayoutParams(-1, -2))
     }
 
     private fun fullPhoto(post: JSONObject, initial: Int = 0) {
@@ -660,7 +693,7 @@ class MainActivity : ComponentActivity() {
         controls.visibility = if (photos.size > 1) View.VISIBLE else View.GONE
         ui.button(container, "닫기") { dialog.dismiss() }
         dialog.setContentView(container)
-        dialog.setOnDismissListener { image.tag = null }
+        dialog.setOnDismissListener { imageLoader.release(image) }
         dialog.show(); dialog.window?.setLayout(-1, -1)
         refresh()
     }
@@ -833,7 +866,7 @@ class MainActivity : ComponentActivity() {
             if (hasInvalidPhoto) { toast("읽을 수 없는 사진을 다시 선택해 주세요."); return@button }
             val client = api
             async({ client.uploadPost(files, caption) }, "가족에게 소식을 전하고 있어요.") {
-                clearPhotoDraft(); bitmaps.evictAll()
+                clearPhotoDraft(); imageLoader.clear()
                 postingSuccess("글 업로드가 완료됐어요") { home() }
             }
         }
@@ -925,7 +958,7 @@ class MainActivity : ComponentActivity() {
                         ui.button(controls, "다시 로그인", false, 76) {
                             val username = session?.optString("username").orEmpty()
                             val userId = session?.optInt("user_id"); val big = large
-                            sessions.removeCurrent(); session = null; room = JSONObject(); bitmaps.evictAll()
+                            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
                             login(username, userId, big)
                         }
                     } else {
@@ -1146,7 +1179,7 @@ class MainActivity : ComponentActivity() {
             ui.button(content, "로그아웃", false) {
                 val client = api
                 async({ client.request("accounts/logout/", "POST", JSONObject()) }) {
-                    sessions.removeCurrent(); session = null; room = JSONObject(); bitmaps.evictAll(); welcome()
+                    sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear(); welcome()
                 }
             }
         }
