@@ -37,6 +37,7 @@ class PhotoCarousel(
     private val thumbs = mutableListOf<FrameLayout>()
     private val photos = mutableListOf<ImageView>()
     private val loadedPages = mutableSetOf<Int>()
+    private val aspectRatios = DoubleArray(photoCount) { 1.0 }
     private var previous: Button? = null
     private var next: Button? = null
     private var removeButton: Button? = null
@@ -47,16 +48,27 @@ class PhotoCarousel(
         private var flung = false
         init { isHorizontalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER }
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            val side = View.MeasureSpec.getSize(widthMeasureSpec)
-            super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(side, View.MeasureSpec.EXACTLY))
+            val width = View.MeasureSpec.getSize(widthMeasureSpec)
+            val photo = (cards.getChildAt(currentIndex) as? ViewGroup)?.getChildAt(0) as? ImageView
+            val drawable = photo?.drawable
+            if (drawable != null && drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
+                aspectRatios[currentIndex] = drawable.intrinsicHeight.toDouble() / drawable.intrinsicWidth
+            }
+            val height = (width * aspectRatios[currentIndex]).roundToInt().coerceAtLeast(1)
+            for (i in 0 until cards.childCount) {
+                val card = cards.getChildAt(i)
+                if (card.layoutParams.width != width || card.layoutParams.height != height) {
+                    card.layoutParams = LinearLayout.LayoutParams(width, height)
+                }
+            }
+            super.onMeasure(widthMeasureSpec, View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
         }
         override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
             val selected = currentIndex
             super.onSizeChanged(w, h, oldw, oldh)
-            for (i in 0 until cards.childCount) {
-                cards.getChildAt(i).layoutParams = LinearLayout.LayoutParams(w, w)
+            if (w != oldw) {
+                post { if (width > 0) { scrollTo(selected * width, 0); updateIndex(selected) } }
             }
-            post { if (width > 0) { scrollTo(selected * width, 0); updateIndex(selected) } }
         }
         override fun onScrollChanged(l: Int, t: Int, oldl: Int, oldt: Int) {
             super.onScrollChanged(l, t, oldl, oldt)

@@ -23,7 +23,6 @@ import android.widget.*
 import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kr.talkdock.app.data.*
@@ -31,6 +30,7 @@ import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.Ui
+import kr.talkdock.app.ui.PhotoPickerActivity
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.ViewportPhotoLoader
 import kr.talkdock.app.ui.DraftPhotoStrip
@@ -91,11 +91,13 @@ class MainActivity : ComponentActivity() {
     private val cameraCode = 10
     private val microphoneCode = 12
     private val photoPicker = registerForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(5)
-    ) { selected ->
-        val uris = selected.distinct()
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val uris = result.data?.getStringArrayListExtra(PhotoPickerActivity.RESULT_URIS)
+            .orEmpty().map { Uri.parse(it) }.distinct()
         if (uris.isEmpty()) return@registerForActivityResult
-        // The document-picker fallback on older devices cannot enforce maxItems.
+        // Preserve the gallery's tap order all the way through multipart upload.
         if (uris.size > 5) {
             toast("사진은 한 번에 5장까지 선택해 주세요.")
             return@registerForActivityResult
@@ -759,7 +761,7 @@ class MainActivity : ComponentActivity() {
         // Snapshot the draft before opening the gallery, including on rotation.
         caption = captionInput?.text?.toString() ?: caption
         runCatching {
-            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            photoPicker.launch(Intent(this, PhotoPickerActivity::class.java))
         }.onFailure { toast("사진첩을 열 수 없어요.") }
     }
     private fun launchCamera() {
