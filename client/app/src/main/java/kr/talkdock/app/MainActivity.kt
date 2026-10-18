@@ -367,8 +367,10 @@ class MainActivity : ComponentActivity() {
             ui.button(card, "가족 소식 보기", false) { home() }
             ui.gap(content, 20)
         }
-        ui.button(content, "새 가족방 만들기") { create() }
-        ui.button(content, "초대 코드로 참여하기", false) { join() }
+        if (!inRoom) {
+            ui.button(content, "새 가족방 만들기") { create() }
+            ui.button(content, "초대 코드로 참여하기", false) { join() }
+        }
         ui.gap(content)
         if (!inRoom) {
             ui.ghost(content, "내 계정 수정") { editAccount() }
