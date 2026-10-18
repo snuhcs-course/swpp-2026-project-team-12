@@ -1,0 +1,27 @@
+{
+  "dataset_name": "family-week-v1",
+  "family_name": "지민이네 가족",
+  "invite_code": "TST401",
+  "room_password": "Family-Test-2026!",
+  "default_password": "Member-Test-2026!",
+  "start_date": "2026-10-05",
+  "post_count": 20,
+  "thread_ids": ["basil", "dog", "cafe", "camera"],
+  "event_catalog": "input/event_catalog.example.json",
+  "download_images": true,
+  "image_providers": ["curated"],
+  "curated_sources": "input/curated_sources.example.json",
+  "openverse_source": "flickr",
+  "openverse_licenses": ["cc0", "pdm", "by", "by-sa"],
+  "openverse_api_token_env": "OPENVERSE_API_TOKEN",
+  "pexels_api_key_env": "PEXELS_API_KEY",
+  "image_width": 1200,
+  "request_delay_seconds": 0.3,
+  "user_agent": "TalkDockDatasetBuilder/1.0 (https://github.com/snuhcs-course/swpp-2026-project-team-12; educational test dataset)",
+  "members": [
+    {"username": "test_jimin", "name": "지민", "gender": "female", "slot": "owner"},
+    {"username": "test_doyun", "name": "도윤", "gender": "male", "slot": "father"},
+    {"username": "test_sujin", "name": "수진", "gender": "female", "slot": "mother"},
+    {"username": "test_sunhee", "name": "선희", "gender": "female", "slot": "grandma-mother"}
+  ]
+}
