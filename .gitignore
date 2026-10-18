@@ -13,6 +13,8 @@ __pycache__/
 backend/media/*
 backend/developer/test_media/
 backend/developer/family_tree.html
+testbed/output/
+testbed/input/*.local.json
 *.log
 
 # Context documents for each developer
