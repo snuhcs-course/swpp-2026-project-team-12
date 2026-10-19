@@ -9,6 +9,7 @@ class Post(models.Model):
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     image = models.ImageField(upload_to="posts/%Y/%m/", blank=True)
     caption = models.CharField(max_length=2000, blank=True)
+    description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

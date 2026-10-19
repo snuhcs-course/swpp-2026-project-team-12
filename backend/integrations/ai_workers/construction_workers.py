@@ -35,6 +35,8 @@ def run_worker(family_id, once, stdout, stderr):
 
 
 def construct(family_id, once, stdout, stderr):
+    from integrations.ai.feed_description import describe_post
+
     from .construction_graphiti import add_memory, episode_names
     from .graphiti_client import close_graphiti, create_graphiti
 
@@ -49,11 +51,14 @@ def construct(family_id, once, stdout, stderr):
                     if name.startswith("post_") and name[5:].isdigit()
                 }
                 posts = Post.objects.filter(room_id=family_id).exclude(pk__in=completed)
-                for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
+                for post in posts.select_related("author").prefetch_related("photos").order_by("created_at", "pk")[:100]:
                     try:
+                        if not post.description:
+                            post.description = runner.run(describe_post(post))
+                            post.save(update_fields=["description"])
                         runner.run(add_memory(
                             graphiti, family_id,
-                            f"작성자: {post.author.display_name}\n게시글: {post.caption}",
+                            f"작성자: {post.author.display_name}\n상세 설명: {post.description}",
                             f"post_{post.pk}", post.created_at,
                         ))
                     except Exception as error:
