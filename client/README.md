@@ -35,3 +35,36 @@ With Django running and an emulator or USB device connected, run:
 ```
 
 The HTTP test registers two accounts, logs one in, creates and joins a family room, uploads a photo, checks the protected image, and exchanges a text comment. It leaves those test accounts, room, and post in the server database. The recorder test checks local M4A recording and cancellation on the device.
+
+## In-place post audio
+
+The speaker action on the feed and post detail fetches the AI summary and then
+plays its generated speech without opening another screen. Pressing it again
+stops playback or cancels pending playback. Only one post plays at a time.
+Summary text, loading, errors, retry, and original-caption fallback appear below
+the post. Summary and speech requests use the separate summary executor so
+comment actions remain available. Leaving the page or backgrounding the app
+invalidates pending results and stops playback; refresh also releases old panels.
+The old listening screen now restores to post detail, voice-comment cancellation
+returns to post detail, and digest links open post detail in both text sizes.
+
+Run the local-server regression tests (generated WAV audio, no AI/TTS API calls):
+
+```sh
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=kr.talkdock.app.InlinePostAudioTest
+```
+
+## Comment input
+
+Post detail uses a multiline comment field with a Send arrow in the bottom-right
+corner (48 dp, or 64 dp in large-text mode). The footer keeps the action clear of
+long text and scrolls into view above the software keyboard; Enter inserts a newline. Blank input and pending submissions disable
+Send. A local progress indicator replaces the full-screen wait overlay.
+Only an accepted submission clears the input and refreshes the comment list.
+HTTP, network, and expired-login errors stay below the input and preserve the
+exact draft for editing or retry; voice commenting remains below the field.
+
+`CommentComposerTest` verifies both text sizes, whitespace-only input, multiline
+content, duplicate-click protection, draft retention after failure, retry with
+the identical content, and successful comment-list refresh using a local server.
