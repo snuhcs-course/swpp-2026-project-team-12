@@ -30,6 +30,7 @@ import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.ReplyAudioButton
 import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
 import kr.talkdock.app.ui.PhotoPickerActivity
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
     // Slow AI explanations must not queue ordinary comment requests behind them.
     private val summaries = Executors.newFixedThreadPool(2)
     private var activePostAudio: InlinePostAudio? = null
+    private var replyPreview: ReplyAudioButton? = null
     private lateinit var imageLoader: ViewportPhotoLoader
     private var session: JSONObject? = null
     private var room = JSONObject()
@@ -182,10 +184,10 @@ class MainActivity : ComponentActivity() {
             voiceButton?.text = "말하기 시작"
             voiceStatus?.text = "녹음이 중단됐어요. 다시 말하기 시작을 눌러 주세요."
         }
-        super.onPause(); stopPostAudio(); speaker.stop(); recorder?.cancel()
+        super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
-        stopPostAudio(); summaries.shutdownNow()
+        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
@@ -193,7 +195,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
-        stopPostAudio()
+        stopPostAudio(); replyPreview?.stop(); replyPreview = null
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -1017,9 +1019,12 @@ class MainActivity : ComponentActivity() {
         if (post.optString("caption").isNotBlank()) ui.note(content, post.getString("caption"), large)
         ui.label(content, "내가 한 말", 18f, color = ui.muted); ui.gap(content, 8)
         ui.note(content, draft.getString("recognized"), true); ui.gap(content, 24)
-        ui.label(content, "가족에게 전할 댓글", 18f, color = ui.muted); ui.gap(content, 8)
+        val replyHeading = ui.row(); content.addView(replyHeading)
+        replyHeading.addView(ui.text("가족에게 전할 댓글", if (large) 22f else 18f, color = ui.muted),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        replyHeading.addView(ReplyAudioButton(this, ui, draft.getString("converted"), api, speaker, summaries, large).also { replyPreview = it })
+        ui.gap(content, 8)
         ui.note(content, draft.getString("converted"), true); ui.gap(content, 24)
-        listen(content, draft.getString("converted"), "댓글 소리로 확인하기", 68)
         ui.button(content, "가족에게 보내기", height = 76) {
             val client = api
             async({ client.request("replies/" + draft.getInt("id") + "/send/", "POST", JSONObject()) }, "가족에게 댓글을 전하고 있어요.") {
@@ -1027,7 +1032,6 @@ class MainActivity : ComponentActivity() {
             }
         }
         ui.button(content, "다시 말하기", false, 76) { voice(post, voiceFromDetail) }
-        ui.button(content, "취소하기", false, 68) { leaveVoice(post) }
     }
     private fun digest(date: String = digestDate, retry: Boolean = false) {
         digestDate = date
