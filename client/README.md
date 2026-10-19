@@ -68,3 +68,8 @@ exact draft for editing or retry; voice commenting remains below the field.
 `CommentComposerTest` verifies both text sizes, whitespace-only input, multiline
 content, duplicate-click protection, draft retention after failure, retry with
 the identical content, and successful comment-list refresh using a local server.
+
+Reply review places a single play/stop icon beside the converted comment heading;
+it keeps Send and Re-record, with the back arrow available to leave the screen.
+Post audio shows summary text and loading/error recovery without separate
+playing, stopped, or completed message cards.
