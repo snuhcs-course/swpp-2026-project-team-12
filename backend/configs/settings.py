@@ -84,12 +84,12 @@ MEDIA_URL = "/media/"
 # ============ Third-party API settings ============
 # Account and family APIs can run without AI credentials. Providers validate keys when called.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
 # Adopted post prompts use a direct summary and three-way QA, independently of legacy features.
 POST_AI_MODEL = os.getenv("POST_AI_MODEL", "gpt-6-luna")
 POST_AI_SERVICE_TIER = os.getenv("POST_AI_SERVICE_TIER", "fast")
 POST_AI_REASONING_EFFORT = os.getenv("POST_AI_REASONING_EFFORT", "none")
-GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", "gpt-4.1-mini")
+GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", "gpt-6-luna")
 GRAPHITI_SEARCH_WORKERS = int(os.getenv("GRAPHITI_SEARCH_WORKERS", "4"))
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
