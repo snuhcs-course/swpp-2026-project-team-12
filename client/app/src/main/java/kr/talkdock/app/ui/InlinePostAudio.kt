@@ -64,8 +64,13 @@ class InlinePostAudio(
     }
 
     private fun render() {
-        visibility = VISIBLE
         removeAllViews()
+        if (summaryText == null && status.isBlank() && summaryRetry == null && speechRetry == null && !needsLogin) {
+            visibility = GONE
+            updateToggle()
+            return
+        }
+        visibility = VISIBLE
         ui.gap(this, 12)
         summaryText?.let { ui.note(this, it, large) }
         if (status.isNotBlank()) ui.note(this, status, large).apply {
@@ -105,7 +110,7 @@ class InlinePostAudio(
         if (active) {
             speaker.stop()
             active = false
-            status = "듣기를 중지했어요."
+            status = ""
             render()
         }
     }
@@ -154,10 +159,10 @@ class InlinePostAudio(
                 if (!current(request)) { result.getOrNull()?.delete(); return@runOnUiThread }
                 task = null
                 result.fold({ file ->
-                    status = "소식을 재생하고 있어요. 다시 누르면 중지돼요."
+                    status = ""
                     render()
                     speaker.play(file, completed = {
-                        if (current(request)) { active = false; status = "재생을 마쳤어요."; render() }
+                        if (current(request)) { active = false; status = ""; render() }
                     }, failed = { message ->
                         if (current(request)) fail(Exception(message), speech = text)
                     })
