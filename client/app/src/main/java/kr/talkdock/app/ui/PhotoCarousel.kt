@@ -38,8 +38,6 @@ class PhotoCarousel(
     private val photos = mutableListOf<ImageView>()
     private val loadedPages = mutableSetOf<Int>()
     private val aspectRatios = DoubleArray(photoCount) { 1.0 }
-    private var previous: Button? = null
-    private var next: Button? = null
     private var removeButton: Button? = null
     var currentIndex = initial.coerceIn(0, (photoCount - 1).coerceAtLeast(0))
         private set
@@ -144,12 +142,7 @@ class PhotoCarousel(
                 row.addView(holder, LinearLayout.LayoutParams(ui.dp(if (large) 72 else 58), ui.dp(if (large) 72 else 58)).apply { marginEnd = ui.dp(6) })
             }
             strip.addView(row); addView(strip, LinearLayout.LayoutParams(-1, -2))
-            // Explicit controls also support TalkBack and users who prefer buttons to swiping.
-            val controls = ui.row(); addView(controls)
-            previous = ui.button(controls, "이전 사진", false, if (large) 68 else 48) { show(currentIndex - 1) }
-            next = ui.button(controls, "다음 사진", false, if (large) 68 else 48) { show(currentIndex + 1) }
-            previous!!.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(4) }
-            next!!.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(4) }
+
         }
         if (remove != null && large) {
             removeButton = ui.button(this, "이 사진 빼기", false, 76) { remove.invoke(currentIndex) }
@@ -179,10 +172,6 @@ class PhotoCarousel(
     private fun render() {
         indicator.text = "사진 ${currentIndex + 1} / $photoCount" + if (photoCount > 1) " · 좌우로 넘겨 보세요" else ""
         dots.text = (0 until photoCount).joinToString("  ") { if (it == currentIndex) "●" else "○" }
-        previous?.isEnabled = currentIndex > 0
-        next?.isEnabled = currentIndex < photoCount - 1
-        previous?.alpha = if (currentIndex > 0) 1f else 0.4f
-        next?.alpha = if (currentIndex < photoCount - 1) 1f else 0.4f
         removeButton?.contentDescription = "${currentIndex + 1}번째 사진 빼기"
         thumbs.forEachIndexed { index, view ->
             view.isSelected = index == currentIndex

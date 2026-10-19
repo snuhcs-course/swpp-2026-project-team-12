@@ -172,6 +172,7 @@ class IconView(context: Context, private val symbol: String, private val color: 
             "camera" -> { canvas.drawRoundRect(2f, 6f, 22f, 21f, 3f, 3f, p); canvas.drawCircle(12f, 13f, 4f, p); line(7f, 6f, 9f, 3f); line(9f, 3f, 15f, 3f); line(15f, 3f, 17f, 6f) }
             "refresh" -> { canvas.drawArc(4f, 4f, 20f, 20f, 45f, 285f, false, p); line(17f, 3f, 20f, 8f); line(20f, 8f, 15f, 8f) }
             "mic" -> { canvas.drawRoundRect(8f, 2f, 16f, 15f, 4f, 4f, p); canvas.drawArc(4f, 6f, 20f, 19f, 0f, 180f, false, p); line(12f, 19f, 12f, 23f) }
+            "stop" -> canvas.drawRect(5f, 5f, 19f, 19f, p)
             "listen" -> { line(3f, 9f, 7f, 9f); line(7f, 9f, 12f, 4f); line(12f, 4f, 12f, 20f); line(12f, 20f, 7f, 15f); line(7f, 15f, 3f, 15f); line(3f, 15f, 3f, 9f); canvas.drawArc(12f, 4f, 22f, 20f, -60f, 120f, false, p) }
             "family" -> { canvas.drawCircle(8f, 7f, 3f, p); canvas.drawCircle(17f, 8f, 2.5f, p); canvas.drawArc(1f, 12f, 15f, 26f, 180f, 180f, false, p); canvas.drawArc(12f, 13f, 23f, 25f, 180f, 180f, false, p) }
             "digest" -> { canvas.drawRoundRect(4f, 2f, 20f, 22f, 2f, 2f, p); line(8f, 8f, 16f, 8f); line(8f, 12f, 16f, 12f); line(8f, 16f, 13f, 16f) }
