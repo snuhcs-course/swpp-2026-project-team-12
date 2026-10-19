@@ -80,7 +80,11 @@ retrieval when the LLM can answer from the current input alone.
 The feed returns the latest 100 posts, ordered by creation time and then ID, both
 descending. The Android client also sorts responses by the same rule.
 
-Tap **추가 질문** on a feed card or below the summary controls in post detail to
+Tap **AI 요약** to display the post summary without playing audio. Listening uses
+the same summary and reuses it if already loaded. Voice replies remain available
+in post detail.
+
+Tap **궁금한 점을 물어보세요** on a feed card or below the summary controls in post detail to
 ask about that post. Answers appear in the same detail screen. Successful turns
 remain visible while the detail screen stays open; follow-up requests include
 the last five question/answer pairs, with each message limited to 1,000 characters.
