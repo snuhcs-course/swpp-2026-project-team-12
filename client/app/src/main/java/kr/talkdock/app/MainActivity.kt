@@ -635,15 +635,15 @@ class MainActivity : ComponentActivity() {
                 if (large) {
                     card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
                     ui.button(card, "글로 댓글 쓰기", false, 76) { detail(post, focusComment = true) }
-                    ui.button(card, "목소리로 댓글 남기기", height = 76) { voice(post, fromDetail = true) }
+                    ui.button(card, "AI 요약", false, 76) { audio.showSummary() }
                 } else {
                     val actions = ui.row(); card.addView(actions)
                     postAction(actions, "comment", "댓글 " + post.getInt("comment_count")) { detail(post) }
-                    postAction(actions, "mic", "말로 답장") { voice(post, fromDetail = true) }
+                    postAction(actions, "digest", "AI 요약") { audio.showSummary() }
                     actions.addView(audio.toggle, LinearLayout.LayoutParams(0, -2, 1f))
                 }
                 card.addView(audio, LinearLayout.LayoutParams(-1, -2))
-                ui.button(card, "추가 질문", false, if (large) 76 else 48) { detail(post, focusQuestion = true) }
+                ui.button(card, "궁금한 점을 물어보세요", false, if (large) 76 else 48) { detail(post, focusQuestion = true) }
                 ui.gap(content, 20)
             }
         }
@@ -739,6 +739,7 @@ class MainActivity : ComponentActivity() {
             ui.label(card, data.getString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 18f)
             ui.gap(card, 12); postPhotos(card, data)
             val audio = postAudio(data)
+            ui.button(card, "AI 요약", false, if (large) 76 else 56) { audio.showSummary() }
             card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
             card.addView(audio, LinearLayout.LayoutParams(-1, -2))
             val qa = PostQuestionPanel(this, ui, data.getInt("id"), large, client, questions)
