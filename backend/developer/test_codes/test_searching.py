@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import io
 import json
 import os
@@ -13,6 +14,7 @@ from unittest.mock import AsyncMock, patch
 
 from django.core.management import call_command
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -20,9 +22,9 @@ from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
-from apps.posts.models import Post
+from apps.posts.models import Post, PostPhoto
 from apps.searching import services
-from integrations.ai import flow, provider
+from integrations.ai import feed_description, flow, provider
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
 
@@ -91,6 +93,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
             records.append({"name": source})
 
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
+             patch.object(feed_description, "describe_post", new=AsyncMock(return_value="상세 기록")) as describe, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(construction_graphiti, "add_memory", new=AsyncMock(side_effect=save)) as add, \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close:
@@ -100,6 +103,10 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertTrue(all(call.args[1] == self.room.pk for call in add.await_args_list))
         self.assertEqual(add.await_args_list[0].args[4], first.created_at - timedelta(days=1))
         self.assertEqual(close.await_count, 2)
+        self.assertEqual(describe.await_count, 2)
+        self.assertTrue(all("상세 설명: 상세 기록" in call.args[2] for call in add.await_args_list))
+        saved.refresh_from_db()
+        self.assertEqual(saved.description, "")
 
     def test_construction_failure_can_be_retried(self):
         Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
@@ -108,6 +115,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
         )
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
+             patch.object(feed_description, "describe_post", new=AsyncMock(return_value="상세 기록")) as describe, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(construction_graphiti, "add_memory", new=AsyncMock(side_effect=[RuntimeError("offline"), "episode"])) as add, \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()):
@@ -115,6 +123,64 @@ class HistoryAPITests(FamilyFixture, TestCase):
                 call_command("run_construction_worker", family_id=self.room.pk, once=True, stdout=io.StringIO())
             call_command("run_construction_worker", family_id=self.room.pk, once=True, stdout=io.StringIO())
         self.assertEqual(add.await_count, 2)
+        describe.assert_awaited_once()
+
+    def test_description_failure_does_not_save_memory_and_can_retry(self):
+        post = Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
+        graph = SimpleNamespace(
+            build_indices_and_constraints=AsyncMock(),
+            driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
+        )
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
+             patch.object(feed_description, "describe_post", new=AsyncMock(side_effect=[RuntimeError("offline"), "상세 기록"])), \
+             patch.object(graphiti_client, "create_graphiti", return_value=graph), \
+             patch.object(construction_graphiti, "add_memory", new=AsyncMock()) as add, \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()):
+            with self.assertRaises(CommandError):
+                call_command("run_construction_worker", family_id=self.room.pk, once=True, stdout=io.StringIO())
+            add.assert_not_awaited()
+            post.refresh_from_db()
+            self.assertEqual(post.description, "")
+            call_command("run_construction_worker", family_id=self.room.pk, once=True, stdout=io.StringIO())
+        add.assert_awaited_once()
+        post.refresh_from_db()
+        self.assertEqual(post.description, "상세 기록")
+
+    @override_settings(OPENAI_API_KEY="test-key")
+    def test_construction_describes_ordered_photos_and_text_only_posts(self):
+        graph = SimpleNamespace(
+            build_indices_and_constraints=AsyncMock(),
+            driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
+        )
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            post = Post.objects.create(room=self.room, author=self.user, caption="여러 사진의 소식",
+                                       image=ContentFile(b"cover", name="cover.jpg"))
+            PostPhoto.objects.create(post=post, position=2, image=ContentFile(b"third", name="third.jpg"))
+            PostPhoto.objects.create(post=post, position=1, image=ContentFile(b"second", name="second.jpg"))
+            text_post = Post.objects.create(room=self.room, author=self.user, caption="글로만 남긴 소식", image="")
+            with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
+                 patch.object(graphiti_client, "close_graphiti", new=AsyncMock()), \
+                 patch.object(construction_graphiti, "add_memory", new=AsyncMock()) as add, \
+                 patch.object(feed_description, "AsyncOpenAI") as sdk:
+                client = sdk.return_value.__aenter__.return_value
+                client.responses.create = AsyncMock(side_effect=[
+                    SimpleNamespace(status="completed", output_text="모든 사진을 반영한 기록"),
+                    SimpleNamespace(status="completed", output_text="원문만 반영한 기록"),
+                ])
+                call_command("run_construction_worker", family_id=self.room.pk, once=True, stdout=io.StringIO())
+            inputs = [call.kwargs["input"][0]["content"] for call in client.responses.create.await_args_list]
+            self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in inputs[0][1:]],
+                             [b"cover", b"second", b"third"])
+            self.assertEqual(len(inputs[1]), 1)
+            self.assertEqual(json.loads(inputs[1][0]["text"])["원문"], "글로만 남긴 소식")
+            self.assertEqual([call.args[2] for call in add.await_args_list], [
+                "작성자: 정아\n상세 설명: 모든 사진을 반영한 기록",
+                "작성자: 정아\n상세 설명: 원문만 반영한 기록",
+            ])
+            post.refresh_from_db()
+            text_post.refresh_from_db()
+            self.assertEqual(post.description, "모든 사진을 반영한 기록")
+            self.assertEqual(text_post.description, "원문만 반영한 기록")
 
     def test_only_one_local_construction_worker_can_own_a_family(self):
         def start_second_worker(*args):

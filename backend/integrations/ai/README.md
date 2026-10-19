@@ -81,3 +81,16 @@ Include the runtime modules, worker/router/provider changes, settings example, p
 - Graphiti searches extracted facts. An original post/episode can exist without a searchable fact edge, so storage completeness does not guarantee recall.
 - Search is scoped to the server-selected family, with no server-enforced historical snapshot filter. A timestamp in the prompt or query is not a guarantee that later records are excluded.
 - Previous dialogue is request context, not persistent conversation storage.
+
+## Construction descriptions
+
+`run_construction_worker` generates a separate memory description before calling
+Graphiti. `feed_description.describe_post` takes the caption, author, posting time,
+and every photo from `Post.photo_files()` in order. Text-only posts use the same
+path with no image inputs. This uses `OPENAI_MODEL`; displayed post summaries and
+follow-up QA continue to use `POST_AI_MODEL` and the existing post flow.
+
+The description is cached in `Post.description`. If Graphiti storage fails, retry
+reuses the description. If description generation fails, nothing is sent to
+Graphiti and the post remains eligible for retry. Existing `post_<id>` episodes
+are skipped; there is no backfill or regeneration of existing graph records.
