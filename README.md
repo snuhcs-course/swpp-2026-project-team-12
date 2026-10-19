@@ -71,9 +71,21 @@ Search and AI requests submit work to a shared thread pool inside the Django
 process and wait for the result. Threads are reused across families, while each
 request searches only its own family's records. No separate search command is needed.
 
-Family history uses `search -> LLM`. Post summaries, voice reply rewriting, and
-daily digests use `LLM -> search -> LLM`, skipping retrieval when the LLM can answer
-from the current input alone.
+Family history uses `search -> LLM`. Basic post summaries use only the current
+post and photos. Additional questions use `LLM -> search -> LLM`, skipping
+retrieval when the LLM can answer from the current input alone.
+
+### Post feed and additional questions
+
+The feed returns the latest 100 posts, ordered by creation time and then ID, both
+descending. The Android client also sorts responses by the same rule.
+
+Tap **추가 질문** on a feed card or below the summary controls in post detail to
+ask about that post. Answers appear in the same detail screen. Successful turns
+remain visible while the detail screen stays open; follow-up requests include
+the last five question/answer pairs, with each message limited to 1,000 characters.
+Leaving the detail screen clears this conversation. Questions are separate from
+family comments, and failed requests keep the typed question for retry.
 
 ## APIs
 ### Account APIs
@@ -115,6 +127,7 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
+| `POST /api/posts/<id>/questions/` | Answers a question about the post; JSON body: `question` (up to 1,000 characters) and optional `prior_dialogue` (up to 10 user/assistant messages, each with `role` and `text`, up to 1,000 characters). Returns `text`. |
 | `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
 Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
