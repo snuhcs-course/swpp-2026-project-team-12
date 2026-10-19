@@ -2,6 +2,7 @@ package kr.talkdock.app.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapRegionDecoder
 import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
@@ -13,23 +14,32 @@ import kr.talkdock.app.data.ApiClient
 import java.lang.ref.WeakReference
 import java.util.WeakHashMap
 import java.util.concurrent.Executors
-import kotlin.math.max
+import java.util.concurrent.Future
+import java.util.concurrent.ThreadPoolExecutor
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Load only visible feed images; share downloads but decode each display size separately. */
 class ViewportPhotoLoader(private val root: View) : AutoCloseable {
     private data class Source(val server: String, val token: String, val url: String)
-    private data class SizeKey(val source: Source, val width: Int, val height: Int)
+    private data class SizeKey(val source: Source, val width: Int, val height: Int, val crop: Boolean)
     private class Binding(view: ImageView, val client: ApiClient, val source: Source, val thumbnail: Boolean) {
         val view = WeakReference(view)
         var requested: SizeKey? = null
     }
-    private class Download(val generation: Int) { val waiting = mutableListOf<Pair<Binding, SizeKey>>() }
+    private class Download(val generation: Int) {
+        val waiting = mutableListOf<Pair<Binding, SizeKey>>()
+        var task: Future<*>? = null
+    }
+    private class Decode(val generation: Int) {
+        val waiting = mutableListOf<Binding>()
+        var task: Future<*>? = null
+    }
     private val main = Handler(Looper.getMainLooper())
-    private val workers = Executors.newFixedThreadPool(2)
+    private val workers = Executors.newFixedThreadPool(2) as ThreadPoolExecutor
     private val bindings = WeakHashMap<ImageView, Binding>()
     private val downloads = mutableMapOf<Source, Download>()
-    private val decodes = mutableMapOf<SizeKey, MutableList<Binding>>()
+    private val decodes = mutableMapOf<SizeKey, Decode>()
     private val bitmaps = object : LruCache<SizeKey, Bitmap>(12 * 1024 * 1024) {
         override fun sizeOf(key: SizeKey, value: Bitmap) = value.allocationByteCount
     }
@@ -48,6 +58,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
         override fun onViewDetachedFromWindow(view: View) {
             (view as? ImageView)?.setImageDrawable(null)
             bindings[view]?.requested = null
+            cancelUnusedWork()
         }
     }
 
@@ -70,6 +81,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
         view.removeOnLayoutChangeListener(layoutListener)
         view.removeOnAttachStateChangeListener(attachListener)
         view.setImageDrawable(null)
+        cancelUnusedWork()
     }
 
     fun clearViews() {
@@ -79,7 +91,10 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
     fun clear() {
         generation++
         clearViews()
+        downloads.values.forEach { it.task?.cancel(false) }
+        decodes.values.forEach { it.task?.cancel(false) }
         downloads.clear(); decodes.clear(); bitmaps.evictAll(); bytes.evictAll()
+        workers.purge()
     }
 
     private fun schedule() {
@@ -98,7 +113,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
     }
 
     private fun visible(view: ImageView, binding: Binding): Boolean =
-        view.isAttachedToWindow && view.windowVisibility == View.VISIBLE && view.width > 0 &&
+        view.isAttachedToWindow && view.windowVisibility == View.VISIBLE && view.width > 0 && view.height > 0 &&
             anchor(view, binding).getGlobalVisibleRect(Rect())
 
     private fun update() {
@@ -109,8 +124,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
                 view.setImageDrawable(null)
                 continue
             }
-            val key = SizeKey(binding.source, view.width.coerceAtLeast(1),
-                if (binding.thumbnail) view.height.coerceAtLeast(1) else 0)
+            val key = SizeKey(binding.source, view.width, view.height, binding.thumbnail)
             if (binding.requested == key) continue
             binding.requested = key
             val cached = bitmaps.get(key)
@@ -121,7 +135,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
             if (active != null) { active.waiting.add(binding to key); continue }
             val download = Download(generation).apply { waiting.add(binding to key) }
             downloads[key.source] = download
-            workers.execute {
+            download.task = workers.submit {
                 val result = runCatching { binding.client.image(key.source.url) }
                 main.post {
                     if (closed || download.generation != generation || downloads[key.source] !== download) return@post
@@ -139,6 +153,7 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
                 }
             }
         }
+        cancelUnusedWork()
     }
 
     private fun current(binding: Binding, key: SizeKey): Boolean {
@@ -146,19 +161,45 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
         return bindings[view] === binding && binding.requested == key && visible(view, binding)
     }
 
+    // A view can disappear while another download is blocking the workers. Drop queued
+    // work and its byte-array references instead of downloading the previous screen.
+    private fun cancelUnusedWork() {
+        val downloadIterator = downloads.iterator()
+        while (downloadIterator.hasNext()) {
+            val (_, work) = downloadIterator.next()
+            work.waiting.removeAll { (binding, key) -> !current(binding, key) }
+            if (work.waiting.isEmpty()) {
+                work.task?.cancel(false)
+                downloadIterator.remove()
+            }
+        }
+        val decodeIterator = decodes.iterator()
+        while (decodeIterator.hasNext()) {
+            val (key, work) = decodeIterator.next()
+            work.waiting.removeAll { !current(it, key) }
+            if (work.waiting.isEmpty()) {
+                work.task?.cancel(false)
+                decodeIterator.remove()
+            }
+        }
+        workers.purge()
+    }
+
     private fun decode(binding: Binding, key: SizeKey, data: ByteArray) {
         val existing = decodes[key]
-        if (existing != null) { existing.add(binding); return }
-        val waiting = mutableListOf(binding)
-        decodes[key] = waiting
-        val started = generation
-        workers.execute {
-            val bitmap = runCatching { displayBitmap(data, key.width, key.height) }.getOrNull()
+        if (existing != null) { existing.waiting.add(binding); return }
+        val work = Decode(generation).apply { waiting.add(binding) }
+        decodes[key] = work
+        work.task = workers.submit {
+            val bitmap = runCatching { displayBitmap(data, key.width, key.height, key.crop) }.getOrNull()
             main.post {
-                if (closed || started != generation || decodes[key] !== waiting) return@post
+                if (closed || work.generation != generation || decodes[key] !== work) {
+                    bitmap?.recycle() // Never published to a view or cache.
+                    return@post
+                }
                 decodes.remove(key)
                 if (bitmap != null) bitmaps.put(key, bitmap)
-                for (target in waiting) if (current(target, key)) {
+                for (target in work.waiting) if (current(target, key)) {
                     target.view.get()?.let { view ->
                         if (bitmap != null) view.setImageBitmap(bitmap)
                         else view.contentDescription = "사진을 불러오지 못했어요."
@@ -168,19 +209,35 @@ class ViewportPhotoLoader(private val root: View) : AutoCloseable {
         }
     }
 
-    private fun displayBitmap(data: ByteArray, width: Int, height: Int): Bitmap? {
+    @Suppress("DEPRECATION") // Byte-array region decoding is also supported on API 26.
+    private fun displayBitmap(data: ByteArray, width: Int, height: Int, crop: Boolean): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(data, 0, data.size, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
-        val ratio = if (height == 0) width.toDouble() / bounds.outWidth
-            else max(width.toDouble() / bounds.outWidth, height.toDouble() / bounds.outHeight)
-        val scale = ratio.coerceAtMost(1.0)
-        val targetWidth = (bounds.outWidth * scale).roundToInt().coerceAtLeast(1)
-        val targetHeight = (bounds.outHeight * scale).roundToInt().coerceAtLeast(1)
+        val region = Rect(0, 0, bounds.outWidth, bounds.outHeight)
+        if (crop) {
+            val aspect = width.toDouble() / height
+            if (bounds.outWidth.toDouble() / bounds.outHeight > aspect) {
+                val cropWidth = (bounds.outHeight * aspect).roundToInt().coerceIn(1, bounds.outWidth)
+                region.left = (bounds.outWidth - cropWidth) / 2
+                region.right = region.left + cropWidth
+            } else {
+                val cropHeight = (bounds.outWidth / aspect).roundToInt().coerceIn(1, bounds.outHeight)
+                region.top = (bounds.outHeight - cropHeight) / 2
+                region.bottom = region.top + cropHeight
+            }
+        }
+        val scale = min(width.toDouble() / region.width(), height.toDouble() / region.height()).coerceAtMost(1.0)
+        val targetWidth = (region.width() * scale).roundToInt().coerceIn(1, width)
+        val targetHeight = (region.height() * scale).roundToInt().coerceIn(1, height)
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= targetWidth && bounds.outHeight / (sample * 2) >= targetHeight) sample *= 2
-        val decoded = BitmapFactory.decodeByteArray(data, 0, data.size,
-            BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        while (region.width() / (sample * 2) >= targetWidth && region.height() / (sample * 2) >= targetHeight) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        val decoded = if (crop) {
+            val decoder = BitmapRegionDecoder.newInstance(data, 0, data.size, false) ?: return null
+            try { decoder.decodeRegion(region, options) } finally { decoder.recycle() }
+        } else BitmapFactory.decodeByteArray(data, 0, data.size, options)
+        if (decoded == null) return null
         if (decoded.width == targetWidth && decoded.height == targetHeight) return decoded
         val scaled = Bitmap.createScaledBitmap(decoded, targetWidth, targetHeight, true)
         if (scaled !== decoded) decoded.recycle() // Not yet published to a view or shared cache.
