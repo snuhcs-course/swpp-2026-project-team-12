@@ -1,6 +1,7 @@
 import secrets
 from datetime import time
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import IntegrityError, transaction
 
@@ -96,8 +97,16 @@ def invitation_code():
             return code
 
 
+def require_no_membership(user):
+    # Serialize room creation/joining for this account on databases with row locks.
+    get_user_model().objects.select_for_update().get(pk=user.pk)
+    if Membership.objects.filter(user=user).exists():
+        raise APIError("이미 가입한 가족 방이 있어요. 현재 가족 방을 이용해 주세요.", 409)
+
+
 @transaction.atomic
 def create_room(owner, room_name, password, digest_time):
+    require_no_membership(owner)
     room = FamilyRoom.objects.create(
         name=room_name,
         invite_code=invitation_code(),
@@ -121,6 +130,7 @@ def join_room(room, user, slot):
         raise APIError("가족에서 내 자리를 선택해 주세요.")
     try:
         with transaction.atomic():
+            require_no_membership(user)
             if room.members.filter(user=user).exists():
                 raise APIError("이미 가입한 가족 방이에요.", 409)
             if room.members.filter(slot=slot).exists():
