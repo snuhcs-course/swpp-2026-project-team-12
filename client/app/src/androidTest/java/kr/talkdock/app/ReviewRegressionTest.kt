@@ -291,7 +291,7 @@ class ReviewPhotoMemoryTest {
             java.io.File(ui.test.targetContext.cacheDir,"review-photo-memory.json").writeText(metrics.toString(2))
             println("REVIEW_PHOTO_MEMORY="+metrics)
             ui.screenshot("review-photo-memory.png")
-            assertFalse("The final offscreen post must not be downloaded before scrolling",photoPaths.any { it.startsWith("/api/photo/30/") })
+            assertFalse("The final offscreen post must not be downloaded before scrolling",photoPaths.any { it.startsWith("/api/photo/1/") })
             assertEquals("A page and thumbnail must share their download",photoPaths.toSet().size,photoPaths.size)
             ui.test.runOnMainSync {
                 for(view in ui.all().filterIsInstance<ImageView>().filter { it.scaleType==ImageView.ScaleType.CENTER_CROP }) {
@@ -300,7 +300,7 @@ class ReviewPhotoMemoryTest {
                 }
                 ui.all().filterIsInstance<android.widget.ScrollView>().first().fullScroll(View.FOCUS_DOWN)
             }
-            ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/30/") } }
+            ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/1/") } }
             Thread.sleep(1200)
             var retainedOffscreen=0
             ui.test.runOnMainSync {
@@ -591,7 +591,7 @@ class InlinePostAudioTest {
             open(ui); tap(ui); ui.await { ui.has("요약 서버 오류") }
             ui.click("가족이 쓴 글 듣기"); ui.await { ui.has("음성 서버 오류") && ui.has("음성 다시 준비하기") }
             ui.click("음성 다시 준비하기"); ui.await { playing(ui) }
-            assertTrue(api.requests.filter { it.path == "/api/speech/" }.all { JSONObject(it.body).getString("text") == "오늘의 소식 1" })
+            assertTrue(api.requests.filter { it.path == "/api/speech/" }.all { JSONObject(it.body).getString("text") == "오늘의 소식 2" })
         } }
     }
     @Test fun unauthorizedSummaryShowsLoginRecovery() {
@@ -708,7 +708,8 @@ class CommentComposerTest {
             else -> jsonReply(JSONObject())
         }
     }
-    private fun composer(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>().single()
+    private fun composer(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>()
+        .single { it.input.contentDescription == "댓글 입력" }
     private fun open(ui: UiHarness, large: Boolean = false) {
         ui.await { ui.has("댓글 테스트 소식") }
         ui.click(if (large) "글로 댓글 쓰기" else "댓글 0")
@@ -819,6 +820,137 @@ class CommentComposerTest {
                 assertTrue(composer(ui).input.isEnabled); assertTrue(composer(ui).sendButton.isEnabled)
                 composer(ui).input.append(" 수정"); assertEquals("보존할 댓글 수정", composer(ui).input.text.toString())
             }
+        } }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class PostQuestionUiTest {
+    private fun post(id: Int, created: String = "2026-10-19T${if (id == 1) "10" else "11"}:00:00+09:00") = JSONObject()
+        .put("id", id).put("author_name", "가족 $id").put("relationship", "자녀").put("caption", "질문 테스트 소식 $id")
+        .put("created_at", created).put("comment_count", 0).put("images", JSONArray()).put("comments", JSONArray())
+    private fun server(custom: (Request) -> Reply? = { null }): MockApi = MockApi { request ->
+        custom(request) ?: when (request.path) {
+            "/api/families/current/" -> jsonReply(room(1, "질문 검증 가족"))
+            "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post(1)).put(post(2))))
+            "/api/posts/1/" -> jsonReply(post(1))
+            "/api/posts/2/" -> jsonReply(post(2))
+            "/api/posts/1/questions/", "/api/posts/2/questions/" -> jsonReply(JSONObject().put("text", "가족 기록으로 확인한 답변이에요."))
+            else -> jsonReply(JSONObject())
+        }
+    }
+    private fun panel(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().single()
+    private fun open(ui: UiHarness, id: Int = 2) {
+        ui.await { ui.has("질문 테스트 소식 $id") }
+        ui.test.runOnMainSync {
+            val caption = ui.all().filterIsInstance<TextView>().first { it.text.toString() == "질문 테스트 소식 $id" }
+            ui.all(caption.parent as View).filterIsInstance<Button>().single { it.text.toString() == "추가 질문" }.performClick()
+        }
+        ui.await { ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().singleOrNull()?.composer?.isShown == true }
+    }
+    private fun ask(ui: UiHarness, text: String) = ui.test.runOnMainSync {
+        panel(ui).composer.input.setText(text); panel(ui).composer.sendButton.performClick()
+    }
+
+    @Test fun feedIsNewestFirstWithTimezonesAndTimestampTiesInBothSizes() {
+        for (large in listOf(false, true)) server { request -> if (request.path == "/api/posts/") {
+            val items = JSONArray().put(post(100, "2026-10-19T10:00:00+09:00"))
+                .put(post(1, "2026-10-19T02:00:00Z")).put(post(999, "unknown"))
+                .put(post(3, "2026-10-19T10:30:00+09:00")).put(post(2, "2026-10-19T11:00:00+09:00"))
+            jsonReply(JSONObject().put("posts", items))
+        } else null }.use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
+            ui.await { ui.has("질문 테스트 소식 100") }
+            ui.test.runOnMainSync {
+                val captions = ui.all().filterIsInstance<TextView>().map { it.text.toString() }.filter { it.startsWith("질문 테스트 소식 ") }
+                assertEquals(listOf(2, 1, 3, 100, 999).map { "질문 테스트 소식 $it" }, captions)
+            }
+        } }
+    }
+
+    @Test fun feedEntryAsksTheCorrectPostAndShowsAnswerWithoutPostingAComment() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
+            open(ui)
+            ui.test.runOnMainSync { assertFalse(panel(ui).composer.sendButton.isEnabled) }
+            ask(ui, "모모는 누구예요?")
+            ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
+            ui.test.runOnMainSync {
+                assertEquals("", panel(ui).composer.input.text.toString())
+                assertTrue(ui.has("모모는 누구예요?")); assertTrue(ui.has("AI 답변"))
+                assertTrue(ui.has("목소리로 댓글 남기기"))
+                assertEquals(1000, panel(ui).composer.input.filters.filterIsInstance<android.text.InputFilter.LengthFilter>().single().max)
+                panel(ui).requestRectangleOnScreen(android.graphics.Rect(0, 0, panel(ui).width, panel(ui).height), true)
+            }
+            ui.screenshot("post-question-answer.png")
+            val request = api.requests.single { it.path.endsWith("/questions/") }
+            assertEquals("/api/posts/2/questions/", request.path); assertEquals("POST", request.method)
+            val body = JSONObject(request.body)
+            assertEquals("모모는 누구예요?", body.getString("question")); assertEquals(0, body.getJSONArray("prior_dialogue").length())
+            assertFalse(api.paths().any { it.endsWith("/comments/") })
+        } }
+    }
+
+    @Test fun followupsSendOnlyTheLatestTenBoundedMessages() {
+        val longAnswer = "긴 답변" + "가".repeat(1100)
+        server { request -> if (request.path.endsWith("/questions/")) {
+            val q = JSONObject(request.body).getString("question")
+            jsonReply(JSONObject().put("text", if (q == "질문0") longAnswer else "답변:$q"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui)
+            for (index in 0..6) {
+                ask(ui, "질문$index")
+                ui.await { ui.has(if (index == 0) longAnswer else "답변:질문$index") && panel(ui).composer.input.isEnabled }
+            }
+            val requests = api.requests.filter { it.path.endsWith("/questions/") }.map { JSONObject(it.body) }
+            assertEquals(7, requests.size)
+            assertEquals(1000, requests[1].getJSONArray("prior_dialogue").getJSONObject(1).getString("text").length)
+            val prior = requests.last().getJSONArray("prior_dialogue")
+            assertEquals(10, prior.length())
+            for (index in 0 until 5) {
+                assertEquals("user", prior.getJSONObject(index * 2).getString("role"))
+                assertEquals("질문${index + 1}", prior.getJSONObject(index * 2).getString("text"))
+                assertEquals("assistant", prior.getJSONObject(index * 2 + 1).getString("role"))
+            }
+        } }
+    }
+
+    @Test fun failedQuestionKeepsDraftAndCanRetryWithoutDuplicatesOrFailedHistory() {
+        var count = 0
+        server { request -> if (request.path.endsWith("/questions/")) {
+            Thread.sleep(400)
+            if (++count == 1) jsonReply(JSONObject().put("error", "질문 테스트 오류"), 503)
+            else jsonReply(JSONObject().put("text", "다시 확인한 답변"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui); ask(ui, "그 카페는 어디예요?")
+            ui.await { api.paths().any { it.endsWith("/questions/") } }
+            ui.test.runOnMainSync {
+                assertFalse(panel(ui).composer.sendButton.isEnabled)
+                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+                val comment = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>().single { it !== panel(ui).composer }
+                assertTrue("AI requests must not disable comment input", comment.input.isEnabled)
+                panel(ui).composer.sendButton.performClick()
+            }
+            ui.await { ui.has("질문 테스트 오류") }
+            ui.test.runOnMainSync { assertEquals("그 카페는 어디예요?", panel(ui).composer.input.text.toString()) }
+            ask(ui, "그 카페는 어디예요?"); ui.await { ui.has("다시 확인한 답변") }
+            val requests = api.requests.filter { it.path.endsWith("/questions/") }
+            assertEquals(2, requests.size)
+            assertTrue(requests.all { JSONObject(it.body).getJSONArray("prior_dialogue").length() == 0 })
+        } }
+    }
+
+    @Test fun leavingPendingQuestionDoesNotShowLateAnswerOrLeakConversationToAnotherPost() {
+        server { request -> if (request.path == "/api/posts/2/questions/") {
+            Thread.sleep(600); jsonReply(JSONObject().put("text", "이전 글에만 해당하는 답변"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui); ask(ui, "누구예요?")
+            ui.await { api.paths().contains("/api/posts/2/questions/") }
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.await { ui.has("질문 검증 가족") && ui.has("질문 테스트 소식 1") }
+            open(ui, 1)
+            ui.test.runOnMainSync { assertFalse(ui.has("이전 글에만 해당하는 답변")) }
+            ask(ui, "여기는 어디예요?"); ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
+            val request = api.requests.last { it.path == "/api/posts/1/questions/" }
+            assertEquals(0, JSONObject(request.body).getJSONArray("prior_dialogue").length())
         } }
     }
 }
