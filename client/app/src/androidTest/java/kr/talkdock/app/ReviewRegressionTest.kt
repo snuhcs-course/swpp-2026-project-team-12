@@ -504,6 +504,7 @@ class InlinePostAudioTest {
             ui.test.runOnMainSync {
                 assertTrue(ui.has("재생 검증 가족")); assertFalse(ui.has("가족 소식 듣기"))
                 assertTrue(panels(ui)[0].toggle.isSelected)
+                assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
                 assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
             }
             ui.test.runOnMainSync {
@@ -604,7 +605,13 @@ class InlinePostAudioTest {
     @Test fun completionRestoresSpeakerButton() {
         server { request -> if (request.path == "/api/speech/") audio(400) else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
-                open(ui); tap(ui); ui.await { ui.has("재생을 마쳤어요.") }
+                open(ui); tap(ui)
+                ui.await { api.paths().contains("/api/speech/") && !panels(ui)[0].toggle.isSelected }
+                ui.test.runOnMainSync {
+                    assertFalse(ui.has("재생을 마쳤어요."))
+                    assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
+                    assertTrue(ui.has("사진과 글을 설명한 AI 요약"))
+                }
                 ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
             } }
     }
@@ -626,6 +633,54 @@ class InlinePostAudioTest {
                 ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 Thread.sleep(900)
                 ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            } }
+    }
+    private fun review(ui: UiHarness) {
+        val draft = JSONObject().put("id", 55).put("recognized", "잘 먹었어").put("converted", "오늘 저녁을 맛있게 먹었어요.")
+        ui.test.runOnMainSync {
+            MainActivity::class.java.getDeclaredMethod("review", JSONObject::class.java, JSONObject::class.java)
+                .apply { isAccessible = true }.invoke(ui.activity, post(1), draft)
+        }
+        ui.await { ui.has("답장 확인") }
+    }
+    @Test fun replyReviewUsesHeadingIconForPlaybackAndKeepsSendAndRerecord() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+            open(ui); review(ui)
+            ui.test.runOnMainSync {
+                assertTrue(ui.has("가족에게 전할 댓글")); assertTrue(ui.has("가족에게 보내기")); assertTrue(ui.has("다시 말하기"))
+                assertFalse(ui.has("취소하기")); assertFalse(ui.has("댓글 소리로 확인하기")); assertFalse(ui.has("듣기 중지"))
+                val icon = ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single()
+                val heading = icon.parent as ViewGroup
+                assertTrue(ui.all(heading).filterIsInstance<TextView>().any { it.text.toString() == "가족에게 전할 댓글" })
+                icon.performClick()
+            }
+            ui.await { playing(ui) }
+            ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick(); assertFalse(playing(ui)) }
+            ui.screenshot("reply-review-icons.png")
+            assertEquals("오늘 저녁을 맛있게 먹었어요.", JSONObject(api.requests.last { it.path == "/api/speech/" }.body).getString("text"))
+            ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+        } }
+    }
+    @Test fun replyPreviewIgnoresLateSpeechAfterStopOrNavigation() {
+        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); review(ui)
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().contains("/api/speech/") }
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().count { it == "/api/speech/" } == 2 }
+                ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                review(ui)
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().count { it == "/api/speech/" } == 3 }
+                ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
             } }
     }
     @Test fun largeTextModeAndDigestOpenPostWithoutListeningScreen() {
