@@ -34,6 +34,13 @@ class InlinePostAudio(
         setOnClickListener {
             if (needsLogin) login()
             else if (active) stop()
+            else if (summaryLoading) {
+                activate(this@InlinePostAudio)
+                speaker.stop()
+                active = true
+                autoplayAfterSummary = true
+                updateToggle()
+            }
             else if (summaryText != null) startSpeech(summaryText!!)
             else loadSummary(false)
         }
@@ -41,6 +48,8 @@ class InlinePostAudio(
     private var task: Future<*>? = null
     private var generation = 0
     private var active = false
+    private var summaryLoading = false
+    private var autoplayAfterSummary = false
     private var summaryText: String? = null
     private var status = ""
     private var summaryRetry: Boolean? = null
@@ -51,6 +60,13 @@ class InlinePostAudio(
         orientation = VERTICAL
         visibility = GONE
         updateToggle()
+    }
+
+    /** Uses the same summary as listening, without requesting speech. */
+    fun showSummary() {
+        if (needsLogin) login()
+        else if (summaryText != null) render()
+        else if (!summaryLoading) loadSummary(false, autoplay = false)
     }
 
     private fun updateToggle() {
@@ -79,7 +95,9 @@ class InlinePostAudio(
         if (needsLogin) ui.button(this, "다시 로그인", false, height()) { login() }
         else {
             summaryRetry?.let { retry ->
-                ui.button(this, if (retry) "설명 다시 준비하기" else "다시 확인하기", false, height()) { loadSummary(retry) }
+                ui.button(this, if (retry) "설명 다시 준비하기" else "다시 확인하기", false, height()) {
+                    loadSummary(retry, autoplayAfterSummary)
+                }
                 val caption = post.optString("caption")
                 if (caption.isNotBlank()) ui.button(this, "가족이 쓴 글 듣기", false, height()) { startSpeech(caption) }
             }
@@ -92,11 +110,11 @@ class InlinePostAudio(
 
     private fun height() = if (large) 76 else 56
 
-    private fun begin(message: String): Int {
-        activate(this)
+    private fun begin(message: String, playback: Boolean = true): Int {
+        if (playback) activate(this)
         stop()
-        speaker.stop() // Also stop a digest or reply preview sharing this player.
-        active = true
+        if (playback) speaker.stop() // Also stop a digest or reply preview sharing this player.
+        active = playback
         summaryRetry = null; speechRetry = null; needsLogin = false
         status = message
         render()
@@ -107,9 +125,11 @@ class InlinePostAudio(
     fun stop() {
         generation++
         task?.cancel(true); task = null
-        if (active) {
-            speaker.stop()
+        autoplayAfterSummary = false
+        if (active || summaryLoading) {
+            if (active) speaker.stop()
             active = false
+            summaryLoading = false
             status = ""
             render()
         }
@@ -117,8 +137,10 @@ class InlinePostAudio(
 
     private fun current(request: Int) = request == generation && isAttachedToWindow && !activity.isDestroyed
 
-    private fun loadSummary(retry: Boolean) {
-        val request = begin("가족 소식을 준비하고 있어요. 댓글은 바로 남길 수 있어요.")
+    private fun loadSummary(retry: Boolean, autoplay: Boolean = true) {
+        val request = begin("가족 소식을 준비하고 있어요. 댓글은 바로 남길 수 있어요.", playback = autoplay)
+        summaryLoading = true
+        autoplayAfterSummary = autoplay
         task = executor.submit {
             val result = runCatching {
                 client.request("posts/${post.getInt("id")}/message/", if (retry) "POST" else "GET", if (retry) JSONObject() else null)
@@ -126,11 +148,13 @@ class InlinePostAudio(
             activity.runOnUiThread {
                 if (!current(request)) return@runOnUiThread
                 task = null
+                summaryLoading = false
                 result.fold({ data ->
                     val text = data.optString("text").trim()
                     if (data.optString("status") == "ready" && text.isNotEmpty()) {
                         summaryText = text
-                        startSpeech(text)
+                        if (autoplayAfterSummary) startSpeech(text)
+                        else { status = ""; render() }
                     } else {
                         active = false
                         val processing = data.optString("status") == "processing"

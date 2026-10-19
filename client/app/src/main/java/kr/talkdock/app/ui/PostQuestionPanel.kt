@@ -38,7 +38,7 @@ class PostQuestionPanel(
         inputLabel = "추가 질문 입력", sendLabel = "질문 보내기", pendingLabel = "답변 준비 중",
         onSend = { ask(it) }
     )
-    private val toggle = ui.button(this, "추가 질문", false, if (large) 76 else 56) {
+    private val toggle = ui.button(this, "궁금한 점을 물어보세요", false, if (large) 76 else 56) {
         if (body.visibility == VISIBLE) {
             composer.input.clearFocus()
             keyboard().hideSoftInputFromWindow(windowToken, 0)
@@ -73,7 +73,7 @@ class PostQuestionPanel(
     }
 
     private fun updateToggle() {
-        toggle.text = if (body.visibility == VISIBLE) "추가 질문 닫기" else "추가 질문"
+        toggle.text = if (body.visibility == VISIBLE) "닫기" else "궁금한 점을 물어보세요"
     }
 
     private fun ask(question: String) {
