@@ -30,6 +30,7 @@ import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.ReplyAudioButton
 import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
@@ -62,6 +63,7 @@ class MainActivity : ComponentActivity() {
     private val network = Executors.newSingleThreadExecutor()
     // Slow AI explanations must not queue ordinary comment requests behind them.
     private val summaries = Executors.newFixedThreadPool(2)
+    private val questions = Executors.newFixedThreadPool(2)
     private var activePostAudio: InlinePostAudio? = null
     private var replyPreview: ReplyAudioButton? = null
     private lateinit var imageLoader: ViewportPhotoLoader
@@ -187,7 +189,7 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
-        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow()
+        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
@@ -592,7 +594,11 @@ class MainActivity : ComponentActivity() {
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
             content.removeAllViews()
-            val posts = objects(data.getJSONArray("posts"))
+            val posts = objects(data.getJSONArray("posts")).sortedWith(
+                compareByDescending<JSONObject> {
+                    runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
+                }.thenByDescending { it.optLong("id") }
+            )
             if (posts.isEmpty()) {
                 ui.art(content, width = 280); ui.gap(content, 20)
                 heading("첫 소식을 기다리고 있어요", "멋진 사진이 없어도 괜찮아요.\n짧은 한마디로 하루를 전해 보세요.")
@@ -637,6 +643,7 @@ class MainActivity : ComponentActivity() {
                     actions.addView(audio.toggle, LinearLayout.LayoutParams(0, -2, 1f))
                 }
                 card.addView(audio, LinearLayout.LayoutParams(-1, -2))
+                ui.button(card, "추가 질문", false, if (large) 76 else 48) { detail(post, focusQuestion = true) }
                 ui.gap(content, 20)
             }
         }
@@ -721,7 +728,7 @@ class MainActivity : ComponentActivity() {
         ui.label(labels, post.getString("relationship") + " · " + time, 14f, color = ui.muted)
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); parent.addView(row); ui.gap(parent, 14)
     }
-    private fun detail(post: JSONObject, focusComment: Boolean = false) {
+    private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false) {
         selectedPost = post
         navigation("가족의 소식", { home() }, name = "detail")
         val client = api
@@ -734,6 +741,9 @@ class MainActivity : ComponentActivity() {
             val audio = postAudio(data)
             card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
             card.addView(audio, LinearLayout.LayoutParams(-1, -2))
+            val qa = PostQuestionPanel(this, ui, data.getInt("id"), large, client, questions)
+            card.addView(qa, LinearLayout.LayoutParams(-1, -2))
+            if (focusQuestion) qa.post { if (qa.isAttachedToWindow) qa.open(focus = true) }
             val comments = objects(data.getJSONArray("comments"))
             ui.gap(content, 24); ui.label(content, "댓글 ${comments.size}", if (large) 24f else 20f, true); ui.gap(content, 20)
             if (comments.isEmpty()) { ui.label(content, "첫 댓글을 남겨 주세요.", 17f, color = ui.muted); ui.gap(content, 16) }
