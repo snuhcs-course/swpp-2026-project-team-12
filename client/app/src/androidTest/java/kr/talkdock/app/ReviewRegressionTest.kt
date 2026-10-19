@@ -325,3 +325,135 @@ class ReviewPhotoMemoryTest {
         } }
     }
 }
+
+@RunWith(AndroidJUnit4::class)
+class PhotoLoaderRegressionTest {
+    @Test fun carouselCanJumpToTheLastPhotoAndReturn() {
+        val colors = listOf(android.graphics.Color.RED, android.graphics.Color.GREEN,
+            android.graphics.Color.BLUE, android.graphics.Color.YELLOW, android.graphics.Color.MAGENTA)
+        val photos = colors.map { color ->
+            val source = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888)
+            source.eraseColor(color)
+            ByteArrayOutputStream().also { source.compress(Bitmap.CompressFormat.JPEG, 90, it); source.recycle() }.toByteArray()
+        }
+        lateinit var api: MockApi
+        api = MockApi { request -> when {
+            request.path == "/api/families/current/" -> jsonReply(room(1, "사진 넘기기 검증"))
+            request.path.startsWith("/api/photo/") -> Reply(photos[request.path.trimEnd('/').substringAfterLast('/').toInt()], type = "image/jpeg")
+            else -> jsonReply(JSONObject().put("posts", JSONArray().put(JSONObject().put("id", 1)
+                .put("author_name", "검증 사용자").put("relationship", "나").put("caption", "사진 넘기기 검증")
+                .put("created_at", "2026-10-19T09:00:00+09:00").put("comment_count", 0)
+                .put("images", JSONArray().apply { repeat(5) { put(JSONObject().put("url", api.base + "photo/$it/")) } })) ))
+        } }
+        api.use { server -> UiHarness(server, room(1, "사진 넘기기 검증")).use { ui ->
+            ui.await { ui.has("사진 넘기기 검증") && ui.all().any { it is kr.talkdock.app.ui.PhotoCarousel } }
+            for (index in listOf(4, 2, 0)) {
+                ui.test.runOnMainSync {
+                    ui.all().first { it.contentDescription == "${index + 1}번째 사진으로 이동" }.performClick()
+                }
+                ui.await {
+                    val carousel = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>().single()
+                    val image = ui.all(carousel).filterIsInstance<ImageView>()
+                        .filter { it.scaleType == ImageView.ScaleType.FIT_CENTER }[index]
+                    val bitmap = (image.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap
+                    val pixel = bitmap?.getPixel(bitmap.width / 2, bitmap.height / 2)
+                    carousel.currentIndex == index && pixel != null &&
+                        kotlin.math.abs(android.graphics.Color.red(pixel) - android.graphics.Color.red(colors[index])) <= 4 &&
+                        kotlin.math.abs(android.graphics.Color.green(pixel) - android.graphics.Color.green(colors[index])) <= 4 &&
+                        kotlin.math.abs(android.graphics.Color.blue(pixel) - android.graphics.Color.blue(colors[index])) <= 4
+                }
+            }
+        } }
+    }
+
+    @Test fun portraitFitsBothViewDimensions() = checkDecodedSize(400, 4000, false)
+    @Test fun landscapeFitsBothViewDimensions() = checkDecodedSize(4000, 400, false)
+    @Test fun tallThumbnailOnlyRetainsItsVisibleCrop() = checkDecodedSize(400, 4000, true)
+
+    private fun checkDecodedSize(sourceWidth: Int, sourceHeight: Int, thumbnail: Boolean) {
+        val source = Bitmap.createBitmap(sourceWidth, sourceHeight, Bitmap.Config.ARGB_8888)
+        source.eraseColor(android.graphics.Color.CYAN)
+        val jpeg = ByteArrayOutputStream().also { source.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+        source.recycle()
+        MockApi { request -> when {
+            request.path == "/api/families/current/" -> jsonReply(room(1, "사진 크기 검증"))
+            request.path.contains("/photo/") -> Reply(jpeg, type = "image/jpeg")
+            else -> emptyFeed()
+        } }.use { api -> UiHarness(api, room(1, "사진 크기 검증")).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            lateinit var image: ImageView
+            lateinit var loader: kr.talkdock.app.ui.ViewportPhotoLoader
+            ui.test.runOnMainSync {
+                val container = android.widget.FrameLayout(ui.activity)
+                image = ImageView(ui.activity).apply {
+                    scaleType = if (thumbnail) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER
+                }
+                container.addView(image, android.widget.FrameLayout.LayoutParams(200, 200))
+                ui.activity.setContentView(container)
+                loader = kr.talkdock.app.ui.ViewportPhotoLoader(container)
+                loader.bind(image, kr.talkdock.app.data.ApiClient(baseUrl = api.base), api.base + "photo/test/", thumbnail)
+            }
+            try {
+                ui.await { image.drawable is android.graphics.drawable.BitmapDrawable }
+                ui.test.runOnMainSync {
+                    val bitmap = (image.drawable as android.graphics.drawable.BitmapDrawable).bitmap
+                    println("PHOTO_DECODE_SIZE source=${sourceWidth}x$sourceHeight thumbnail=$thumbnail bitmap=${bitmap.width}x${bitmap.height} bytes=${bitmap.allocationByteCount}")
+                    assertTrue("Decoded width must fit the view", bitmap.width <= image.width)
+                    assertTrue("Decoded height must fit the view", bitmap.height <= image.height)
+                    if (thumbnail) assertEquals("Crop must fill the square thumbnail", bitmap.width, bitmap.height)
+                    else assertEquals("Keep the photo's aspect ratio", sourceWidth.toDouble() / sourceHeight, bitmap.width.toDouble() / bitmap.height, 0.01)
+                }
+            } finally { ui.test.runOnMainSync { loader.close() } }
+        } }
+    }
+
+    @Test fun releasedViewsDoNotKeepQueuedDownloads() {
+        val source = Bitmap.createBitmap(40, 40, Bitmap.Config.ARGB_8888)
+        val jpeg = ByteArrayOutputStream().also { source.compress(Bitmap.CompressFormat.JPEG, 90, it) }.toByteArray()
+        source.recycle()
+        val gate = java.util.concurrent.CountDownLatch(1)
+        MockApi { request -> when {
+            request.path == "/api/families/current/" -> jsonReply(room(1, "사진 대기열 검증"))
+            request.path.contains("/photo/") -> {
+                if (!request.path.contains("sentinel")) gate.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                Reply(jpeg, type = "image/jpeg")
+            }
+            else -> emptyFeed()
+        } }.use { api -> UiHarness(api, room(1, "사진 대기열 검증")).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            lateinit var container: android.widget.FrameLayout
+            lateinit var loader: kr.talkdock.app.ui.ViewportPhotoLoader
+            val images = mutableListOf<ImageView>()
+            ui.test.runOnMainSync {
+                container = android.widget.FrameLayout(ui.activity)
+                ui.activity.setContentView(container)
+                loader = kr.talkdock.app.ui.ViewportPhotoLoader(container)
+                repeat(40) { index ->
+                    val image = ImageView(ui.activity)
+                    images.add(image)
+                    container.addView(image, android.widget.FrameLayout.LayoutParams(100, 100))
+                    loader.bind(image, kr.talkdock.app.data.ApiClient(baseUrl = api.base), api.base + "photo/$index/")
+                }
+            }
+            try {
+                ui.await { api.paths().any { it.contains("/photo/") } }
+                lateinit var sentinel: ImageView
+                ui.test.runOnMainSync {
+                    loader.clearViews()
+                    container.removeAllViews()
+                    sentinel = ImageView(ui.activity)
+                    container.addView(sentinel, android.widget.FrameLayout.LayoutParams(100, 100))
+                    loader.bind(sentinel, kr.talkdock.app.data.ApiClient(baseUrl = api.base), api.base + "photo/sentinel/")
+                }
+                gate.countDown()
+                ui.await { sentinel.drawable is android.graphics.drawable.BitmapDrawable }
+                val stale = api.paths().count { it.contains("/photo/") && !it.contains("sentinel") }
+                println("PHOTO_RELEASED_DOWNLOADS=$stale")
+                assertTrue("Only the two running downloads may finish after views are released; queued work must be cancelled", stale <= 2)
+            } finally {
+                gate.countDown()
+                ui.test.runOnMainSync { loader.close() }
+            }
+        } }
+    }
+}
