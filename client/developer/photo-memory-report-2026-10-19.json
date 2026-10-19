@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-19",
+  "branch": "fix/photo-memory",
+  "base_pr": 17,
+  "base_revision": "74a9f9cff37d6a3d986ca5070bac571dd8742f1d",
+  "environment": {
+    "device": "Medium_Phone arm64 emulator",
+    "android_api": 36,
+    "build": "debug",
+    "server": "local mock only"
+  },
+  "feed_fixture": {
+    "posts": 30,
+    "photos_per_post": 5,
+    "photo_pixels": [
+      1600,
+      1600
+    ]
+  },
+  "earlier_review": {
+    "revision": "f759f3e5e0c58553e3a7bc1054c3902c7dd53427 + PR18",
+    "photo_requests": 300,
+    "pss_kib": 975970,
+    "note": "Earlier single measurement; not a controlled repeated benchmark."
+  },
+  "latest_pr_before_our_changes": {
+    "photo_requests": 2,
+    "distinct_photo_urls": 2,
+    "pss_kib": 228869,
+    "native_heap_bytes": 175078176,
+    "image_views_with_bitmaps": 3,
+    "sum_view_bitmap_bytes": 6382800,
+    "after_scroll_pss_kib": 239584,
+    "offscreen_downloaded_bitmaps": 0
+  },
+  "after_our_changes_isolated_process": {
+    "photo_requests": 2,
+    "distinct_photo_urls": 2,
+    "pss_kib": 233084,
+    "native_heap_bytes": 174889616,
+    "image_views_with_bitmaps": 3,
+    "sum_view_bitmap_bytes": 6382800,
+    "after_scroll_pss_kib": 254278,
+    "offscreen_downloaded_bitmaps": 0
+  },
+  "reproduced_problems": [
+    {
+      "problem": "Portrait images were decoded using the display width alone.",
+      "source_pixels": [
+        400,
+        4000
+      ],
+      "view_pixels": [
+        200,
+        200
+      ],
+      "before_bitmap_pixels": [
+        200,
+        2000
+      ],
+      "after_bitmap_pixels": [
+        20,
+        200
+      ],
+      "before_bytes": 1600000,
+      "after_bytes": 16000
+    },
+    {
+      "problem": "Center-crop thumbnails retained a tall bitmap including invisible pixels.",
+      "source_pixels": [
+        400,
+        4000
+      ],
+      "view_pixels": [
+        200,
+        200
+      ],
+      "before_bitmap_pixels": [
+        200,
+        2000
+      ],
+      "after_bitmap_pixels": [
+        200,
+        200
+      ],
+      "before_bytes": 1600000,
+      "after_bytes": 160000
+    },
+    {
+      "problem": "Releasing views left their queued downloads running.",
+      "queued_photos": 40,
+      "requests_after_release_before": 40,
+      "requests_after_release_fixed": 2,
+      "note": "The two already-running transfers may finish; queued tasks are cancelled and removed."
+    }
+  ],
+  "verification": {
+    "assembleDebug": "passed",
+    "lintDebug": "passed",
+    "distinct_instrumentation_tests_passed": 17,
+    "classes": {
+      "ReviewRoomUiTest": 8,
+      "ReviewPhotoMemoryTest": 1,
+      "PostingFeedbackTest": 2,
+      "FeedRefreshTest": 1,
+      "PhotoLoaderRegressionTest": 5
+    },
+    "before_fix_edge_tests": {
+      "passed": 1,
+      "failed": 3
+    },
+    "photo_cases": [
+      "portrait fit",
+      "landscape fit",
+      "thumbnail crop",
+      "release queued work",
+      "jump to last photo and return with correct image"
+    ],
+    "log_directory": "/tmp/talkdock-photo-memory-20261019"
+  },
+  "remaining_scope": [
+    "The feed still creates views for all returned posts in a ScrollView. Pagination and recycled feed items remain a scaling improvement; a larger feed was not benchmarked.",
+    "At most two already-running transfers can finish after leaving the screen. Queued downloads and decodes are cancelled.",
+    "Only Android API 36 was exercised; no physical-device or API 26 run.",
+    "Square-photo feed PSS is similar before and after our change (single samples), so do not attribute the earlier whole-feed memory reduction to these additional changes."
+  ]
+}
