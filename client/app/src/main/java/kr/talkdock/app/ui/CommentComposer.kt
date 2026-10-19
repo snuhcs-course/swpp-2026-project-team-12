@@ -18,10 +18,15 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 
 /** Multiline input with a reserved footer so long comments cannot cover Send. */
-class CommentComposer(context: Context, private val ui: Ui, large: Boolean, onSend: (String) -> Unit) : LinearLayout(context) {
+class CommentComposer(
+    context: Context, private val ui: Ui, large: Boolean,
+    title: String = "따뜻한 한마디 남기기", hintText: String = "가족에게 하고 싶은 말",
+    inputLabel: String = "댓글 입력", sendLabel: String = "댓글 보내기", pendingLabel: String = "댓글 전송 중",
+    onSend: (String) -> Unit
+) : LinearLayout(context) {
     val input = EditText(context).apply {
-        hint = "가족에게 하고 싶은 말"
-        contentDescription = "댓글 입력"
+        hint = hintText
+        contentDescription = inputLabel
         textSize = if (large) 23f else 18f
         typeface = ui.font; fontVariationSettings = "'wght' 400"
         setTextColor(ui.ink); setHintTextColor(ui.muted)
@@ -31,13 +36,13 @@ class CommentComposer(context: Context, private val ui: Ui, large: Boolean, onSe
         background = null
     }
     private var sending = false
-    val sendButton = ui.iconButton("up", "댓글 보내기") {
+    val sendButton = ui.iconButton("up", sendLabel) {
         if (!sending && input.text.isNotBlank()) onSend(input.text.toString())
     }.apply {
         background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.coral, 32), null)
     }
     private val progress = ProgressBar(context).apply {
-        visibility = GONE; contentDescription = "댓글 전송 중"
+        visibility = GONE; contentDescription = pendingLabel
         indeterminateTintList = ColorStateList.valueOf(ui.coralDeep)
     }
     private val error = ui.text("", if (large) 20f else 16f, color = ui.coralDeep).apply {
@@ -47,7 +52,7 @@ class CommentComposer(context: Context, private val ui: Ui, large: Boolean, onSe
 
     init {
         orientation = VERTICAL
-        ui.label(this, "따뜻한 한마디 남기기", if (large) 20f else 16f, true)
+        ui.label(this, title, if (large) 20f else 16f, true)
         ui.gap(this, 8)
         val size = if (large) 64 else 48
         val field = FrameLayout(context).apply { background = ui.shape(ui.paper, stroke = true) }
