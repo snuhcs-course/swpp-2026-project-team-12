@@ -68,6 +68,21 @@ class PostAPITests(TestCase):
             **self.auth(self.owner_token),
         )
 
+    def test_feed_returns_latest_100_in_stable_newest_first_order(self):
+        posts = Post.objects.bulk_create([
+            Post(room=self.room, author=self.owner, caption=f"소식 {index}") for index in range(102)
+        ])
+        # Equal timestamps still have a stable newest-first ID order.
+        Post.objects.filter(pk__in=[posts[-1].pk, posts[-2].pk]).update(
+            created_at=timezone.now() + timedelta(days=1)
+        )
+        Post.objects.create(room=self.other_room, author=self.outsider, caption="다른 가족 소식")
+        response = self.client.get("/api/posts/", **self.auth(self.relative_token))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.json()["posts"]],
+                         [post.pk for post in reversed(posts)][:100])
+        self.assertTrue(all(item["comment_count"] == 0 for item in response.json()["posts"]))
+
     def test_grandma_post_summaries(self):
         use_mock = os.getenv("MOCK_AI_TESTS") == "1"
         if not use_mock and not settings.OPENAI_API_KEY:
