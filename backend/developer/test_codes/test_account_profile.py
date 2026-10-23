@@ -8,8 +8,10 @@ from unittest.mock import patch
 
 from apps.accounts.models import AccessToken, User
 from apps.posts.models import AdaptedMessage, Post
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.digests.models import Digest
+
+from .family_fixtures import add_member
 
 
 class AccountProfileTests(TestCase):
@@ -117,24 +119,24 @@ class AccountProfileTests(TestCase):
         self.assertIsNotNone(AccessToken.from_raw(response.json()["token"]))
 
     def test_display_name_similarity_is_checked_on_registration(self):
-        result = self.client.post("/api/accounts/register/", json.dumps({"username": "unrelated_login", "name": "MapleSunset7", "password": "MapleSunset7"}), content_type="application/json")
+        result = self.client.post("/api/accounts/register/", json.dumps({"username": "unrelated_login", "gender": "male", "name": "MapleSunset7", "password": "MapleSunset7"}), content_type="application/json")
         self.assertEqual(result.status_code, 400)
         self.assertFalse(User.objects.filter(username="unrelated_login").exists())
 
     def test_registration_requires_number(self):
-        result = self.client.post("/api/accounts/register/", json.dumps({"username": "new_account", "name": "신규", "password": "Forest!Trail"}), content_type="application/json")
+        result = self.client.post("/api/accounts/register/", json.dumps({"username": "new_account", "gender": "male", "name": "신규", "password": "Forest!Trail"}), content_type="application/json")
         self.assertEqual(result.status_code, 400)
         self.assertIn("숫자", result.json()["error"])
         self.assertFalse(User.objects.filter(username="new_account").exists())
 
     def test_registration_accepts_long_password_with_number(self):
-        result = self.client.post("/api/accounts/register/", json.dumps({"username": "new_account", "name": "신규", "password": "Forest!Trail7346"}), content_type="application/json")
+        result = self.client.post("/api/accounts/register/", json.dumps({"username": "new_account", "gender": "male", "name": "신규", "password": "Forest!Trail7346"}), content_type="application/json")
         self.assertEqual(result.status_code, 201)
         self.assertTrue(User.objects.get(username="new_account").check_password("Forest!Trail7346"))
 
     def test_profile_change_invalidates_related_cached_wording(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC001", password_hash="unused", owner=self.user)
-        Membership.objects.create(room=room, user=self.user, slot=Membership.Slot.OWNER)
+        add_member(room, self.user)
         post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
         message = AdaptedMessage.objects.create(post=post, viewer=self.other, status="ready", text="정아 소식")
         digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루")
@@ -146,7 +148,7 @@ class AccountProfileTests(TestCase):
 
     def test_inflight_explanation_cannot_restore_a_previous_name(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC002", password_hash="unused", owner=self.user)
-        Membership.objects.create(room=room, user=self.user, slot=Membership.Slot.OWNER)
+        add_member(room, self.user)
         post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
 
         def old_explanation(*args):

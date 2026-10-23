@@ -9,9 +9,11 @@ from django.test import TestCase, override_settings
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post, PostPhoto
 from integrations.ai import provider
+
+from .family_fixtures import add_member
 
 
 def photo(color="red"):
@@ -33,8 +35,8 @@ class PostPhotoTests(TestCase):
         self.outsider = User.objects.create_user(username="photo-other", password="Offline-Test-456!", display_name="다른 가족")
         self.room = FamilyRoom.objects.create(name="사진 가족", invite_code="PHOTO1", password_hash="unused", owner=self.owner)
         other = FamilyRoom.objects.create(name="다른 가족", invite_code="PHOTO2", password_hash="unused", owner=self.outsider)
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=other, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(other, self.outsider)
         self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
         self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.outsider)}
 
@@ -51,7 +53,7 @@ class PostPhotoTests(TestCase):
         self.assertEqual(post.photos.get().position, 1)
         self.assertEqual(len(post.photo_files()), 2)
         for index, image in enumerate(post.photo_files()):
-            with Image.open(image) as decoded:
+            with image.open("rb"), Image.open(image) as decoded:
                 pixel = decoded.getpixel((0, 0))
                 self.assertGreater(pixel[0 if index == 0 else 2], 240)
         feed = self.client.get("/api/posts/", **self.auth).json()["posts"][0]

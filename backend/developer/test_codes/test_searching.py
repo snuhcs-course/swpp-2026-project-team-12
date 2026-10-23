@@ -27,6 +27,8 @@ from apps.searching import services
 from integrations.ai import feed_description, flow, provider
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
+from .family_fixtures import add_member
+
 
 class FamilyFixture:
     def setUp(self):
@@ -34,7 +36,7 @@ class FamilyFixture:
         self.room = FamilyRoom.objects.create(
             owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed",
         )
-        Membership.objects.create(room=self.room, user=self.user, slot="owner")
+        add_member(self.room, self.user)
         self.auth = {"HTTP_AUTHORIZATION": f"Bearer {AccessToken.issue(self.user)}"}
 
     def post(self, path, data):
@@ -321,7 +323,7 @@ class LiveHistoryTests(FamilyFixture, TestCase):
         # SQLite fixtures are temporary; the existing graph is only searched.
         demo = FamilyRoom.objects.create(pk=900040, owner=self.user, name="샘플 가족", invite_code="LIVE01", password_hash="hashed")
         Membership.objects.filter(user=self.user).delete()
-        Membership.objects.create(room=demo, user=self.user, slot="owner")
+        add_member(demo, self.user)
         cases = json.loads((settings.BASE_DIR / "developer/samples/graph_history_questions.json").read_text(encoding="utf-8"))
         report_dir = settings.BASE_DIR / "developer/test_media"
         report_dir.mkdir(parents=True, exist_ok=True)

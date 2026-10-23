@@ -14,10 +14,12 @@ from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post, PostPhoto
 from integrations.ai import post_flow, prompts, provider
 from integrations.ai_workers import graphiti_client
+
+from .family_fixtures import add_member, link_parent
 
 
 @override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna",
@@ -30,8 +32,9 @@ class PostQATests(TestCase):
         self.viewer = User.objects.create_user(username="viewer", display_name="준하")
         self.other = User.objects.create_user(username="other", display_name="타인")
         self.room = FamilyRoom.objects.create(owner=self.author, name="테스트", invite_code="QA0001", password_hash="x")
-        Membership.objects.create(room=self.room, user=self.author, slot="owner")
-        Membership.objects.create(room=self.room, user=self.viewer, slot="son")
+        add_member(self.room, self.author)
+        add_member(self.room, self.viewer, -1)
+        link_parent(self.room, self.room.owner, self.viewer)
         self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.viewer)}
         self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
         b = io.BytesIO();Image.new("RGB", (3, 3)).save(b, "JPEG")
@@ -133,7 +136,7 @@ class PostQATests(TestCase):
                          {"question": "질문", "prior_dialogue": [{"role": "user", "text": "x"}] * 11}]:
                 self.assertEqual(self.ask(data).status_code, 400)
             other_room = FamilyRoom.objects.create(owner=self.other, name="다른 방", invite_code="QA0002", password_hash="x")
-            Membership.objects.create(room=other_room, user=self.other, slot="owner")
+            add_member(other_room, self.other)
             self.assertEqual(self.ask({"question": "질문"}, **self.other_auth).status_code, 404)
             ask.assert_not_called()
 

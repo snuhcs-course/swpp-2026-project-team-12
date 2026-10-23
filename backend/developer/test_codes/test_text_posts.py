@@ -12,11 +12,13 @@ from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from apps.posts.services import save_post
 from apps.api import APIError
 from integrations.ai import provider
+
+from .family_fixtures import add_member
 
 
 def photo():
@@ -37,8 +39,8 @@ class TextPostTests(TestCase):
         self.other = User.objects.create_user(username="text-other", password="Offline-Pass-456!", display_name="다른 가족")
         self.room = FamilyRoom.objects.create(owner=self.owner, name="우리 가족", invite_code="TEXT01", password_hash="unused")
         other_room = FamilyRoom.objects.create(owner=self.other, name="다른 가족", invite_code="TEXT02", password_hash="unused")
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=other_room, user=self.other, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(other_room, self.other)
         self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
         self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
 
