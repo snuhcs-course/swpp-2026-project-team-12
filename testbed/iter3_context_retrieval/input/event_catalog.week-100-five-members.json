@@ -1,0 +1,1259 @@
+{
+  "threads": [
+    {
+      "id": "basil",
+      "title": "초록이 바질 화분",
+      "events": [
+        {
+          "id": "basil-core",
+          "kind": "core",
+          "caption": "{m0}이 바질 화분에 초록이라는 이름을 붙였어요.",
+          "image_query": "candid person holding basil plant by home windowsill",
+          "establishes": [
+            "BASIL_ALIAS"
+          ]
+        },
+        {
+          "id": "basil-gift",
+          "kind": "extension",
+          "caption": "{m3}이 키우던 바질 모종을 {m0}에게 나눠줬어요.",
+          "image_query": "hands giving basil seedling to family member at home",
+          "establishes": [
+            "BASIL_GIVER"
+          ]
+        },
+        {
+          "id": "basil-water",
+          "kind": "reinforcement",
+          "caption": "{m1}이 창가에 놓인 초록이에 물을 줬어요.",
+          "image_query": "candid person watering basil pot by window at home",
+          "establishes": [
+            "BASIL_ALIAS"
+          ]
+        },
+        {
+          "id": "basil-distractor",
+          "kind": "distractor",
+          "caption": "{m2}이 거실에 둘 초록색 화분을 새로 샀어요.",
+          "image_query": "person carrying green ceramic plant pot indoors",
+          "establishes": [
+            "GREEN_POT"
+          ],
+          "distractor_for": [
+            "BASIL_ALIAS"
+          ]
+        },
+        {
+          "id": "basil-cooking",
+          "kind": "extension",
+          "caption": "{m2}이 초록이에서 딴 바질 잎으로 파스타를 만들었어요.",
+          "image_query": "person cooking basil pasta in home kitchen candid",
+          "establishes": [
+            "BASIL_USE"
+          ]
+        },
+        {
+          "id": "basil-move",
+          "kind": "update",
+          "caption": "햇빛이 더 잘 드는 베란다로 초록이 화분을 옮겼어요.",
+          "image_query": "person moving basil plant to sunny balcony at home",
+          "establishes": [
+            "BASIL_LOCATION_BALCONY"
+          ]
+        },
+        {
+          "id": "basil-probe",
+          "kind": "probe",
+          "caption": "초록이에 새잎이 많이 나서 사진을 남겼어요.",
+          "image_query": "person photographing fresh basil leaves in pot at home",
+          "evaluation_question": "사진 속 화분을 왜 초록이라고 부르고, 누가 나눠준 화분이야?",
+          "required_memories": [
+            "BASIL_ALIAS"
+          ],
+          "optional_memories": [
+            "BASIL_GIVER",
+            "BASIL_LOCATION_BALCONY"
+          ],
+          "must_filter": [
+            "GREEN_POT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dog",
+      "title": "콩이 산책 담당",
+      "events": [
+        {
+          "id": "dog-core",
+          "kind": "core",
+          "caption": "가족이 함께 키우는 반려견 이름은 콩이고 파란 공을 가장 좋아해요.",
+          "image_query": "family member playing with small dog and blue ball in park",
+          "establishes": [
+            "DOG_IDENTITY",
+            "DOG_TOY"
+          ]
+        },
+        {
+          "id": "dog-weekday",
+          "kind": "extension",
+          "caption": "평일 저녁 콩이 산책은 요즘 {m1}이 맡고 있어요.",
+          "image_query": "candid person walking small dog in park at evening",
+          "establishes": [
+            "DOG_WALKER_OLD"
+          ]
+        },
+        {
+          "id": "dog-reinforce",
+          "kind": "reinforcement",
+          "caption": "{m2}이 파란 공을 챙겨줘서 콩이와 신나게 산책했어요.",
+          "image_query": "person playing blue ball with small dog on grass",
+          "establishes": [
+            "DOG_TOY"
+          ]
+        },
+        {
+          "id": "dog-distractor",
+          "kind": "distractor",
+          "caption": "동네에서 만난 강아지 별이도 공놀이를 좋아했어요.",
+          "image_query": "person watching two dogs play with ball in neighborhood park",
+          "establishes": [
+            "OTHER_DOG"
+          ],
+          "distractor_for": [
+            "DOG_IDENTITY"
+          ]
+        },
+        {
+          "id": "dog-update",
+          "kind": "update",
+          "caption": "이번 달부터 평일 저녁 콩이 산책은 {m0}이 맡기로 했어요.",
+          "image_query": "young adult walking small dog at evening candid",
+          "establishes": [
+            "DOG_WALKER_CURRENT"
+          ],
+          "invalidates": [
+            "DOG_WALKER_OLD"
+          ]
+        },
+        {
+          "id": "dog-weekend",
+          "kind": "extension",
+          "caption": "주말에는 {m1}이 콩이와 긴 산책을 계속 맡기로 했어요.",
+          "image_query": "family member taking dog on long weekend walk trail",
+          "establishes": [
+            "DOG_WEEKEND_WALKER"
+          ]
+        },
+        {
+          "id": "dog-probe",
+          "kind": "probe",
+          "caption": "오늘도 평일 저녁 산책을 마친 콩이가 파란 공 옆에서 쉬고 있어요.",
+          "image_query": "person sitting beside tired small dog and blue ball after walk",
+          "evaluation_question": "콩이는 어떤 강아지고, 요즘 평일 저녁 산책은 누가 맡고 있어?",
+          "required_memories": [
+            "DOG_IDENTITY",
+            "DOG_WALKER_CURRENT"
+          ],
+          "optional_memories": [
+            "DOG_TOY"
+          ],
+          "must_filter": [
+            "DOG_WALKER_OLD",
+            "OTHER_DOG"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cafe",
+      "title": "성수동 카페 하루",
+      "events": [
+        {
+          "id": "cafe-core",
+          "kind": "core",
+          "caption": "{m0}의 친구 민수가 성수동에 있는 카페 하루를 추천했어요.",
+          "image_query": "friends talking together inside modern Seoul cafe candid",
+          "establishes": [
+            "CAFE_IDENTITY",
+            "CAFE_RECOMMENDER"
+          ]
+        },
+        {
+          "id": "cafe-drink",
+          "kind": "extension",
+          "caption": "{m0}이 카페 하루에서 민수와 레몬에이드를 마셨어요.",
+          "image_query": "two friends drinking lemonade together at cafe candid",
+          "establishes": [
+            "CAFE_DRINK"
+          ]
+        },
+        {
+          "id": "cafe-pet",
+          "kind": "extension",
+          "caption": "카페 하루는 반려동물과 함께 들어갈 수 있어서 다음에는 콩이도 데려가기로 했어요.",
+          "image_query": "person sitting with small dog inside pet friendly cafe",
+          "establishes": [
+            "CAFE_PET_FRIENDLY"
+          ]
+        },
+        {
+          "id": "cafe-distractor",
+          "kind": "distractor",
+          "caption": "{m1}이 집 근처 카페 별에서 따뜻한 차를 마셨어요.",
+          "image_query": "person drinking hot tea alone at neighborhood cafe candid",
+          "establishes": [
+            "OTHER_CAFE"
+          ],
+          "distractor_for": [
+            "CAFE_IDENTITY"
+          ]
+        },
+        {
+          "id": "cafe-family",
+          "kind": "reinforcement",
+          "caption": "가족들이 민수가 추천한 성수동 카페에 함께 다녀왔어요.",
+          "image_query": "Asian family together around cafe table candid lifestyle",
+          "establishes": [
+            "CAFE_IDENTITY",
+            "CAFE_RECOMMENDER"
+          ]
+        },
+        {
+          "id": "cafe-walk",
+          "kind": "extension",
+          "caption": "카페 하루에서 나온 뒤 가족과 콩이가 서울숲을 산책했어요.",
+          "image_query": "family walking small dog together in urban forest Seoul",
+          "establishes": [
+            "CAFE_NEARBY_WALK"
+          ]
+        },
+        {
+          "id": "cafe-probe",
+          "kind": "probe",
+          "caption": "민수가 알려준 그 카페에서 다시 레몬에이드를 마셨어요.",
+          "image_query": "friends drinking lemonade in modern Seoul cafe lifestyle",
+          "evaluation_question": "이 카페의 이름과 위치는 무엇이고, 처음 추천한 사람은 누구야?",
+          "required_memories": [
+            "CAFE_IDENTITY",
+            "CAFE_RECOMMENDER"
+          ],
+          "optional_memories": [
+            "CAFE_DRINK"
+          ],
+          "must_filter": [
+            "OTHER_CAFE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "camera",
+      "title": "작은 카메라 대여",
+      "events": [
+        {
+          "id": "camera-core",
+          "kind": "core",
+          "caption": "{m1}이 아끼는 작은 카메라를 {m0}에게 빌려줬어요.",
+          "image_query": "family member handing compact camera to young adult at home",
+          "establishes": [
+            "CAMERA_OWNER",
+            "CAMERA_BORROWER"
+          ]
+        },
+        {
+          "id": "camera-lesson",
+          "kind": "extension",
+          "caption": "{m1}이 {m0}에게 작은 카메라로 초점 맞추는 법을 알려줬어요.",
+          "image_query": "family member teaching young adult compact camera photography",
+          "establishes": [
+            "CAMERA_LESSON"
+          ]
+        },
+        {
+          "id": "camera-photo",
+          "kind": "reinforcement",
+          "caption": "{m0}이 빌린 작은 카메라로 공원 꽃을 촬영했어요.",
+          "image_query": "person photographing flowers with compact camera in park candid",
+          "establishes": [
+            "CAMERA_BORROWER"
+          ]
+        },
+        {
+          "id": "camera-distractor",
+          "kind": "distractor",
+          "caption": "{m2}이 새 휴대전화 카메라로 저녁 사진을 찍었어요.",
+          "image_query": "person taking dinner photo with smartphone at home",
+          "establishes": [
+            "PHONE_CAMERA"
+          ],
+          "distractor_for": [
+            "CAMERA_OWNER"
+          ]
+        },
+        {
+          "id": "camera-return",
+          "kind": "update",
+          "caption": "{m0}이 빌렸던 작은 카메라를 {m1}에게 돌려줬어요.",
+          "image_query": "young adult handing compact camera back to family member",
+          "establishes": [
+            "CAMERA_RETURNED"
+          ],
+          "invalidates": [
+            "CAMERA_BORROWER"
+          ]
+        },
+        {
+          "id": "camera-again",
+          "kind": "update",
+          "caption": "주말 사진 촬영을 위해 {m0}이 작은 카메라를 다시 빌렸어요.",
+          "image_query": "person carrying compact camera on casual weekend family trip",
+          "establishes": [
+            "CAMERA_BORROWER_CURRENT"
+          ],
+          "invalidates": [
+            "CAMERA_RETURNED"
+          ]
+        },
+        {
+          "id": "camera-probe",
+          "kind": "probe",
+          "caption": "그 작은 카메라로 오늘 가족사진을 찍었어요.",
+          "image_query": "family taking group photo outdoors with compact camera candid",
+          "evaluation_question": "이 작은 카메라는 원래 누구 것이고, 지금은 누가 다시 빌려 쓰고 있어?",
+          "required_memories": [
+            "CAMERA_OWNER",
+            "CAMERA_BORROWER_CURRENT"
+          ],
+          "optional_memories": [
+            "CAMERA_LESSON"
+          ],
+          "must_filter": [
+            "PHONE_CAMERA",
+            "CAMERA_RETURNED"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lunchbox",
+      "title": "금요일 가족 도시락",
+      "events": [
+        {
+          "id": "lunchbox-core",
+          "kind": "core",
+          "caption": "{m2}이 금요일 가족 도시락으로 김밥을 준비하기로 했어요.",
+          "image_query": "family member preparing gimbap lunchbox at home candid",
+          "establishes": [
+            "LUNCHBOX_MENU_OLD",
+            "LUNCHBOX_COOK"
+          ]
+        },
+        {
+          "id": "lunchbox-change",
+          "kind": "update",
+          "caption": "금요일 도시락 메뉴를 김밥 대신 유부초밥으로 바꿨어요.",
+          "image_query": "person preparing tofu rice lunchbox in home kitchen",
+          "establishes": [
+            "LUNCHBOX_MENU_CURRENT"
+          ],
+          "invalidates": [
+            "LUNCHBOX_MENU_OLD"
+          ]
+        },
+        {
+          "id": "lunchbox-distractor",
+          "kind": "distractor",
+          "caption": "{m3}이 회사 근처에서 김밥을 사 먹었어요.",
+          "image_query": "person eating gimbap at casual restaurant candid",
+          "establishes": [
+            "LUNCHBOX_OTHER_GIMBAP"
+          ],
+          "distractor_for": [
+            "LUNCHBOX_MENU_CURRENT"
+          ]
+        },
+        {
+          "id": "lunchbox-fruit",
+          "kind": "extension",
+          "caption": "{m5}이 도시락에 함께 넣을 귤을 챙겨 두었어요.",
+          "image_query": "family member packing fruit into lunchbox at home",
+          "establishes": [
+            "LUNCHBOX_SIDE_FRUIT"
+          ]
+        },
+        {
+          "id": "lunchbox-reinforce",
+          "kind": "reinforcement",
+          "caption": "{m0}이 유부초밥 재료를 확인하고 장바구니에 담았어요.",
+          "image_query": "person shopping ingredients for rice lunchbox candid",
+          "establishes": [
+            "LUNCHBOX_MENU_CURRENT"
+          ]
+        },
+        {
+          "id": "lunchbox-container",
+          "kind": "extension",
+          "caption": "{m1}이 여섯 명이 나눠 먹을 큰 도시락통을 꺼냈어요.",
+          "image_query": "family member arranging large lunch containers at home",
+          "establishes": [
+            "LUNCHBOX_CONTAINER"
+          ]
+        },
+        {
+          "id": "lunchbox-probe",
+          "kind": "probe",
+          "caption": "금요일 아침 완성된 가족 도시락을 식탁에서 촬영했어요.",
+          "image_query": "family photographing homemade lunchbox on dining table",
+          "evaluation_question": "최종 도시락 메뉴는 무엇으로 바뀌었고, 준비하기로 한 사람은 누구야?",
+          "required_memories": [
+            "LUNCHBOX_MENU_CURRENT",
+            "LUNCHBOX_COOK"
+          ],
+          "optional_memories": [
+            "LUNCHBOX_SIDE_FRUIT"
+          ],
+          "must_filter": [
+            "LUNCHBOX_MENU_OLD",
+            "LUNCHBOX_OTHER_GIMBAP"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bicycle",
+      "title": "파란 자전거 수리",
+      "events": [
+        {
+          "id": "bicycle-core",
+          "kind": "core",
+          "caption": "{m0}의 파란 자전거는 평소 아파트 현관에 보관해요.",
+          "image_query": "person standing with blue bicycle near apartment entrance",
+          "establishes": [
+            "BICYCLE_IDENTITY",
+            "BICYCLE_LOCATION_OLD"
+          ]
+        },
+        {
+          "id": "bicycle-repair",
+          "kind": "update",
+          "caption": "타이어가 펑크 나서 파란 자전거를 동네 수리점에 맡겼어요.",
+          "image_query": "person leaving blue bicycle at neighborhood repair shop",
+          "establishes": [
+            "BICYCLE_LOCATION_CURRENT"
+          ],
+          "invalidates": [
+            "BICYCLE_LOCATION_OLD"
+          ]
+        },
+        {
+          "id": "bicycle-distractor",
+          "kind": "distractor",
+          "caption": "공원 자전거 거치대에서 비슷한 파란 자전거를 발견했어요.",
+          "image_query": "person looking at blue bicycles in public park rack",
+          "establishes": [
+            "BICYCLE_OTHER_BLUE"
+          ],
+          "distractor_for": [
+            "BICYCLE_IDENTITY"
+          ]
+        },
+        {
+          "id": "bicycle-helper",
+          "kind": "extension",
+          "caption": "{m4}이 단골 수리점을 알려줘서 함께 자전거를 맡겼어요.",
+          "image_query": "adult family members visiting bicycle repair shop together",
+          "establishes": [
+            "BICYCLE_REPAIR_HELPER"
+          ]
+        },
+        {
+          "id": "bicycle-reinforce",
+          "kind": "reinforcement",
+          "caption": "{m1}이 파란 자전거 바구니에 이름표를 다시 달아줬어요.",
+          "image_query": "person attaching name tag to blue bicycle basket",
+          "establishes": [
+            "BICYCLE_IDENTITY"
+          ]
+        },
+        {
+          "id": "bicycle-brake",
+          "kind": "extension",
+          "caption": "수리점에서 펑크와 함께 앞 브레이크도 조정하기로 했어요.",
+          "image_query": "person repairing bicycle brake in workshop candid",
+          "establishes": [
+            "BICYCLE_REPAIR_ITEM"
+          ]
+        },
+        {
+          "id": "bicycle-probe",
+          "kind": "probe",
+          "caption": "오늘 파란 자전거 상태를 확인하러 다녀왔어요.",
+          "image_query": "person checking blue bicycle after repair candid",
+          "evaluation_question": "이 파란 자전거는 누구 것이고, 지금 어디에 맡겨져 있어?",
+          "required_memories": [
+            "BICYCLE_IDENTITY",
+            "BICYCLE_LOCATION_CURRENT"
+          ],
+          "optional_memories": [
+            "BICYCLE_REPAIR_HELPER"
+          ],
+          "must_filter": [
+            "BICYCLE_LOCATION_OLD",
+            "BICYCLE_OTHER_BLUE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "birthday",
+      "title": "영자 생일 준비",
+      "events": [
+        {
+          "id": "birthday-core",
+          "kind": "core",
+          "caption": "이번 주말 {m5}의 생일에 딸기 케이크를 준비하기로 했어요.",
+          "image_query": "family planning strawberry birthday cake together at home",
+          "establishes": [
+            "BIRTHDAY_PERSON",
+            "BIRTHDAY_CAKE_OLD"
+          ]
+        },
+        {
+          "id": "birthday-cake-change",
+          "kind": "update",
+          "caption": "{m5}이 가장 좋아하는 고구마 케이크로 주문을 바꿨어요.",
+          "image_query": "person ordering sweet potato birthday cake at bakery",
+          "establishes": [
+            "BIRTHDAY_CAKE_CURRENT"
+          ],
+          "invalidates": [
+            "BIRTHDAY_CAKE_OLD"
+          ]
+        },
+        {
+          "id": "birthday-distractor",
+          "kind": "distractor",
+          "caption": "이웃집 생일잔치에서 초콜릿 케이크를 나눠 먹었어요.",
+          "image_query": "friends sharing chocolate cake at neighborhood birthday party",
+          "establishes": [
+            "BIRTHDAY_OTHER_CAKE"
+          ],
+          "distractor_for": [
+            "BIRTHDAY_CAKE_CURRENT"
+          ]
+        },
+        {
+          "id": "birthday-gift",
+          "kind": "extension",
+          "caption": "{m1}이 {m5}에게 드릴 따뜻한 장갑을 골랐어요.",
+          "image_query": "family member choosing gloves as birthday gift",
+          "establishes": [
+            "BIRTHDAY_GIFT_PLANNER"
+          ]
+        },
+        {
+          "id": "birthday-reinforce",
+          "kind": "reinforcement",
+          "caption": "가족이 {m5}의 생일 축하 카드를 함께 썼어요.",
+          "image_query": "family writing birthday card together at table",
+          "establishes": [
+            "BIRTHDAY_PERSON"
+          ]
+        },
+        {
+          "id": "birthday-place",
+          "kind": "extension",
+          "caption": "생일 식사는 집 거실에서 함께 하기로 했어요.",
+          "image_query": "family decorating living room for birthday dinner",
+          "establishes": [
+            "BIRTHDAY_PLACE"
+          ]
+        },
+        {
+          "id": "birthday-probe",
+          "kind": "probe",
+          "caption": "주말 생일상을 모두 차리고 촛불을 켜기 전에 사진을 남겼어요.",
+          "image_query": "family photographing birthday table before lighting candles",
+          "evaluation_question": "이번 생일의 주인공은 누구고, 최종적으로 어떤 케이크를 준비했어?",
+          "required_memories": [
+            "BIRTHDAY_PERSON",
+            "BIRTHDAY_CAKE_CURRENT"
+          ],
+          "optional_memories": [
+            "BIRTHDAY_GIFT_PLANNER"
+          ],
+          "must_filter": [
+            "BIRTHDAY_CAKE_OLD",
+            "BIRTHDAY_OTHER_CAKE"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trip",
+      "title": "속초 가족 여행",
+      "events": [
+        {
+          "id": "trip-core",
+          "kind": "core",
+          "caption": "가족이 토요일에 속초로 여행을 가고 운전은 {m3}이 맡기로 했어요.",
+          "image_query": "family planning weekend road trip together at home",
+          "establishes": [
+            "TRIP_DESTINATION",
+            "TRIP_DRIVER_OLD"
+          ]
+        },
+        {
+          "id": "trip-driver-change",
+          "kind": "update",
+          "caption": "{m3}의 손목이 불편해서 이번 여행 운전은 {m0}이 맡기로 바꿨어요.",
+          "image_query": "adult family members exchanging car keys before trip",
+          "establishes": [
+            "TRIP_DRIVER_CURRENT"
+          ],
+          "invalidates": [
+            "TRIP_DRIVER_OLD"
+          ]
+        },
+        {
+          "id": "trip-distractor",
+          "kind": "distractor",
+          "caption": "친구들이 지난달 속초로 다녀온 여행 사진을 보여줬어요.",
+          "image_query": "friends showing coastal trip photos on phone together",
+          "establishes": [
+            "TRIP_OTHER_SOKCHO"
+          ],
+          "distractor_for": [
+            "TRIP_DESTINATION"
+          ]
+        },
+        {
+          "id": "trip-lodging",
+          "kind": "extension",
+          "caption": "{m2}이 바다가 보이는 작은 숙소를 예약했어요.",
+          "image_query": "person booking seaside lodging on laptop at home",
+          "establishes": [
+            "TRIP_LODGING"
+          ]
+        },
+        {
+          "id": "trip-reinforce",
+          "kind": "reinforcement",
+          "caption": "{m4}이 속초에서 들를 시장 목록을 적어줬어요.",
+          "image_query": "family member writing travel market list at table",
+          "establishes": [
+            "TRIP_DESTINATION"
+          ]
+        },
+        {
+          "id": "trip-departure",
+          "kind": "extension",
+          "caption": "토요일 아침 일곱 시에 출발하기로 가족 채팅방에 알렸어요.",
+          "image_query": "person sending family travel message on smartphone",
+          "establishes": [
+            "TRIP_DEPARTURE_TIME"
+          ]
+        },
+        {
+          "id": "trip-probe",
+          "kind": "probe",
+          "caption": "토요일 아침 짐을 차에 싣고 출발 전에 단체 사진을 찍었어요.",
+          "image_query": "family taking group photo beside packed car before trip",
+          "evaluation_question": "이번 가족 여행 목적지는 어디고, 변경된 운전 담당은 누구야?",
+          "required_memories": [
+            "TRIP_DESTINATION",
+            "TRIP_DRIVER_CURRENT"
+          ],
+          "optional_memories": [
+            "TRIP_LODGING"
+          ],
+          "must_filter": [
+            "TRIP_DRIVER_OLD",
+            "TRIP_OTHER_SOKCHO"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "knitting",
+      "title": "서연이 목도리",
+      "events": [
+        {
+          "id": "knitting-core",
+          "kind": "core",
+          "caption": "{m5}이 {m1}에게 줄 노란색 목도리를 뜨기 시작했어요.",
+          "image_query": "family member knitting yellow scarf at home candid",
+          "establishes": [
+            "KNITTING_RECIPIENT",
+            "KNITTING_COLOR_OLD"
+          ]
+        },
+        {
+          "id": "knitting-color-change",
+          "kind": "update",
+          "caption": "{m1}이 남색을 더 좋아해서 목도리 실을 남색으로 바꿨어요.",
+          "image_query": "person choosing navy yarn for handmade scarf",
+          "establishes": [
+            "KNITTING_COLOR_CURRENT"
+          ],
+          "invalidates": [
+            "KNITTING_COLOR_OLD"
+          ]
+        },
+        {
+          "id": "knitting-distractor",
+          "kind": "distractor",
+          "caption": "{m2}이 가게에서 노란색 목도리를 써봤어요.",
+          "image_query": "person trying yellow scarf in clothing shop candid",
+          "establishes": [
+            "KNITTING_OTHER_SCARF"
+          ],
+          "distractor_for": [
+            "KNITTING_COLOR_CURRENT"
+          ]
+        },
+        {
+          "id": "knitting-helper",
+          "kind": "extension",
+          "caption": "{m4}이 목도리 끝에 술을 다는 일을 도와줬어요.",
+          "image_query": "adult family members finishing knitted scarf together",
+          "establishes": [
+            "KNITTING_HELPER"
+          ]
+        },
+        {
+          "id": "knitting-reinforce",
+          "kind": "reinforcement",
+          "caption": "{m5}이 완성 크기를 보려고 {m1}의 목에 살짝 둘러봤어요.",
+          "image_query": "family member fitting handmade scarf around young adult",
+          "establishes": [
+            "KNITTING_RECIPIENT"
+          ]
+        },
+        {
+          "id": "knitting-pattern",
+          "kind": "extension",
+          "caption": "목도리 끝에는 작은 꽈배기 무늬를 넣기로 했어요.",
+          "image_query": "person knitting cable pattern scarf close up hands",
+          "establishes": [
+            "KNITTING_PATTERN"
+          ]
+        },
+        {
+          "id": "knitting-probe",
+          "kind": "probe",
+          "caption": "완성된 목도리를 선물하기 전에 소파 위에서 사진으로 남겼어요.",
+          "image_query": "person photographing finished handmade scarf on sofa",
+          "evaluation_question": "이 목도리는 누구에게 줄 선물이고, 최종 색상은 무엇으로 바뀌었어?",
+          "required_memories": [
+            "KNITTING_RECIPIENT",
+            "KNITTING_COLOR_CURRENT"
+          ],
+          "optional_memories": [
+            "KNITTING_HELPER"
+          ],
+          "must_filter": [
+            "KNITTING_COLOR_OLD",
+            "KNITTING_OTHER_SCARF"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recital",
+      "title": "서연이 피아노 발표회",
+      "events": [
+        {
+          "id": "recital-core",
+          "kind": "core",
+          "caption": "{m1}의 피아노 발표회가 토요일 학교 강당에서 열릴 예정이에요.",
+          "image_query": "young person practicing piano with family watching",
+          "establishes": [
+            "RECITAL_PERFORMER",
+            "RECITAL_VENUE_OLD"
+          ]
+        },
+        {
+          "id": "recital-venue-change",
+          "kind": "update",
+          "caption": "학교 공사 때문에 발표회 장소가 구민회관으로 바뀌었어요.",
+          "image_query": "person reading changed recital venue notice on phone",
+          "establishes": [
+            "RECITAL_VENUE_CURRENT"
+          ],
+          "invalidates": [
+            "RECITAL_VENUE_OLD"
+          ]
+        },
+        {
+          "id": "recital-distractor",
+          "kind": "distractor",
+          "caption": "동네 카페에서 다른 학생의 작은 피아노 공연을 봤어요.",
+          "image_query": "friends watching student piano performance in cafe",
+          "establishes": [
+            "RECITAL_OTHER_EVENT"
+          ],
+          "distractor_for": [
+            "RECITAL_PERFORMER"
+          ]
+        },
+        {
+          "id": "recital-piece",
+          "kind": "extension",
+          "caption": "{m1}은 발표회에서 작은 별 변주곡을 연주하기로 했어요.",
+          "image_query": "young person practicing piano piece at home candid",
+          "establishes": [
+            "RECITAL_PIECE"
+          ]
+        },
+        {
+          "id": "recital-reinforce",
+          "kind": "reinforcement",
+          "caption": "가족 앞에서 {m1}이 발표회 곡을 끝까지 연습했어요.",
+          "image_query": "family listening to young piano player practicing at home",
+          "establishes": [
+            "RECITAL_PERFORMER"
+          ]
+        },
+        {
+          "id": "recital-flowers",
+          "kind": "extension",
+          "caption": "{m0}이 공연 뒤 전해줄 작은 꽃다발을 준비했어요.",
+          "image_query": "person preparing small flower bouquet for piano recital",
+          "establishes": [
+            "RECITAL_FLOWERS"
+          ]
+        },
+        {
+          "id": "recital-probe",
+          "kind": "probe",
+          "caption": "공연 당일 무대에 오르기 전 가족과 기념사진을 찍었어요.",
+          "image_query": "family taking photo with young pianist before recital",
+          "evaluation_question": "이번 피아노 발표회의 연주자는 누구고, 변경된 공연 장소는 어디야?",
+          "required_memories": [
+            "RECITAL_PERFORMER",
+            "RECITAL_VENUE_CURRENT"
+          ],
+          "optional_memories": [
+            "RECITAL_PIECE"
+          ],
+          "must_filter": [
+            "RECITAL_VENUE_OLD",
+            "RECITAL_OTHER_EVENT"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "book",
+      "title": "빌린 책",
+      "events": [
+        {
+          "id": "book-core",
+          "kind": "core",
+          "caption": "{m0}이 도서관에서 빌린 소설을 거실 책장에 두었어요.",
+          "image_query": "person holding library book at home",
+          "establishes": [
+            "BOOK_HOLDER_OLD"
+          ]
+        },
+        {
+          "id": "book-update",
+          "kind": "update",
+          "caption": "{m2}이 이번 주말에 읽겠다며 그 소설을 자기 방으로 가져갔어요.",
+          "image_query": "person reading borrowed book in bedroom",
+          "establishes": [
+            "BOOK_HOLDER_CURRENT"
+          ],
+          "invalidates": [
+            "BOOK_HOLDER_OLD"
+          ]
+        },
+        {
+          "id": "book-probe",
+          "kind": "probe",
+          "caption": "빌린 책에 관한 새 기록을 남겼어요.",
+          "image_query": "person reading borrowed book in bedroom",
+          "evaluation_question": "책을 지금 읽고 있는 사람은 누구예요?",
+          "required_memories": [
+            "BOOK_HOLDER_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "BOOK_HOLDER_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "market",
+      "title": "장보기 목록",
+      "events": [
+        {
+          "id": "market-core",
+          "kind": "core",
+          "caption": "{m1}이 주말 장보기를 맡겠다고 냉장고에 목록을 붙였어요.",
+          "image_query": "person writing grocery list on fridge",
+          "establishes": [
+            "MARKET_BUYER_OLD"
+          ]
+        },
+        {
+          "id": "market-update",
+          "kind": "update",
+          "caption": "{m3}이 퇴근길에 장을 보겠다며 목록 사진을 받아 갔어요.",
+          "image_query": "person carrying grocery bags home",
+          "establishes": [
+            "MARKET_BUYER_CURRENT"
+          ],
+          "invalidates": [
+            "MARKET_BUYER_OLD"
+          ]
+        },
+        {
+          "id": "market-probe",
+          "kind": "probe",
+          "caption": "장보기 목록에 관한 새 기록을 남겼어요.",
+          "image_query": "person carrying grocery bags home",
+          "evaluation_question": "오늘 장보기를 하기로 한 사람은 누구예요?",
+          "required_memories": [
+            "MARKET_BUYER_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "MARKET_BUYER_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "clinic",
+      "title": "검진 일정",
+      "events": [
+        {
+          "id": "clinic-core",
+          "kind": "core",
+          "caption": "{m2}의 건강 검진 예약이 금요일 오전으로 잡혔어요.",
+          "image_query": "person noting medical appointment on calendar",
+          "establishes": [
+            "CLINIC_TIME_OLD"
+          ]
+        },
+        {
+          "id": "clinic-update",
+          "kind": "update",
+          "caption": "병원에서 연락이 와서 {m2}의 검진 시간이 토요일 오전으로 바뀌었어요.",
+          "image_query": "person updating appointment on calendar",
+          "establishes": [
+            "CLINIC_TIME_CURRENT"
+          ],
+          "invalidates": [
+            "CLINIC_TIME_OLD"
+          ]
+        },
+        {
+          "id": "clinic-probe",
+          "kind": "probe",
+          "caption": "검진 일정에 관한 새 기록을 남겼어요.",
+          "image_query": "person updating appointment on calendar",
+          "evaluation_question": "변경된 건강 검진은 언제예요?",
+          "required_memories": [
+            "CLINIC_TIME_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "CLINIC_TIME_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "school",
+      "title": "미술 과제",
+      "events": [
+        {
+          "id": "school-core",
+          "kind": "core",
+          "caption": "{m4}의 미술 과제 전시는 학교 1층 복도에서 열릴 예정이었어요.",
+          "image_query": "student carrying art project at school hallway",
+          "establishes": [
+            "SCHOOL_ROOM_OLD"
+          ]
+        },
+        {
+          "id": "school-update",
+          "kind": "update",
+          "caption": "비가 와서 미술 과제 전시 장소가 도서관 앞 로비로 바뀌었어요.",
+          "image_query": "student displaying art project in school lobby",
+          "establishes": [
+            "SCHOOL_ROOM_CURRENT"
+          ],
+          "invalidates": [
+            "SCHOOL_ROOM_OLD"
+          ]
+        },
+        {
+          "id": "school-probe",
+          "kind": "probe",
+          "caption": "미술 과제에 관한 새 기록을 남겼어요.",
+          "image_query": "student displaying art project in school lobby",
+          "evaluation_question": "미술 과제 전시는 지금 어디에서 열리나요?",
+          "required_memories": [
+            "SCHOOL_ROOM_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "SCHOOL_ROOM_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tomato",
+      "title": "방울토마토",
+      "events": [
+        {
+          "id": "tomato-core",
+          "kind": "core",
+          "caption": "{m0}이 방울토마토 화분을 베란다 난간 옆에 놓았어요.",
+          "image_query": "person tending tomato plant on balcony",
+          "establishes": [
+            "TOMATO_LOCATION_OLD"
+          ]
+        },
+        {
+          "id": "tomato-update",
+          "kind": "update",
+          "caption": "바람이 세져서 {m0}이 방울토마토 화분을 창가 안쪽으로 옮겼어요.",
+          "image_query": "person moving tomato plant indoors by window",
+          "establishes": [
+            "TOMATO_LOCATION_CURRENT"
+          ],
+          "invalidates": [
+            "TOMATO_LOCATION_OLD"
+          ]
+        },
+        {
+          "id": "tomato-probe",
+          "kind": "probe",
+          "caption": "방울토마토에 관한 새 기록을 남겼어요.",
+          "image_query": "person moving tomato plant indoors by window",
+          "evaluation_question": "방울토마토 화분은 지금 어디에 있나요?",
+          "required_memories": [
+            "TOMATO_LOCATION_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "TOMATO_LOCATION_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "movie",
+      "title": "주말 영화",
+      "events": [
+        {
+          "id": "movie-core",
+          "kind": "core",
+          "caption": "가족은 토요일 저녁에 코미디 영화를 보기로 했어요.",
+          "image_query": "family choosing comedy movie at home",
+          "establishes": [
+            "MOVIE_TITLE_OLD"
+          ]
+        },
+        {
+          "id": "movie-update",
+          "kind": "update",
+          "caption": "{m1}의 제안으로 토요일 저녁 영화가 다큐멘터리로 바뀌었어요.",
+          "image_query": "family watching documentary at home",
+          "establishes": [
+            "MOVIE_TITLE_CURRENT"
+          ],
+          "invalidates": [
+            "MOVIE_TITLE_OLD"
+          ]
+        },
+        {
+          "id": "movie-probe",
+          "kind": "probe",
+          "caption": "주말 영화에 관한 새 기록을 남겼어요.",
+          "image_query": "family watching documentary at home",
+          "evaluation_question": "토요일 저녁에 보기로 한 영화 종류는 무엇인가요?",
+          "required_memories": [
+            "MOVIE_TITLE_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "MOVIE_TITLE_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "laundry",
+      "title": "니트 세탁",
+      "events": [
+        {
+          "id": "laundry-core",
+          "kind": "core",
+          "caption": "{m3}이 파란 니트를 세탁망에 넣어 두었어요.",
+          "image_query": "person placing blue sweater in laundry bag",
+          "establishes": [
+            "LAUNDRY_OWNER_OLD"
+          ]
+        },
+        {
+          "id": "laundry-update",
+          "kind": "update",
+          "caption": "{m2}이 그 파란 니트는 자기 것이라며 직접 손세탁했어요.",
+          "image_query": "person hand washing blue sweater",
+          "establishes": [
+            "LAUNDRY_OWNER_CURRENT"
+          ],
+          "invalidates": [
+            "LAUNDRY_OWNER_OLD"
+          ]
+        },
+        {
+          "id": "laundry-probe",
+          "kind": "probe",
+          "caption": "니트 세탁에 관한 새 기록을 남겼어요.",
+          "image_query": "person hand washing blue sweater",
+          "evaluation_question": "파란 니트의 주인은 누구인가요?",
+          "required_memories": [
+            "LAUNDRY_OWNER_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "LAUNDRY_OWNER_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "aquarium",
+      "title": "금붕어 돌봄",
+      "events": [
+        {
+          "id": "aquarium-core",
+          "kind": "core",
+          "caption": "{m4}이 이번 주 금붕어 먹이를 주기로 했어요.",
+          "image_query": "person feeding goldfish in aquarium",
+          "establishes": [
+            "FISH_CARETAKER_OLD"
+          ]
+        },
+        {
+          "id": "aquarium-update",
+          "kind": "update",
+          "caption": "{m0}이 {m4}가 늦는 날에는 금붕어 먹이를 대신 주기로 했어요.",
+          "image_query": "person caring for home aquarium",
+          "establishes": [
+            "FISH_CARETAKER_CURRENT"
+          ],
+          "invalidates": [
+            "FISH_CARETAKER_OLD"
+          ]
+        },
+        {
+          "id": "aquarium-probe",
+          "kind": "probe",
+          "caption": "금붕어 돌봄에 관한 새 기록을 남겼어요.",
+          "image_query": "person caring for home aquarium",
+          "evaluation_question": "오늘 금붕어 먹이를 주기로 한 사람은 누구인가요?",
+          "required_memories": [
+            "FISH_CARETAKER_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "FISH_CARETAKER_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "exercise",
+      "title": "아침 산책",
+      "events": [
+        {
+          "id": "exercise-core",
+          "kind": "core",
+          "caption": "{m1}과 {m2}가 아침 산책을 공원 호수 길로 가기로 했어요.",
+          "image_query": "two people walking by park lake",
+          "establishes": [
+            "WALK_ROUTE_OLD"
+          ]
+        },
+        {
+          "id": "exercise-update",
+          "kind": "update",
+          "caption": "공사 때문에 아침 산책 코스를 시장 뒤 골목길로 바꿨어요.",
+          "image_query": "two people walking neighborhood street",
+          "establishes": [
+            "WALK_ROUTE_CURRENT"
+          ],
+          "invalidates": [
+            "WALK_ROUTE_OLD"
+          ]
+        },
+        {
+          "id": "exercise-probe",
+          "kind": "probe",
+          "caption": "아침 산책에 관한 새 기록을 남겼어요.",
+          "image_query": "two people walking neighborhood street",
+          "evaluation_question": "변경된 아침 산책 코스는 어디인가요?",
+          "required_memories": [
+            "WALK_ROUTE_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "WALK_ROUTE_OLD"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "album",
+      "title": "사진 앨범",
+      "events": [
+        {
+          "id": "album-core",
+          "kind": "core",
+          "caption": "{m3}이 오래된 가족사진을 스캔하기로 했어요.",
+          "image_query": "person sorting old family photo album",
+          "establishes": [
+            "ALBUM_SCANNER_OLD"
+          ]
+        },
+        {
+          "id": "album-update",
+          "kind": "update",
+          "caption": "스캐너 사용법을 아는 {m4}이 가족사진 스캔을 맡기로 했어요.",
+          "image_query": "person scanning old photos at desk",
+          "establishes": [
+            "ALBUM_SCANNER_CURRENT"
+          ],
+          "invalidates": [
+            "ALBUM_SCANNER_OLD"
+          ]
+        },
+        {
+          "id": "album-probe",
+          "kind": "probe",
+          "caption": "사진 앨범에 관한 새 기록을 남겼어요.",
+          "image_query": "person scanning old photos at desk",
+          "evaluation_question": "가족사진 스캔을 맡은 사람은 누구인가요?",
+          "required_memories": [
+            "ALBUM_SCANNER_CURRENT"
+          ],
+          "optional_memories": [],
+          "must_filter": [
+            "ALBUM_SCANNER_OLD"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -78,7 +78,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"  # AutoField type for primary keys in models
 
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = Path(os.getenv("DJANGO_MEDIA_ROOT", BASE_DIR / "media"))
 MEDIA_URL = "/media/"
 
 # ============ Third-party API settings ============
