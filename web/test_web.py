@@ -25,6 +25,7 @@ class WebServingTests(SimpleTestCase):
             self.assertEqual(response["X-Content-Type-Options"], "nosniff")
             for name, content_type in [("app.js", "text/javascript"), ("api.js", "text/javascript"),
                                        ("family-tree.js", "text/javascript"),
+                                       ("family-tree-view.js", "text/javascript"),
                                        ("icons.js", "text/javascript"), ("styles.css", "text/css"),
                                        ("favicon.svg", "image/svg+xml"), ("todak_joy.gif", "image/gif")]:
                 with self.subTest(name=name):

@@ -1,6 +1,7 @@
 // Invitation drafts use the same append-only graph contract as the Android app.
 export class FamilyTreeDraft {
   constructor(tree) {
+    this.snapshot = structuredClone(tree);
     this.version = tree.version;
     this.ownerId = tree.owner_id;
     this.people = tree.people.map(person => ({ ...person }));
@@ -59,5 +60,14 @@ export class FamilyTreeDraft {
   payload(gender) {
     if (!this.canClaim(this.selectedId, gender)) throw new Error('가계도에서 성별이 맞는 빈자리를 선택해 주세요.');
     return { tree_version: this.version, person_id: this.selectedId, additions: this.additions.map(addition => ({ ...addition })) };
+  }
+
+  undo() {
+    if (!this.additions.length) return;
+    const selected = this.selectedId;
+    const restored = new FamilyTreeDraft(this.snapshot);
+    this.additions.slice(0, -1).forEach(item => restored.add(item.anchor_id, item.relation, item.co_parent_id));
+    restored.selectedId = restored.people.some(person => person.id === selected) ? selected : null;
+    Object.assign(this, restored);
   }
 }

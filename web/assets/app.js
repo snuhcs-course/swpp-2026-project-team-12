@@ -1,6 +1,7 @@
 import { api, ApiError, hasToken, setToken, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
+import { treeMarkup, mountTree } from './family-tree-view.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -149,35 +150,24 @@ function renderOnboarding() {
 
 function renderJoinPreview(message = '') {
   const { room, draft } = state.lookup;
-  const label = person => person.name || `${person.gender === 'male' ? '남성' : person.gender === 'female' ? '여성' : '성별 미정'} 빈자리 ${draft.people.indexOf(person) + 1}`;
-  const options = (people, selected) => people.map(person => `<option value="${e(person.id)}" ${person.id === selected ? 'selected' : ''}>${e(label(person))}</option>`).join('');
-  const available = draft.people.filter(person => draft.canClaim(person.id, state.user.gender));
-  const anchor = draft.people.find(person => person.id === draft.selectedId) || draft.people.find(person => person.id === draft.ownerId);
-  $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">${e(room.owner_name)}님이 만든 가족방이에요. 가계도의 내 자리를 선택해 주세요.</p>
-    ${message ? errorBlock(message) : ''}
-    <ul class="tree-people">${draft.people.map(person => {
-      const parents = draft.parents.filter(link => link.child_id === person.id).map(link => label(draft.people.find(node => node.id === link.parent_id)));
-      const partners = draft.partnerships.flatMap(link => link.first_id === person.id ? [link.second_id] : link.second_id === person.id ? [link.first_id] : []).map(id => label(draft.people.find(node => node.id === id)));
-      return `<li><strong>${e(label(person))}</strong><span>${person.user_id == null ? '빈자리' : '참여 중'}${parents.length ? ` · 부모: ${parents.map(e).join(', ')}` : ''}${partners.length ? ` · 배우자: ${partners.map(e).join(', ')}` : ''}</span></li>`;
-    }).join('')}</ul>
-    <form data-form="join-room"><label class="field"><span>내 자리 (계정 성별과 맞는 빈자리)</span><select name="person_id" required><option value="">내 자리를 선택해 주세요</option>${options(available, draft.selectedId)}</select></label><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${available.length ? '' : 'disabled'}>이 가족방에 참여하기${icon('arrow')}</button></form>
-    <details class="tree-add" ${available.length ? '' : 'open'}><summary>내 자리가 없나요? 가족 추가하기</summary><p class="help">기존 가족을 기준으로 부모, 배우자, 자녀를 차례로 연결할 수 있어요. 가입할 때 함께 저장됩니다.</p>
-      <form data-form="add-family-person"><label class="field"><span>기준이 될 가족</span><select name="anchor_id" required>${options(draft.people, anchor.id)}</select></label><label class="field"><span>기준 가족에게 추가할 관계</span><select name="relation" required><option value="child">자녀</option><option value="father">아버지</option><option value="mother">어머니</option><option value="parent">부모 (성별 미정)</option><option value="spouse">배우자</option></select></label><label class="field"><span>자녀와 함께 연결할 부모 (선택)</span><select name="co_parent_id"><option value="">한 명의 부모만 연결</option></select></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가계도에 추가하기${icon('plus')}</button></form>
-    </details>${button('reload-tree', '가계도 다시 불러오기 · 추가 취소', 'refresh', 'button quiet full')}</div>`;
-  updateCoParents();
-}
-
-function updateCoParents() {
-  const form = $('[data-form="add-family-person"]');
-  if (!form || !state.lookup) return;
-  const draft = state.lookup.draft;
-  const select = $('[name="co_parent_id"]', form);
-  const candidates = draft.coParentsOf($('[name="anchor_id"]', form).value);
-  select.innerHTML = '<option value="">한 명의 부모만 연결</option>' + candidates.map(id => {
-    const person = draft.people.find(person => person.id === id);
-    return `<option value="${e(id)}">${e(person.name || `빈자리 ${draft.people.indexOf(person) + 1}`)}</option>`;
-  }).join('');
-  select.disabled = $('[name="relation"]', form).value !== 'child';
+  const selected = draft.people.find(person => person.id === draft.selectedId);
+  const valid = draft.canClaim(draft.selectedId, state.user.gender);
+  $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">+로 가족을 연결하고, 가계도에서 내 빈자리를 눌러 주세요.</p>
+    ${message ? errorBlock(message) : ''}${treeMarkup(draft, { editable: true, gender: state.user.gender, userId: state.user.user_id })}
+    <p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
+    <div class="button-row">${button('undo-tree', '마지막 추가 취소', '', 'button secondary', draft.additions.length ? '' : 'disabled')}${button('reload-tree', '처음부터 다시', 'refresh', 'button quiet')}</div>
+    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div>`;
+  mountTree($('#join-panel .family-tree-board'), draft, {
+    editable: true,
+    onPerson(id) { draft.selectedId = id; renderJoinPreview(); },
+    onAdd(action) {
+      try {
+        draft.add(action.anchor_id, action.relation, action.co_parent_id);
+        if (!draft.canClaim(draft.selectedId, state.user.gender)) draft.selectedId = null;
+        renderJoinPreview();
+      } catch (error) { renderJoinPreview(error.message); }
+    },
+  });
 }
 
 function renderShell() {
@@ -205,7 +195,13 @@ async function renderPage() {
     if (route === 'feed') await renderFeed(version);
     if (route === 'search') renderSearch();
     if (route === 'digest') await renderDigest(version);
-    if (route === 'family') renderFamily();
+    if (route === 'family') {
+      page.innerHTML = loading('최신 가계도를 불러오고 있어요');
+      const room = await api('families/current/');
+      if (version !== state.pageVersion) return;
+      state.room = room;
+      renderFamily();
+    }
     if (route === 'settings') renderSettings();
   } catch (error) {
     if (version === state.pageVersion) page.innerHTML = `${errorBlock(error.message)}${button('refresh-page', '다시 불러오기', 'refresh')}`;
@@ -359,7 +355,8 @@ async function loadDigest(date, retry = false, version = state.pageVersion) {
 }
 function renderFamily() {
   const owner = state.room.members.some(member => member.id === state.user.user_id && member.is_owner);
-  $('#page').innerHTML = `${pageHeading('CLOSER, TOGETHER', '우리 가족', '서로 다른 하루를 보내도, 이곳에서는 늘 함께예요.')}<div class="family-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">FAMILY ROOM</p><h2>${e(state.room.name)}</h2></div><span class="tag">${state.room.members.length}명의 가족</span></div><div class="member-grid">${state.room.members.map(member => `<article class="member-card">${avatar(member.name, member.id, 'large')}<h3>${e(member.name)}${member.id === state.user.user_id ? '<span class="me-badge">나</span>' : ''}</h3><p>${member.is_owner ? '가족방을 만든 사람' : e(member.relationship || '가족')}</p></article>`).join('')}</div></section><aside><section class="panel invitation-card"><span class="empty-icon">${icon('heart')}</span><h2>가족을 초대해 보세요</h2><p class="muted">초대코드와 가족방 비밀번호를<br>가족에게 함께 알려주세요.</p><div class="invite-code">${e(state.room.invite_code)}</div>${button('copy-code', '초대코드 복사', 'copy', 'button secondary full')}<p class="help">참여할 때, 가계도에서 내 자리를 선택해 주세요.</p></section><section class="panel digest-settings"><h2>${icon('calendar')}하루 요약 시간</h2>${owner ? `<form data-form="digest-time">${field('매일, 한국 시간 기준', 'digest_time', 'time', `value="${e(state.room.digest_time)}" required`)}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">시간 저장하기</button></form>` : `<strong class="time-display">${e(state.room.digest_time)}</strong><p class="help">가족방을 만든 사람이 변경할 수 있어요.</p>`}</section></aside></div>`;
+  $('#page').innerHTML = `${pageHeading('CLOSER, TOGETHER', '우리 가족', '가족의 연결을 가계도에서 살펴보세요.', button('refresh-page', '가계도 새로고침', 'refresh'))}<div class="family-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">FAMILY ROOM</p><h2>${e(state.room.name)}</h2></div><span class="tag">${state.room.members.length}명의 가족</span></div>${treeMarkup(new FamilyTreeDraft(state.room.tree), { userId: state.user.user_id, members: state.room.members })}<p class="help">가입한 가족 ${state.room.members.length}명 · 가계도 속 사람 ${state.room.tree.people.length}명</p></section><aside><section class="panel invitation-card"><span class="empty-icon">${icon('heart')}</span><h2>가족을 초대해 보세요</h2><p class="muted">초대코드와 가족방 비밀번호를<br>가족에게 함께 알려주세요.</p><div class="invite-code">${e(state.room.invite_code)}</div>${button('copy-code', '초대코드 복사', 'copy', 'button secondary full')}<p class="help">참여할 때, 가계도에서 내 자리를 선택해 주세요.</p></section><section class="panel digest-settings"><h2>${icon('calendar')}하루 요약 시간</h2>${owner ? `<form data-form="digest-time">${field('매일, 한국 시간 기준', 'digest_time', 'time', `value="${e(state.room.digest_time)}" required`)}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">시간 저장하기</button></form>` : `<strong class="time-display">${e(state.room.digest_time)}</strong><p class="help">가족방을 만든 사람이 변경할 수 있어요.</p>`}</section></aside></div>`;
+  mountTree($('#page .family-tree-board'), new FamilyTreeDraft(state.room.tree));
 }
 function renderSettings() {
   $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
@@ -442,11 +439,6 @@ const formHandlers = {
     const form = $('[data-form="lookup-room"]');
     if ($('[name="invite_code"]', form).value !== data.invite_code || $('[name="password"]', form).value !== data.password) return;
     state.lookup = { ...data, room, draft: new FamilyTreeDraft(room.tree) };
-    renderJoinPreview();
-  },
-  'add-family-person'(data) {
-    if (!state.lookup) throw new ApiError('가족방을 먼저 확인해 주세요.');
-    state.lookup.draft.add(data.anchor_id, data.relation, data.co_parent_id || null);
     renderJoinPreview();
   },
   async 'join-room'(data) {
@@ -573,6 +565,7 @@ document.addEventListener('click', async event => {
     target.setAttribute('aria-pressed', String(large));
     return;
   }
+  if (action === 'undo-tree' && state.lookup) { state.lookup.draft.undo(); renderJoinPreview(); return; }
   if (action === 'compose') return openComposer();
   if (action === 'open-post' || action === 'retry-post' || action === 'post-summary') return openPost(Number(target.dataset.id), action === 'post-summary');
   if (action === 'select-photo') return showPhoto(Number(target.dataset.index));
@@ -641,7 +634,6 @@ document.addEventListener('input', event => {
   if (event.target.closest('[data-form="lookup-room"]')) { state.lookup = null; $('#join-panel').innerHTML = ''; }
 });
 document.addEventListener('change', event => {
-  if (event.target.matches('[data-form="add-family-person"] [name="anchor_id"], [data-form="add-family-person"] [name="relation"]')) updateCoParents();
   if (event.target.id === 'author-filter') updateFeed();
   if (event.target.id === 'photo-input') { addFiles([...event.target.files]); event.target.value = ''; }
   if (event.target.id === 'digest-date' && event.target.validity.valid) {
