@@ -1,4 +1,4 @@
-plugins { id("com.android.application") }
+﻿plugins { id("com.android.application") }
 
 android {
     namespace = "kr.talkdock.app"
@@ -19,6 +19,9 @@ android {
         release { isMinifyEnabled = false }
     }
     buildFeatures { buildConfig = true }
+    sourceSets {
+        getByName("androidTest").java.srcDir("../../testbed/iter2_frontend/androidTest/java")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

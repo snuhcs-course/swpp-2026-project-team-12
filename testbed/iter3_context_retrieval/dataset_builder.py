@@ -35,6 +35,13 @@ SEARCH_FALLBACKS = {
     "camera": ("person using compact camera", "family photography outdoors"),
     "cafe": ("friends together at cafe", "people at cafe table"),
     "dog": ("person with dog outdoors", "family walking dog"),
+    "lunchbox": ("person preparing lunchbox", "person cooking in home kitchen"),
+    "bicycle": ("person with bicycle outdoors", "person bicycle repair"),
+    "cake": ("family birthday cake at home", "person birthday cake"),
+    "trip": ("family travel planning", "people road trip"),
+    "scarf": ("person knitting scarf", "person wearing scarf"),
+    "yarn": ("person knitting yarn", "person knitting scarf"),
+    "piano": ("person playing piano", "family piano practice"),
 }
 LICENSE_PREFIXES = ("cc0", "cc by", "cc-by", "public domain", "pd", "gfdl")
 HUMAN_TERMS = (
@@ -235,7 +242,9 @@ def owner_weighted_authors(config, threads, chosen):
 
 def build_plan(config, threads):
     members = config["members"]
-    names = {f"m{i}": members[i % len(members)]["name"] for i in range(max(4, len(members)))}
+    # Catalog templates currently refer to members m0 through m5. Smaller
+    # families reuse members cyclically so every catalog thread remains valid.
+    names = {f"m{i}": members[i % len(members)]["name"] for i in range(max(6, len(members)))}
     chosen = select_events(threads, int(config["post_count"]))
     history = [(thread, event) for thread, event in chosen if event["kind"] != "probe"]
     probes = [(thread, event) for thread, event in chosen if event["kind"] == "probe"]
@@ -263,7 +272,13 @@ def build_plan(config, threads):
             event["id"], (thread_index[thread["id"]] + 1) % len(members)
         )
         author = members[author_index]
-        occurred = datetime.combine(start + timedelta(days=6), clock(10 + offset * 2), timezone(timedelta(hours=9)))
+        # Keep every probe on day seven. Half-hour spacing supports up to 20
+        # probes while preserving a valid time range.
+        occurred = datetime.combine(
+            start + timedelta(days=6),
+            clock(9 + offset // 2, 30 if offset % 2 else 0),
+            timezone(timedelta(hours=9)),
+        )
         events.append(make_event(event, thread, author, names, occurred, len(events) + 1))
     return {
         "schema_version": 1, "dataset_name": config["dataset_name"],
