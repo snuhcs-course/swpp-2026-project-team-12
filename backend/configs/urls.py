@@ -8,12 +8,15 @@ from apps.replies import views as replies
 from apps.digests import views as digests
 from apps.searching import views as searching
 from integrations.speech import views as speech
+from configs import web
 
 def test_reply(request):
     return JsonResponse({"status": "ok"})
 
 
 urlpatterns = [
+    path("", web.index, name="web-index"),
+    path("web/assets/<str:name>", web.asset, name="web-asset"),
     path("api/test_reply/", test_reply, name="test_reply"),
     path("api/accounts/register/", accounts.register, name="account-register"),
     path("api/accounts/login/", accounts.login, name="account-login"),
