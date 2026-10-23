@@ -152,7 +152,7 @@ python -m pytest testbed -q
 다음 변경은 config만 수정합니다.
 
 - 가족 이름, 시작일, 초대 코드와 비밀번호
-- 구성원 이름, 성별과 관계 slot
+- 구성원 이름, 성별, generation과 부모/배우자 연결
 - 기존 catalog 범위 안의 `thread_ids`와 `post_count`
 - 출력 데이터셋 이름과 작성자 배정 정책
 
@@ -166,12 +166,7 @@ python -m pytest testbed -q
 
 ## Config 작성 규칙
 
-`members`는 2~9명으로 구성합니다. `owner`는 정확히 한 명이어야 하고 slot은 중복될 수 없습니다.
-
-```text
-owner, father, mother, grandpa-father, grandpa-mother,
-grandma-father, grandma-mother, son, daughter, grandson, granddaughter
-```
+`members`는 2명 이상이며 `owner_username`으로 방 관리자를 지정합니다. `generation`은 가계도 배치용 정수입니다. `parents`의 `parent_id`/`child_id`, `partnerships`의 `first_id`/`second_id`에는 구성원의 username을 사용합니다. 관계는 앱과 동일한 tree 탐색 함수로 계산합니다.
 
 `username`은 데이터셋 안에서 고유해야 합니다. `gender`는 `female`, `male`, `unknown` 중 하나입니다. caption의 구성원 치환자는 `{m0}`, `{m1}`처럼 사용하며 구성원 수에 따라 순환 배정됩니다.
 

@@ -5,6 +5,7 @@ import html
 import json
 import os
 import re
+import sys
 import tempfile
 import time
 from datetime import date, datetime, time as clock, timedelta, timezone
@@ -22,11 +23,6 @@ PEXELS_API = "https://api.pexels.com/v1/search"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 SUPPORTED_IMAGE_PROVIDERS = {"curated", "openverse", "pexels", "commons"}
 SUPPORTED_AUTHOR_POLICIES = {"round_robin", "thread_owner_weighted"}
-ALLOWED_SLOTS = {
-    "owner", "father", "mother", "grandpa-father", "grandpa-mother",
-    "grandma-father", "grandma-mother",
-    "son", "daughter", "grandson", "granddaughter",
-}
 SEARCH_FALLBACKS = {
     "lemonade": ("friends drinking lemonade cafe", "people drinking at cafe"),
     "smartphone": ("person taking photo with smartphone", "people smartphone photography"),
@@ -48,13 +44,9 @@ BENCHMARK_ORDER = {
     "cafe": ("cafe-drink", "cafe-distractor", "cafe-pet", "cafe-family", "cafe-walk"),
     "camera": ("camera-return", "camera-again", "camera-distractor", "camera-lesson", "camera-photo"),
 }
-SLOTS = {
-    "father": ("아버지", 1), "mother": ("어머니", 1),
-    "grandpa-father": ("할아버지", 2), "grandpa-mother": ("외할아버지", 2),
-    "grandma-father": ("할머니", 2), "grandma-mother": ("외할머니", 2),
-    "son": ("아들", -1), "daughter": ("딸", -1),
-    "grandson": ("손자", -2), "granddaughter": ("손녀", -2),
-}
+# Use the application's tree search without initializing Django for dataset builds.
+sys.path.insert(0, str(ROOT.parent / "backend"))
+from apps.families.utils import find_relationship
 
 
 def read_json(path):
@@ -75,45 +67,31 @@ def metadata_value(metadata, key):
     return clean_html(metadata.get(key, {}).get("value", ""))
 
 
-def relationship(viewer, author):
-    if viewer["username"] == author["username"]:
-        return "나"
-    if viewer["slot"] == "owner":
-        return SLOTS.get(author["slot"], ("가족", 0))[0]
-    if author["slot"] == "owner":
-        generation = SLOTS.get(viewer["slot"], ("", 0))[1]
-        reverse = {
-            2: {"female": "손녀", "male": "손자", "unknown": "손주"},
-            1: {"female": "딸", "male": "아들", "unknown": "자녀"},
-            -1: {"female": "어머니", "male": "아버지", "unknown": "부모"},
-            -2: {"female": "할머니", "male": "할아버지", "unknown": "조부모"},
-        }
-        return reverse.get(generation, {}).get(author["gender"], "가족")
-    special = {
-        ("grandpa-father", "father"): "아들",
-        ("grandpa-father", "mother"): "며느리",
-        ("grandpa-mother", "mother"): "딸",
-        ("grandpa-mother", "father"): "사위",
-        ("grandma-father", "father"): "아들",
-        ("grandma-father", "mother"): "며느리",
-        ("grandma-mother", "mother"): "딸",
-        ("grandma-mother", "father"): "사위",
+def family_tree(config):
+    return {
+        "owner_id": config["owner_username"],
+        "people": [{**member, "id": member["username"], "gender": member.get("gender", "unknown")} for member in config["members"]],
+        "parents": config.get("parents", []), "partnerships": config.get("partnerships", []),
     }
-    return special.get((viewer["slot"], author["slot"]), "가족")
 
 
 def validate_config(config, catalog):
     members = config.get("members", [])
-    if not 2 <= len(members) <= len(ALLOWED_SLOTS):
-        raise ValueError("members는 2~9명이어야 합니다.")
-    slots = [member.get("slot") for member in members]
-    if slots.count("owner") != 1 or len(slots) != len(set(slots)):
-        raise ValueError("owner는 정확히 한 명이어야 하고 slot은 중복될 수 없습니다.")
-    if any(slot not in ALLOWED_SLOTS for slot in slots):
-        raise ValueError("지원하지 않는 가족 slot이 있습니다.")
+    if len(members) < 2:
+        raise ValueError("members는 2명 이상이어야 합니다.")
     usernames = [member.get("username") for member in members]
     if any(not value for value in usernames) or len(usernames) != len(set(usernames)):
         raise ValueError("각 구성원의 username은 비어 있지 않고 고유해야 합니다.")
+    if config.get("owner_username") not in usernames:
+        raise ValueError("owner_username은 members 안의 사용자여야 합니다.")
+    if any(type(member.get("generation")) is not int for member in members):
+        raise ValueError("구성원의 generation은 정수여야 합니다.")
+    for links, keys in ((config.get("parents", []), ("parent_id", "child_id")),
+                        (config.get("partnerships", []), ("first_id", "second_id"))):
+        for link in links:
+            first, second = (link.get(key) for key in keys)
+            if first not in usernames or second not in usernames or first == second:
+                raise ValueError("가계도 연결에는 서로 다른 구성원의 username이 필요합니다.")
     if any(member.get("gender", "unknown") not in {"female", "male", "unknown"} for member in members):
         raise ValueError("gender는 female, male, unknown 중 하나여야 합니다.")
     thread_ids = config.get("thread_ids") or [thread["id"] for thread in catalog["threads"]]
@@ -266,12 +244,12 @@ def build_plan(config, threads):
         occurred = datetime.combine(start + timedelta(days=6), clock(10 + offset * 2), timezone(timedelta(hours=9)))
         events.append(make_event(event, thread, author, names, occurred, len(events) + 1))
     return {
-        "schema_version": 1, "dataset_name": config["dataset_name"],
+        "schema_version": 2, "dataset_name": config["dataset_name"],
         "family": {
             "name": config["family_name"], "invite_code": config["invite_code"],
-            "members": members,
+            "members": members, "tree": family_tree(config),
             "relationship_matrix": {
-                viewer["username"]: {author["username"]: relationship(viewer, author) for author in members}
+                viewer["username"]: {author["username"]: find_relationship(family_tree(config), viewer["username"], author["username"]) for author in members}
                 for viewer in members
             },
         },

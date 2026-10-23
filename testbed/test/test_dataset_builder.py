@@ -12,7 +12,8 @@ from dataset_builder import (
     generate,
     make_crawler,
     read_json,
-    relationship,
+    find_relationship,
+    family_tree,
     validate_config,
 )
 
@@ -36,11 +37,13 @@ class DatasetBuilderTests(unittest.TestCase):
             self.assertTrue(probe["evaluation_question"])
 
     def test_relationships_match_application_rules(self):
-        members = self.config()["members"]
+        config = self.config()
+        tree = family_tree(config)
+        members = config["members"]
         people = {member["name"]: member for member in members}
-        self.assertEqual(relationship(people["지민"], people["도윤"]), "아버지")
-        self.assertEqual(relationship(people["선희"], people["도윤"]), "사위")
-        self.assertEqual(relationship(people["도윤"], people["지민"]), "딸")
+        self.assertEqual(find_relationship(tree, people["지민"]["username"], people["도윤"]["username"]), "아버지")
+        self.assertEqual(find_relationship(tree, people["선희"]["username"], people["도윤"]["username"]), "딸의 배우자")
+        self.assertEqual(find_relationship(tree, people["도윤"]["username"], people["지민"]["username"]), "딸")
 
     def test_default_probes_have_required_and_filter_memories_in_history(self):
         config = self.config()
