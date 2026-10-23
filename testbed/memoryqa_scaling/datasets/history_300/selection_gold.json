@@ -1,0 +1,33 @@
+{
+  "panel_ids": [
+    "Q01",
+    "Q03",
+    "Q06",
+    "Q07",
+    "Q08",
+    "Q10",
+    "Q15",
+    "Q16",
+    "Q17",
+    "Q18",
+    "Q21",
+    "Q23",
+    "Q24",
+    "Q26",
+    "Q29",
+    "Q34",
+    "Q35",
+    "Q36",
+    "Q37",
+    "Q40"
+  ],
+  "bank_qa_count": 40,
+  "evaluated_qa_count": 20,
+  "history_size": 300,
+  "photo_count": 120,
+  "text_count": 180,
+  "source_dataset": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_family4_300_20261022",
+  "medium_threads": null,
+  "selection_policy": "Before new paid runs; coverage of reasoning types and all 10 original threads, not ranking prior model performance.",
+  "human_signoff": false
+}

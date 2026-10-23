@@ -1,0 +1,71 @@
+{
+  "version": "family-memory-qa-30-criteria-v1",
+  "status": "proposed_before_new_run_team_agreement_pending",
+  "prior_results_known": true,
+  "scope": "Apply the same gates separately to each condition at each history size; six cells of 90 responses. No new results exist.",
+  "quality_gates": [
+    {
+      "metric": "Answer Satisfaction",
+      "minimum_rate": 0.9,
+      "minimum_count_per_cell": 81,
+      "definition": "The requested fact is correct for the intended entity and time, without contradiction of that fact. Semantic equivalents count. Errors and abstentions on these answerable cases fail."
+    },
+    {
+      "metric": "Evidence Coverage",
+      "minimum_rate": 0.9,
+      "minimum_count_per_cell": 81,
+      "definition": "The actual memory context supplied to the final answer contains sufficient meaning to support the requested answer; not just a matching post ID or an assertion by the final model. Errors without delivered context fail."
+    },
+    {
+      "metric": "Answer Accuracy",
+      "minimum_rate": 0.85,
+      "minimum_count_per_cell": 77,
+      "definition": "Answer Satisfaction is true and the answer has no material false or unsupported factual addition."
+    },
+    {
+      "metric": "False Connection Rate",
+      "maximum_rate": 0.05,
+      "maximum_count_per_cell": 4,
+      "definition": "Responses asserting a wrong entity, relationship, object linkage, or temporal state, divided by all 90 planned responses. Wrong predictions count; safe abstention is an accuracy failure, not a false connection."
+    },
+    {
+      "metric": "Unsupported Addition Rate",
+      "maximum_rate": 0.05,
+      "maximum_count_per_cell": 4,
+      "definition": "Responses containing at least one material false or unsupported factual addition, divided by 90. This flag can overlap a false connection."
+    }
+  ],
+  "performance_target": {
+    "metric": "P95 Response Time",
+    "maximum_seconds": 10,
+    "rank_per_cell": 86,
+    "status": "proposed_interaction_target_not_a_course_requirement",
+    "definition": "Nearest-rank P95 over all 90 task durations, retaining first requests, SDK retries, and errors. Report quality and latency gates separately."
+  },
+  "validity_requirements": {
+    "planned_unique_tasks": 540,
+    "task_records_per_cell": 90,
+    "future_record_violations": 0,
+    "gold_in_runtime_payload_violations": 0,
+    "app_or_frozen_input_drift_violations": 0,
+    "missing_usage_records_for_successful_calls": 0,
+    "policy": "Retain every attempted task and error. Interrupted runs remain incomplete. Do not replace failed answers with successful retries. Usage-dependent metrics remain unavailable if usage is incomplete."
+  },
+  "comparison_only_metrics": [
+    "Source Post Coverage",
+    "Mean Response Time",
+    "Input Tokens per Question",
+    "Output Tokens per Question",
+    "Generation Tokens per Question",
+    "Embedding Tokens per Question",
+    "Generation Tokens per Correct Answer",
+    "Graphiti to Full History Token Ratio",
+    "Graphiti to Full History Latency Ratio",
+    "Graphiti minus Full History Accuracy Difference",
+    "Per Question Repeat Consistency",
+    "Memory Update Error Rate on the declared update subset"
+  ],
+  "comparison_policy": "Relative token or latency advantages are research outcomes, not replacements for the quality gates. No mandatory superiority over Full History is assumed. A confidence interval crossing zero is not evidence of equality or non-inferiority.",
+  "system_acceptance": "Graphiti passes quality at a history size only when all five quality gates pass there. Acceptance across tested scales requires all three sizes to pass separately. Full History is scored identically. Latency is reported as a separate target.",
+  "change_policy": "Commit the questions, gold, criteria, prompt and source hashes before a future run. Changes after seeing new results require a new version and an explicit reason; preserve the original. These thresholds are proposed after prior ten-case results were known, so this is not a blind preregistration."
+}

@@ -1,0 +1,2880 @@
+[
+  {
+    "question_id": "Q01",
+    "thread_id": "cat",
+    "category": "current_state",
+    "expected_answer": "지민",
+    "required_answer_units": [
+      "지민"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M01-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M01-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "선희가 현재 담당한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:01:00+09:00",
+    "temporal_target": "2026-10-17T08:01:00+09:00",
+    "related_fact_ids": [
+      "F01-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "지민",
+        "fact_ids": [
+          "F01-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q02",
+    "thread_id": "cat",
+    "category": "past_state_or_report",
+    "expected_answer": "선희",
+    "required_answer_units": [
+      "선희"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M01-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "지민이 당시 담당했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F01-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "선희",
+        "fact_ids": [
+          "F01-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q03",
+    "thread_id": "cat",
+    "category": "entity_separation",
+    "expected_answer": "모모는 지민, 나비는 수진의 친구",
+    "required_answer_units": [
+      "모모 밥 담당은 지민",
+      "나비 밥 담당은 수진의 친구"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-4",
+        "M01-5"
+      ],
+      [
+        "M01-6",
+        "M01-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M01-4",
+      "M01-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "수진이 나비 밥을 준다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:31:00+09:00",
+    "temporal_target": "2026-10-17T08:31:00+09:00",
+    "related_fact_ids": [
+      "F01-3",
+      "F01-4"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "모모 밥 담당은 지민",
+        "fact_ids": [
+          "F01-3"
+        ]
+      },
+      {
+        "answer_unit": "나비 밥 담당은 수진의 친구",
+        "fact_ids": [
+          "F01-4"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q04",
+    "thread_id": "cat",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "입양 날짜를 추측한다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T08:31:00+09:00",
+    "temporal_target": "2026-10-17T08:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q05",
+    "thread_id": "plant",
+    "category": "current_state",
+    "expected_answer": "기록상 도윤의 서재에 있음. 14일 글에는 서재 창가라고 적혀 있음",
+    "required_answer_units": [
+      "자주는 도윤의 서재에 있다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-4"
+      ],
+      [
+        "M02-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M02-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M02-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "거실 창가에 현재 있다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:01:00+09:00",
+    "temporal_target": "2026-10-17T09:01:00+09:00",
+    "related_fact_ids": [
+      "F02-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "optional_answer_units": [
+      "서재 창가"
+    ],
+    "grading_note": "창가는 M02-4에만 있는 선택 상세 정보. 방 수준 답변도 인정한다. 창가까지 필수로 시험하려면 질문을 바꾸고 M02-6 단독 충분 근거를 삭제해야 한다.",
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "자주는 도윤의 서재에 있다",
+        "fact_ids": [
+          "F02-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q06",
+    "thread_id": "plant",
+    "category": "past_state_or_report",
+    "expected_answer": "거실 창가",
+    "required_answer_units": [
+      "거실 창가"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M02-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때 서재에 있었다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F02-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "거실 창가",
+        "fact_ids": [
+          "F02-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q07",
+    "thread_id": "plant",
+    "category": "entity_separation",
+    "expected_answer": "자주는 도윤의 제브리나, 새싹은 선희의 알로에",
+    "required_answer_units": [
+      "자주는 제브리나",
+      "자주를 기르는 사람은 도윤",
+      "새싹은 알로에",
+      "새싹을 기르는 사람은 선희"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-1",
+        "M02-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M02-1",
+      "M02-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "자주가 동물이다",
+      "두 이름이 같은 식물이다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:31:00+09:00",
+    "temporal_target": "2026-10-17T09:31:00+09:00",
+    "related_fact_ids": [
+      "F02-X1",
+      "F02-X2",
+      "F02-X3",
+      "F02-X4"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "자주는 제브리나",
+        "fact_ids": [
+          "F02-X1"
+        ]
+      },
+      {
+        "answer_unit": "자주를 기르는 사람은 도윤",
+        "fact_ids": [
+          "F02-X2"
+        ]
+      },
+      {
+        "answer_unit": "새싹은 알로에",
+        "fact_ids": [
+          "F02-X3"
+        ]
+      },
+      {
+        "answer_unit": "새싹을 기르는 사람은 선희",
+        "fact_ids": [
+          "F02-X4"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q08",
+    "thread_id": "plant",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "가게 이름을 지어낸다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T09:31:00+09:00",
+    "temporal_target": "2026-10-17T09:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q09",
+    "thread_id": "piano",
+    "category": "current_state",
+    "expected_answer": "서연",
+    "required_answer_units": [
+      "서연"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-4"
+      ],
+      [
+        "M03-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M03-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M03-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "민수가 현재 선생님이다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:01:00+09:00",
+    "temporal_target": "2026-10-17T10:01:00+09:00",
+    "related_fact_ids": [
+      "F03-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "서연",
+        "fact_ids": [
+          "F03-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q10",
+    "thread_id": "piano",
+    "category": "past_state_or_report",
+    "expected_answer": "민수",
+    "required_answer_units": [
+      "민수"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M03-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때 서연에게 배웠다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F03-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "민수",
+        "fact_ids": [
+          "F03-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q11",
+    "thread_id": "piano",
+    "category": "entity_separation",
+    "expected_answer": "도윤의 동료 민수는 다른 사람, 현재 선생님은 서연",
+    "required_answer_units": [
+      "도윤의 동료 민수와 예전 선생님 민수는 다른 사람",
+      "지민의 현재 선생님은 서연"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-4",
+        "M03-5"
+      ],
+      [
+        "M03-6",
+        "M03-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M03-4",
+      "M03-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "두 민수를 같은 사람으로 연결한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:31:00+09:00",
+    "temporal_target": "2026-10-17T10:31:00+09:00",
+    "related_fact_ids": [
+      "F03-4",
+      "F03-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "도윤의 동료 민수와 예전 선생님 민수는 다른 사람",
+        "fact_ids": [
+          "F03-4"
+        ]
+      },
+      {
+        "answer_unit": "지민의 현재 선생님은 서연",
+        "fact_ids": [
+          "F03-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q12",
+    "thread_id": "piano",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "수업료를 추측한다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T10:31:00+09:00",
+    "temporal_target": "2026-10-17T10:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q13",
+    "thread_id": "tools",
+    "category": "current_state",
+    "expected_answer": "RYOBI 150W 인버터만 구매, Hyper Tough 세척기는 미구매",
+    "required_answer_units": [
+      "도윤은 인버터 구매",
+      "도윤은 고압 세척기 미구매"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M04-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M04-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "도윤이 둘 다 샀다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:01:00+09:00",
+    "temporal_target": "2026-10-17T11:01:00+09:00",
+    "related_fact_ids": [
+      "F04-3",
+      "F04-X1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "optional_answer_units": [
+      "RYOBI 150W",
+      "Hyper Tough"
+    ],
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "도윤은 인버터 구매",
+        "fact_ids": [
+          "F04-3"
+        ]
+      },
+      {
+        "answer_unit": "도윤은 고압 세척기 미구매",
+        "fact_ids": [
+          "F04-X1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q14",
+    "thread_id": "tools",
+    "category": "past_state_or_report",
+    "expected_answer": "아니요, 장바구니에만 넣고 미결제",
+    "required_answer_units": [
+      "아니요, 장바구니에만 넣고 미결제"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M04-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "이미 결제했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F04-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "아니요, 장바구니에만 넣고 미결제",
+        "fact_ids": [
+          "F04-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q15",
+    "thread_id": "tools",
+    "category": "entity_separation",
+    "expected_answer": "철수가 세척기를 샀고 도윤은 인버터만 샀다",
+    "required_answer_units": [
+      "철수는 세척기 구매",
+      "도윤은 인버터만 구매"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-4",
+        "M04-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M04-4",
+      "M04-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "철수의 구매를 도윤에게 연결한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:31:00+09:00",
+    "temporal_target": "2026-10-17T11:31:00+09:00",
+    "related_fact_ids": [
+      "F04-X3",
+      "F04-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "철수는 세척기 구매",
+        "fact_ids": [
+          "F04-X3"
+        ]
+      },
+      {
+        "answer_unit": "도윤은 인버터만 구매",
+        "fact_ids": [
+          "F04-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q16",
+    "thread_id": "tools",
+    "category": "insufficient_information",
+    "expected_answer": "배송 완료 날짜는 기록으로 확인할 수 없음",
+    "required_answer_units": [
+      "배송 완료 날짜는 기록으로 확인할 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [
+      "M04-6"
+    ],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "배송 완료 날짜를 만든다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T11:31:00+09:00",
+    "temporal_target": "2026-10-17T11:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "optional_answer_units": [
+      "16일 마지막 기록에는 배송을 기다리고 있었음"
+    ],
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q17",
+    "thread_id": "flowers",
+    "category": "current_state",
+    "expected_answer": "민수가 선물했고 지민이는 전달만 했다",
+    "required_answer_units": [
+      "민수가 흰 꽃 선물",
+      "지민은 전달만 함"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M05-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M05-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "지민이가 실제 선물했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:01:00+09:00",
+    "temporal_target": "2026-10-17T12:01:00+09:00",
+    "related_fact_ids": [
+      "F05-3",
+      "F05-X1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "fact_correction",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "민수가 흰 꽃 선물",
+        "fact_ids": [
+          "F05-3"
+        ]
+      },
+      {
+        "answer_unit": "지민은 전달만 함",
+        "fact_ids": [
+          "F05-X1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q18",
+    "thread_id": "flowers",
+    "category": "past_state_or_report",
+    "expected_answer": "12일까지의 글에서 선희는 지민이가 사 준 꽃으로 알고 있었음. 이는 정정 전의 발언임",
+    "required_answer_units": [
+      "당시 선희가 지민이 사 준 것으로 알고 있었다는 과거 발언"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M05-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "당시에도 민수 선물이라고 말했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F05-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "당시 선희가 지민이 사 준 것으로 알고 있었다는 과거 발언",
+        "fact_ids": [
+          "F05-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q19",
+    "thread_id": "flowers",
+    "category": "entity_separation",
+    "expected_answer": "선희의 흰 꽃은 민수, 수진의 분홍 꽃은 은영",
+    "required_answer_units": [
+      "선희의 흰 꽃 선물자는 민수",
+      "수진의 분홍 꽃 선물자는 은영"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-4",
+        "M05-5"
+      ],
+      [
+        "M05-6",
+        "M05-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M05-4",
+      "M05-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "민수와 은영을 바꾼다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:31:00+09:00",
+    "temporal_target": "2026-10-17T12:31:00+09:00",
+    "related_fact_ids": [
+      "F05-3",
+      "F05-X2"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "선희의 흰 꽃 선물자는 민수",
+        "fact_ids": [
+          "F05-3"
+        ]
+      },
+      {
+        "answer_unit": "수진의 분홍 꽃 선물자는 은영",
+        "fact_ids": [
+          "F05-X2"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q20",
+    "thread_id": "flowers",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "꽃집 이름을 추측한다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T12:31:00+09:00",
+    "temporal_target": "2026-10-17T12:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q21",
+    "thread_id": "car",
+    "category": "current_state",
+    "expected_answer": "병원 임시 주차장",
+    "required_answer_units": [
+      "병원 임시 주차장"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M06-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M06-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "새 집 주차장에서 찍었다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:01:00+09:00",
+    "temporal_target": "2026-10-17T13:01:00+09:00",
+    "related_fact_ids": [
+      "F06-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "fact_correction",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "병원 임시 주차장",
+        "fact_ids": [
+          "F06-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q22",
+    "thread_id": "car",
+    "category": "past_state_or_report",
+    "expected_answer": "새 집 주차장이라고 적었다; 정정 전 주장",
+    "required_answer_units": [
+      "새 집 주차장이라고 적었다; 정정 전 주장"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M06-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때부터 병원이라고 적었다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F06-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "새 집 주차장이라고 적었다; 정정 전 주장",
+        "fact_ids": [
+          "F06-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q23",
+    "thread_id": "car",
+    "category": "entity_separation",
+    "expected_answer": "사진은 병원 임시 주차장, 수진 친구 집은 지하 주차장",
+    "required_answer_units": [
+      "Nissan 사진은 병원 임시 주차장",
+      "수진 친구 집은 지하 주차장"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-4",
+        "M06-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M06-4",
+      "M06-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "친구 집을 우리 집으로 연결한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:31:00+09:00",
+    "temporal_target": "2026-10-17T13:31:00+09:00",
+    "related_fact_ids": [
+      "F06-3",
+      "F06-4"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "Nissan 사진은 병원 임시 주차장",
+        "fact_ids": [
+          "F06-3"
+        ]
+      },
+      {
+        "answer_unit": "수진 친구 집은 지하 주차장",
+        "fact_ids": [
+          "F06-4"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q24",
+    "thread_id": "car",
+    "category": "insufficient_information",
+    "expected_answer": "가족 새 집의 주소는 기록으로 확인할 수 없음",
+    "required_answer_units": [
+      "가족 새 집의 주소는 기록으로 확인할 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [
+      "M06-4"
+    ],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "병원이나 친구 집 주소를 가족 집 주소로 단정한다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T13:31:00+09:00",
+    "temporal_target": "2026-10-17T13:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "optional_answer_units": [
+      "14일 도윤이 집 주소를 올린 적 없다고 했음"
+    ],
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q25",
+    "thread_id": "shoes",
+    "category": "current_state",
+    "expected_answer": "찾았다, 베란다 선반",
+    "required_answer_units": [
+      "지민 신발 발견",
+      "발견 장소는 베란다 선반"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M07-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M07-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "아직 못 찾았다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:01:00+09:00",
+    "temporal_target": "2026-10-17T14:01:00+09:00",
+    "related_fact_ids": [
+      "F07-3",
+      "F07-X1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "지민 신발 발견",
+        "fact_ids": [
+          "F07-3"
+        ]
+      },
+      {
+        "answer_unit": "발견 장소는 베란다 선반",
+        "fact_ids": [
+          "F07-X1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q26",
+    "thread_id": "shoes",
+    "category": "past_state_or_report",
+    "expected_answer": "아직 못 찾은 상태",
+    "required_answer_units": [
+      "아직 못 찾은 상태"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-2"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M07-2"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때 이미 찾았다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F07-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "아직 못 찾은 상태",
+        "fact_ids": [
+          "F07-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q27",
+    "thread_id": "shoes",
+    "category": "entity_separation",
+    "expected_answer": "지민 신발은 발견, 도윤 구두는 미발견",
+    "required_answer_units": [
+      "지민 신발 발견",
+      "도윤 구두 미발견"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-4",
+        "M07-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M07-4",
+      "M07-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "도윤 구두도 찾았다고 단정한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:31:00+09:00",
+    "temporal_target": "2026-10-17T14:31:00+09:00",
+    "related_fact_ids": [
+      "F07-3",
+      "F07-X2"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "지민 신발 발견",
+        "fact_ids": [
+          "F07-3"
+        ]
+      },
+      {
+        "answer_unit": "도윤 구두 미발견",
+        "fact_ids": [
+          "F07-X2"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q28",
+    "thread_id": "shoes",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "구매 날짜를 만든다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T14:31:00+09:00",
+    "temporal_target": "2026-10-17T14:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q29",
+    "thread_id": "walk",
+    "category": "current_state",
+    "expected_answer": "강변 산책로, 오후 3시",
+    "required_answer_units": [
+      "이번 가족 산책은 강변 산책로",
+      "만나는 시간은 오후 3시"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ],
+      [
+        "M08-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M08-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M08-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "현재 약속이 선셋 공원이다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:01:00+09:00",
+    "temporal_target": "2026-10-17T15:01:00+09:00",
+    "related_fact_ids": [
+      "F08-3",
+      "F08-X1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "이번 가족 산책은 강변 산책로",
+        "fact_ids": [
+          "F08-3"
+        ]
+      },
+      {
+        "answer_unit": "만나는 시간은 오후 3시",
+        "fact_ids": [
+          "F08-X1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q30",
+    "thread_id": "walk",
+    "category": "past_state_or_report",
+    "expected_answer": "선셋 공원",
+    "required_answer_units": [
+      "선셋 공원"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M08-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때 강변으로 정했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F08-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "선셋 공원",
+        "fact_ids": [
+          "F08-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q31",
+    "thread_id": "walk",
+    "category": "entity_separation",
+    "expected_answer": "가족은 강변 산책로, 지민과 은영은 다음 달 선셋 공원",
+    "required_answer_units": [
+      "이번 가족 산책은 강변 산책로",
+      "지민과 은영은 다음 달 선셋 공원 약속"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-4",
+        "M08-5"
+      ],
+      [
+        "M08-6",
+        "M08-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M08-4",
+      "M08-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "다음 달 약속과 이번 가족 약속을 합친다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:31:00+09:00",
+    "temporal_target": "2026-10-17T15:31:00+09:00",
+    "related_fact_ids": [
+      "F08-3",
+      "F08-X3",
+      "F08-X4"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "이번 가족 산책은 강변 산책로",
+        "fact_ids": [
+          "F08-3"
+        ]
+      },
+      {
+        "answer_unit": "지민과 은영은 다음 달 선셋 공원 약속",
+        "fact_ids": [
+          "F08-X3",
+          "F08-X4"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q32",
+    "thread_id": "walk",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "식당을 지어낸다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T15:31:00+09:00",
+    "temporal_target": "2026-10-17T15:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q33",
+    "thread_id": "book",
+    "category": "current_state",
+    "expected_answer": "수진은 완독했다",
+    "required_answer_units": [
+      "수진은 완독했다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M09-4"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M09-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "아직 읽기 전이다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:01:00+09:00",
+    "temporal_target": "2026-10-17T16:01:00+09:00",
+    "related_fact_ids": [
+      "F09-3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "수진은 완독했다",
+        "fact_ids": [
+          "F09-3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q34",
+    "thread_id": "book",
+    "category": "past_state_or_report",
+    "expected_answer": "아직 시작하지 않았다",
+    "required_answer_units": [
+      "아직 시작하지 않았다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-2"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M09-2"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "그때 완독했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F09-2"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "아직 시작하지 않았다",
+        "fact_ids": [
+          "F09-2"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q35",
+    "thread_id": "book",
+    "category": "entity_separation",
+    "expected_answer": "수진은 완독, 도윤은 읽는 중",
+    "required_answer_units": [
+      "수진은 The Quiet War 완독",
+      "도윤은 Blue Exorcist 읽는 중"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-4",
+        "M09-5"
+      ],
+      [
+        "M09-6",
+        "M09-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M09-4",
+      "M09-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "도윤도 완독했다고 연결한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:31:00+09:00",
+    "temporal_target": "2026-10-17T16:31:00+09:00",
+    "related_fact_ids": [
+      "F09-3",
+      "F09-X2"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "수진은 The Quiet War 완독",
+        "fact_ids": [
+          "F09-3"
+        ]
+      },
+      {
+        "answer_unit": "도윤은 Blue Exorcist 읽는 중",
+        "fact_ids": [
+          "F09-X2"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q36",
+    "thread_id": "book",
+    "category": "insufficient_information",
+    "expected_answer": "실제 반납 완료 여부는 기록으로 확인할 수 없음",
+    "required_answer_units": [
+      "실제 반납 완료 여부는 기록으로 확인할 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [
+      "M09-4"
+    ],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "계획을 실제 반납으로 단정한다",
+      "현재도 미반납이라고 단정한다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T16:31:00+09:00",
+    "temporal_target": "2026-10-17T16:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "optional_answer_units": [
+      "14일 글에서 15일 반납할 계획이라고 했음"
+    ],
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": [
+      "F09-X1"
+    ]
+  },
+  {
+    "question_id": "Q37",
+    "thread_id": "chores",
+    "category": "current_state",
+    "expected_answer": "지민 담당, 아직 미완료",
+    "required_answer_units": [
+      "마지막 기록의 건조대 청소 담당은 지민",
+      "마지막 기록에서 청소는 미완료"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-6"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M10-6"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [
+      "M10-1"
+    ],
+    "filter_reason": "초기 상태를 현재 사실로 단정하지 않기",
+    "forbidden_claims": [
+      "수진이 현재 담당한다",
+      "완료했다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:01:00+09:00",
+    "temporal_target": "2026-10-17T17:01:00+09:00",
+    "related_fact_ids": [
+      "F10-3",
+      "F10-X3"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "maintenance_subtype": "state_update",
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "마지막 기록의 건조대 청소 담당은 지민",
+        "fact_ids": [
+          "F10-3"
+        ]
+      },
+      {
+        "answer_unit": "마지막 기록에서 청소는 미완료",
+        "fact_ids": [
+          "F10-X3"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q38",
+    "thread_id": "chores",
+    "category": "past_state_or_report",
+    "expected_answer": "수진",
+    "required_answer_units": [
+      "수진"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M10-1"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "당시 지민 담당이다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:01:00+09:00",
+    "temporal_target": "2026-10-12T23:59:59+09:00",
+    "related_fact_ids": [
+      "F10-1"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "수진",
+        "fact_ids": [
+          "F10-1"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q39",
+    "thread_id": "chores",
+    "category": "entity_separation",
+    "expected_answer": "건조대는 지민, 선희 화분 받침은 선희",
+    "required_answer_units": [
+      "부엌 건조대 청소 담당은 지민",
+      "선희 화분 받침 청소 담당은 선희"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-4",
+        "M10-5"
+      ],
+      [
+        "M10-6",
+        "M10-5"
+      ]
+    ],
+    "preferred_evidence_post_ids": [
+      "M10-4",
+      "M10-5"
+    ],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "두 청소 대상을 혼동한다"
+    ],
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:31:00+09:00",
+    "temporal_target": "2026-10-17T17:31:00+09:00",
+    "related_fact_ids": [
+      "F10-3",
+      "F10-X2"
+    ],
+    "image_required": false,
+    "evidence_metric_eligible": true,
+    "missing_information_scope": null,
+    "required_answer_fact_links": [
+      {
+        "answer_unit": "부엌 건조대 청소 담당은 지민",
+        "fact_ids": [
+          "F10-3"
+        ]
+      },
+      {
+        "answer_unit": "선희 화분 받침 청소 담당은 선희",
+        "fact_ids": [
+          "F10-X2"
+        ]
+      }
+    ],
+    "fact_link_role": "required_answer_support",
+    "optional_context_fact_ids": []
+  },
+  {
+    "question_id": "Q40",
+    "thread_id": "chores",
+    "category": "insufficient_information",
+    "expected_answer": "기록만으로 알 수 없음",
+    "required_answer_units": [
+      "기록만으로 알 수 없음"
+    ],
+    "sufficient_evidence_sets": [],
+    "preferred_evidence_post_ids": [],
+    "optional_evidence_post_ids": [],
+    "must_filter_post_ids": [],
+    "filter_reason": null,
+    "forbidden_claims": [
+      "세제 제품을 지어낸다"
+    ],
+    "answerability": "unknown",
+    "question_time": "2026-10-17T17:31:00+09:00",
+    "temporal_target": "2026-10-17T17:31:00+09:00",
+    "related_fact_ids": [],
+    "image_required": false,
+    "evidence_metric_eligible": false,
+    "missing_information_scope": "100개 기록 어디에도 질문한 값이 명시되지 않음; 추측 없이 보류",
+    "grading_note": "기록으로 확인할 수 없다는 뜻이면 인정한다. 부가 설명은 필수가 아니다. 기록 부재를 실제 사건/대상 부재로 단정하면 안 된다.",
+    "required_answer_fact_links": [],
+    "fact_link_role": "corpus_absence_not_single_fact_proof",
+    "absence_audit": {
+      "scope": "all_100_history_posts_before_asked_at",
+      "post_ids": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B006",
+        "B007",
+        "B008",
+        "B009",
+        "B010",
+        "B011",
+        "B012",
+        "B013",
+        "B014",
+        "B015",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "B028",
+        "B029",
+        "B030",
+        "B031",
+        "B032",
+        "B033",
+        "B034",
+        "B035",
+        "B036",
+        "B037",
+        "B038",
+        "B039",
+        "B040",
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-5",
+        "M01-6",
+        "M02-1",
+        "M02-2",
+        "M02-3",
+        "M02-4",
+        "M02-5",
+        "M02-6",
+        "M03-1",
+        "M03-2",
+        "M03-3",
+        "M03-4",
+        "M03-5",
+        "M03-6",
+        "M04-1",
+        "M04-2",
+        "M04-3",
+        "M04-4",
+        "M04-5",
+        "M04-6",
+        "M05-1",
+        "M05-2",
+        "M05-3",
+        "M05-4",
+        "M05-5",
+        "M05-6",
+        "M06-1",
+        "M06-2",
+        "M06-3",
+        "M06-4",
+        "M06-5",
+        "M06-6",
+        "M07-1",
+        "M07-2",
+        "M07-3",
+        "M07-4",
+        "M07-5",
+        "M07-6",
+        "M08-1",
+        "M08-2",
+        "M08-3",
+        "M08-4",
+        "M08-5",
+        "M08-6",
+        "M09-1",
+        "M09-2",
+        "M09-3",
+        "M09-4",
+        "M09-5",
+        "M09-6",
+        "M10-1",
+        "M10-2",
+        "M10-3",
+        "M10-4",
+        "M10-5",
+        "M10-6"
+      ],
+      "reviewer_type": "AI",
+      "human_signoff": false,
+      "conclusion": "기록에 없다는 것은 실제로 없거나 발생하지 않았다는 뜻이 아님"
+    },
+    "optional_context_fact_ids": []
+  }
+]

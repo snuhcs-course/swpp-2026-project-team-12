@@ -1,0 +1,460 @@
+{
+  "panel_signature": "a829d16dc307d2e2244d1d9f6c54a6f494438b760d5d193158a908a363cf3d7d",
+  "ai_source_review_complete": true,
+  "independent_human_reviewer": "",
+  "independent_human_review_complete": false,
+  "team_protocol_reviewers": [],
+  "team_protocol_agreement": "pending",
+  "rows": [
+    {
+      "question_id": "FQ01",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ02",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ03",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ04",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ05",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ06",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ07",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ08",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ09",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ10",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ11",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ12",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ13",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ14",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ15",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ16",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ17",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ18",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ19",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ20",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ21",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ22",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ23",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ24",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ25",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ26",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ27",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ28",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ29",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    },
+    {
+      "question_id": "FQ30",
+      "ai_review": "reviewed",
+      "human_reviewer": "",
+      "human_status": "pending",
+      "checks": {
+        "natural_question": null,
+        "correct_author_viewer_relation": null,
+        "gold_meaning": null,
+        "minimal_source_sufficiency": null,
+        "no_future_leakage": null,
+        "old_and_new_state_distinguished": null
+      },
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "status": "verified",
+  "tasks": 540,
+  "exact_answer_and_context_reviews": 540,
+  "six_cells_90_each": true,
+  "all_actual_generation_luna_fast_none": true,
+  "full_payloads_equal_frozen_history": true,
+  "source_texts_exact_and_no_future_posts": true,
+  "no_gold_in_payloads": true,
+  "all_response_ids_new": true,
+  "usage_complete": true,
+  "original_app_and_prepared_panel_unchanged": true,
+  "db_write_guard_used": true,
+  "prior_results_unchanged": true,
+  "protected_files": 292,
+  "independent_human_review": "pending"
+}

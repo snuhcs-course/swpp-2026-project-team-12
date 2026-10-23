@@ -1,0 +1,503 @@
+[
+  {
+    "post_key": "P01-1",
+    "text_facts": [
+      "예전에 올린 모모 사진을 다시 공유한다",
+      "요즘도 밥그릇이 금방 빈다고 말한다"
+    ],
+    "image_facts": [
+      "침대 위에 고양이가 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "사진에 오늘 급식 장면이나 급식 담당자가 보인다고 단정"
+    ],
+    "viewer_key": "doyun",
+    "required_text_units": [
+      "요즘도 밥그릇이 금방 빈다고 말한다"
+    ],
+    "optional_text_units": [
+      "예전에 올린 모모 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P01-2",
+    "text_facts": [
+      "모모의 예전 사진을 본다",
+      "나비에 관한 이야기를 들었다고 말한다"
+    ],
+    "image_facts": [
+      "침대 위에 고양이가 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "사진 속 고양이가 나비라고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "나비에 관한 이야기를 들었다고 말한다"
+    ],
+    "optional_text_units": [
+      "모모의 예전 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P02-1",
+    "text_facts": [
+      "처음 올렸던 자주 사진을 다시 공유한다",
+      "물을 줄 때인지 생각하거나 묻고 있다"
+    ],
+    "image_facts": [
+      "창가에 잎이 난 화분이 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "이미 물을 줬거나 반드시 오늘 물을 준다고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "물을 줄 때인지 생각하거나 묻고 있다"
+    ],
+    "optional_text_units": [
+      "처음 올렸던 자주 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P02-2",
+    "text_facts": [
+      "자주의 옛 사진을 본다",
+      "새싹도 생각났다고 말한다"
+    ],
+    "image_facts": [
+      "창가에 잎이 난 화분이 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "현재 사진이 새싹의 사진이거나 두 별명이 같은 식물이라고 단정"
+    ],
+    "viewer_key": "jimin",
+    "required_text_units": [
+      "새싹도 생각났다고 말한다"
+    ],
+    "optional_text_units": [
+      "자주의 옛 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P03-1",
+    "text_facts": [
+      "전에 올린 악보 사진을 다시 공유한다",
+      "연습하던 때를 떠올린다"
+    ],
+    "image_facts": [
+      "인쇄된 악보가 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "작성자 수진이 피아노를 배웠거나 연습했다고 단정"
+    ],
+    "viewer_key": "jimin",
+    "required_text_units": [
+      "연습하던 때를 떠올린다"
+    ],
+    "optional_text_units": [
+      "전에 올린 악보 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P03-2",
+    "text_facts": [
+      "처음 수업 때 올린 악보 사진을 공유한다",
+      "민수 관련 이야기가 둘이라 헷갈린다고 한다"
+    ],
+    "image_facts": [
+      "인쇄된 악보가 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "현재 본문만으로 민수 두 이야기의 인물/직업을 확정"
+    ],
+    "viewer_key": "sunhee",
+    "required_text_units": [
+      "민수 관련 이야기가 둘이라 헷갈린다고 한다"
+    ],
+    "optional_text_units": [
+      "처음 수업 때 올린 악보 사진을 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P04-1",
+    "text_facts": [
+      "가게에서 찍어 뒀던 인버터 사진을 다시 공유한다",
+      "공구 자리를 정리하려고 한다"
+    ],
+    "image_facts": [
+      "RYOBI 인버터 제품 포장이 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "작성자 지민이 인버터를 구매했거나 공구 정리를 마쳤다고 단정"
+    ],
+    "viewer_key": "sunhee",
+    "required_text_units": [
+      "공구 자리를 정리하려고 한다"
+    ],
+    "optional_text_units": [
+      "가게에서 찍어 뒀던 인버터 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P04-2",
+    "text_facts": [
+      "전에 올린 인버터 사진을 공유한다",
+      "세척기 이야기도 다시 나왔다고 한다"
+    ],
+    "image_facts": [
+      "RYOBI 인버터 제품 포장이 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "세척기 구매자를 현재 본문/사진만으로 확정"
+    ],
+    "viewer_key": "doyun",
+    "required_text_units": [
+      "세척기 이야기도 다시 나왔다고 한다"
+    ],
+    "optional_text_units": [
+      "전에 올린 인버터 사진을 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P05-1",
+    "text_facts": [
+      "예전 흰 꽃 사진을 다시 공유한다",
+      "볼 때마다 기분이 좋다고 말한다"
+    ],
+    "image_facts": [
+      "손에 들고 있는 흰 꽃다발이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "현재 사진만으로 꽃 선물자·구매자·전달자를 확정"
+    ],
+    "viewer_key": "doyun",
+    "required_text_units": [
+      "볼 때마다 기분이 좋다고 말한다"
+    ],
+    "optional_text_units": [
+      "예전 흰 꽃 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P05-2",
+    "text_facts": [
+      "예전 흰 꽃 사진을 본다",
+      "수진의 꽃 이야기도 했다고 한다"
+    ],
+    "image_facts": [
+      "손에 들고 있는 흰 꽃다발이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "현재 사진이 수진의 분홍 꽃 사진이라고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "수진의 꽃 이야기도 했다고 한다"
+    ],
+    "optional_text_units": [
+      "예전 흰 꽃 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P06-1",
+    "text_facts": [
+      "11일 올린 Nissan 사진을 다시 공유한다",
+      "차가 사진에 잘 나왔다고 말한다"
+    ],
+    "image_facts": [
+      "Nissan 자동차가 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "11일 게시를 11일 촬영으로 바꿈",
+      "사진만으로 주차장이 병원/새 집이라고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "차가 사진에 잘 나왔다고 말한다"
+    ],
+    "optional_text_units": [
+      "11일 올린 Nissan 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P06-2",
+    "text_facts": [
+      "전에 올린 Nissan 사진을 공유한다",
+      "새 집 이야기를 듣고 이사를 생각했다고 한다"
+    ],
+    "image_facts": [
+      "Nissan 자동차가 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "가족이 실제 이사를 했거나 새 집을 샀다고 단정"
+    ],
+    "viewer_key": "jimin",
+    "required_text_units": [
+      "새 집 이야기를 듣고 이사를 생각했다고 한다"
+    ],
+    "optional_text_units": [
+      "전에 올린 Nissan 사진을 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P07-1",
+    "text_facts": [
+      "처음 올렸던 검은 신발 사진을 다시 공유한다",
+      "신발장을 정리하려고 한다"
+    ],
+    "image_facts": [
+      "검은 신발이 바닥에 놓여 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "작성자 수진이 신발 주인이거나 정리를 마쳤다고 단정"
+    ],
+    "viewer_key": "jimin",
+    "required_text_units": [
+      "신발장을 정리하려고 한다"
+    ],
+    "optional_text_units": [
+      "처음 올렸던 검은 신발 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P07-2",
+    "text_facts": [
+      "예전 검은 신발 사진을 본다",
+      "아빠의 구두 이야기도 나왔다고 한다"
+    ],
+    "image_facts": [
+      "검은 신발이 바닥에 놓여 있다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "사진 속 검은 신발이 아빠의 갈색 구두라고 단정"
+    ],
+    "viewer_key": "sunhee",
+    "required_text_units": [
+      "아빠의 구두 이야기도 나왔다고 한다"
+    ],
+    "optional_text_units": [
+      "예전 검은 신발 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P08-1",
+    "text_facts": [
+      "전에 올린 숲길 사진을 다시 공유한다",
+      "일요일 산책 준비를 하려 한다"
+    ],
+    "image_facts": [
+      "나무 사이로 난 숲길이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "숲길 사진을 오늘의 산책 완료나 현재 약속 장소의 증거로 삼음"
+    ],
+    "viewer_key": "sunhee",
+    "required_text_units": [
+      "일요일 산책 준비를 하려 한다"
+    ],
+    "optional_text_units": [
+      "전에 올린 숲길 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P08-2",
+    "text_facts": [
+      "숲길의 옛 사진을 공유한다",
+      "공원 약속 이야기가 둘이라 헷갈렸다고 한다"
+    ],
+    "image_facts": [
+      "나무 사이로 난 숲길이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "현재 본문만으로 두 약속의 사람/장소/날짜를 해소"
+    ],
+    "viewer_key": "doyun",
+    "required_text_units": [
+      "공원 약속 이야기가 둘이라 헷갈렸다고 한다"
+    ],
+    "optional_text_units": [
+      "숲길의 옛 사진을 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P09-1",
+    "text_facts": [
+      "서점에서 찍어 뒀던 The Quiet War 사진을 다시 공유한다",
+      "책 표지가 눈에 들어온다고 말한다"
+    ],
+    "image_facts": [
+      "The Quiet War 책이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "작성자 선희의 책 구매/대출/완독을 단정"
+    ],
+    "viewer_key": "doyun",
+    "required_text_units": [
+      "책 표지가 눈에 들어온다고 말한다"
+    ],
+    "optional_text_units": [
+      "서점에서 찍어 뒀던 The Quiet War 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P09-2",
+    "text_facts": [
+      "전에 올린 책 사진을 본다",
+      "가족 독서 이야기를 하고 있다고 한다"
+    ],
+    "image_facts": [
+      "The Quiet War 책이 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "가족 모두가 책을 읽었거나 특정 가족이 완독했다고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "가족 독서 이야기를 하고 있다고 한다"
+    ],
+    "optional_text_units": [
+      "전에 올린 책 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P10-1",
+    "text_facts": [
+      "처음 올렸던 건조대 사진을 다시 공유한다",
+      "주방 정리 이야기를 하려 한다"
+    ],
+    "image_facts": [
+      "조리대 위에 2단 식기 건조대가 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "작성자 도윤이 청소 담당이거나 청소를 끝냈다고 단정"
+    ],
+    "viewer_key": "sujin",
+    "required_text_units": [
+      "주방 정리 이야기를 하려 한다"
+    ],
+    "optional_text_units": [
+      "처음 올렸던 건조대 사진을 다시 공유한다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  },
+  {
+    "post_key": "P10-2",
+    "text_facts": [
+      "예전 건조대 사진을 본다",
+      "청소 이야기를 하며 할 일이 많다고 말한다"
+    ],
+    "image_facts": [
+      "조리대 위에 2단 식기 건조대가 보인다"
+    ],
+    "forbidden_inferences": [
+      "추가 질문의 과거 정답을 기본 요약에 끼워 넣지 않는다",
+      "현재 글에 없는 사건 완료·인물·장소를 단정하지 않는다",
+      "재공유 사진을 오늘 촬영한 사진이나 현재 상태의 증거로 해석하지 않는다",
+      "할 일이 많다는 말을 청소 완료로 바꿈"
+    ],
+    "viewer_key": "jimin",
+    "required_text_units": [
+      "청소 이야기를 하며 할 일이 많다고 말한다"
+    ],
+    "optional_text_units": [
+      "예전 건조대 사진을 본다"
+    ],
+    "visual_mention_policy": "Image facts are diagnostic coverage targets, not all mandatory for Answer Correct. Incorrect visual claims are errors; omitted incidental visual detail is not automatically a failure.",
+    "grading_note": "동의 표현과 올바른 이름/관계/대명사를 인정한다. 핵심 소식 전달+중요한 거짓 없음으로 Answer Correct를 판단하고 Text/Image Fact Coverage는 별도 진단한다."
+  }
+]

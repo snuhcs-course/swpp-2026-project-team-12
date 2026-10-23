@@ -1,0 +1,1317 @@
+{
+  "scope": "Observed source attribution and raw/final retrieval distinguish pipeline stages. Missing attribution is not proof that no equivalent fact exists elsewhere.",
+  "by_cell": {
+    "100": {
+      "full_history": {
+        "description_date_propagation": 3,
+        "attribute_transfer_generation": 3
+      },
+      "graphiti": {
+        "query_or_retrieval_miss": 3,
+        "source_fact_attribution_missing": 18,
+        "answer_generation_or_over_abstention": 2,
+        "unsupported_addition_generation": 1
+      }
+    },
+    "200": {
+      "full_history": {
+        "attribute_transfer_generation": 3,
+        "temporal_anchor_generation": 2,
+        "unsupported_addition_generation": 1,
+        "description_date_propagation": 1
+      },
+      "graphiti": {
+        "source_fact_attribution_missing": 12,
+        "query_or_retrieval_miss": 8
+      }
+    },
+    "300": {
+      "full_history": {
+        "answer_generation_or_over_abstention": 3,
+        "temporal_anchor_generation": 1,
+        "description_date_propagation": 1,
+        "unsupported_addition_generation": 1
+      },
+      "graphiti": {
+        "source_fact_attribution_missing": 12,
+        "query_or_retrieval_miss": 8,
+        "answer_generation_or_over_abstention": 3,
+        "description_date_propagation": 2
+      }
+    }
+  },
+  "rows": [
+    {
+      "task_id": "familyqa30:100:qa:FQ04:graphiti:1",
+      "case_id": "FQ04",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B012",
+        "M01-6",
+        "M04-3",
+        "M05-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ14:graphiti:1",
+      "case_id": "FQ14",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B013",
+        "B017",
+        "B023",
+        "M02-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ29:graphiti:1",
+      "case_id": "FQ29",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M01-2",
+        "M03-3",
+        "M03-4",
+        "M05-1",
+        "M10-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ13:graphiti:1",
+      "case_id": "FQ13",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B011",
+        "B013",
+        "M02-1",
+        "M02-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ11:graphiti:1",
+      "case_id": "FQ11",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-6",
+        "M10-6"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ11:full_history:1",
+      "case_id": "FQ11",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ18:full_history:1",
+      "case_id": "FQ18",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ02:graphiti:1",
+      "case_id": "FQ02",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B012",
+        "B014",
+        "B017",
+        "B021",
+        "M01-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ07:graphiti:1",
+      "case_id": "FQ07",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M05-1",
+        "M07-1",
+        "M07-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ21:graphiti:1",
+      "case_id": "FQ21",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B013",
+        "B022",
+        "M01-1",
+        "M01-5",
+        "M06-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ10:graphiti:1",
+      "case_id": "FQ10",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B012",
+        "B013",
+        "B023",
+        "M06-4",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ13:graphiti:2",
+      "case_id": "FQ13",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B011",
+        "B013",
+        "M02-3",
+        "M06-2",
+        "M08-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ07:graphiti:2",
+      "case_id": "FQ07",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M07-1",
+        "M07-3",
+        "M07-5",
+        "M08-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ18:full_history:2",
+      "case_id": "FQ18",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ18:graphiti:2",
+      "case_id": "FQ18",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "unsupported_addition_generation",
+      "raw_source_ids": [
+        "B024",
+        "M04-3",
+        "M04-5",
+        "M05-4"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ21:graphiti:2",
+      "case_id": "FQ21",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B022",
+        "B024",
+        "M01-5",
+        "M06-4",
+        "M08-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ11:full_history:2",
+      "case_id": "FQ11",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ11:graphiti:2",
+      "case_id": "FQ11",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [
+        "M01-1",
+        "M01-2",
+        "M01-3",
+        "M01-6",
+        "M10-6"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ29:graphiti:2",
+      "case_id": "FQ29",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M03-3",
+        "M03-4",
+        "M05-1",
+        "M09-3",
+        "M10-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ17:graphiti:2",
+      "case_id": "FQ17",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B014",
+        "B024",
+        "M04-2",
+        "M04-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ10:graphiti:2",
+      "case_id": "FQ10",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B023",
+        "M06-4",
+        "M07-1",
+        "M10-1",
+        "M10-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ14:graphiti:2",
+      "case_id": "FQ14",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B003",
+        "B012",
+        "B013",
+        "B017",
+        "B023"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ07:graphiti:3",
+      "case_id": "FQ07",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M05-1",
+        "M07-1",
+        "M07-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ21:graphiti:3",
+      "case_id": "FQ21",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B022",
+        "B023",
+        "M01-5",
+        "M06-4",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ13:graphiti:3",
+      "case_id": "FQ13",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M01-5",
+        "M02-3",
+        "M04-3",
+        "M09-3",
+        "M10-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ11:full_history:3",
+      "case_id": "FQ11",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ18:full_history:3",
+      "case_id": "FQ18",
+      "history_size": 100,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ14:graphiti:3",
+      "case_id": "FQ14",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B012",
+        "B013",
+        "B017",
+        "B021"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ10:graphiti:3",
+      "case_id": "FQ10",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B012",
+        "M07-1",
+        "M10-1",
+        "M10-3",
+        "M10-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:100:qa:FQ29:graphiti:3",
+      "case_id": "FQ29",
+      "history_size": 100,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M03-3",
+        "M03-4",
+        "M05-1",
+        "M08-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ14:graphiti:1",
+      "case_id": "FQ14",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E01-5",
+        "E04-5",
+        "E10-2",
+        "M02-1",
+        "M06-2"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ13:graphiti:1",
+      "case_id": "FQ13",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B012",
+        "E01-5",
+        "E35-5",
+        "M02-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ22:graphiti:1",
+      "case_id": "FQ22",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B013",
+        "E01-5",
+        "E13-3",
+        "M06-1",
+        "M06-2"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ11:graphiti:1",
+      "case_id": "FQ11",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B026",
+        "E18-4",
+        "E18-5",
+        "M01-2",
+        "M01-3",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ27:graphiti:1",
+      "case_id": "FQ27",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E13-5",
+        "E35-5",
+        "M05-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ18:full_history:1",
+      "case_id": "FQ18",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ17:graphiti:1",
+      "case_id": "FQ17",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B014",
+        "E01-5",
+        "M04-2",
+        "M04-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ07:graphiti:1",
+      "case_id": "FQ07",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M01-6",
+        "M07-1",
+        "M07-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ21:graphiti:1",
+      "case_id": "FQ21",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E35-5",
+        "M01-5",
+        "M06-1",
+        "M06-4",
+        "M08-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ10:full_history:1",
+      "case_id": "FQ10",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "temporal_anchor_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ13:graphiti:2",
+      "case_id": "FQ13",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E01-4",
+        "E01-5",
+        "E02-1",
+        "E35-5",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ22:graphiti:2",
+      "case_id": "FQ22",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E01-5",
+        "E13-3",
+        "M05-3",
+        "M06-1",
+        "M06-2"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ07:graphiti:2",
+      "case_id": "FQ07",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E09-1",
+        "M07-1",
+        "M07-3",
+        "M07-5",
+        "M08-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ18:full_history:2",
+      "case_id": "FQ18",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ21:graphiti:2",
+      "case_id": "FQ21",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B023",
+        "M01-5",
+        "M06-1",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ27:graphiti:2",
+      "case_id": "FQ27",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E13-5",
+        "E35-5",
+        "M05-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ10:full_history:2",
+      "case_id": "FQ10",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "unsupported_addition_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ14:graphiti:2",
+      "case_id": "FQ14",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E04-5",
+        "E10-2",
+        "E22-5",
+        "M02-1",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ07:graphiti:3",
+      "case_id": "FQ07",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "M01-6",
+        "M07-1",
+        "M07-3",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ21:graphiti:3",
+      "case_id": "FQ21",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E35-5",
+        "M01-5",
+        "M06-1",
+        "M06-4",
+        "M08-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ13:graphiti:3",
+      "case_id": "FQ13",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E01-4",
+        "E01-5",
+        "E02-1",
+        "E02-3",
+        "E35-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ11:full_history:3",
+      "case_id": "FQ11",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ22:graphiti:3",
+      "case_id": "FQ22",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B013",
+        "E01-5",
+        "E13-3",
+        "M06-1",
+        "M06-2"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ18:full_history:3",
+      "case_id": "FQ18",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "attribute_transfer_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ12:full_history:3",
+      "case_id": "FQ12",
+      "history_size": 200,
+      "condition": "full_history",
+      "stage": "temporal_anchor_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ14:graphiti:3",
+      "case_id": "FQ14",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E03-4",
+        "E35-5",
+        "M01-2",
+        "M10-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:200:qa:FQ27:graphiti:3",
+      "case_id": "FQ27",
+      "history_size": 200,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E04-3",
+        "E13-4",
+        "M04-3",
+        "M07-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ14:graphiti:1",
+      "case_id": "FQ14",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E04-5",
+        "E22-4",
+        "E22-5",
+        "M02-1",
+        "M02-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ20:graphiti:1",
+      "case_id": "FQ20",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E05-3",
+        "E05-4",
+        "M05-4",
+        "M05-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ08:graphiti:1",
+      "case_id": "FQ08",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E08-3",
+        "E27-3",
+        "M08-1",
+        "M08-3",
+        "M08-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ13:graphiti:1",
+      "case_id": "FQ13",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B012",
+        "E01-5",
+        "E08-4",
+        "E36-4",
+        "E37-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ27:graphiti:1",
+      "case_id": "FQ27",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [
+        "E13-4",
+        "E13-5",
+        "M05-3",
+        "M09-3",
+        "M09-5"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ27:full_history:1",
+      "case_id": "FQ27",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ02:graphiti:1",
+      "case_id": "FQ02",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B012",
+        "E23-4",
+        "E35-5",
+        "M04-1",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ17:graphiti:1",
+      "case_id": "FQ17",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B002",
+        "E08-4",
+        "E18-5",
+        "M04-2",
+        "M04-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ07:graphiti:1",
+      "case_id": "FQ07",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E23-4",
+        "E23-5",
+        "M07-1",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ21:graphiti:1",
+      "case_id": "FQ21",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E30-4",
+        "E35-5",
+        "M01-1",
+        "M06-1",
+        "M06-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ24:graphiti:1",
+      "case_id": "FQ24",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [
+        "E09-1",
+        "E23-5",
+        "M07-1",
+        "M07-5"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ13:graphiti:2",
+      "case_id": "FQ13",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B003",
+        "E01-5",
+        "E02-1",
+        "E08-4",
+        "M02-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ12:full_history:2",
+      "case_id": "FQ12",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "temporal_anchor_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ07:graphiti:2",
+      "case_id": "FQ07",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E23-4",
+        "E23-5",
+        "M07-1",
+        "M07-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ21:graphiti:2",
+      "case_id": "FQ21",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E27-3",
+        "E30-4",
+        "E35-5",
+        "M06-1",
+        "M06-4"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ11:full_history:2",
+      "case_id": "FQ11",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ11:graphiti:2",
+      "case_id": "FQ11",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [
+        "E18-4",
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M10-6"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ27:full_history:2",
+      "case_id": "FQ27",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ27:graphiti:2",
+      "case_id": "FQ27",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [
+        "E13-4",
+        "E13-5",
+        "E35-5",
+        "M05-3",
+        "M09-5"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ02:graphiti:2",
+      "case_id": "FQ02",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E08-4",
+        "E13-5",
+        "E28-4",
+        "M02-3",
+        "M06-2"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ10:full_history:2",
+      "case_id": "FQ10",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "unsupported_addition_generation",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ14:graphiti:2",
+      "case_id": "FQ14",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E03-4",
+        "E35-5",
+        "M06-4",
+        "M10-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ07:graphiti:3",
+      "case_id": "FQ07",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E23-5",
+        "M07-1",
+        "M07-3",
+        "M08-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ21:graphiti:3",
+      "case_id": "FQ21",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E05-3",
+        "E30-4",
+        "E33-4",
+        "M01-5",
+        "M06-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ13:graphiti:3",
+      "case_id": "FQ13",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "B003",
+        "B012",
+        "E01-5",
+        "E08-4",
+        "E37-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ11:graphiti:3",
+      "case_id": "FQ11",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "description_date_propagation",
+      "raw_source_ids": [
+        "M01-2",
+        "M01-3",
+        "M01-4",
+        "M01-6",
+        "M10-6"
+      ],
+      "raw_source_coverage": true,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ02:graphiti:3",
+      "case_id": "FQ02",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E18-1",
+        "E23-4",
+        "E28-4",
+        "E35-5",
+        "M04-1"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ04:graphiti:3",
+      "case_id": "FQ04",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "E07-1",
+        "E08-2",
+        "E08-4",
+        "E37-5",
+        "M04-3"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ14:graphiti:3",
+      "case_id": "FQ14",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "source_fact_attribution_missing",
+      "raw_source_ids": [
+        "E13-5",
+        "E22-4",
+        "E28-4",
+        "M01-2",
+        "M10-6"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": false
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ27:full_history:3",
+      "case_id": "FQ27",
+      "history_size": 300,
+      "condition": "full_history",
+      "stage": "answer_generation_or_over_abstention",
+      "raw_source_ids": [],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    },
+    {
+      "task_id": "familyqa30:300:qa:FQ17:graphiti:3",
+      "case_id": "FQ17",
+      "history_size": 300,
+      "condition": "graphiti",
+      "stage": "query_or_retrieval_miss",
+      "raw_source_ids": [
+        "B002",
+        "E08-4",
+        "E18-5",
+        "M04-2",
+        "M04-5"
+      ],
+      "raw_source_coverage": false,
+      "at_least_one_gold_source_set_has_fact_attribution": true
+    }
+  ]
+}

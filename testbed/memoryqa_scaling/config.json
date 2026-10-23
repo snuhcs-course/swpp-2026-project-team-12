@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "app_commit": "f66961ed7201989fc1f74674afde85af88a8028f",
+  "model": "gpt-6-luna",
+  "service_tier": "fast",
+  "reasoning_effort": "none",
+  "answer_max_tokens": 700,
+  "decision_max_tokens": 1200,
+  "max_queries": 5,
+  "fact_budget": 5,
+  "image_detail": "high",
+  "repetitions": 3,
+  "concurrency": 1,
+  "random_seed": 20261022,
+  "timeout_seconds": 60,
+  "sdk_max_retries": 1,
+  "history_sizes": [
+    100,
+    200,
+    300
+  ],
+  "history_photo_counts": [
+    40,
+    80,
+    120
+  ],
+  "recorded_run": "2026-10-22",
+  "temperature": "not explicitly set",
+  "model_sampling_seed": "not explicitly set",
+  "online_latency_scope": "Server QA including decision/search/answer/client cleanup; excludes prior payload assembly, ingestion, index initialization and mobile UI/TTS",
+  "grading": "AI semantic review; independent human/team signoff pending",
+  "recorded_panel_signature": "a829d16dc307d2e2244d1d9f6c54a6f494438b760d5d193158a908a363cf3d7d"
+}
