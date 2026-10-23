@@ -1,0 +1,687 @@
+{
+  "FQ01": {
+    "expected": "아침 8시",
+    "definite_stored_support_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "ca9c120f3a5e57689ec6c19f7416ef4f57a595479e640aef946eebcd6392e818",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712559+00:00"
+  },
+  "FQ02": {
+    "expected": "제브리나",
+    "definite_stored_support_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "73b06111d8cd80a836413c50f53ff379bf9167e9ec879781a3c25a5c798da89b",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712615+00:00"
+  },
+  "FQ03": {
+    "expected": "민수",
+    "definite_stored_support_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "f991725d2573f2cf160a84284f32ec4e8b5746693e04c7f77a7cca881829f352",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712621+00:00"
+  },
+  "FQ04": {
+    "expected": "인버터",
+    "definite_stored_support_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "4c4664d5b92a097f0e1888626c781fb2c9da31fe2bde8870b59844a3373535d4",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712624+00:00"
+  },
+  "FQ05": {
+    "expected": "민수",
+    "definite_stored_support_sets": [
+      [
+        "M05-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "ecbb58e0e5ef4b66a00e6381cad42fa47a79638c221e831a5deef587472ce6b5",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712628+00:00"
+  },
+  "FQ06": {
+    "expected": "병원 임시 주차장",
+    "definite_stored_support_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "751152c8f58c34ab35e7dab61fe8f9a6eeb885c23e8a98b858ecf8c5e03e2f17",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712631+00:00"
+  },
+  "FQ07": {
+    "expected": "베란다 선반",
+    "definite_stored_support_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "0c7c8d3a2bf0313081fa40f731a6a52aba3707445fb913ac9c3f4c7f69f484b3",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712633+00:00"
+  },
+  "FQ08": {
+    "expected": "강변 산책로",
+    "definite_stored_support_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "c27445170785afdf26b3c43c0f4e0a5a2544de81979d759e23ee39da044cdea7",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712636+00:00"
+  },
+  "FQ09": {
+    "expected": "완독",
+    "definite_stored_support_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-6",
+        "author": "선희",
+        "created_at": "2026-10-16T12:00:00+09:00",
+        "caption": "수진이가 The Quiet War 다 읽었다고 하네~",
+        "stored_description": "2026년 10월 16일, 선희는 수진이가 『The Quiet War』를 다 읽었다고 전했다. 선희는 이를 가벼운 말투로 알렸으며, 책에 대한 감상이나 수진이가 읽은 계기 등은 덧붙이지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "125d26e4f714d3c128508b0911f7eb813f052607853e2d9e7f9aa340c83ad3b7",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712639+00:00"
+  },
+  "FQ10": {
+    "expected": "지민",
+    "definite_stored_support_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "30ae430fecdd315dc5a196dfd17ac5439c601a64ec2034fd4ecb9387f7eb845d",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712642+00:00"
+  },
+  "FQ11": {
+    "expected": "지민",
+    "definite_stored_support_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M01-4",
+        "author": "지민",
+        "created_at": "2026-10-14T08:00:00+09:00",
+        "caption": "오늘부터 모모 밥은 내가 맡기로! 할머니는 좀 쉬세요~",
+        "stored_description": "지민은 2026년 10월 13일, 오늘부터 모모의 밥 챙기는 일을 자신이 맡기로 했다고 알렸다. 할머니에게는 이제 좀 쉬시라고 전했다. 모모가 누구인지는 원문에서 구체적으로 밝히지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-6",
+        "author": "선희",
+        "created_at": "2026-10-16T08:00:00+09:00",
+        "caption": "지민이가 모모 아침밥 잘 챙기고 있네~ 고맙다",
+        "stored_description": "2026년 10월 15일, 선희는 지민이가 모모의 아침밥을 잘 챙겨 주고 있다고 전하며 지민이에게 고마움을 표현했다. 모모가 누구인지는 게시물만으로 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "ae0b4efec804951cbeb32c85c55880e73a4c7f9c94148ea1bad634c47afb88c6",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712646+00:00"
+  },
+  "FQ12": {
+    "expected": "조금만",
+    "definite_stored_support_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "ca9c120f3a5e57689ec6c19f7416ef4f57a595479e640aef946eebcd6392e818",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712648+00:00"
+  },
+  "FQ13": {
+    "expected": "도윤의 서재 창가",
+    "definite_stored_support_sets": [
+      [
+        "M02-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M02-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T08:30:00+09:00",
+        "caption": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "stored_description": "도윤은 오늘 ‘자주’를 자신의 서재 창가로 옮겼다고 전했다. 이에 따라 거실에 있던 자리는 비워 두었다. 원문만으로는 ‘자주’가 무엇을 가리키는지 분명하지 않다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "4bfcd50765e634d8c1579493dc17c44024d6509b4fefecb36bc4bbc27e11aba5",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712651+00:00"
+  },
+  "FQ14": {
+    "expected": "이틀에 한 번",
+    "definite_stored_support_sets": [
+      [
+        "M02-2"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M02-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T08:30:00+09:00",
+        "caption": "자주는 이틀에 한 번 물 주기로. 너무 많이 주진 말아야지",
+        "stored_description": "2026년 10월 11일, 도윤은 ‘자주’라는 대상에 이틀에 한 번 물을 주기로 했다. 물을 너무 많이 주지는 않겠다고 덧붙였다. 원문만으로는 ‘자주’가 무엇을 가리키는지 구체적으로 확인되지 않는다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "0bfccfd62cc45bdc2a015b2d8776c6b918f6fd28e21063e89aa33ea1a6be0576",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712653+00:00"
+  },
+  "FQ15": {
+    "expected": "서연",
+    "definite_stored_support_sets": [
+      [
+        "M03-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "5b5a87f849e0abe641337e8f8e3b1401f86fed7295a4d661b12b77fa52c7fce8",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712656+00:00"
+  },
+  "FQ16": {
+    "expected": "두 번째",
+    "definite_stored_support_sets": [
+      [
+        "M03-6"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M03-6",
+        "author": "지민",
+        "created_at": "2026-10-16T09:00:00+09:00",
+        "caption": "서연 선생님 두 번째 수업도 좋았다~",
+        "stored_description": "2026년 10월 16일, 지민은 서연 선생님의 두 번째 수업도 좋았다고 전했다. ‘도’라는 표현으로 보아 앞선 수업에 이어 이번 수업에도 만족한 것으로 보인다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "0a10b771e74433038e15bd555024bd6e33354e2d55385b8ff20edd7cfa8e1d97",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712658+00:00"
+  },
+  "FQ17": {
+    "expected": "사지 않았다",
+    "definite_stored_support_sets": [
+      [
+        "M04-4"
+      ],
+      [
+        "M04-6"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T09:30:00+09:00",
+        "caption": "내 인버터 배송 기다리는 중~ 세척기는 사지 않은 걸로 끝ㅎㅎ",
+        "stored_description": "도윤은 인버터 배송을 기다리고 있다고 전했다. 세척기는 구매하지 않기로 하면서 관련 구매를 마무리했다고 덧붙였다. 게시 시각은 2026년 10월 16일 00:30(UTC)이다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "abb9a4c1c3f7787497d49714959c157d731038cd1d2f6cf01aa4f782176007bd",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712661+00:00"
+  },
+  "FQ18": {
+    "expected": "Hyper Tough 고압 세척기",
+    "definite_stored_support_sets": [
+      [
+        "M04-5"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "c457111315736f16e99caf7990c37671138e0bba57993449f3f65c62ae35d529",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712663+00:00"
+  },
+  "FQ19": {
+    "expected": "지민",
+    "definite_stored_support_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "87bc96d60098b0e5c9561c7e490ba115052cc0009f8c4b191f556d3675fe17ae",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712666+00:00"
+  },
+  "FQ20": {
+    "expected": "친구 은영",
+    "definite_stored_support_sets": [
+      [
+        "M05-5"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "f042e41915946003b013a5d15fbda6dc668582e40aafe612c9e198cdb0136ff3",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712669+00:00"
+  },
+  "FQ21": {
+    "expected": "지하",
+    "definite_stored_support_sets": [
+      [
+        "M06-5"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "46f83cba434b04dcdc0704a12ea0bcadf9287fcba1c4a30a7d77fff357e24fa0",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712671+00:00"
+  },
+  "FQ22": {
+    "expected": "집 주소를 올린 적이 없다고 했다",
+    "definite_stored_support_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "751152c8f58c34ab35e7dab61fe8f9a6eeb885c23e8a98b858ecf8c5e03e2f17",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712674+00:00"
+  },
+  "FQ23": {
+    "expected": "갈색",
+    "definite_stored_support_sets": [
+      [
+        "M07-5"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "fa1b2618cd2a37ce9a5fb0c2928977497812a36e095e1cde8c84fee4d82ce5a1",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712677+00:00"
+  },
+  "FQ24": {
+    "expected": "몰랐다. 찾지 못하고 있었다",
+    "definite_stored_support_sets": [
+      [
+        "M07-1"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "de17e962657862446b58667b8818440485aae9f0771e088223ad71c9774efb5d",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712679+00:00"
+  },
+  "FQ25": {
+    "expected": "오후 3시",
+    "definite_stored_support_sets": [
+      [
+        "M08-2"
+      ],
+      [
+        "M08-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M08-2",
+        "author": "수진",
+        "created_at": "2026-10-12T11:30:00+09:00",
+        "caption": "18일 가족 산책 약속은 오후 3시!",
+        "stored_description": "수진은 가족 산책 약속이 18일 오후 3시라고 알렸다. 원문에는 날짜의 월이나 산책 장소는 적혀 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "30f50f6a8229c43167cfc14a52714b902437a3b0171f3ed6181956b90c73f6ba",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712682+00:00"
+  },
+  "FQ26": {
+    "expected": "선셋 공원이 공사 중이어서",
+    "definite_stored_support_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "c27445170785afdf26b3c43c0f4e0a5a2544de81979d759e23ee39da044cdea7",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712684+00:00"
+  },
+  "FQ27": {
+    "expected": "Blue Exorcist",
+    "definite_stored_support_sets": [
+      [
+        "M09-5"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "0871e74296c6fbdb62558c28b52ad02c328fe6f009177629edeb31136a098438",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712687+00:00"
+  },
+  "FQ28": {
+    "expected": "도서관",
+    "definite_stored_support_sets": [
+      [
+        "M09-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "d09065136186c37a32df4debcdf3763d8c6259e770bec2b87bcbc6a74a9e4611",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712690+00:00"
+  },
+  "FQ29": {
+    "expected": "토요일 오전",
+    "definite_stored_support_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "30ae430fecdd315dc5a196dfd17ac5439c601a64ec2034fd4ecb9387f7eb845d",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712692+00:00"
+  },
+  "FQ30": {
+    "expected": "수진",
+    "definite_stored_support_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "reviewed_sources": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": true
+      }
+    ],
+    "source_strings_sha256": "93e5e72ab50532333adcc1cf670efedf8cbe5c5409575377a0544a3e37c37af8",
+    "semantic_review": "AI read all 30 case support descriptions and verified the requested predicate/entity/time. Full original source strings must reach final context unchanged. FQ05 M05-6 alone needs separate context review.",
+    "reviewed_at": "2026-10-22T13:34:44.712695+00:00"
+  }
+}

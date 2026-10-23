@@ -1,0 +1,51 @@
+{
+  "previous_fixture": "team/iter2/MemoryQA-Easy-Scaling-2026-10-22/fixture.json",
+  "inherited_input_cases_unchanged": [
+    "FQ01",
+    "FQ02",
+    "FQ03",
+    "FQ04",
+    "FQ05",
+    "FQ06",
+    "FQ07",
+    "FQ08",
+    "FQ09",
+    "FQ10"
+  ],
+  "inherited_gold_fields_unchanged": true,
+  "new_cases": [
+    "FQ11",
+    "FQ12",
+    "FQ13",
+    "FQ14",
+    "FQ15",
+    "FQ16",
+    "FQ17",
+    "FQ18",
+    "FQ19",
+    "FQ20",
+    "FQ21",
+    "FQ22",
+    "FQ23",
+    "FQ24",
+    "FQ25",
+    "FQ26",
+    "FQ27",
+    "FQ28",
+    "FQ29",
+    "FQ30"
+  ],
+  "label_errata": [],
+  "grading_clarifications": [
+    {
+      "question_id": "FQ05",
+      "expected_answer_or_source_ids_changed": false,
+      "reason": "Preserve original source alternatives M05-4 and M05-6. Raw source support and semantic support surviving in the frozen generated description are separate metrics. The M05-6 stored description may blur gift-giving versus delivery.",
+      "previous_results_regraded": false
+    }
+  ],
+  "selection_disclosure": "The original ten cases and prior results were already known. Added cases use the same source stories; this is expanded coverage, not an unseen held-out benchmark.",
+  "source_changes": 0,
+  "shared_app_changes": 0,
+  "database_changes": 0
+}

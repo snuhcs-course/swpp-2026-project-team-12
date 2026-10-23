@@ -1,0 +1,24 @@
+{
+  "source": "Public pinned MemoryQA Git LFS archive",
+  "cold_download": {
+    "image_count": 120,
+    "downloaded": 120,
+    "cached": 0,
+    "bytes_received": 153637378,
+    "all_sha256_verified": true,
+    "full_archive_downloaded": false
+  },
+  "warm_cache": {
+    "image_count": 120,
+    "downloaded": 0,
+    "cached": 120,
+    "bytes_received": 0,
+    "archive_bytes": 3119085326,
+    "full_archive_downloaded": false,
+    "all_sha256_verified": true,
+    "paid_calls": 0
+  },
+  "image_payload_bytes": 154616896,
+  "image_decode_verification": "120/120 Pillow Image.verify checks passed",
+  "paid_calls": 0
+}

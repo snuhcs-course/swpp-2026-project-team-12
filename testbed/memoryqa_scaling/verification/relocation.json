@@ -1,0 +1,43 @@
+{
+  "source_commit": "a50f399b5de58385604d33227871e4858ee52817",
+  "fresh_local_clone": true,
+  "path_contains_spaces": true,
+  "working_directory_outside_repository": true,
+  "original_workspace_files_required": false,
+  "offline_check_without_photos": "passed",
+  "pinned_app_extraction": {
+    "app_commit": "f66961ed7201989fc1f74674afde85af88a8028f",
+    "verified_files": 71
+  },
+  "automated_tests": 15,
+  "verified_cached_photos": 120,
+  "sql_fixtures": [
+    {
+      "history_size": 100,
+      "posts": 120,
+      "history_descriptions": 100,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    },
+    {
+      "history_size": 200,
+      "posts": 220,
+      "history_descriptions": 200,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    },
+    {
+      "history_size": 300,
+      "posts": 320,
+      "history_descriptions": 300,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    }
+  ],
+  "all_six_recorded_cells_recomputed": true,
+  "environment": "Clean Python 3.12 virtual environment installed from requirements.txt",
+  "paid_calls": 0
+}

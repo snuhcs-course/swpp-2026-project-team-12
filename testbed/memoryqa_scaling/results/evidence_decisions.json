@@ -1,0 +1,401 @@
+{
+  "1eb37ac82d5355da": {
+    "evidence_sufficient": false,
+    "notes": "Only earlier undecided tools and unrelated facts; no paid inverter decision.",
+    "case_id": "FQ04",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:35:22.230370+00:00"
+  },
+  "836166efa28a5805": {
+    "evidence_sufficient": false,
+    "notes": "Plant identity and unrelated photos; two-day watering interval absent.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:35:22.230373+00:00"
+  },
+  "f41a0097e2e177f1": {
+    "evidence_sufficient": false,
+    "notes": "Unspecified job acceptance and other events; no Saturday morning cleaning plan.",
+    "case_id": "FQ29",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:35:22.230374+00:00"
+  },
+  "e5571821ad439e53": {
+    "evidence_sufficient": false,
+    "notes": "Only old living-room location; move to study window absent.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:35:22.230375+00:00"
+  },
+  "446bfcbffc313f51": {
+    "evidence_sufficient": false,
+    "notes": "No Jaju/Zebrina identity link in final context; unrelated food and cat descriptions.",
+    "case_id": "FQ02",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:36:27.673500+00:00"
+  },
+  "3b64c4545c56d1a6": {
+    "evidence_sufficient": false,
+    "notes": "Only not-found and old photo facts; discovery at veranda shelf absent.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:36:27.673544+00:00"
+  },
+  "308dbe76b1b7975a": {
+    "evidence_sufficient": false,
+    "notes": "Nissan hospital correction concerns Doyun, not Sujin's friend underground parking; requested underground fact absent.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:36:27.673546+00:00"
+  },
+  "118a9bada0d02268": {
+    "evidence_sufficient": false,
+    "notes": "No rack-cleaning assignment appears in final facts or sources.",
+    "case_id": "FQ10",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:37:04.236897+00:00"
+  },
+  "58d0d20d09c46975": {
+    "evidence_sufficient": false,
+    "notes": "Move to study absent; only old living-room record.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:39:32.784901+00:00"
+  },
+  "2eb4eae20485f018": {
+    "evidence_sufficient": false,
+    "notes": "Only missing-shoe state; no discovery place.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:39:32.784905+00:00"
+  },
+  "9e3c9ef860ed0c24": {
+    "evidence_sufficient": false,
+    "notes": "No underground friend-parking fact.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:39:32.784906+00:00"
+  },
+  "6a4b308104eb4659": {
+    "evidence_sufficient": false,
+    "notes": "Old Sujin Saturday plan does not establish Jimin Saturday morning schedule.",
+    "case_id": "FQ29",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:39:32.784907+00:00"
+  },
+  "3177d74b9792233a": {
+    "evidence_sufficient": false,
+    "notes": "Earlier cart nonpurchase does not establish eventual decision; later cancellation absent.",
+    "case_id": "FQ17",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:41:33.063349+00:00"
+  },
+  "9c681dd1a7742ba2": {
+    "evidence_sufficient": false,
+    "notes": "Old Sujin plan only; changed Jimin assignment absent.",
+    "case_id": "FQ10",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:41:33.063352+00:00"
+  },
+  "ecb36cc98938ff80": {
+    "evidence_sufficient": false,
+    "notes": "No watering interval in facts or source text.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:41:33.063353+00:00"
+  },
+  "f156f2cf17ab8575": {
+    "evidence_sufficient": false,
+    "notes": "Friend underground parking not supplied.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:43:46.859591+00:00"
+  },
+  "b3a56839a5c3f6ea": {
+    "evidence_sufficient": false,
+    "notes": "Move-to-study fact not supplied, only old location.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:43:46.859595+00:00"
+  },
+  "5b47a731c55078ca": {
+    "evidence_sufficient": false,
+    "notes": "Watering interval not supplied.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:43:46.859597+00:00"
+  },
+  "c81d8936a52042d8": {
+    "evidence_sufficient": false,
+    "notes": "Old Sujin cleaning and unspecified Jimin task do not explicitly establish new cleaning assignment.",
+    "case_id": "FQ10",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:45:29.126970+00:00"
+  },
+  "2839ded8cfb48201": {
+    "evidence_sufficient": false,
+    "notes": "No cleaning schedule in supplied sources.",
+    "case_id": "FQ29",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:45:29.126973+00:00"
+  },
+  "32929f06412942b0": {
+    "evidence_sufficient": false,
+    "notes": "Jaju plant appearance and another household plant's unspecified watering day do not provide Jaju's two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:47:13.109056+00:00"
+  },
+  "82afaa5508c6c742": {
+    "evidence_sufficient": false,
+    "notes": "Study move missing; old living-room only.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:48:42.695431+00:00"
+  },
+  "9b48d3978e97e575": {
+    "evidence_sufficient": false,
+    "notes": "Explicit never-posted-address claim missing.",
+    "case_id": "FQ22",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:48:42.695435+00:00"
+  },
+  "f850fc3c2b2e9e39": {
+    "evidence_sufficient": false,
+    "notes": "Only original grandma feeding, not new Jimin assignment.",
+    "case_id": "FQ11",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:48:42.695436+00:00"
+  },
+  "0a88f65fd28169f5": {
+    "evidence_sufficient": false,
+    "notes": "No Blue Exorcist reading fact.",
+    "case_id": "FQ27",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:48:42.695437+00:00"
+  },
+  "17e870be7bb63ac2": {
+    "evidence_sufficient": false,
+    "notes": "Only earlier cart state; no final cancellation.",
+    "case_id": "FQ17",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:50:29.344246+00:00"
+  },
+  "a75d3c2e43692970": {
+    "evidence_sufficient": false,
+    "notes": "No discovery-place fact.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:50:29.344250+00:00"
+  },
+  "d5be2cf216baea7a": {
+    "evidence_sufficient": false,
+    "notes": "No friend underground parking fact.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:50:29.344251+00:00"
+  },
+  "21d83064b302aeab": {
+    "evidence_sufficient": false,
+    "notes": "No plant move fact.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:50:29.344252+00:00"
+  },
+  "9216a4d0adbe5c63": {
+    "evidence_sufficient": false,
+    "notes": "No explicit denial of address posting.",
+    "case_id": "FQ22",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:52:37.428373+00:00"
+  },
+  "9766462d8ddd9225": {
+    "evidence_sufficient": false,
+    "notes": "No veranda-shelf discovery fact.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:52:37.428377+00:00"
+  },
+  "73ab92d0a5e207d8": {
+    "evidence_sufficient": false,
+    "notes": "No underground parking fact.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:52:37.428378+00:00"
+  },
+  "2e262b6b5ec87895": {
+    "evidence_sufficient": false,
+    "notes": "No Blue Exorcist reading fact; only unrelated Doyun family/tool/book-loan fragments.",
+    "case_id": "FQ27",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:54:30.460011+00:00"
+  },
+  "bbf953d329577b56": {
+    "evidence_sufficient": false,
+    "notes": "No two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:56:56.372668+00:00"
+  },
+  "cf6aa0fc6a3bc7a3": {
+    "evidence_sufficient": false,
+    "notes": "No friend underground parking fact.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:56:56.372671+00:00"
+  },
+  "4415f20fb082f22f": {
+    "evidence_sufficient": false,
+    "notes": "No study-window move fact.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:56:56.372673+00:00"
+  },
+  "840bd6e293eaa13d": {
+    "evidence_sufficient": false,
+    "notes": "No two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:58:48.426833+00:00"
+  },
+  "cc6d73b6dcf4af27": {
+    "evidence_sufficient": false,
+    "notes": "No Blue Exorcist fact in final context.",
+    "case_id": "FQ27",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T13:58:48.426836+00:00"
+  },
+  "925a7cc547d37ee5": {
+    "evidence_sufficient": false,
+    "notes": "Other plant watering-day reminder and Jaju appearance/location, but no Jaju two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:00:29.017716+00:00"
+  },
+  "16b13af9c5c8fd45": {
+    "evidence_sufficient": false,
+    "notes": "No pink flowers from Eunyoung; retrieved white flowers and Yoori gift instead.",
+    "case_id": "FQ20",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:01:37.755642+00:00"
+  },
+  "b585a70d0d3c556c": {
+    "evidence_sufficient": false,
+    "notes": "Only old Sunset Park plan, no riverside change.",
+    "case_id": "FQ08",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:01:37.755647+00:00"
+  },
+  "6acdd09751338d6e": {
+    "evidence_sufficient": false,
+    "notes": "No study-window move.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:01:37.755649+00:00"
+  },
+  "ef4a021b086b74b5": {
+    "evidence_sufficient": false,
+    "notes": "No Jaju plant identity fact.",
+    "case_id": "FQ02",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:03:52.653261+00:00"
+  },
+  "4b522630b1c206f7": {
+    "evidence_sufficient": false,
+    "notes": "Only old cart state, no final decision.",
+    "case_id": "FQ17",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:03:52.653265+00:00"
+  },
+  "5d538fa7bb92b611": {
+    "evidence_sufficient": false,
+    "notes": "No discovery place.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:03:52.653266+00:00"
+  },
+  "031fbce2a3fe0aef": {
+    "evidence_sufficient": false,
+    "notes": "No underground friend parking.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:03:52.653267+00:00"
+  },
+  "589bd386f087c07f": {
+    "evidence_sufficient": false,
+    "notes": "No Jaju move; other plant and Doyun activity sources only.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:05:05.741375+00:00"
+  },
+  "04626f0491a7b17f": {
+    "evidence_sufficient": false,
+    "notes": "No Sujin-friend underground parking fact; Doyun hospital/new-house facts concern a different target.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:07:02.278091+00:00"
+  },
+  "c65fb83d5a628e5f": {
+    "evidence_sufficient": false,
+    "notes": "Jaju nickname mentioned but no Zebrina identity link; unrelated photo-folder/book-loan facts.",
+    "case_id": "FQ02",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:07:40.808698+00:00"
+  },
+  "a93817971b3e590f": {
+    "evidence_sufficient": false,
+    "notes": "No two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:09:50.713736+00:00"
+  },
+  "f131d2cb8423936e": {
+    "evidence_sufficient": false,
+    "notes": "No veranda-shelf discovery.",
+    "case_id": "FQ07",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:09:50.713740+00:00"
+  },
+  "d37f00d89745cc00": {
+    "evidence_sufficient": false,
+    "notes": "No friend underground parking.",
+    "case_id": "FQ21",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:09:50.713742+00:00"
+  },
+  "82522cb60d3ea23c": {
+    "evidence_sufficient": false,
+    "notes": "No study-window move.",
+    "case_id": "FQ13",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:09:50.713743+00:00"
+  },
+  "d60ce48776cd2263": {
+    "evidence_sufficient": false,
+    "notes": "No Zebrina identity link.",
+    "case_id": "FQ02",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:12:21.475671+00:00"
+  },
+  "74f6b3a29dd4ddb8": {
+    "evidence_sufficient": false,
+    "notes": "No purchase confirmation, only old indecision and unrelated tools.",
+    "case_id": "FQ04",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:12:21.475675+00:00"
+  },
+  "d768c70a2ddfbc23": {
+    "evidence_sufficient": false,
+    "notes": "No two-day interval.",
+    "case_id": "FQ14",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:12:21.475677+00:00"
+  },
+  "2ab7596b35867b3b": {
+    "evidence_sufficient": false,
+    "notes": "Earlier cart-only state does not support eventual nonpurchase decision; no later cancellation source.",
+    "case_id": "FQ17",
+    "reviewer": "AI final-context semantic review",
+    "reviewed_at": "2026-10-22T14:12:48.971041+00:00"
+  }
+}

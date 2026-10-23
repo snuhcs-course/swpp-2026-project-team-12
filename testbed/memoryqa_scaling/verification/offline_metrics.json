@@ -1,0 +1,40 @@
+{
+  "inputs": {
+    "levels": {
+      "100": {
+        "posts": 100,
+        "photos": 40,
+        "current_posts": 20,
+        "questions": 30,
+        "tasks": 180,
+        "evidence_ids_valid": true,
+        "graph_episodes_verified": 100
+      },
+      "200": {
+        "posts": 200,
+        "photos": 80,
+        "current_posts": 20,
+        "questions": 30,
+        "tasks": 180,
+        "evidence_ids_valid": true,
+        "graph_episodes_verified": 200
+      },
+      "300": {
+        "posts": 300,
+        "photos": 120,
+        "current_posts": 20,
+        "questions": 30,
+        "tasks": 180,
+        "evidence_ids_valid": true,
+        "graph_episodes_verified": 300
+      }
+    },
+    "tasks": 540,
+    "image_hashes_verified": 120,
+    "paid_calls": 0,
+    "database_access": false
+  },
+  "recorded_tasks": 540,
+  "all_six_cells_recomputed": true,
+  "paid_calls": 0
+}

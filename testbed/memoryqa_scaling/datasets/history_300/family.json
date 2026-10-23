@@ -1,0 +1,151 @@
+{
+  "family_key": "catalog_family4_100",
+  "db_family_id": null,
+  "synthetic": true,
+  "owner_key": "jimin",
+  "members": [
+    {
+      "key": "sunhee",
+      "name": "선희",
+      "gender": "female",
+      "slot": "grandma-father",
+      "role": "친할머니"
+    },
+    {
+      "key": "doyun",
+      "name": "도윤",
+      "gender": "male",
+      "slot": "father",
+      "role": "아버지"
+    },
+    {
+      "key": "sujin",
+      "name": "수진",
+      "gender": "female",
+      "slot": "mother",
+      "role": "어머니"
+    },
+    {
+      "key": "jimin",
+      "name": "지민",
+      "gender": "female",
+      "slot": "owner",
+      "role": "딸 / 방 소유자"
+    }
+  ],
+  "relationships": [
+    {
+      "viewer_key": "sunhee",
+      "author_key": "sunhee",
+      "semantic_relationship": "나",
+      "app_relationship": "나",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sunhee",
+      "author_key": "doyun",
+      "semantic_relationship": "아들",
+      "app_relationship": "아들",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sunhee",
+      "author_key": "sujin",
+      "semantic_relationship": "며느리",
+      "app_relationship": "며느리",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sunhee",
+      "author_key": "jimin",
+      "semantic_relationship": "손녀",
+      "app_relationship": "손녀",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "doyun",
+      "author_key": "sunhee",
+      "semantic_relationship": "어머니",
+      "app_relationship": "가족",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "doyun",
+      "author_key": "doyun",
+      "semantic_relationship": "나",
+      "app_relationship": "나",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "doyun",
+      "author_key": "sujin",
+      "semantic_relationship": "아내",
+      "app_relationship": "가족",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "doyun",
+      "author_key": "jimin",
+      "semantic_relationship": "딸",
+      "app_relationship": "딸",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sujin",
+      "author_key": "sunhee",
+      "semantic_relationship": "시어머니",
+      "app_relationship": "가족",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sujin",
+      "author_key": "doyun",
+      "semantic_relationship": "남편",
+      "app_relationship": "가족",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sujin",
+      "author_key": "sujin",
+      "semantic_relationship": "나",
+      "app_relationship": "나",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "sujin",
+      "author_key": "jimin",
+      "semantic_relationship": "딸",
+      "app_relationship": "딸",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "jimin",
+      "author_key": "sunhee",
+      "semantic_relationship": "친할머니",
+      "app_relationship": "할머니",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "jimin",
+      "author_key": "doyun",
+      "semantic_relationship": "아버지",
+      "app_relationship": "아버지",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "jimin",
+      "author_key": "sujin",
+      "semantic_relationship": "어머니",
+      "app_relationship": "어머니",
+      "app_slot_supported": true
+    },
+    {
+      "viewer_key": "jimin",
+      "author_key": "jimin",
+      "semantic_relationship": "나",
+      "app_relationship": "나",
+      "app_slot_supported": true
+    }
+  ],
+  "source_family_key": "memoryqa_contextual_v2_f4"
+}

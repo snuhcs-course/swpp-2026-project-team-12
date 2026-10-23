@@ -1,0 +1,102 @@
+{
+  "members": [
+    {
+      "name": "선희",
+      "key": "sunhee"
+    },
+    {
+      "name": "도윤",
+      "key": "doyun"
+    },
+    {
+      "name": "수진",
+      "key": "sujin"
+    },
+    {
+      "name": "지민",
+      "key": "jimin"
+    }
+  ],
+  "relationships": [
+    {
+      "viewer": "선희",
+      "target": "선희",
+      "relationship": "나"
+    },
+    {
+      "viewer": "선희",
+      "target": "도윤",
+      "relationship": "아들"
+    },
+    {
+      "viewer": "선희",
+      "target": "수진",
+      "relationship": "며느리"
+    },
+    {
+      "viewer": "선희",
+      "target": "지민",
+      "relationship": "손녀"
+    },
+    {
+      "viewer": "도윤",
+      "target": "선희",
+      "relationship": "어머니"
+    },
+    {
+      "viewer": "도윤",
+      "target": "도윤",
+      "relationship": "나"
+    },
+    {
+      "viewer": "도윤",
+      "target": "수진",
+      "relationship": "아내"
+    },
+    {
+      "viewer": "도윤",
+      "target": "지민",
+      "relationship": "딸"
+    },
+    {
+      "viewer": "수진",
+      "target": "선희",
+      "relationship": "시어머니"
+    },
+    {
+      "viewer": "수진",
+      "target": "도윤",
+      "relationship": "남편"
+    },
+    {
+      "viewer": "수진",
+      "target": "수진",
+      "relationship": "나"
+    },
+    {
+      "viewer": "수진",
+      "target": "지민",
+      "relationship": "딸"
+    },
+    {
+      "viewer": "지민",
+      "target": "선희",
+      "relationship": "친할머니"
+    },
+    {
+      "viewer": "지민",
+      "target": "도윤",
+      "relationship": "아버지"
+    },
+    {
+      "viewer": "지민",
+      "target": "수진",
+      "relationship": "어머니"
+    },
+    {
+      "viewer": "지민",
+      "target": "지민",
+      "relationship": "나"
+    }
+  ]
+}
