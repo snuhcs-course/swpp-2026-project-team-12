@@ -13,4 +13,5 @@
 - Restored all three SQL fixtures and checked 90 app question payloads.
 - Restored all three graph snapshots into a separate Neo4j 5.26 database; properties, embeddings and search indexes verified.
 - Recomputed all six result cells from the saved responses and grades.
+- Repeated offline checks, tests and SQL restoration from a fresh clone in a different path containing spaces.
 - No new paid model or judge calls. Fresh responses require separate grading.

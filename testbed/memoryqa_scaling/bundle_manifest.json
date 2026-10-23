@@ -4,10 +4,10 @@
     ".env.example": "950345026b2f1eb07bd7c7b99ecf1f024f29ecf46fe61faa5d3aed296fdb4b0c",
     ".gitignore": "d2beaffc188cf65045b1d52deaad499f101b9e7e9b08da635bc3d57d91e44b08",
     "MEMORYQA-LICENSE.txt": "3711f963c05d0be80d53e5923308a6dee31b203da23435c9cfb7c7b6e4dd5e19",
-    "PR_DESCRIPTION.md": "87629ee53b13ba249bc80d617b1b6e82635ce88703e76da4057592c3361819be",
+    "PR_DESCRIPTION.md": "3f8fe02db06ec7d52dcddc304c941125b3fed1dda16b2ea645ca167afe239442",
     "README.md": "69a25ff2f41dd84f7f4850c76d6f311d4bb92a06c7d78b28430423cffaf1a393",
     "RESULTS.md": "a8ebfaf4449a601f7c4a4ba3e624caca777079c54d0bb3edb38478d9d04f6108",
-    "VERIFICATION.md": "4ed1e7aa127a8be37c20cd5bb28a53f0cbbbba70e5d16c120aff91c4568d602c",
+    "VERIFICATION.md": "761bae80d5d2d710eeb87317b125e49745c9dca21cfee7a2a1287a5f4f7efbd7",
     "compose.yaml": "f48e62d47966829cb18c7492beb8897bd2e0bdb209451f98989d158f332b48ab",
     "config.json": "af1efdc2bee2780fb4699a0a3e6707e744cf4b7b37eb9893b373b9ff61e4bf94",
     "datasets/history_100/assets.json": "a4a3acc5d69f987c2dcd2fdc5346b9f952f056446b7945bcc69ba3812ec89604",
@@ -112,7 +112,8 @@
     "verification/environment.json": "341eb97e08c2da1c7ba982843cd8171373e9d6f79c0623b8dcf4c817bc98e83e",
     "verification/graph_restore.json": "90c7c4b893580365a991713e15b3dd289f04aa75935939ca7a731682562bc021",
     "verification/offline_metrics.json": "c37faec30dbb14b982c45c0ffe6b805d4dd1f9c16a6f1eee6412ce7e5af17b13",
-    "verification/source_preservation.json": "8d15558d61486a249d81f6ae5ac2de72cfc53f0dde36883789054d3ae08e48ed",
+    "verification/relocation.json": "ae6841b97c8b204f649e62ed6e4cb5b4d327a20cdd74dcdbb1fc79191350704d",
+    "verification/source_preservation.json": "1023473b0e5f57c55c82ed9f280ea9787fc167ec4c791644344f6d6854e38764",
     "verification/sql_restore.json": "b97c3be5054e2526e777df140869893b0f20c15f2db79c073a3fa732d53cd0c7",
     "verification/tests.txt": "2737cd228b83f7b2a3be5c9bea89d16e5be5be5d0391b4445e862bee2b4ff5e3"
   }

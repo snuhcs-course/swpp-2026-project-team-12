@@ -11,6 +11,7 @@ Prepared on October 23, 2026, against `iteration-2-demo` at `044d7d5`. The recor
 | App extraction | All 71 recorded backend file hashes match the pinned commit |
 | Dependencies | Clean Python 3.12 environment installed all 31 pinned packages from public PyPI |
 | Automated checks | 15 passed, including download failure/cache handling, tamper detection, typed graph round trips, and both app QA paths with mock services |
+| Relocation | Fresh clone of code commit `a50f399` under a different path containing spaces; commands run outside the repository; no original workspace inputs required |
 | SQL fixtures | 120/220/320 posts restored; authors, family slots, timestamps, descriptions and 90 question payloads match the app |
 | Graph snapshots | Three original groups exported through read transactions; fingerprints match the recorded run |
 | Graph restoration | Fresh Neo4j 5.26 Community instance restored 171/311/439 nodes and 313/554/786 edges with exact typed properties and embeddings |
@@ -20,5 +21,7 @@ Prepared on October 23, 2026, against `iteration-2-demo` at `044d7d5`. The recor
 | Fresh paid evaluation | Not executed; no new description, extraction, answer, or judge call |
 
 Machine-readable checks are in [verification/](verification/). Raw answers and semantic judgments are in [results/](results/). Downloaded photos, extracted app sources, new SQL fixtures, and generated reports stay in ignored directories.
+
+The relocated clone passed all 15 tests, extracted the same 71 backend files, recomputed all six result cells, and restored all three SQL fixtures using only the verified public image cache. The final documentation commit adds these verification records; experiment code and data remain those tested in `a50f399`.
 
 The paid-run command is opt-in and produces new responses requiring new semantic review. Its service credentials, current API availability, and future response quality have not been tested with paid calls. Recorded AI grading has not received independent human signoff. Post-run reporting targets are not pre-run acceptance gates.
