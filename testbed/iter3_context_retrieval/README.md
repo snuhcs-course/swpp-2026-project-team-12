@@ -1,4 +1,4 @@
-﻿# Graphiti 가족 피드 Testbed
+# Graphiti 가족 피드 Testbed
 
 이 폴더는 7일 동안 이어지는 가족 사건을 먼저 정의하고, 사건에 맞는 인물 중심 생활 사진을 붙여 피드 데이터셋을 만듭니다. 기본 `curated` 모드는 웹에서 사람이 직접 확인한 Pexels 사진 20장을 사용하므로 API 키가 필요하지 않습니다. 각 사건 줄기는 `core`, 여러 가족 구성원이 작성하는 `extension`/`reinforcement`/`update`/`distractor`, 마지막 날의 `probe`로 구성됩니다.
 
@@ -37,21 +37,21 @@
 
 ```powershell
 Copy-Item testbed\iter3_context_retrieval\input\config.example.json testbed\iter3_context_retrieval\input\config.local.json
-python testbed\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
 Pexels fallback을 사용하려면 키를 JSON 파일에 넣지 말고 환경변수로 설정합니다.
 
 ```powershell
 $env:PEXELS_API_KEY = "발급받은 API 키"
-python testbed\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
 Openverse에서 익명 요청을 제한하는 경우에도 토큰을 환경변수로 전달할 수 있습니다.
 
 ```powershell
 $env:OPENVERSE_API_TOKEN = "발급받은 access token"
-python testbed\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
 결과는 `testbed\iter3_context_retrieval\output/<dataset_name>/` 아래에 생성됩니다.
@@ -152,7 +152,7 @@ python -m pytest testbed -q
 다음 변경은 config만 수정합니다.
 
 - 가족 이름, 시작일, 초대 코드와 비밀번호
-- 구성원 이름, 성별과 관계 slot
+- 구성원 이름, 성별, generation과 부모/배우자 연결
 - 기존 catalog 범위 안의 `thread_ids`와 `post_count`
 - 출력 데이터셋 이름과 작성자 배정 정책
 
@@ -166,12 +166,7 @@ python -m pytest testbed -q
 
 ## Config 작성 규칙
 
-`members`는 2~9명으로 구성합니다. `owner`는 정확히 한 명이어야 하고 slot은 중복될 수 없습니다.
-
-```text
-owner, father, mother, grandpa-father, grandpa-mother,
-grandma-father, grandma-mother, son, daughter, grandson, granddaughter
-```
+`members`는 2명 이상이며 `owner_username`으로 방 관리자를 지정합니다. `generation`은 가계도 배치용 정수입니다. `parents`의 `parent_id`/`child_id`, `partnerships`의 `first_id`/`second_id`에는 구성원의 username을 사용합니다. 관계는 앱과 동일한 tree 탐색 함수로 계산합니다.
 
 `username`은 데이터셋 안에서 고유해야 합니다. `gender`는 `female`, `male`, `unknown` 중 하나입니다. caption의 구성원 치환자는 `{m0}`, `{m1}`처럼 사용하며 구성원 수에 따라 순환 배정됩니다.
 
@@ -298,7 +293,7 @@ testbed/iter3_context_retrieval/README.md의 사진 추가 규칙에 따라 이 
 
 ```powershell
 python -m pytest testbed -q
-python testbed\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.example.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.example.json
 ```
 
 생성 후 다음 항목을 확인합니다.
@@ -313,4 +308,3 @@ python testbed\dataset_builder.py --config testbed\iter3_context_retrieval\input
 - 사진 내용이 caption과 의미상 일치함
 
 새 config나 사건을 agent에게 요청할 때는 이 README의 규칙을 따르게 하고, 필요하면 catalog·작성자 우선순위·사진 출처와 테스트까지 함께 갱신하도록 요청합니다.
-

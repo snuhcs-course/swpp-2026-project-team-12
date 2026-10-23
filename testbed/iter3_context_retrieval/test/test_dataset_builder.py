@@ -12,7 +12,8 @@ from dataset_builder import (
     generate,
     make_crawler,
     read_json,
-    relationship,
+    find_relationship,
+    family_tree,
     validate_config,
 )
 
@@ -38,8 +39,9 @@ class DatasetBuilderTests(unittest.TestCase):
     def test_five_member_family_can_use_catalog_templates_through_m5(self):
         config = self.config()
         config["members"].append({
-            "username": "test_son", "name": "준호", "gender": "male", "slot": "son",
+            "username": "test_son", "name": "준호", "gender": "male", "generation": -1,
         })
+        config["parents"].append({"parent_id": "test_jimin", "child_id": "test_son"})
         config["thread_ids"] = ["lunchbox", "birthday", "knitting"]
         config["post_count"] = 15
         catalog = read_json(ROOT / "input" / "event_catalog.example.json")
@@ -52,8 +54,9 @@ class DatasetBuilderTests(unittest.TestCase):
     def test_fifty_post_week_keeps_all_ten_probes_on_day_seven(self):
         config = self.config()
         config["members"].append({
-            "username": "test_son", "name": "준호", "gender": "male", "slot": "son",
+            "username": "test_son", "name": "준호", "gender": "male", "generation": -1,
         })
+        config["parents"].append({"parent_id": "test_jimin", "child_id": "test_son"})
         config["thread_ids"] = [
             "basil", "dog", "cafe", "camera", "lunchbox", "bicycle", "birthday", "trip", "knitting", "recital",
         ]
@@ -68,11 +71,13 @@ class DatasetBuilderTests(unittest.TestCase):
         self.assertTrue(all(event["created_at"][:10] == "2026-10-11" for event in probes))
 
     def test_relationships_match_application_rules(self):
-        members = self.config()["members"]
+        config = self.config()
+        tree = family_tree(config)
+        members = config["members"]
         people = {member["name"]: member for member in members}
-        self.assertEqual(relationship(people["지민"], people["도윤"]), "아버지")
-        self.assertEqual(relationship(people["선희"], people["도윤"]), "사위")
-        self.assertEqual(relationship(people["도윤"], people["지민"]), "딸")
+        self.assertEqual(find_relationship(tree, people["지민"]["username"], people["도윤"]["username"]), "아버지")
+        self.assertEqual(find_relationship(tree, people["선희"]["username"], people["도윤"]["username"]), "딸의 배우자")
+        self.assertEqual(find_relationship(tree, people["도윤"]["username"], people["지민"]["username"]), "딸")
 
     def test_default_probes_have_required_and_filter_memories_in_history(self):
         config = self.config()

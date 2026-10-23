@@ -11,6 +11,8 @@ WEB_ROOT = Path(settings.BASE_DIR).parent / "web"
 ASSETS = {
     "app.js": "text/javascript; charset=utf-8",
     "api.js": "text/javascript; charset=utf-8",
+    "family-tree.js": "text/javascript; charset=utf-8",
+    "family-tree-view.js": "text/javascript; charset=utf-8",
     "icons.js": "text/javascript; charset=utf-8",
     "styles.css": "text/css; charset=utf-8",
     "favicon.svg": "image/svg+xml",

@@ -14,13 +14,15 @@ from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
 from apps.digests.models import Digest
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from apps.replies.models import Comment, VoiceDraft
 from integrations.ai import provider as ai_provider
 from integrations.speech import provider as speech_provider
 
 from .test_posts import SAMPLES_DIR, TEST_MEDIA_DIR, sample_image
+
+from .family_fixtures import add_member, link_parent
 
 
 GRANDMA_REPORT = TEST_MEDIA_DIR / "grandma_report.html"
@@ -68,9 +70,10 @@ class VoiceReplyAPITests(TestCase):
         other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=room, user=self.grandma, slot=Membership.Slot.GRANDMA_FATHER)
-        Membership.objects.create(room=other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(room, self.owner)
+        add_member(room, self.grandma, 2)
+        link_parent(room, self.grandma, room.owner, generations=2)
+        add_member(other_room, self.outsider)
         self.owner_token = AccessToken.issue(self.owner)
         self.grandma_token = AccessToken.issue(self.grandma)
         self.outsider_token = AccessToken.issue(self.outsider)

@@ -24,6 +24,8 @@ class WebServingTests(SimpleTestCase):
             self.assertIn('script-src \'self\'', response["Content-Security-Policy"])
             self.assertEqual(response["X-Content-Type-Options"], "nosniff")
             for name, content_type in [("app.js", "text/javascript"), ("api.js", "text/javascript"),
+                                       ("family-tree.js", "text/javascript"),
+                                       ("family-tree-view.js", "text/javascript"),
                                        ("icons.js", "text/javascript"), ("styles.css", "text/css"),
                                        ("favicon.svg", "image/svg+xml"), ("todak_joy.gif", "image/gif")]:
                 with self.subTest(name=name):
@@ -53,9 +55,9 @@ class WebJourneyTests(TestCase):
         return getattr(self.client, method)(path, json.dumps(data), content_type="application/json",
                                           **({"HTTP_AUTHORIZATION": "Bearer " + token} if token else {}))
 
-    def register(self, username):
+    def register(self, username, gender="female"):
         response = self.request("/api/accounts/register/", {
-            "username": username, "name": "웹 가족", "password": "Web-Offline-Test-438!",
+            "username": username, "name": "웹 가족", "password": "Web-Offline-Test-438!", "gender": gender,
         })
         self.assertEqual(response.status_code, 201)
         return response.json()["token"]
@@ -86,9 +88,17 @@ class WebJourneyTests(TestCase):
         detail = self.client.get(f'/api/posts/{post["id"]}/', **auth).json()
         self.assertEqual(detail["comments"][0]["text"], "따뜻한 안부를 전해요")
         other = self.register("web-member")
-        joined = self.request("/api/families/join/", {"invite_code": room["invite_code"], "password": "room-password", "slot": "daughter"}, other)
+        tree = room["tree"]
+        joined = self.request("/api/families/join/", {
+            "invite_code": room["invite_code"], "password": "room-password",
+            "tree_version": tree["version"], "person_id": "new_me",
+            "additions": [{"id": "new_me", "anchor_id": tree["owner_id"], "relation": "child"}],
+        }, other)
         self.assertEqual(joined.status_code, 200)
         self.assertEqual(len(joined.json()["room"]["members"]), 2)
+        self.assertEqual(joined.json()["room"]["tree"]["version"], tree["version"] + 1)
+        member_view = self.client.get(f'/api/posts/{post["id"]}/', HTTP_AUTHORIZATION="Bearer " + other)
+        self.assertEqual(member_view.json()["relationship"], "어머니")
         unrelated = self.register("web-unrelated")
         self.request("/api/families/create/", {"room_name": "다른 가족", "password": "another-password"}, unrelated)
         self.assertEqual(self.client.get(f'/api/posts/{post["id"]}/', HTTP_AUTHORIZATION="Bearer " + unrelated).status_code, 404)

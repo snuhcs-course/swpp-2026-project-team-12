@@ -1,4 +1,4 @@
-﻿# Secrets
+# Secrets
 .env
 .env.*
 !.env.example
@@ -16,7 +16,7 @@ backend/media/*
 backend/developer/test_media/
 backend/developer/family_tree.html
 testbed/iter3_context_retrieval/output/
-testbed/input/*.local.json
+testbed/**/input/*.local.json
 *.log
 
 # Context documents for each developer
@@ -43,6 +43,7 @@ client/app/build/outputs/apk/debug/*
 !client/app/build/outputs/apk/debug/app.apk
 
 # Generated coverage reports
+.coverage
 htmlcov/
 coverage.xml
 .coverage.*

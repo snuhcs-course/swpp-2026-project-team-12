@@ -10,11 +10,13 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from integrations.speech import provider
 
 from .test_posts import sample_image
+
+from .family_fixtures import add_member, link_parent, sample_family
 
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[1] / "test_media"
@@ -50,8 +52,9 @@ class SpeechAPITests(TestCase):
         self.room = FamilyRoom.objects.create(
             name="정아네", invite_code="ROOM01", password_hash="hashed", owner=self.owner
         )
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.member, slot=Membership.Slot.GRANDMA_FATHER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.member, 2)
+        link_parent(self.room, self.member, self.room.owner, generations=2)
         self.owner_token = AccessToken.issue(self.owner)
         self.token = AccessToken.issue(self.member)
         self.outsider_token = AccessToken.issue(self.outsider)
@@ -101,18 +104,7 @@ class SpeechAPITests(TestCase):
         if not use_mock_ai and not settings.OPENAI_API_KEY:
             self.skipTest("Set OPENAI_API_KEY for live summaries, or MOCK_AI_TESTS=1")
 
-        for username, name, gender, slot in (
-            ("maternal_grandma", "선희", User.Gender.FEMALE, Membership.Slot.GRANDMA_MOTHER),
-            ("father", "병호", User.Gender.MALE, Membership.Slot.FATHER),
-            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER),
-            ("son", "준호", User.Gender.MALE, Membership.Slot.SON),
-            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER),
-        ):
-            user = User.objects.create_user(
-                username=username, password="Relative-Passphrase1!",
-                display_name=name, gender=gender,
-            )
-            Membership.objects.create(room=self.room, user=user, slot=slot)
+        sample_family(self.room, self.owner, grandma=self.member)
         self.assertEqual(self.room.members.count(), 7)
 
         mock_summaries = (

@@ -5,7 +5,7 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api import APIError, api, body, required
-from apps.families.services import relationship
+from apps.families.utils import relationship
 from integrations.ai import provider
 
 from .models import AdaptedMessage, Post

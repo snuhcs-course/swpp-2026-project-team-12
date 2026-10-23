@@ -17,7 +17,9 @@ class PostMigrationCompatibilityTests(TransactionTestCase):
         ]
         for index, (name, targets) in enumerate(scenarios):
             with self.subTest(starting_schema=name):
-                MigrationExecutor(connection).migrate([("posts", "0002_adaptedmessage")])
+                MigrationExecutor(connection).migrate([
+                    ("posts", "0002_adaptedmessage"), ("families", "0001_initial"),
+                ])
                 executor = MigrationExecutor(connection)
                 executor.migrate(targets)
                 apps = executor.loader.project_state(targets).apps

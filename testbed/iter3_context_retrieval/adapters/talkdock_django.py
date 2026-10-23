@@ -30,6 +30,9 @@ class TalkDockDjangoAdapter:
         "user": ("accounts", "User"),
         "family": ("families", "FamilyRoom"),
         "membership": ("families", "Membership"),
+        "person": ("families", "FamilyPerson"),
+        "parent_child": ("families", "ParentChild"),
+        "partnership": ("families", "Partnership"),
         "post": ("posts", "Post"),
     }
 
@@ -80,7 +83,8 @@ class TalkDockDjangoAdapter:
         member_password = default_password or defaults.get("default_password", "Member-Test-2026!")
         room_password = defaults.get("room_password", "Family-Test-2026!")
         members = family["members"]
-        owner_spec = next(member for member in members if member["slot"] == "owner")
+        tree = family["tree"]
+        owner_spec = next(member for member in members if member["username"] == tree["owner_id"])
 
         users = {}
         for spec in members:
@@ -106,14 +110,31 @@ class TalkDockDjangoAdapter:
         if room.owner_id != users[owner_spec["username"]].pk:
             raise ValueError("기존 가족방 owner가 manifest와 다릅니다.")
 
-        for spec in members:
-            membership, created = Membership.objects.get_or_create(
-                room=room,
-                user=users[spec["username"]],
-                defaults={"slot": spec["slot"]},
-            )
-            if not created and membership.slot != spec["slot"]:
-                raise ValueError(f"{spec['username']}의 기존 slot이 manifest와 다릅니다.")
+        from django.db import transaction
+        from django.db.models import F
+
+        with transaction.atomic():
+            people, changed = {}, False
+            for spec in members:
+                membership = Membership.objects.filter(room=room, user=users[spec["username"]]).first()
+                if membership is None:
+                    person = self.models["person"].objects.create(room=room, name=spec["name"],
+                        gender=spec.get("gender", "unknown"), generation=spec["generation"])
+                    membership = Membership.objects.create(room=room, user=users[spec["username"]], person=person)
+                    changed = True
+                elif membership.person.generation != spec["generation"]:
+                    raise ValueError(f"{spec['username']}의 기존 generation이 manifest와 다릅니다.")
+                people[spec["username"]] = membership.person
+            for link in tree["parents"]:
+                _, created = self.models["parent_child"].objects.get_or_create(
+                    parent=people[link["parent_id"]], child=people[link["child_id"]])
+                changed |= created
+            for link in tree["partnerships"]:
+                first, second = sorted((people[link["first_id"]].pk, people[link["second_id"]].pk))
+                _, created = self.models["partnership"].objects.get_or_create(first_id=first, second_id=second)
+                changed |= created
+            if changed:
+                FamilyRoom.objects.filter(pk=room.pk).update(tree_version=F("tree_version") + 1)
 
         manifest_root = Path(manifest_path).resolve().parent
         post_ids = {}

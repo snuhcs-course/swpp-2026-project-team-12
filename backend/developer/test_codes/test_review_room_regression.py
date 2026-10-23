@@ -8,6 +8,8 @@ from apps.families.models import Membership
 from apps.families.services import create_room
 from apps.posts.models import Post
 
+from .family_fixtures import add_member, link_parent
+
 
 class ReviewRoomRegressionTests(TestCase):
     def setUp(self):
@@ -26,9 +28,16 @@ class ReviewRoomRegressionTests(TestCase):
         self.assertEqual(Membership.objects.filter(user=self.user).count(), 1)
 
     def test_existing_member_cannot_join_another_room(self):
-        response = self.post_json('/api/families/join/', {'invite_code':self.b.invite_code, 'password':'Room-67890', 'slot':'son'})
+        response = self.post_json('/api/families/join/', {
+            'invite_code': self.b.invite_code, 'password': 'Room-67890',
+            'tree_version': 0, 'person_id': 'new_child',
+            'additions': [{'id': 'new_child', 'anchor_id': str(self.b.people.get().pk), 'relation': 'child'}],
+        })
         self.assertEqual(response.status_code, 409, 'Additional room joining must be rejected')
         self.assertEqual(Membership.objects.filter(user=self.user).count(), 1)
+        self.b.refresh_from_db()
+        self.assertEqual(self.b.tree_version, 0)
+        self.assertEqual(self.b.people.count(), 1)
 
     def test_created_room_and_actual_post_destination_agree(self):
         created = self.post_json('/api/families/create/', {'room_name':'생성 응답 가족 C', 'password':'New-Room-12345'})
@@ -41,7 +50,8 @@ class ReviewRoomRegressionTests(TestCase):
         self.assertEqual(returned, destination, 'The displayed create response must match the actual post destination')
 
     def test_legacy_multiple_memberships_keep_current_room_and_upload_in_sync(self):
-        Membership.objects.create(room=self.b, user=self.user, slot='son')
+        add_member(self.b, self.user, -1)
+        link_parent(self.b, self.b.owner, self.user)
         current = self.client.get('/api/families/current/', **self.headers).json()['id']
         self.assertEqual(current, self.a.pk)
         uploaded = self.client.post('/api/posts/', {'caption':'기존 다중 가입자 검증'}, **self.headers)

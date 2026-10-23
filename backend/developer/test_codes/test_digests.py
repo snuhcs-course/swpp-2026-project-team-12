@@ -13,11 +13,13 @@ from django.utils import timezone
 from apps.accounts.models import AccessToken, User
 from apps.digests.models import Digest
 from apps.digests.services import cutoff, generate_digest
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from integrations.ai import provider
 
 from .test_posts import sample_image
+
+from .family_fixtures import add_member, link_parent
 
 
 DAY = date(2026, 10, 1)
@@ -57,9 +59,10 @@ class DigestAPITests(TestCase):
         self.other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.grandma, slot=Membership.Slot.GRANDMA_FATHER)
-        Membership.objects.create(room=self.other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.grandma, 2)
+        link_parent(self.room, self.grandma, self.room.owner, generations=2)
+        add_member(self.other_room, self.outsider)
         self.grandma_token = AccessToken.issue(self.grandma)
         self.owner_token = AccessToken.issue(self.owner)
         self.outsider_token = AccessToken.issue(self.outsider)

@@ -44,18 +44,20 @@ Open **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)** on the server PC. Open
 
 Android emulators continue to use `http://10.0.2.2:8000/api/`. When Android and the browser connect to the same backend, they share the same data. Servers configured to use different databases do not share data.
 
+This branch uses the family tree schema from its initial migration. Before starting it with an older slot-based local database, reset that database and run migrations to create the new schema. Old family data is not imported.
+
 ## 3. Using the App
 
 The web interface remains in Korean. The instructions below explain the corresponding controls in English.
 
-1. **Sign in / register:** Use an existing Android account or create a new account. Passwords must contain a number and have at least 10 characters.
-2. **Connect to a family room:** Create a room, or enter an invitation code and room password. When joining, choose your relationship to the room owner. Existing backend restrictions apply: one room per account and one member per relationship slot.
+1. **Sign in / register:** Use an existing Android account or create a new account. Choose a gender for family relationship labels. Passwords must contain a number and have at least 10 characters.
+2. **Connect to a family room:** Create a room, or enter an invitation code and room password. When joining, select an unclaimed person directly on the family tree. The + nodes add parents, spouses, or children with the same generation layout as Android. Drag to move, use the zoom controls or arrow keys to navigate, and undo the last addition when needed. Only empty positions matching your account gender can be selected. One account can belong to one room; each person can be claimed once, and multiple children of the same gender are supported. If the tree changes during joining, reload it and select your position again.
 3. **Family feed:** Use the sidebar to view family posts. Click the new-post button to share text and photos. Drag photos into the upload area or select them through the file picker. Each post supports up to five photos, with limits of 10 MB per photo, 30 MB total, and 20 million source pixels per photo. Text-only posts are supported; captions are limited to 2,000 characters.
 4. **Post details:** Click a photo or comment button to view photos and comments side by side. Use the thumbnails to switch photos. You can comment, generate or listen to an AI summary, and ask questions about the post. AI questions are separate from family comments, and the conversation resets when the detail dialog closes.
 5. **Voice replies:** Click the microphone reply button, allow microphone access, record, and finish recording. Review and optionally correct the transcription, request an AI rewrite, and review the rewritten reply before sending it. Recordings are limited to two minutes and 5 MB. The published comment contains the converted text, not the original audio.
 6. **Find memories:** Ask a natural-language question about family history. The feed's filter searches text and author names within the latest 100 loaded posts; the separate memories page searches Graphiti family records.
 7. **Daily digest:** Choose a date to read or listen to its digest and open the included posts. Before the room's scheduled digest time in Korea, the digest is pending. Run the scheduler described below for automatic generation.
-8. **Family / account settings:** View members, copy the invitation code, change the digest time as the room owner, or update your display name and password. Changing a password through account settings revokes tokens on other devices.
+8. **Family / account settings:** View the family tree with parent/child and spouse connectors, including unclaimed people. Your own position is highlighted and relationship labels are relative to you. Opening this screen or using its refresh button fetches the latest family data. You can also copy the invitation code, change the digest time as the room owner, or update your display name and password. Changing a password through account settings revokes tokens on other devices.
 
 Desktop layouts use persistent sidebar navigation, a wide feed with a family information panel, and a split photo/comment dialog. Narrow screens switch to a single column. The app supports larger text, keyboard navigation, and closing dialogs with Esc.
 
@@ -131,6 +133,7 @@ python backend\manage.py test web
 # Optional syntax checks for development environments that have Node.js installed:
 node --check web\assets\app.js
 node --check web\assets\api.js
+node --test web\test_family_tree.mjs
 ```
 
 ### Troubleshooting

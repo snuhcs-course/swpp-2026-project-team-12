@@ -1,4 +1,4 @@
-﻿"""End-to-end HTTP contracts for the Django API layer."""
+"""End-to-end HTTP contracts for the Django API layer."""
 import json
 import tempfile
 from pathlib import Path
@@ -10,7 +10,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
 from apps.accounts.models import AccessToken
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
+from developer.test_codes.family_fixtures import add_member, link_parent
 from apps.posts.models import AdaptedMessage, Post
 from apps.replies.models import Comment, VoiceDraft
 from integrations.ai.provider import AIUnavailable
@@ -35,9 +36,10 @@ class ApiLayerFixture(TestCase):
         self.outsider = User.objects.create_user("outsider", password="Valid-passphrase1!", display_name="Outsider")
         self.room = FamilyRoom.objects.create(name="Main family", invite_code="API001", password_hash=make_password("Room-passphrase1!"), owner=self.owner)
         other_room = FamilyRoom.objects.create(name="Other family", invite_code="API002", password_hash=make_password("Room-passphrase1!"), owner=self.outsider)
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.member, slot=Membership.Slot.SON)
-        Membership.objects.create(room=other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.member, -1)
+        link_parent(self.room, self.owner, self.member)
+        add_member(other_room, self.outsider)
         self.owner_auth = self.auth(AccessToken.issue(self.owner))
         self.member_auth = self.auth(AccessToken.issue(self.member))
         self.outsider_auth = self.auth(AccessToken.issue(self.outsider))
@@ -76,8 +78,13 @@ class ApiContractIntegrationTests(ApiLayerFixture):
         invitee = User.objects.create_user("invitee", password="Valid-passphrase1!", display_name="Invitee")
         created = self.client.post("/api/families/create/", data=json.dumps({"room_name": "New family", "password": "Valid-passphrase1!", "digest_time": "20:30"}), content_type="application/json", **self.auth(AccessToken.issue(founder)))
         self.assertEqual(created.status_code, 201, created.content)
-        code = created.json()["room"]["invite_code"]
-        joined = self.client.post("/api/families/join/", data=json.dumps({"invite_code": code, "password": "Valid-passphrase1!", "slot": "daughter"}), content_type="application/json", **self.auth(AccessToken.issue(invitee)))
+        room = created.json()["room"]
+        tree = room["tree"]
+        joined = self.client.post("/api/families/join/", data=json.dumps({
+            "invite_code": room["invite_code"], "password": "Valid-passphrase1!",
+            "tree_version": tree["version"], "person_id": "new_child",
+            "additions": [{"id": "new_child", "anchor_id": tree["owner_id"], "relation": "child"}],
+        }), content_type="application/json", **self.auth(AccessToken.issue(invitee)))
         self.assertEqual(joined.status_code, 200, joined.content)
         self.assertEqual(len(joined.json()["room"]["members"]), 2)
 
@@ -116,7 +123,11 @@ class ApiContractIntegrationTests(ApiLayerFixture):
         updated = self.client.patch("/api/families/current/", data=json.dumps({"digest_time": "20:30"}), content_type="application/json", **self.owner_auth)
         self.assertEqual(updated.status_code, 200, updated.content)
         self.assertEqual(updated.json()["digest_time"], "20:30")
-        duplicate = self.client.post("/api/families/join/", data=json.dumps({"invite_code": "API001", "password": "Room-passphrase1!", "slot": "son"}), content_type="application/json", **self.member_auth)
+        duplicate = self.client.post("/api/families/join/", data=json.dumps({
+            "invite_code": "API001", "password": "Room-passphrase1!",
+            "tree_version": lookup.json()["tree"]["version"],
+            "person_id": str(self.room.members.get(user=self.member).person_id), "additions": [],
+        }), content_type="application/json", **self.member_auth)
         self.assertEqual(duplicate.status_code, 409)
 
     def test_voice_draft_send_is_idempotent_and_private(self):
@@ -207,4 +218,3 @@ class MockedProviderIntegrationTests(ApiLayerFixture):
         with patch("integrations.speech.views.provider.transcribe", side_effect=SpeechUnavailable("unavailable")):
             failed = self.client.post(path, {"audio": audio}, **self.member_auth)
         self.assertEqual(failed.status_code, 503)
-

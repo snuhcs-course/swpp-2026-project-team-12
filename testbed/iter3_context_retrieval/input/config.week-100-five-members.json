@@ -50,31 +50,41 @@
       "username": "week_jimin",
       "name": "지민",
       "gender": "female",
-      "slot": "owner"
+      "generation": 0
     },
     {
       "username": "week_doyun",
       "name": "도윤",
       "gender": "male",
-      "slot": "father"
+      "generation": 1
     },
     {
       "username": "week_sujin",
       "name": "수진",
       "gender": "female",
-      "slot": "mother"
+      "generation": 1
     },
     {
       "username": "week_sunhee",
       "name": "선희",
       "gender": "female",
-      "slot": "grandma-mother"
+      "generation": 2
     },
     {
       "username": "week_junho",
       "name": "준호",
       "gender": "male",
-      "slot": "son"
+      "generation": -1
     }
+  ],
+  "owner_username": "week_jimin",
+  "parents": [
+    {"parent_id": "week_doyun", "child_id": "week_jimin"},
+    {"parent_id": "week_sujin", "child_id": "week_jimin"},
+    {"parent_id": "week_sunhee", "child_id": "week_sujin"},
+    {"parent_id": "week_jimin", "child_id": "week_junho"}
+  ],
+  "partnerships": [
+    {"first_id": "week_doyun", "second_id": "week_sujin"}
   ]
 }

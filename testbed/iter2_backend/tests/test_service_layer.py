@@ -8,8 +8,10 @@ from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
 from apps.api import APIError, required
-from apps.families.models import FamilyRoom, Membership
-from apps.families.services import parse_time, relationship
+from apps.families.models import FamilyRoom
+from apps.families.services import parse_time
+from apps.families.utils import relationship
+from developer.test_codes.family_fixtures import add_member, link_parent
 from apps.posts.models import Post
 from apps.posts.services import prepare_image, prepare_uploads, serialize
 
@@ -26,8 +28,9 @@ class ServiceLayerTests(TestCase):
         self.owner = User.objects.create_user("owner", password="Valid-passphrase1!", display_name="Owner")
         self.son = User.objects.create_user("son", password="Valid-passphrase1!", display_name="Son", gender=User.Gender.MALE)
         self.room = FamilyRoom.objects.create(name="Service family", invite_code="SERV01", password_hash="x", owner=self.owner)
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.son, slot=Membership.Slot.SON)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.son, -1)
+        link_parent(self.room, self.owner, self.son)
 
     def test_validation_and_relationship_service_contracts(self):
         self.assertEqual(required({"caption": "  hello  "}, "caption", 20), "hello")

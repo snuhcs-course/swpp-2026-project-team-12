@@ -19,9 +19,18 @@
   "request_delay_seconds": 0.3,
   "user_agent": "TalkDockDatasetBuilder/1.0 (https://github.com/snuhcs-course/swpp-2026-project-team-12; educational test dataset)",
   "members": [
-    {"username": "test_jimin", "name": "지민", "gender": "female", "slot": "owner"},
-    {"username": "test_doyun", "name": "도윤", "gender": "male", "slot": "father"},
-    {"username": "test_sujin", "name": "수진", "gender": "female", "slot": "mother"},
-    {"username": "test_sunhee", "name": "선희", "gender": "female", "slot": "grandma-mother"}
+    {"username": "test_jimin", "name": "지민", "gender": "female", "generation": 0},
+    {"username": "test_doyun", "name": "도윤", "gender": "male", "generation": 1},
+    {"username": "test_sujin", "name": "수진", "gender": "female", "generation": 1},
+    {"username": "test_sunhee", "name": "선희", "gender": "female", "generation": 2}
+  ],
+  "owner_username": "test_jimin",
+  "parents": [
+    {"parent_id": "test_doyun", "child_id": "test_jimin"},
+    {"parent_id": "test_sujin", "child_id": "test_jimin"},
+    {"parent_id": "test_sunhee", "child_id": "test_sujin"}
+  ],
+  "partnerships": [
+    {"first_id": "test_doyun", "second_id": "test_sujin"}
   ]
 }

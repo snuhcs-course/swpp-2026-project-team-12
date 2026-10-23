@@ -1,5 +1,7 @@
 import { api, ApiError, hasToken, setToken, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
+import { FamilyTreeDraft } from './family-tree.js';
+import { treeMarkup, mountTree } from './family-tree-view.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -8,7 +10,6 @@ const busyIndicator = document.querySelector('#busy-indicator');
 const pendingOperations = new Set();
 const state = { user: null, room: null, posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
 const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
-const slots = { father: '아버지', mother: '어머니', 'grandma-father': '할머니', 'grandma-mother': '외할머니', son: '아들', daughter: '딸', grandson: '손자', granddaughter: '손녀' };
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
 
@@ -123,7 +124,7 @@ function renderAuth(register = false) {
         ${register ? field('이름', 'name', 'text', 'required maxlength="40" autocomplete="name" placeholder="가족에게 보여줄 이름"') : ''}
         ${field('아이디', 'username', 'text', 'required maxlength="150" autocomplete="username" placeholder="아이디를 입력해 주세요" autocapitalize="none"')}
         ${field('비밀번호', 'password', 'password', `required maxlength="128" ${register ? 'minlength="10"' : ''} autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
-        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender"><option value="unknown">선택하지 않음</option><option value="female">여성</option><option value="male">남성</option></select></label><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
+        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
         <p class="form-error" role="alert"></p><button class="button primary full" type="submit">${register ? '계정 만들기' : '우리 가족 만나러 가기'}${icon('arrow')}</button>
       </form><p class="auth-hint">${icon('heart')}안드로이드에서 쓰던 계정으로도 로그인할 수 있어요.</p></div></section></main>`;
 }
@@ -145,6 +146,28 @@ function renderOnboarding() {
     <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, 가족과 연결해 볼까요?</h1><p class="muted">새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.</p></div>
     <div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
     <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div></main>`;
+}
+
+function renderJoinPreview(message = '') {
+  const { room, draft } = state.lookup;
+  const selected = draft.people.find(person => person.id === draft.selectedId);
+  const valid = draft.canClaim(draft.selectedId, state.user.gender);
+  $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">+로 가족을 연결하고, 가계도에서 내 빈자리를 눌러 주세요.</p>
+    ${message ? errorBlock(message) : ''}${treeMarkup(draft, { editable: true, gender: state.user.gender, userId: state.user.user_id })}
+    <p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
+    <div class="button-row">${button('undo-tree', '마지막 추가 취소', '', 'button secondary', draft.additions.length ? '' : 'disabled')}${button('reload-tree', '처음부터 다시', 'refresh', 'button quiet')}</div>
+    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div>`;
+  mountTree($('#join-panel .family-tree-board'), draft, {
+    editable: true,
+    onPerson(id) { draft.selectedId = id; renderJoinPreview(); },
+    onAdd(action) {
+      try {
+        draft.add(action.anchor_id, action.relation, action.co_parent_id);
+        if (!draft.canClaim(draft.selectedId, state.user.gender)) draft.selectedId = null;
+        renderJoinPreview();
+      } catch (error) { renderJoinPreview(error.message); }
+    },
+  });
 }
 
 function renderShell() {
@@ -172,7 +195,13 @@ async function renderPage() {
     if (route === 'feed') await renderFeed(version);
     if (route === 'search') renderSearch();
     if (route === 'digest') await renderDigest(version);
-    if (route === 'family') renderFamily();
+    if (route === 'family') {
+      page.innerHTML = loading('최신 가계도를 불러오고 있어요');
+      const room = await api('families/current/');
+      if (version !== state.pageVersion) return;
+      state.room = room;
+      renderFamily();
+    }
     if (route === 'settings') renderSettings();
   } catch (error) {
     if (version === state.pageVersion) page.innerHTML = `${errorBlock(error.message)}${button('refresh-page', '다시 불러오기', 'refresh')}`;
@@ -326,7 +355,8 @@ async function loadDigest(date, retry = false, version = state.pageVersion) {
 }
 function renderFamily() {
   const owner = state.room.members.some(member => member.id === state.user.user_id && member.is_owner);
-  $('#page').innerHTML = `${pageHeading('CLOSER, TOGETHER', '우리 가족', '서로 다른 하루를 보내도, 이곳에서는 늘 함께예요.')}<div class="family-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">FAMILY ROOM</p><h2>${e(state.room.name)}</h2></div><span class="tag">${state.room.members.length}명의 가족</span></div><div class="member-grid">${state.room.members.map(member => `<article class="member-card">${avatar(member.name, member.id, 'large')}<h3>${e(member.name)}${member.id === state.user.user_id ? '<span class="me-badge">나</span>' : ''}</h3><p>${member.is_owner ? '가족방을 만든 사람' : e(member.relationship || slots[member.slot] || '가족')}</p></article>`).join('')}</div></section><aside><section class="panel invitation-card"><span class="empty-icon">${icon('heart')}</span><h2>가족을 초대해 보세요</h2><p class="muted">초대코드와 가족방 비밀번호를<br>가족에게 함께 알려주세요.</p><div class="invite-code">${e(state.room.invite_code)}</div>${button('copy-code', '초대코드 복사', 'copy', 'button secondary full')}<p class="help">참여할 때, 가족방을 만든 사람과의 관계를 선택해 주세요.</p></section><section class="panel digest-settings"><h2>${icon('calendar')}하루 요약 시간</h2>${owner ? `<form data-form="digest-time">${field('매일, 한국 시간 기준', 'digest_time', 'time', `value="${e(state.room.digest_time)}" required`)}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">시간 저장하기</button></form>` : `<strong class="time-display">${e(state.room.digest_time)}</strong><p class="help">가족방을 만든 사람이 변경할 수 있어요.</p>`}</section></aside></div>`;
+  $('#page').innerHTML = `${pageHeading('CLOSER, TOGETHER', '우리 가족', '가족의 연결을 가계도에서 살펴보세요.', button('refresh-page', '가계도 새로고침', 'refresh'))}<div class="family-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">FAMILY ROOM</p><h2>${e(state.room.name)}</h2></div><span class="tag">${state.room.members.length}명의 가족</span></div>${treeMarkup(new FamilyTreeDraft(state.room.tree), { userId: state.user.user_id, members: state.room.members })}<p class="help">가입한 가족 ${state.room.members.length}명 · 가계도 속 사람 ${state.room.tree.people.length}명</p></section><aside><section class="panel invitation-card"><span class="empty-icon">${icon('heart')}</span><h2>가족을 초대해 보세요</h2><p class="muted">초대코드와 가족방 비밀번호를<br>가족에게 함께 알려주세요.</p><div class="invite-code">${e(state.room.invite_code)}</div>${button('copy-code', '초대코드 복사', 'copy', 'button secondary full')}<p class="help">참여할 때, 가계도에서 내 자리를 선택해 주세요.</p></section><section class="panel digest-settings"><h2>${icon('calendar')}하루 요약 시간</h2>${owner ? `<form data-form="digest-time">${field('매일, 한국 시간 기준', 'digest_time', 'time', `value="${e(state.room.digest_time)}" required`)}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">시간 저장하기</button></form>` : `<strong class="time-display">${e(state.room.digest_time)}</strong><p class="help">가족방을 만든 사람이 변경할 수 있어요.</p>`}</section></aside></div>`;
+  mountTree($('#page .family-tree-board'), new FamilyTreeDraft(state.room.tree));
 }
 function renderSettings() {
   $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
@@ -401,14 +431,38 @@ const formHandlers = {
     await renderPage();
   },
   async 'lookup-room'(data) {
+    state.lookup = null;
+    $('#join-panel').innerHTML = '';
+    const session = state.session;
     const room = await api('families/lookup/', { method: 'POST', data });
-    state.lookup = { ...data, room };
-    const taken = new Set(room.members.map(member => member.slot));
-    $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">${e(room.owner_name)}님이 만든 가족방이에요.</p><form data-form="join-room"><label class="field"><span>${e(room.owner_name)}님에게 나는 어떤 가족인가요?</span><select name="slot" required><option value="">내 자리 선택</option>${Object.entries(slots).map(([key, label]) => `<option value="${key}" ${taken.has(key) ? 'disabled' : ''}>${label}${taken.has(key) ? ' (이미 참여 중)' : ''}</option>`).join('')}</select></label><p class="form-error" role="alert"></p><button type="submit" class="button primary full">이 가족방에 참여하기${icon('arrow')}</button></form></div>`;
+    if (session !== state.session || !$('#join-panel')) return;
+    const form = $('[data-form="lookup-room"]');
+    if ($('[name="invite_code"]', form).value !== data.invite_code || $('[name="password"]', form).value !== data.password) return;
+    state.lookup = { ...data, room, draft: new FamilyTreeDraft(room.tree) };
+    renderJoinPreview();
   },
   async 'join-room'(data) {
     if (!state.lookup) throw new ApiError('가족방을 먼저 확인해 주세요.');
-    const result = await api('families/join/', { method: 'POST', data: { invite_code: state.lookup.invite_code, password: state.lookup.password, slot: data.slot } });
+    const lookup = state.lookup;
+    const session = state.session;
+    lookup.draft.selectedId = data.person_id;
+    let result;
+    try {
+      result = await api('families/join/', { method: 'POST', data: {
+        invite_code: lookup.invite_code, password: lookup.password, ...lookup.draft.payload(state.user.gender),
+      } });
+    } catch (error) {
+      if (error.status === 409 && state.lookup === lookup) {
+        const room = await api('families/lookup/', { method: 'POST', data: { invite_code: lookup.invite_code, password: lookup.password } });
+        if (state.lookup === lookup) {
+          state.lookup = { ...lookup, room, draft: new FamilyTreeDraft(room.tree) };
+          renderJoinPreview('가계도가 바뀌었어요. 추가한 내용을 초기화했으니 최신 가계도에서 내 자리를 다시 선택해 주세요.');
+        }
+        return;
+      }
+      throw error;
+    }
+    if (session !== state.session) return;
     state.lookup = null;
     state.room = result.room;
     location.hash = '#/feed';
@@ -511,6 +565,7 @@ document.addEventListener('click', async event => {
     target.setAttribute('aria-pressed', String(large));
     return;
   }
+  if (action === 'undo-tree' && state.lookup) { state.lookup.draft.undo(); renderJoinPreview(); return; }
   if (action === 'compose') return openComposer();
   if (action === 'open-post' || action === 'retry-post' || action === 'post-summary') return openPost(Number(target.dataset.id), action === 'post-summary');
   if (action === 'select-photo') return showPhoto(Number(target.dataset.index));
@@ -526,6 +581,14 @@ document.addEventListener('click', async event => {
     return loadDigest(target.dataset.date);
   }
   await busy(target, async () => {
+    if (action === 'reload-tree' && state.lookup) {
+      const lookup = state.lookup;
+      const room = await api('families/lookup/', { method: 'POST', data: { invite_code: lookup.invite_code, password: lookup.password } });
+      if (state.lookup === lookup) {
+        state.lookup = { ...lookup, room, draft: new FamilyTreeDraft(room.tree) };
+        renderJoinPreview();
+      }
+    }
     if (action === 'logout') {
       // Keep the session if revocation fails so the user can retry explicitly.
       await api('accounts/logout/', { method: 'POST' });

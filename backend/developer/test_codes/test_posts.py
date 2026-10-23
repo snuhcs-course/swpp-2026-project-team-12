@@ -15,10 +15,12 @@ from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
 from integrations.ai import flow, provider, post_flow
 from integrations.ai_workers import graphiti_client
+
+from .family_fixtures import add_member, link_parent, sample_family
 
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
@@ -50,9 +52,10 @@ class PostAPITests(TestCase):
         self.other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.relative, slot=Membership.Slot.SON)
-        Membership.objects.create(room=self.other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.relative, -1)
+        link_parent(self.room, self.room.owner, self.relative)
+        add_member(self.other_room, self.outsider)
         self.owner_token = AccessToken.issue(self.owner)
         self.relative_token = AccessToken.issue(self.relative)
         self.outsider_token = AccessToken.issue(self.outsider)
@@ -88,33 +91,10 @@ class PostAPITests(TestCase):
         if not use_mock and not settings.OPENAI_API_KEY:
             self.skipTest("Set OPENAI_API_KEY for live summaries, or MOCK_AI_TESTS=1 for fixed responses")
 
-        # Re-create the seven members from test_families.py in this isolated test database.
-        family = (
-            ("paternal_grandma", "경자", User.Gender.FEMALE, Membership.Slot.GRANDMA_FATHER),
-            ("maternal_grandma", "선희", User.Gender.FEMALE, Membership.Slot.GRANDMA_MOTHER),
-            ("father", "병호", User.Gender.MALE, Membership.Slot.FATHER),
-            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER),
-            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER),
-        )
-        for username, name, gender, slot in family:
-            user = User.objects.create_user(
-                username=username, password="Relative-Passphrase1!", display_name=name, gender=gender
-            )
-            Membership.objects.create(room=self.room, user=user, slot=slot)
-            if slot == Membership.Slot.GRANDMA_FATHER:
-                grandma_token = AccessToken.issue(user)
-        self.assertEqual(
-            {member.slot: member.user.display_name for member in self.room.members.select_related("user")},
-            {
-                Membership.Slot.OWNER: "정아",
-                Membership.Slot.GRANDMA_FATHER: "경자",
-                Membership.Slot.GRANDMA_MOTHER: "선희",
-                Membership.Slot.FATHER: "병호",
-                Membership.Slot.MOTHER: "지현",
-                Membership.Slot.SON: "준호",
-                Membership.Slot.DAUGHTER: "수아",
-            },
-        )
+        family = sample_family(self.room, self.owner, son=self.relative)
+        grandma_token = AccessToken.issue(family["paternal_grandma"])
+        self.assertEqual({user.display_name for user in family.values()},
+                         {"정아", "경자", "선희", "병호", "지현", "준호", "수아"})
 
         mock_responses = (
             "손녀 정아가 포챔스에서 색이 다른 독개굴을 잡았다고 해요. 멋진지 가족에게 물어봤어요.",
@@ -158,20 +138,10 @@ class PostAPITests(TestCase):
             (self.owner, self.owner_token, "나"),
             (self.relative, self.relative_token, "어머니"),
         ]
-        for username, name, gender, slot, expected_relation in (
-            ("paternal_grandma", "경자", User.Gender.FEMALE, Membership.Slot.GRANDMA_FATHER, "손녀"),
-            ("maternal_grandma", "선희", User.Gender.FEMALE, Membership.Slot.GRANDMA_MOTHER, "손녀"),
-            ("father", "병호", User.Gender.MALE, Membership.Slot.FATHER, "딸"),
-            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER, "딸"),
-            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER, "어머니"),
-        ):
-            viewer = User.objects.create_user(
-                username=username,
-                password="Relative-Passphrase1!",
-                display_name=name,
-                gender=gender,
-            )
-            Membership.objects.create(room=self.room, user=viewer, slot=slot)
+        family = sample_family(self.room, self.owner, son=self.relative)
+        for key, expected_relation in (("paternal_grandma", "손녀"), ("maternal_grandma", "손녀"),
+                                       ("father", "딸"), ("mother", "딸"), ("daughter", "어머니")):
+            viewer = family[key]
             viewers.append((viewer, AccessToken.issue(viewer), expected_relation))
 
         uploaded = self.upload(
