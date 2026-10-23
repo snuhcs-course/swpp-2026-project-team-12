@@ -136,6 +136,15 @@ class FamilyWorkflowTests(TestCase):
                                   token=AccessToken.issue(second_son)).status_code, 200)
         self.assertEqual(relationship(self.member, second_son, self.room), "형제자매")
 
+    def test_join_accepts_200_additions_and_rejects_201_without_saving(self):
+        additions = [self.add(f"child_{index}", self.root, "child") for index in range(201)]
+        self.assertEqual(self.join(additions, "new_child_0").status_code, 400)
+        self.assertEqual(self.room.people.count(), 1)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 0)
+        self.assertEqual(self.join(additions[:200], "new_child_0").status_code, 200)
+        self.assertEqual(self.room.people.count(), 201)
+
     def test_auth_validation_and_occupied_owner(self):
         self.assertEqual(self.post("/api/families/join/", self.invitation).status_code, 401)
         self.assertEqual(self.join([], self.root).status_code, 409)

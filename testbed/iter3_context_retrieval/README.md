@@ -1,4 +1,4 @@
-﻿# Graphiti 가족 피드 Testbed
+# Graphiti 가족 피드 Testbed
 
 이 폴더는 7일 동안 이어지는 가족 사건을 먼저 정의하고, 사건에 맞는 인물 중심 생활 사진을 붙여 피드 데이터셋을 만듭니다. 기본 `curated` 모드는 웹에서 사람이 직접 확인한 Pexels 사진 20장을 사용하므로 API 키가 필요하지 않습니다. 각 사건 줄기는 `core`, 여러 가족 구성원이 작성하는 `extension`/`reinforcement`/`update`/`distractor`, 마지막 날의 `probe`로 구성됩니다.
 
@@ -36,25 +36,25 @@
 - `user_agent`: 이미지 API 정책에 맞는 프로젝트 식별자와 연락 가능한 URL 또는 이메일을 적습니다.
 
 ```powershell
-Copy-Item testbed\input\config.example.json testbed\input\config.local.json
-python testbed\dataset_builder.py --config testbed\input\config.local.json
+Copy-Item testbed\iter3_context_retrieval\input\config.example.json testbed\iter3_context_retrieval\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
 Pexels fallback을 사용하려면 키를 JSON 파일에 넣지 말고 환경변수로 설정합니다.
 
 ```powershell
 $env:PEXELS_API_KEY = "발급받은 API 키"
-python testbed\dataset_builder.py --config testbed\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
 Openverse에서 익명 요청을 제한하는 경우에도 토큰을 환경변수로 전달할 수 있습니다.
 
 ```powershell
 $env:OPENVERSE_API_TOKEN = "발급받은 access token"
-python testbed\dataset_builder.py --config testbed\input\config.local.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.local.json
 ```
 
-결과는 `testbed/output/<dataset_name>/` 아래에 생성됩니다.
+결과는 `testbed\iter3_context_retrieval\output/<dataset_name>/` 아래에 생성됩니다.
 
 - `dataset_plan.json`: 사진 다운로드 전에 저장되는 사건 계획
 - `manifest.json`: 사진 경로, 출처, 라이선스와 정답 라벨을 포함한 최종 데이터
@@ -73,26 +73,26 @@ build → seed-memory → construct → seed-probes → evaluate
 전체 과정을 순서대로 실행하려면 OpenAI·Neo4j 환경변수를 설정한 뒤 다음 명령을 사용합니다.
 
 ```powershell
-venv\Scripts\python.exe testbed\pipeline.py `
-  --config testbed\input\config.example.json `
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py `
+  --config testbed\iter3_context_retrieval\input\config.example.json `
   --phase all
 ```
 
 한 단계씩 실행할 수도 있습니다.
 
 ```powershell
-venv\Scripts\python.exe testbed\pipeline.py --config testbed\input\config.example.json --phase build
-venv\Scripts\python.exe testbed\pipeline.py --config testbed\input\config.example.json --phase seed-memory
-venv\Scripts\python.exe testbed\pipeline.py --config testbed\input\config.example.json --phase construct
-venv\Scripts\python.exe testbed\pipeline.py --config testbed\input\config.example.json --phase seed-probes
-venv\Scripts\python.exe testbed\pipeline.py --config testbed\input\config.example.json --phase evaluate
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py --config testbed\iter3_context_retrieval\input\config.example.json --phase build
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py --config testbed\iter3_context_retrieval\input\config.example.json --phase seed-memory
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py --config testbed\iter3_context_retrieval\input\config.example.json --phase construct
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py --config testbed\iter3_context_retrieval\input\config.example.json --phase seed-probes
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py --config testbed\iter3_context_retrieval\input\config.example.json --phase evaluate
 ```
 
 연속된 일부 단계는 `--phase`를 반복해 실행합니다.
 
 ```powershell
-venv\Scripts\python.exe testbed\pipeline.py `
-  --config testbed\input\config.example.json `
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py `
+  --config testbed\iter3_context_retrieval\input\config.example.json `
   --phase seed-probes `
   --phase evaluate
 ```
@@ -102,9 +102,9 @@ Pipeline은 이전 phase가 완료되지 않았으면 다음 phase를 중단합�
 완료 상태와 주요 경로는 다음 파일에 저장됩니다.
 
 ```text
-testbed/output/<dataset_name>/pipeline_state.json
-testbed/output/<dataset_name>/database_state.json
-testbed/output/<dataset_name>/evaluation.json
+testbed\iter3_context_retrieval\output/<dataset_name>/pipeline_state.json
+testbed\iter3_context_retrieval\output/<dataset_name>/database_state.json
+testbed\iter3_context_retrieval\output/<dataset_name>/evaluation.json
 ```
 
 `evaluate`는 각 probe의 `evaluation_question`을 모든 가족 구성원의 관점에서 최신 backend의 `post_qa` 경로로 실행합니다. 입력에는 게시물 원문과 사진, 질문자 이름, 작성자와의 관계, 게시 시각이 포함됩니다. Graphiti가 반환한 source를 `database_state.json`의 post ID와 연결해 다음 지표를 계산합니다.
@@ -121,8 +121,8 @@ testbed/output/<dataset_name>/evaluation.json
 별도 TalkDock checkout을 대상으로 실행할 때는 pipeline에 backend 경로를 전달합니다.
 
 ```powershell
-venv\Scripts\python.exe testbed\pipeline.py `
-  --config testbed\input\config.example.json `
+venv\Scripts\python.exe testbed\iter3_context_retrieval\pipeline.py `
+  --config testbed\iter3_context_retrieval\input\config.example.json `
   --backend C:\path\to\talkdock\backend `
   --phase all
 ```
@@ -272,7 +272,7 @@ Agent는 다음 순서로 작업합니다.
 Agent에게는 다음처럼 요청할 수 있습니다.
 
 ```text
-testbed/README.md의 사진 추가 규칙에 따라 이 config의 curated sources를 완성해줘.
+testbed/iter3_context_retrieval/README.md의 사진 추가 규칙에 따라 이 config의 curated sources를 완성해줘.
 
 - config의 thread_ids와 post_count로 실제 선택되는 event를 먼저 계산
 - event_catalog의 caption과 image_query를 기준으로 사진 검색
@@ -293,7 +293,7 @@ testbed/README.md의 사진 추가 규칙에 따라 이 config의 curated source
 
 ```powershell
 python -m pytest testbed -q
-python testbed\dataset_builder.py --config testbed\input\config.example.json
+python testbed\iter3_context_retrieval\dataset_builder.py --config testbed\iter3_context_retrieval\input\config.example.json
 ```
 
 생성 후 다음 항목을 확인합니다.

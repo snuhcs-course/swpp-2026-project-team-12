@@ -36,6 +36,40 @@ class DatasetBuilderTests(unittest.TestCase):
             self.assertEqual(probe["created_at"][:10], "2026-10-11")
             self.assertTrue(probe["evaluation_question"])
 
+    def test_five_member_family_can_use_catalog_templates_through_m5(self):
+        config = self.config()
+        config["members"].append({
+            "username": "test_son", "name": "준호", "gender": "male", "generation": -1,
+        })
+        config["parents"].append({"parent_id": "test_jimin", "child_id": "test_son"})
+        config["thread_ids"] = ["lunchbox", "birthday", "knitting"]
+        config["post_count"] = 15
+        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+
+        plan = build_plan(config, validate_config(config, catalog))
+
+        self.assertEqual(len(plan["events"]), 15)
+        self.assertTrue(all("{" not in event["caption"] for event in plan["events"]))
+
+    def test_fifty_post_week_keeps_all_ten_probes_on_day_seven(self):
+        config = self.config()
+        config["members"].append({
+            "username": "test_son", "name": "준호", "gender": "male", "generation": -1,
+        })
+        config["parents"].append({"parent_id": "test_jimin", "child_id": "test_son"})
+        config["thread_ids"] = [
+            "basil", "dog", "cafe", "camera", "lunchbox", "bicycle", "birthday", "trip", "knitting", "recital",
+        ]
+        config["post_count"] = 50
+        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+
+        plan = build_plan(config, validate_config(config, catalog))
+
+        probes = [event for event in plan["events"] if event["kind"] == "probe"]
+        self.assertEqual(len(plan["events"]), 50)
+        self.assertEqual(len(probes), 10)
+        self.assertTrue(all(event["created_at"][:10] == "2026-10-11" for event in probes))
+
     def test_relationships_match_application_rules(self):
         config = self.config()
         tree = family_tree(config)

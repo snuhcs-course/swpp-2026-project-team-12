@@ -10,7 +10,7 @@ from ..models import FamilyPerson, FamilyRoom, Membership, ParentChild, Partners
 
 
 CONFLICT = "가계도가 변경되었거나 선택한 자리에 다른 가족이 가입했어요. 최신 가계도에서 다시 진행해 주세요."
-MAX_ADDITIONS = 50
+MAX_ADDITIONS = 200
 
 
 def tree_data(room):

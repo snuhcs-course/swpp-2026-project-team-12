@@ -1,0 +1,90 @@
+{
+  "dataset_name": "family-week-100-five-members",
+  "family_name": "지민이네 5인 가족",
+  "invite_code": "TST1005",
+  "room_password": "Family-Test-2026!",
+  "default_password": "Member-Test-2026!",
+  "start_date": "2026-10-12",
+  "post_count": 100,
+  "thread_ids": [
+    "basil",
+    "dog",
+    "cafe",
+    "camera",
+    "lunchbox",
+    "bicycle",
+    "birthday",
+    "trip",
+    "knitting",
+    "recital",
+    "book",
+    "market",
+    "clinic",
+    "school",
+    "tomato",
+    "movie",
+    "laundry",
+    "aquarium",
+    "exercise",
+    "album"
+  ],
+  "event_catalog": "input/event_catalog.week-100-five-members.json",
+  "evaluation_set": "input/evaluation_sets/family-week-100-v1.json",
+  "evaluation_thresholds": "input/evaluation_sets/family-week-100-v1.thresholds.json",
+  "download_images": true,
+  "image_providers": [
+    "curated"
+  ],
+  "curated_sources": "input/curated_sources.week-100-five-members.json",
+  "image_width": 1200,
+  "request_delay_seconds": 0.3,
+  "user_agent": "TalkDockDatasetBuilder/1.0 (https://github.com/snuhcs-course/swpp-2026-project-team-12; educational test dataset)",
+  "author_policy": {
+    "mode": "thread_owner_weighted",
+    "primary_author_ratio": 0.7,
+    "probe_author": "mixed",
+    "seed": 100
+  },
+  "members": [
+    {
+      "username": "week_jimin",
+      "name": "지민",
+      "gender": "female",
+      "generation": 0
+    },
+    {
+      "username": "week_doyun",
+      "name": "도윤",
+      "gender": "male",
+      "generation": 1
+    },
+    {
+      "username": "week_sujin",
+      "name": "수진",
+      "gender": "female",
+      "generation": 1
+    },
+    {
+      "username": "week_sunhee",
+      "name": "선희",
+      "gender": "female",
+      "generation": 2
+    },
+    {
+      "username": "week_junho",
+      "name": "준호",
+      "gender": "male",
+      "generation": -1
+    }
+  ],
+  "owner_username": "week_jimin",
+  "parents": [
+    {"parent_id": "week_doyun", "child_id": "week_jimin"},
+    {"parent_id": "week_sujin", "child_id": "week_jimin"},
+    {"parent_id": "week_sunhee", "child_id": "week_sujin"},
+    {"parent_id": "week_jimin", "child_id": "week_junho"}
+  ],
+  "partnerships": [
+    {"first_id": "week_doyun", "second_id": "week_sujin"}
+  ]
+}

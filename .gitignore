@@ -6,6 +6,8 @@
 # Python
 __pycache__/
 .venv/
+venv/
+.pytest_cache/
 
 # Local database and uploaded files
 *.sqlite3
@@ -13,8 +15,8 @@ __pycache__/
 backend/media/*
 backend/developer/test_media/
 backend/developer/family_tree.html
-testbed/output/
-testbed/input/*.local.json
+testbed/iter3_context_retrieval/output/
+testbed/**/input/*.local.json
 *.log
 
 # Context documents for each developer
@@ -23,6 +25,7 @@ documents/*
 # Android / local build outputs
 .idea/
 client/.gradle/
+client/.gradle-user-home/
 client/.kotlin/
 client/**/build/
 client/local.properties
@@ -38,3 +41,10 @@ client/app/build/outputs/apk/*
 client/app/build/outputs/apk/debug/*
 !client/app/build/outputs/apk/debug/app-debug.apk
 !client/app/build/outputs/apk/debug/app.apk
+
+# Generated coverage reports
+.coverage
+htmlcov/
+coverage.xml
+.coverage.*
+testbed/iter2_backend/coverage_html/

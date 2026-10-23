@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -14,7 +14,7 @@ from dataset_builder import generate, read_json
 
 
 ROOT = Path(__file__).resolve().parent
-DEFAULT_BACKEND = ROOT.parent / "backend"
+DEFAULT_BACKEND = ROOT.parents[1] / "backend"
 PHASES = ("build", "seed-memory", "construct", "seed-probes", "evaluate")
 DEPENDENCIES = {
     "seed-memory": "build",
@@ -57,7 +57,7 @@ def load_pipeline_state(context):
         return {"schema_version": 1, "dataset_name": context.dataset_name, "completed": {}}
     state = read_json(context.state)
     if state.get("dataset_name") != context.dataset_name:
-        raise ValueError("pipeline state의 dataset_name이 config와 다릅니다.")
+        raise ValueError("pipeline state??dataset_name??config? ?ㅻ쫭?덈떎.")
     state.setdefault("completed", {})
     return state
 
@@ -85,14 +85,14 @@ def require_dependency(context, phase, force=False):
     completed = load_pipeline_state(context)["completed"]
     if dependency not in completed:
         raise RuntimeError(
-            f"{phase} 전에 {dependency} phase가 필요합니다. "
-            "앞 단계부터 실행하거나 --force를 사용하세요."
+            f"{phase} ?꾩뿉 {dependency} phase媛 ?꾩슂?⑸땲?? "
+            "???④퀎遺???ㅽ뻾?섍굅??--force瑜??ъ슜?섏꽭??"
         )
 
 
 def ensure_seedable_manifest(context):
     if not context.manifest.is_file():
-        raise FileNotFoundError(f"manifest가 없습니다: {context.manifest}")
+        raise FileNotFoundError(f"manifest媛 ?놁뒿?덈떎: {context.manifest}")
     manifest = read_json(context.manifest)
     missing = [
         event["feed_key"]
@@ -101,14 +101,97 @@ def ensure_seedable_manifest(context):
     ]
     if missing:
         raise RuntimeError(
-            f"DB seed에 필요한 이미지가 {len(missing)}개 없습니다. "
-            "--skip-images 없이 build phase를 실행하세요."
+            f"DB seed???꾩슂???대?吏媛 {len(missing)}媛??놁뒿?덈떎. "
+            "--skip-images ?놁씠 build phase瑜??ㅽ뻾?섏꽭??"
         )
     return manifest
 
 
+def expected_evaluation_cases(manifest):
+    members = manifest["family"]["members"]
+    relationships = manifest["family"]["relationship_matrix"]
+    expected = []
+    for event in manifest["events"]:
+        if event["kind"] != "probe":
+            continue
+        for viewer in members:
+            expected.append({
+                "case_id": f"{event['feed_key']}__{viewer['username']}",
+                "probe_feed_key": event["feed_key"],
+                "thread_id": event["thread_id"],
+                "viewer_username": viewer["username"],
+                "expected_relationship": relationships[viewer["username"]][event["author_username"]],
+                "question": event["evaluation_question"],
+                "required_memories": event["required_memories"],
+                "optional_memories": event.get("optional_memories", []),
+                "must_filter": event["must_filter"],
+            })
+    return expected
+
+
+def load_frozen_evaluation_set(context, manifest):
+    config = read_json(context.config)
+    configured_path = config.get("evaluation_set")
+    if not configured_path:
+        return None
+    evaluation_path = Path(configured_path)
+    if not evaluation_path.is_absolute():
+        evaluation_path = ROOT / evaluation_path
+    suite = read_json(evaluation_path)
+    if suite.get("status") != "frozen":
+        raise ValueError(f"evaluation_set must be frozen: {evaluation_path}")
+    expected = expected_evaluation_cases(manifest)
+    actual = suite.get("cases")
+    if actual != expected:
+        raise ValueError(
+            "Frozen evaluation set does not match the generated probe/viewer cases. "
+            "Create a new versioned evaluation set; do not edit the frozen set."
+        )
+    return {
+        "suite_id": suite.get("suite_id"),
+        "case_count": suite.get("case_count"),
+        "path": str(evaluation_path),
+        "plan_sha256": suite.get("plan_sha256"),
+    }
+
+
+def evaluate_thresholds(metrics, threshold_spec):
+    results = {}
+    for metric, rule in threshold_spec["metrics"].items():
+        actual = metrics.get(metric)
+        operator = rule["operator"]
+        target = rule["target"]
+        if actual is None:
+            passed = False
+        elif operator == ">=":
+            passed = actual >= target
+        elif operator == "<=":
+            passed = actual <= target
+        else:
+            raise ValueError(f"Unsupported threshold operator: {operator}")
+        results[metric] = {
+            "actual": actual,
+            "operator": operator,
+            "target": target,
+            "passed": passed,
+            "rationale": rule.get("rationale", ""),
+        }
+    return results
+
+
+def load_threshold_spec(context):
+    config = read_json(context.config)
+    configured_path = config.get("evaluation_thresholds")
+    if not configured_path:
+        return None, None
+    threshold_path = Path(configured_path)
+    if not threshold_path.is_absolute():
+        threshold_path = ROOT / threshold_path
+    return read_json(threshold_path), threshold_path
+
+
 def step_done(message):
-    print(f"  [step] {message} 끝났습니다.", flush=True)
+    print(f"  [step] {message} ?앸궗?듬땲??", flush=True)
 
 
 def events_for_seed_phase(manifest, phase):
@@ -151,45 +234,46 @@ def seed_events(context, events, default_password=None, adapter_class=TalkDockDj
 
 def phase_build(context, *, skip_images=False, **_):
     output, plan = generate(context.config, context.output, skip_images=skip_images)
-    step_done("manifest와 이미지 생성")
+    step_done("manifest? ?대?吏 ?앹꽦")
     mark_completed(
         context,
         "build",
         {"event_count": len(plan["events"]), "images": not skip_images},
         reset=True,
     )
-    step_done("build 상태 기록")
+    step_done("build ?곹깭 湲곕줉")
     return {"output": str(output), "event_count": len(plan["events"])}
 
 
 def phase_seed_memory(context, *, force=False, default_password=None, **_):
     require_dependency(context, "seed-memory", force)
     manifest = ensure_seedable_manifest(context)
-    step_done("memory seed 입력 검증")
+    step_done("memory seed input verified")
     result = seed_events(
         context,
         events_for_seed_phase(manifest, "memory"),
         default_password=default_password,
     )
-    step_done(f"과거 게시물 {len(result['post_ids'])}개 DB 저장")
+    step_done(f"seeded {len(result['post_ids'])} memory posts")
     mark_completed(context, "seed-memory", {"post_count": len(result["post_ids"]), "family_id": result["family_id"]})
-    step_done("seed-memory 상태 기록")
+    step_done("seed-memory ?곹깭 湲곕줉")
     return result
 
 
 def phase_construct(context, *, force=False, **_):
     require_dependency(context, "construct", force)
     if not context.database.is_file():
-        raise FileNotFoundError(f"테스트 DB가 없습니다: {context.database}")
+        raise FileNotFoundError(f"?뚯뒪??DB媛 ?놁뒿?덈떎: {context.database}")
     database_state = context.output / "database_state.json"
     if not database_state.is_file():
-        raise FileNotFoundError(f"database state가 없습니다: {database_state}")
+        raise FileNotFoundError(f"database state媛 ?놁뒿?덈떎: {database_state}")
     family_id = read_json(database_state)["family_id"]
     manage = context.backend / "manage.py"
     if not manage.is_file():
-        raise FileNotFoundError(f"TalkDock manage.py가 없습니다: {manage}")
+        raise FileNotFoundError(f"TalkDock manage.py媛 ?놁뒿?덈떎: {manage}")
     environment = os.environ.copy()
     environment["DJANGO_DB_PATH"] = str(context.database)
+    environment["DJANGO_MEDIA_ROOT"] = str(context.output / "media")
     subprocess.run(
         [sys.executable, str(manage), "run_construction_worker", "--family-id", str(family_id), "--once"],
         cwd=context.backend,
@@ -198,22 +282,22 @@ def phase_construct(context, *, force=False, **_):
     )
     step_done("Graphiti memory construction")
     mark_completed(context, "construct", {"family_id": family_id})
-    step_done("construct 상태 기록")
+    step_done("construct ?곹깭 湲곕줉")
     return {"family_id": family_id}
 
 
 def phase_seed_probes(context, *, force=False, default_password=None, **_):
     require_dependency(context, "seed-probes", force)
     manifest = ensure_seedable_manifest(context)
-    step_done("probe seed 입력 검증")
+    step_done("probe seed input verified")
     result = seed_events(
         context,
         events_for_seed_phase(manifest, "probes"),
         default_password=default_password,
     )
-    step_done(f"probe 게시물 {len(result['post_ids'])}개 DB 저장")
+    step_done(f"seeded {len(result['post_ids'])} probe posts")
     mark_completed(context, "seed-probes", {"post_count": len(result["post_ids"]), "family_id": result["family_id"]})
-    step_done("seed-probes 상태 기록")
+    step_done("seed-probes ?곹깭 湲곕줉")
     return result
 
 
@@ -253,6 +337,8 @@ def evaluate_cases(manifest, database_state, cases):
             "required_recall": len(required & retrieved_labels) / len(required) if required else 1.0,
             "retrieval_source_precision": len(relevant_sources) / len(retrieved) if retrieved else 0.0,
             "relationship_mentioned": case["expected_relationship"] in case["answer"],
+            "schema_valid": bool(case["answer"].strip()) and isinstance(case.get("queries", []), list)
+            and isinstance(case.get("memories", []), list),
         })
 
     count = len(evaluated)
@@ -272,6 +358,10 @@ def evaluate_cases(manifest, database_state, cases):
         "search_rate": sum(bool(row["query"]) for row in evaluated) / count if count else 0.0,
         "mean_answer_diversity": sum(probe_diversity.values()) / len(probe_diversity) if probe_diversity else 0.0,
         "answer_diversity_by_probe": probe_diversity,
+        "schema_validity_rate": sum(row["schema_valid"] for row in evaluated) / count if count else 0.0,
+        "case_retrieval_pass_rate": sum(
+            row["required_recall"] == 1.0 and not row["forbidden_retrieved"] for row in evaluated
+        ) / count if count else 0.0,
     }
     return evaluated, metrics
 
@@ -279,11 +369,12 @@ def evaluate_cases(manifest, database_state, cases):
 def phase_evaluate(context, *, force=False, **_):
     require_dependency(context, "evaluate", force)
     manifest = ensure_seedable_manifest(context)
+    frozen_evaluation_set = load_frozen_evaluation_set(context, manifest)
     database_state_path = context.output / "database_state.json"
     if not database_state_path.is_file():
-        raise FileNotFoundError(f"database state가 없습니다: {database_state_path}")
+        raise FileNotFoundError(f"database state媛 ?놁뒿?덈떎: {database_state_path}")
     database_state = read_json(database_state_path)
-    step_done("평가 입력 검증")
+    step_done("evaluation input verified")
 
     adapter = TalkDockDjangoAdapter(
         backend_path=context.backend,
@@ -294,7 +385,7 @@ def phase_evaluate(context, *, force=False, **_):
 
     def report_case(probe_index, probe_count, viewer_index, viewer_count, feed_key, viewer_name):
         step_done(
-            f"평가 {probe_index}/{probe_count}, 가족 {viewer_index}/{viewer_count} "
+            f"?됯? {probe_index}/{probe_count}, 媛議?{viewer_index}/{viewer_count} "
             f"({feed_key}, {viewer_name})"
         )
 
@@ -303,14 +394,22 @@ def phase_evaluate(context, *, force=False, **_):
         cases = adapter.evaluate(manifest, database_state, on_case_done=report_case)
     finally:
         adapter.close()
-    step_done(f"QA retrieval과 answer {len(cases)}건 수집")
+    step_done(f"collected {len(cases)} QA results")
 
     evaluated, metrics = evaluate_cases(manifest, database_state, cases)
+    threshold_spec, threshold_path = load_threshold_spec(context)
+    threshold_results = evaluate_thresholds(metrics, threshold_spec) if threshold_spec else None
     report = {
         "schema_version": 2,
         "dataset_name": context.dataset_name,
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
+        "frozen_evaluation_set": frozen_evaluation_set,
         "metrics": metrics,
+        "thresholds": {
+            "path": str(threshold_path),
+            "version": threshold_spec.get("version"),
+            "results": threshold_results,
+        } if threshold_spec else None,
         "cases": evaluated,
     }
     report_path = context.output / "evaluation.json"
@@ -318,9 +417,9 @@ def phase_evaluate(context, *, force=False, **_):
         json.dumps(report, ensure_ascii=False, indent=2, default=str) + "\n",
         encoding="utf-8",
     )
-    step_done(f"평가 지표 계산과 {report_path.name} 저장")
+    step_done(f"wrote evaluation report: {report_path.name}")
     mark_completed(context, "evaluate", {"case_count": len(cases), "report": str(report_path)})
-    step_done("evaluate 상태 기록")
+    step_done("evaluate ?곹깭 湲곕줉")
     return {"report": str(report_path), "metrics": metrics}
 
 
@@ -336,25 +435,25 @@ PHASE_HANDLERS = {
 def normalize_phases(requested):
     if "all" in requested:
         if len(requested) != 1:
-            raise ValueError("all은 다른 phase와 함께 지정할 수 없습니다.")
+            raise ValueError("all? ?ㅻⅨ phase? ?④퍡 吏?뺥븷 ???놁뒿?덈떎.")
         return list(PHASES)
     indexes = [PHASES.index(phase) for phase in requested]
     if indexes != sorted(indexes):
-        raise ValueError("phase는 build → seed-memory → construct → seed-probes → evaluate 순서로 지정하세요.")
+        raise ValueError("phase??build ??seed-memory ??construct ??seed-probes ??evaluate ?쒖꽌濡?吏?뺥븯?몄슂.")
     return list(dict.fromkeys(requested))
 
 
 def run_pipeline(context, phases, **options):
     results = {}
     for phase in normalize_phases(phases):
-        print(f"[{phase}] 시작합니다.", flush=True)
+        print(f"[{phase}] ?쒖옉?⑸땲??", flush=True)
         results[phase] = PHASE_HANDLERS[phase](context, **options)
-        print(f"[{phase}] 끝났습니다.", flush=True)
+        print(f"[{phase}] ?앸궗?듬땲??", flush=True)
     return results
 
 
 def main():
-    parser = argparse.ArgumentParser(description="가족 memory testbed phase pipeline")
+    parser = argparse.ArgumentParser(description="媛議?memory testbed phase pipeline")
     parser.add_argument("--config", default=str(ROOT / "input" / "config.example.json"))
     parser.add_argument("--output")
     parser.add_argument("--database")
@@ -363,7 +462,7 @@ def main():
     parser.add_argument("--phase", action="append", required=True, choices=(*PHASES, "all"))
     parser.add_argument("--skip-images", action="store_true")
     parser.add_argument("--default-password")
-    parser.add_argument("--force", action="store_true", help="이전 phase 완료 확인을 건너뜁니다.")
+    parser.add_argument("--force", action="store_true", help="?댁쟾 phase ?꾨즺 ?뺤씤??嫄대꼫?곷땲??")
     args = parser.parse_args()
 
     context = PipelineContext.create(

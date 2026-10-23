@@ -14,7 +14,7 @@ class TreeSeedTests(unittest.TestCase):
         config["download_images"] = False
         manifest = build_plan(config, validate_config(config, read_json(ROOT / "input/event_catalog.example.json")))
         with tempfile.TemporaryDirectory() as folder:
-            adapter = TalkDockDjangoAdapter(ROOT.parent / "backend", Path(folder) / "test.sqlite3", Path(folder) / "media")
+            adapter = TalkDockDjangoAdapter(ROOT.parents[1] / "backend", Path(folder) / "test.sqlite3", Path(folder) / "media")
             adapter.setup()
             try:
                 first = adapter.seed(manifest, Path(folder) / "manifest.json", [])

@@ -12,6 +12,7 @@ A mobile app for Korean families to share photos and updates with older adults, 
 
 ```text
 client/                 Kotlin Android app (accounts, family, posts, voice, digest)
+web/                    Desktop web UI, integrated launcher, and setup guide
 backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
