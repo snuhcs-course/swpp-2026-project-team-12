@@ -36,7 +36,8 @@ def question(request, pk):
 def feed(request):
     room = current_room(request)
     if request.method == "GET":
-        posts = room.posts.select_related("author").prefetch_related("photos").annotate(comment_count=Count("comments"))[:100]
+        posts = (room.posts.select_related("author").prefetch_related("photos")
+                 .annotate(comment_count=Count("comments")).order_by("-created_at", "-id")[:100])
         return {"posts": [serialize(post, request) for post in posts]}
 
     caption = request.POST.get("caption", "").strip()

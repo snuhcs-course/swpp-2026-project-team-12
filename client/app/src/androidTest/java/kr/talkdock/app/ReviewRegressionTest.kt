@@ -70,14 +70,14 @@ private class MockApi(private val respond: (Request) -> Reply) : AutoCloseable {
     override fun close() { socket.close(); worker.join(1000) }
 }
 
-private class UiHarness(private val api: MockApi, room: JSONObject?) : AutoCloseable {
+private class UiHarness(private val api: MockApi, room: JSONObject?, large: Boolean = false) : AutoCloseable {
     val test = InstrumentationRegistry.getInstrumentation()
     private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
     private val savedPreferences = prefs.all.toMap()
     val activity: MainActivity
     init {
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
-            .put("name","테스트 사용자").put("large",false)
+            .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
         prefs.edit().clear().putString("current",user.toString()).putString("server",api.base).commit()
         activity=test.startActivitySync(Intent(test.targetContext,MainActivity::class.java)
@@ -291,7 +291,7 @@ class ReviewPhotoMemoryTest {
             java.io.File(ui.test.targetContext.cacheDir,"review-photo-memory.json").writeText(metrics.toString(2))
             println("REVIEW_PHOTO_MEMORY="+metrics)
             ui.screenshot("review-photo-memory.png")
-            assertFalse("The final offscreen post must not be downloaded before scrolling",photoPaths.any { it.startsWith("/api/photo/30/") })
+            assertFalse("The final offscreen post must not be downloaded before scrolling",photoPaths.any { it.startsWith("/api/photo/1/") })
             assertEquals("A page and thumbnail must share their download",photoPaths.toSet().size,photoPaths.size)
             ui.test.runOnMainSync {
                 for(view in ui.all().filterIsInstance<ImageView>().filter { it.scaleType==ImageView.ScaleType.CENTER_CROP }) {
@@ -300,7 +300,7 @@ class ReviewPhotoMemoryTest {
                 }
                 ui.all().filterIsInstance<android.widget.ScrollView>().first().fullScroll(View.FOCUS_DOWN)
             }
-            ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/30/") } }
+            ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/1/") } }
             Thread.sleep(1200)
             var retainedOffscreen=0
             ui.test.runOnMainSync {
@@ -454,6 +454,582 @@ class PhotoLoaderRegressionTest {
                 gate.countDown()
                 ui.test.runOnMainSync { loader.close() }
             }
+        } }
+    }
+}
+
+/** These tests use local JSON and generated audio; no paid AI/TTS calls. */
+@RunWith(AndroidJUnit4::class)
+class InlinePostAudioTest {
+    private fun post(id: Int) = JSONObject().put("id", id).put("author_name", "가족 $id")
+        .put("relationship", "자녀").put("caption", "오늘의 소식 $id").put("created_at", "2026-10-19T10:00:00+09:00")
+        .put("comment_count", 0).put("images", JSONArray()).put("comments", JSONArray())
+    private fun ready(text: String = "사진과 글을 설명한 AI 요약") = jsonReply(JSONObject().put("status", "ready").put("text", text))
+    private fun audio(milliseconds: Int = 8000): Reply {
+        val samples = milliseconds * 16
+        val bytes = java.nio.ByteBuffer.allocate(44 + samples * 2).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        bytes.put("RIFF".toByteArray()).putInt(36 + samples * 2).put("WAVEfmt ".toByteArray())
+            .putInt(16).putShort(1).putShort(1).putInt(16000).putInt(32000).putShort(2).putShort(16)
+            .put("data".toByteArray()).putInt(samples * 2)
+        repeat(samples) { bytes.putShort(0) }
+        return Reply(bytes.array(), type = "audio/wav")
+    }
+    private fun server(custom: (Request) -> Reply? = { null }): MockApi = MockApi { request ->
+        custom(request) ?: when {
+            request.path == "/api/families/current/" -> jsonReply(room(1, "재생 검증 가족"))
+            request.path == "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post(1)).put(post(2))))
+            request.path.endsWith("/message/") -> ready()
+            request.path == "/api/speech/" -> audio()
+            request.path.startsWith("/api/digests/?") -> jsonReply(JSONObject().put("status", "ready")
+                .put("text", "하루 요약").put("posts", JSONArray().put(post(1))))
+            request.path.matches(Regex("/api/posts/[12]/")) -> jsonReply(post(request.path.split('/')[3].toInt()))
+            else -> jsonReply(JSONObject())
+        }
+    }
+    private fun panels(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.InlinePostAudio>()
+    private fun tap(ui: UiHarness, index: Int = 0) = ui.test.runOnMainSync { panels(ui)[index].toggle.performClick() }
+    private fun playing(ui: UiHarness): Boolean {
+        val speaker = MainActivity::class.java.getDeclaredField("speaker").apply { isAccessible = true }.get(ui.activity)
+        val player = speaker.javaClass.getDeclaredField("player").apply { isAccessible = true }.get(speaker) as? android.media.MediaPlayer
+        return player?.isPlaying == true
+    }
+    private fun open(ui: UiHarness) = ui.await { ui.has("오늘의 소식 2") }
+
+    private fun readSummary(ui: UiHarness, index: Int = 0) = ui.test.runOnMainSync {
+        val card = panels(ui)[index].parent as View
+        val label = ui.all(card).filterIsInstance<TextView>().single { it.text.toString() == "AI 요약" }
+        var action: View = label
+        while (!action.isClickable && action.parent is View) action = action.parent as View
+        assertTrue(action.performClick())
+    }
+
+    @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+            open(ui)
+            ui.test.runOnMainSync { assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기")) }
+            readSummary(ui)
+            ui.await { ui.has("사진과 글을 설명한 AI 요약") }
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            assertFalse(api.paths().contains("/api/speech/"))
+            readSummary(ui)
+            assertEquals(1, api.paths().count { it.endsWith("/message/") })
+            tap(ui); ui.await { playing(ui) }
+            assertEquals(1, api.paths().count { it.endsWith("/message/") })
+            assertEquals("사진과 글을 설명한 AI 요약", JSONObject(api.requests.single { it.path == "/api/speech/" }.body).getString("text"))
+            tap(ui)
+            ui.click(if (large) "글로 댓글 쓰기" else "댓글 0")
+            ui.await { ui.has("따뜻한 한마디 남기기") }
+            readSummary(ui); ui.await { ui.has("사진과 글을 설명한 AI 요약") }
+            assertEquals(1, api.paths().count { it == "/api/speech/" })
+            ui.screenshot("post-readable-summary.png")
+        } }
+    }
+
+    @Test fun listeningDuringTextSummaryLoadReusesPendingRequest() {
+        server { request -> if (request.path.endsWith("/message/")) { Thread.sleep(500); ready() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); readSummary(ui)
+                ui.await { api.paths().any { it.endsWith("/message/") } }
+                readSummary(ui); tap(ui)
+                ui.await { playing(ui) }
+                assertEquals(1, api.paths().count { it.endsWith("/message/") })
+                assertEquals(1, api.paths().count { it == "/api/speech/" })
+            } }
+    }
+
+    @Test fun textSummaryFailureRetriesWithoutStartingSpeech() {
+        var requests = 0
+        server { request -> if (request.path.endsWith("/message/")) {
+            if (++requests == 1) jsonReply(JSONObject().put("error", "요약 테스트 오류"), 503) else ready()
+        } else null }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+            open(ui); readSummary(ui); ui.await { ui.has("요약 테스트 오류") }
+            ui.click("설명 다시 준비하기"); ui.await { ui.has("사진과 글을 설명한 AI 요약") }
+            assertEquals(listOf("GET", "POST"), api.requests.filter { it.path.endsWith("/message/") }.map { it.method })
+            assertFalse(api.paths().contains("/api/speech/"))
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+        } }
+    }
+
+    @Test fun readingAnotherPostDoesNotStopCurrentAudio() {
+        server().use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+            open(ui); tap(ui); ui.await { playing(ui) }
+            readSummary(ui, 1)
+            ui.await { panels(ui)[1].visibility == View.VISIBLE && ui.all(panels(ui)[1]).filterIsInstance<TextView>().any { it.text.toString() == "사진과 글을 설명한 AI 요약" } }
+            ui.test.runOnMainSync { assertTrue(playing(ui)); assertTrue(panels(ui)[0].toggle.isSelected); assertFalse(panels(ui)[1].toggle.isSelected) }
+            assertEquals(1, api.paths().count { it == "/api/speech/" })
+        } }
+    }
+
+    @Test fun leavingPendingTextSummaryDoesNotRenderOnAnotherPage() {
+        server { request -> if (request.path.endsWith("/message/")) { Thread.sleep(500); ready() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); readSummary(ui); ui.await { api.paths().any { it.endsWith("/message/") } }
+                ui.click("댓글 0"); ui.await { ui.has("따뜻한 한마디 남기기") }
+                Thread.sleep(700)
+                ui.test.runOnMainSync { assertFalse(ui.has("사진과 글을 설명한 AI 요약")); assertFalse(playing(ui)) }
+                assertFalse(api.paths().contains("/api/speech/"))
+            } }
+    }
+
+    @Test fun feedAutoPlaysWithoutNavigationAndSecondTapStops() {
+        server().use { api -> UiHarness(api, room(1, "재생" )).use { ui ->
+            open(ui)
+            assertFalse(api.paths().any { it.endsWith("/message/") })
+            tap(ui)
+            ui.await { ui.has("사진과 글을 설명한 AI 요약") && playing(ui) }
+            ui.test.runOnMainSync {
+                assertTrue(ui.has("재생 검증 가족")); assertFalse(ui.has("가족 소식 듣기"))
+                assertTrue(panels(ui)[0].toggle.isSelected)
+                assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
+                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+            }
+            ui.test.runOnMainSync {
+                val panel = panels(ui)[0]
+                panel.requestRectangleOnScreen(android.graphics.Rect(0, 0, panel.width, panel.height), true)
+            }
+            ui.screenshot("inline-post-audio.png")
+            tap(ui)
+            ui.await { !playing(ui) && !panels(ui)[0].toggle.isSelected }
+            assertEquals(1, api.paths().count { it == "/api/speech/" })
+            tap(ui)
+            ui.await { playing(ui) }
+            assertEquals(1, api.paths().count { it.endsWith("/message/") })
+        } }
+    }
+    @Test fun stopDuringSummaryIgnoresLateResult() {
+        server { request -> if (request.path.endsWith("/message/")) { Thread.sleep(500); ready() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui)
+                ui.await { api.paths().any { it.endsWith("/message/") } }
+                tap(ui)
+                Thread.sleep(800)
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                assertFalse(api.paths().contains("/api/speech/"))
+            } }
+    }
+    @Test fun stopDuringSpeechRequestDoesNotStartLateAudio() {
+        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
+                tap(ui); Thread.sleep(800)
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                assertTrue(java.io.File(ui.activity.cacheDir, ".").listFiles().orEmpty().none { it.name.startsWith("post-listen-") })
+            } }
+    }
+    @Test fun decoderFailureIsInlineAndCanRetry() {
+        var attempts = 0
+        server { request -> if (request.path == "/api/speech/" && ++attempts == 1)
+            Reply("invalid audio".toByteArray(), type = "audio/mpeg") else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui); ui.await { ui.has("음성 다시 준비하기") }
+                ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.click("음성 다시 준비하기"); ui.await { playing(ui) }
+            } }
+    }
+    @Test fun switchingPostsDuringSpeechRequestDoesNotPlayOldPost() {
+        server { request -> when {
+            request.path == "/api/posts/1/message/" -> ready("첫 글 요약")
+            request.path == "/api/posts/2/message/" -> ready("둘째 글 요약")
+            request.path == "/api/speech/" && request.body.contains("첫 글 요약") -> { Thread.sleep(500); audio() }
+            else -> null
+        } }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+            open(ui); tap(ui)
+            ui.await { api.paths().contains("/api/speech/") }
+            tap(ui, 1)
+            ui.await { playing(ui) && panels(ui)[1].toggle.isSelected }
+            ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+            assertEquals(2, api.paths().count { it == "/api/speech/" })
+            val files = java.io.File(ui.activity.cacheDir, ".").listFiles().orEmpty().filter { it.name.startsWith("post-listen-") }
+            assertEquals("Stale response audio must be deleted", 1, files.size)
+        } }
+    }
+    @Test fun processingCanBeCheckedAgainAndFailureCanRegenerate() {
+        var gets = 0
+        server { request -> if (request.path.endsWith("/message/")) {
+            if (request.method == "POST") ready()
+            else if (++gets == 1) jsonReply(JSONObject().put("status", "processing"))
+            else jsonReply(JSONObject().put("status", "failed"))
+        } else null }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+            open(ui); tap(ui); ui.await { ui.has("다시 확인하기") }
+            assertFalse(api.paths().contains("/api/speech/"))
+            ui.click("다시 확인하기"); ui.await { ui.has("설명 다시 준비하기") }
+            ui.click("설명 다시 준비하기"); ui.await { playing(ui) }
+            assertEquals(listOf("GET", "GET", "POST"), api.requests.filter { it.path.endsWith("/message/") }.map { it.method })
+        } }
+    }
+    @Test fun summaryFailureOffersOriginalCaptionAndSpeechFailureCanRetry() {
+        var speeches = 0
+        server { request -> when {
+            request.path.endsWith("/message/") -> jsonReply(JSONObject().put("error", "요약 서버 오류"), 503)
+            request.path == "/api/speech/" && ++speeches == 1 -> jsonReply(JSONObject().put("error", "음성 서버 오류"), 503)
+            else -> null
+        } }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+            open(ui); tap(ui); ui.await { ui.has("요약 서버 오류") }
+            ui.click("가족이 쓴 글 듣기"); ui.await { ui.has("음성 서버 오류") && ui.has("음성 다시 준비하기") }
+            ui.click("음성 다시 준비하기"); ui.await { playing(ui) }
+            assertTrue(api.requests.filter { it.path == "/api/speech/" }.all { JSONObject(it.body).getString("text") == "오늘의 소식 2" })
+        } }
+    }
+    @Test fun unauthorizedSummaryShowsLoginRecovery() {
+        server { request -> if (request.path.endsWith("/message/")) jsonReply(JSONObject().put("error", "만료"), 401) else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui); ui.await { ui.has("다시 로그인") }
+                assertFalse(api.paths().contains("/api/speech/"))
+                ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+            } }
+    }
+    @Test fun completionRestoresSpeakerButton() {
+        server { request -> if (request.path == "/api/speech/") audio(400) else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui)
+                ui.await { api.paths().contains("/api/speech/") && !panels(ui)[0].toggle.isSelected }
+                ui.test.runOnMainSync {
+                    assertFalse(ui.has("재생을 마쳤어요."))
+                    assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
+                    assertTrue(ui.has("사진과 글을 설명한 AI 요약"))
+                }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            } }
+    }
+    @Test fun commentNavigationCancelsPendingSpeechAndVoiceCancelReturnsToPost() {
+        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
+                ui.click("댓글 0"); ui.await { ui.has("따뜻한 한마디 남기기") }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(ui.has("가족 소식 듣기")) }
+                ui.click("목소리로 댓글 남기기"); ui.await { ui.has("음성 댓글") }
+                ui.click("취소하기"); ui.await { ui.has("따뜻한 한마디 남기기") }
+                tap(ui); ui.await { playing(ui) && ui.has("따뜻한 한마디 남기기") }
+            } }
+    }
+    @Test fun backgroundingCancelsLateSpeech() {
+        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
+                ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                Thread.sleep(900)
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            } }
+    }
+    private fun review(ui: UiHarness) {
+        val draft = JSONObject().put("id", 55).put("recognized", "잘 먹었어").put("converted", "오늘 저녁을 맛있게 먹었어요.")
+        ui.test.runOnMainSync {
+            MainActivity::class.java.getDeclaredMethod("review", JSONObject::class.java, JSONObject::class.java)
+                .apply { isAccessible = true }.invoke(ui.activity, post(1), draft)
+        }
+        ui.await { ui.has("답장 확인") }
+    }
+    @Test fun replyReviewUsesHeadingIconForPlaybackAndKeepsSendAndRerecord() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+            open(ui); review(ui)
+            ui.test.runOnMainSync {
+                assertTrue(ui.has("가족에게 전할 댓글")); assertTrue(ui.has("가족에게 보내기")); assertTrue(ui.has("다시 말하기"))
+                assertFalse(ui.has("취소하기")); assertFalse(ui.has("댓글 소리로 확인하기")); assertFalse(ui.has("듣기 중지"))
+                val icon = ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single()
+                val heading = icon.parent as ViewGroup
+                assertTrue(ui.all(heading).filterIsInstance<TextView>().any { it.text.toString() == "가족에게 전할 댓글" })
+                icon.performClick()
+            }
+            ui.await { playing(ui) }
+            ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick(); assertFalse(playing(ui)) }
+            ui.screenshot("reply-review-icons.png")
+            assertEquals("오늘 저녁을 맛있게 먹었어요.", JSONObject(api.requests.last { it.path == "/api/speech/" }.body).getString("text"))
+            ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+        } }
+    }
+    @Test fun replyPreviewIgnoresLateSpeechAfterStopOrNavigation() {
+        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
+            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                open(ui); review(ui)
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().contains("/api/speech/") }
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().count { it == "/api/speech/" } == 2 }
+                ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                review(ui)
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                ui.await { api.paths().count { it == "/api/speech/" } == 3 }
+                ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                Thread.sleep(750)
+                ui.test.runOnMainSync { assertFalse(playing(ui)) }
+            } }
+    }
+    @Test fun largeTextModeAndDigestOpenPostWithoutListeningScreen() {
+        server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
+            open(ui); tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
+            tap(ui)
+            ui.click("우리 가족의 하루 요약"); ui.await { ui.has("소식 보기") }
+            ui.click("소식 보기"); ui.await { ui.has("따뜻한 한마디 남기기") }
+            ui.test.runOnMainSync { assertFalse(ui.has("가족 소식 듣기")) }
+            tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
+        } }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class CommentComposerTest {
+    private fun post(comments: JSONArray = JSONArray()) = JSONObject().put("id", 1).put("author_name", "가족")
+        .put("relationship", "자녀").put("caption", "댓글 테스트 소식").put("created_at", "2026-10-19T10:00:00+09:00")
+        .put("comment_count", comments.length()).put("images", JSONArray()).put("comments", comments)
+    private fun server(reply: (Request) -> Reply? = { null }): MockApi = MockApi { request ->
+        reply(request) ?: when (request.path) {
+            "/api/families/current/" -> jsonReply(room(1, "댓글 검증 가족"))
+            "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post())))
+            "/api/posts/1/" -> jsonReply(post())
+            else -> jsonReply(JSONObject())
+        }
+    }
+    private fun composer(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>()
+        .single { it.input.contentDescription == "댓글 입력" }
+    private fun open(ui: UiHarness, large: Boolean = false) {
+        ui.await { ui.has("댓글 테스트 소식") }
+        ui.click(if (large) "글로 댓글 쓰기" else "댓글 0")
+        ui.await { ui.has("따뜻한 한마디 남기기") }
+    }
+
+    @Test fun sendIsInsideBottomRightAndBlankInputIsDisabledInBothSizes() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "댓글"), large).use { ui ->
+            open(ui, large)
+            ui.test.runOnMainSync {
+                val c = composer(ui)
+                assertFalse(ui.has("글로 댓글 보내기"))
+                assertTrue(ui.has("목소리로 댓글 남기기"))
+                assertEquals("댓글 보내기", c.sendButton.contentDescription)
+                assertFalse(c.sendButton.isEnabled)
+                c.input.setText("  \n  "); assertFalse(c.sendButton.isEnabled)
+                c.input.setText("첫 줄\n둘째 줄"); assertTrue(c.sendButton.isEnabled)
+                assertTrue(c.input.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0)
+                val field = c.sendButton.parent as View
+                assertTrue("Button stays inside the input container", c.sendButton.right < field.width && c.sendButton.bottom < field.height)
+                assertTrue("Button is on the right half", c.sendButton.left > field.width / 2)
+                assertTrue("Editor reserves space above the button", c.input.bottom <= c.sendButton.top)
+                assertTrue("Accessible touch target", c.sendButton.width >= (48 * c.resources.displayMetrics.density).toInt())
+            }
+        } }
+    }
+
+    @Test fun sendRemainsVisibleAboveKeyboard() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "댓글"), large).use { ui ->
+            open(ui, large)
+            ui.test.runOnMainSync {
+                val c = composer(ui)
+                c.input.requestFocus()
+                (ui.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                    .showSoftInput(c.input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            }
+            ui.await {
+                val insets = androidx.core.view.ViewCompat.getRootWindowInsets(composer(ui))
+                insets?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == true
+            }
+            Thread.sleep(350)
+            ui.screenshot("comment-keyboard.png")
+            ui.test.runOnMainSync {
+                val button = composer(ui).sendButton
+                val visible = android.graphics.Rect()
+                assertTrue("Send must remain visible with the keyboard open", button.getGlobalVisibleRect(visible))
+                assertEquals("The full send touch target must be reachable", button.height, visible.height())
+            }
+            ui.screenshot("comment-keyboard.png")
+        } }
+    }
+    @Test fun failedSendKeepsExactDraftAndRetryPublishesItOnce() {
+        val draft = "  오늘도 고마워요!\n내일 또 만나요 😊  "
+        var attempts = 0
+        val comments = JSONArray()
+        server { request -> when {
+            request.path == "/api/posts/1/comments/" -> {
+                Thread.sleep(400)
+                if (++attempts == 1) jsonReply(JSONObject().put("error", "테스트 전송 실패"), 503)
+                else {
+                    comments.put(JSONObject().put("id", 1).put("author_name", "나").put("relationship", "나")
+                        .put("text", JSONObject(request.body).getString("text")))
+                    jsonReply(JSONObject().put("id", 1), 201)
+                }
+            }
+            request.path == "/api/posts/1/" -> jsonReply(post(comments))
+            else -> null
+        } }.use { api -> UiHarness(api, room(1, "댓글")).use { ui ->
+            open(ui)
+            ui.test.runOnMainSync { composer(ui).input.setText(draft); composer(ui).sendButton.performClick() }
+            ui.await { api.paths().contains("/api/posts/1/comments/") }
+            ui.test.runOnMainSync {
+                val c = composer(ui)
+                assertFalse(c.sendButton.isEnabled); assertFalse(c.input.isEnabled)
+                assertTrue(ui.all().filterIsInstance<android.widget.ProgressBar>().any { it.visibility == View.VISIBLE })
+                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+                c.sendButton.performClick() // Even a forced second click cannot enqueue another POST.
+            }
+            ui.await { ui.has("테스트 전송 실패") }
+            ui.test.runOnMainSync {
+                val c = composer(ui)
+                assertEquals(draft, c.input.text.toString())
+                assertTrue(c.input.isEnabled); assertTrue(c.sendButton.isEnabled)
+                c.requestRectangleOnScreen(android.graphics.Rect(0, 0, c.width, c.height), true)
+            }
+            ui.screenshot("comment-send-failure.png")
+            assertEquals(1, api.paths().count { it == "/api/posts/1/comments/" })
+            ui.test.runOnMainSync { composer(ui).sendButton.performClick() }
+            ui.await { ui.has("댓글을 달았어요!") }
+            ui.test.runOnMainSync { assertEquals("", composer(ui).input.text.toString()) }
+            ui.await { ui.has(draft) && ui.has("댓글 1") }
+            ui.test.runOnMainSync { assertEquals("", composer(ui).input.text.toString()); assertFalse(composer(ui).sendButton.isEnabled) }
+            val sends = api.requests.filter { it.path == "/api/posts/1/comments/" }
+            assertEquals(2, sends.size)
+            assertTrue(sends.all { JSONObject(it.body).getString("text") == draft })
+        } }
+    }
+
+    @Test fun validationAndExpiredLoginFailuresAlsoKeepDraftEditable() {
+        for (code in listOf(400, 401)) server { request ->
+            if (request.path == "/api/posts/1/comments/") jsonReply(JSONObject().put("error", "서버에서 거절했어요"), code) else null
+        }.use { api -> UiHarness(api, room(1, "댓글")).use { ui ->
+            open(ui)
+            ui.test.runOnMainSync { composer(ui).input.setText("보존할 댓글"); composer(ui).sendButton.performClick() }
+            ui.await { ui.has(if (code == 401) "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요." else "서버에서 거절했어요") }
+            ui.test.runOnMainSync {
+                assertEquals("보존할 댓글", composer(ui).input.text.toString())
+                assertTrue(composer(ui).input.isEnabled); assertTrue(composer(ui).sendButton.isEnabled)
+                composer(ui).input.append(" 수정"); assertEquals("보존할 댓글 수정", composer(ui).input.text.toString())
+            }
+        } }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class PostQuestionUiTest {
+    private fun post(id: Int, created: String = "2026-10-19T${if (id == 1) "10" else "11"}:00:00+09:00") = JSONObject()
+        .put("id", id).put("author_name", "가족 $id").put("relationship", "자녀").put("caption", "질문 테스트 소식 $id")
+        .put("created_at", created).put("comment_count", 0).put("images", JSONArray()).put("comments", JSONArray())
+    private fun server(custom: (Request) -> Reply? = { null }): MockApi = MockApi { request ->
+        custom(request) ?: when (request.path) {
+            "/api/families/current/" -> jsonReply(room(1, "질문 검증 가족"))
+            "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post(1)).put(post(2))))
+            "/api/posts/1/" -> jsonReply(post(1))
+            "/api/posts/2/" -> jsonReply(post(2))
+            "/api/posts/1/questions/", "/api/posts/2/questions/" -> jsonReply(JSONObject().put("text", "가족 기록으로 확인한 답변이에요."))
+            else -> jsonReply(JSONObject())
+        }
+    }
+    private fun panel(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().single()
+    private fun open(ui: UiHarness, id: Int = 2) {
+        ui.await { ui.has("질문 테스트 소식 $id") }
+        ui.test.runOnMainSync {
+            val caption = ui.all().filterIsInstance<TextView>().first { it.text.toString() == "질문 테스트 소식 $id" }
+            ui.all(caption.parent as View).filterIsInstance<Button>().single { it.text.toString() == "궁금한 점을 물어보세요" }.performClick()
+        }
+        ui.await { ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().singleOrNull()?.composer?.isShown == true }
+    }
+    private fun ask(ui: UiHarness, text: String) = ui.test.runOnMainSync {
+        panel(ui).composer.input.setText(text); panel(ui).composer.sendButton.performClick()
+    }
+
+    @Test fun feedIsNewestFirstWithTimezonesAndTimestampTiesInBothSizes() {
+        for (large in listOf(false, true)) server { request -> if (request.path == "/api/posts/") {
+            val items = JSONArray().put(post(100, "2026-10-19T10:00:00+09:00"))
+                .put(post(1, "2026-10-19T02:00:00Z")).put(post(999, "unknown"))
+                .put(post(3, "2026-10-19T10:30:00+09:00")).put(post(2, "2026-10-19T11:00:00+09:00"))
+            jsonReply(JSONObject().put("posts", items))
+        } else null }.use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
+            ui.await { ui.has("질문 테스트 소식 100") }
+            ui.test.runOnMainSync {
+                val captions = ui.all().filterIsInstance<TextView>().map { it.text.toString() }.filter { it.startsWith("질문 테스트 소식 ") }
+                assertEquals(listOf(2, 1, 3, 100, 999).map { "질문 테스트 소식 $it" }, captions)
+            }
+        } }
+    }
+
+    @Test fun feedEntryAsksTheCorrectPostAndShowsAnswerWithoutPostingAComment() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
+            open(ui)
+            ui.test.runOnMainSync { assertFalse(panel(ui).composer.sendButton.isEnabled) }
+            ask(ui, "모모는 누구예요?")
+            ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
+            ui.test.runOnMainSync {
+                assertEquals("", panel(ui).composer.input.text.toString())
+                assertTrue(ui.has("닫기")); assertFalse(ui.has("추가 질문 닫기"))
+                assertTrue(ui.has("모모는 누구예요?")); assertTrue(ui.has("AI 답변"))
+                assertTrue(ui.has("목소리로 댓글 남기기"))
+                assertEquals(1000, panel(ui).composer.input.filters.filterIsInstance<android.text.InputFilter.LengthFilter>().single().max)
+                panel(ui).requestRectangleOnScreen(android.graphics.Rect(0, 0, panel(ui).width, panel(ui).height), true)
+            }
+            ui.screenshot("post-question-answer.png")
+            ui.click("닫기")
+            ui.test.runOnMainSync { assertFalse(panel(ui).composer.isShown); assertTrue(ui.has("궁금한 점을 물어보세요")) }
+            val request = api.requests.single { it.path.endsWith("/questions/") }
+            assertEquals("/api/posts/2/questions/", request.path); assertEquals("POST", request.method)
+            val body = JSONObject(request.body)
+            assertEquals("모모는 누구예요?", body.getString("question")); assertEquals(0, body.getJSONArray("prior_dialogue").length())
+            assertFalse(api.paths().any { it.endsWith("/comments/") })
+        } }
+    }
+
+    @Test fun followupsSendOnlyTheLatestTenBoundedMessages() {
+        val longAnswer = "긴 답변" + "가".repeat(1100)
+        server { request -> if (request.path.endsWith("/questions/")) {
+            val q = JSONObject(request.body).getString("question")
+            jsonReply(JSONObject().put("text", if (q == "질문0") longAnswer else "답변:$q"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui)
+            for (index in 0..6) {
+                ask(ui, "질문$index")
+                ui.await { ui.has(if (index == 0) longAnswer else "답변:질문$index") && panel(ui).composer.input.isEnabled }
+            }
+            val requests = api.requests.filter { it.path.endsWith("/questions/") }.map { JSONObject(it.body) }
+            assertEquals(7, requests.size)
+            assertEquals(1000, requests[1].getJSONArray("prior_dialogue").getJSONObject(1).getString("text").length)
+            val prior = requests.last().getJSONArray("prior_dialogue")
+            assertEquals(10, prior.length())
+            for (index in 0 until 5) {
+                assertEquals("user", prior.getJSONObject(index * 2).getString("role"))
+                assertEquals("질문${index + 1}", prior.getJSONObject(index * 2).getString("text"))
+                assertEquals("assistant", prior.getJSONObject(index * 2 + 1).getString("role"))
+            }
+        } }
+    }
+
+    @Test fun failedQuestionKeepsDraftAndCanRetryWithoutDuplicatesOrFailedHistory() {
+        var count = 0
+        server { request -> if (request.path.endsWith("/questions/")) {
+            Thread.sleep(400)
+            if (++count == 1) jsonReply(JSONObject().put("error", "질문 테스트 오류"), 503)
+            else jsonReply(JSONObject().put("text", "다시 확인한 답변"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui); ask(ui, "그 카페는 어디예요?")
+            ui.await { api.paths().any { it.endsWith("/questions/") } }
+            ui.test.runOnMainSync {
+                assertFalse(panel(ui).composer.sendButton.isEnabled)
+                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+                val comment = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>().single { it !== panel(ui).composer }
+                assertTrue("AI requests must not disable comment input", comment.input.isEnabled)
+                panel(ui).composer.sendButton.performClick()
+            }
+            ui.await { ui.has("질문 테스트 오류") }
+            ui.test.runOnMainSync { assertEquals("그 카페는 어디예요?", panel(ui).composer.input.text.toString()) }
+            ask(ui, "그 카페는 어디예요?"); ui.await { ui.has("다시 확인한 답변") }
+            val requests = api.requests.filter { it.path.endsWith("/questions/") }
+            assertEquals(2, requests.size)
+            assertTrue(requests.all { JSONObject(it.body).getJSONArray("prior_dialogue").length() == 0 })
+        } }
+    }
+
+    @Test fun leavingPendingQuestionDoesNotShowLateAnswerOrLeakConversationToAnotherPost() {
+        server { request -> if (request.path == "/api/posts/2/questions/") {
+            Thread.sleep(600); jsonReply(JSONObject().put("text", "이전 글에만 해당하는 답변"))
+        } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
+            open(ui); ask(ui, "누구예요?")
+            ui.await { api.paths().contains("/api/posts/2/questions/") }
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.await { ui.has("질문 검증 가족") && ui.has("질문 테스트 소식 1") }
+            open(ui, 1)
+            ui.test.runOnMainSync { assertFalse(ui.has("이전 글에만 해당하는 답변")) }
+            ask(ui, "여기는 어디예요?"); ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
+            val request = api.requests.last { it.path == "/api/posts/1/questions/" }
+            assertEquals(0, JSONObject(request.body).getJSONArray("prior_dialogue").length())
         } }
     }
 }

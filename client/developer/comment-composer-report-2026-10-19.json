@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-19",
+  "device": "Android 16 API 36 emulator",
+  "comment_tests": 4,
+  "comment_tests_result": "passed",
+  "related_regression_tests": 23,
+  "related_regression_result": "passed before keyboard-only layout fix",
+  "build": "passed",
+  "lintDebug": "passed",
+  "verified": [
+    "Bottom-right send arrow inside multiline input, normal and large text",
+    "Blank input disabled and pending send locked with local progress",
+    "503 failure preserves exact whitespace, newline and emoji; retry publishes once",
+    "400/401 failures preserve editable draft",
+    "Successful send clears input and refreshes comments",
+    "Send target stays fully visible above software keyboard in both text sizes"
+  ],
+  "live_services_used": false
+}

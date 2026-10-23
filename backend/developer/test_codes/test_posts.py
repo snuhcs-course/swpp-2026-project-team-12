@@ -68,6 +68,21 @@ class PostAPITests(TestCase):
             **self.auth(self.owner_token),
         )
 
+    def test_feed_returns_latest_100_in_stable_newest_first_order(self):
+        posts = Post.objects.bulk_create([
+            Post(room=self.room, author=self.owner, caption=f"소식 {index}") for index in range(102)
+        ])
+        # Equal timestamps still have a stable newest-first ID order.
+        Post.objects.filter(pk__in=[posts[-1].pk, posts[-2].pk]).update(
+            created_at=timezone.now() + timedelta(days=1)
+        )
+        Post.objects.create(room=self.other_room, author=self.outsider, caption="다른 가족 소식")
+        response = self.client.get("/api/posts/", **self.auth(self.relative_token))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.json()["posts"]],
+                         [post.pk for post in reversed(posts)][:100])
+        self.assertTrue(all(item["comment_count"] == 0 for item in response.json()["posts"]))
+
     def test_grandma_post_summaries(self):
         use_mock = os.getenv("MOCK_AI_TESTS") == "1"
         if not use_mock and not settings.OPENAI_API_KEY:
@@ -117,6 +132,7 @@ class PostAPITests(TestCase):
                 self.assertEqual(Post.objects.get(pk=post_id).caption, caption)
                 path = f"/api/posts/{post_id}/message/"
                 result = self.client.get(path, **self.auth(grandma_token))
+                print(result.json()["text"], flush=True)
                 self.assertEqual(result.status_code, 200)
                 self.assertEqual(result.json()["status"], "ready", result.json())
                 self.assertTrue(result.json()["text"].strip())
@@ -131,6 +147,56 @@ class PostAPITests(TestCase):
         feed = self.client.get("/api/posts/", **self.auth(grandma_token))
         self.assertEqual([post["relationship"] for post in feed.json()["posts"]], ["손녀", "손녀"])
         print(f"Grandma {'mock' if use_mock else 'live'} AI summaries test pass", flush=True)
+
+    def test_live_family_member_post_summaries(self):
+        if os.getenv("RUN_LIVE_SUMMARY_MATRIX") != "1":
+            self.skipTest("Set RUN_LIVE_SUMMARY_MATRIX=1 to compare live summaries for every viewer")
+        if not settings.OPENAI_API_KEY:
+            self.skipTest("Set OPENAI_API_KEY to run live summaries")
+
+        viewers = [
+            (self.owner, self.owner_token, "나"),
+            (self.relative, self.relative_token, "어머니"),
+        ]
+        for username, name, gender, slot, expected_relation in (
+            ("paternal_grandma", "경자", User.Gender.FEMALE, Membership.Slot.GRANDMA_FATHER, "손녀"),
+            ("maternal_grandma", "선희", User.Gender.FEMALE, Membership.Slot.GRANDMA_MOTHER, "손녀"),
+            ("father", "병호", User.Gender.MALE, Membership.Slot.FATHER, "딸"),
+            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER, "딸"),
+            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER, "어머니"),
+        ):
+            viewer = User.objects.create_user(
+                username=username,
+                password="Relative-Passphrase1!",
+                display_name=name,
+                gender=gender,
+            )
+            Membership.objects.create(room=self.room, user=viewer, slot=slot)
+            viewers.append((viewer, AccessToken.issue(viewer), expected_relation))
+
+        uploaded = self.upload(
+            "포챔스에서 독개굴 이로치 잡았다~ 간지 ㅁㅌㅊ?",
+            sample_image("sample_img_1.png"),
+        )
+        self.assertEqual(uploaded.status_code, 200)
+        post_id = uploaded.json()["id"]
+        path = f"/api/posts/{post_id}/message/"
+
+        for viewer, token, expected_relation in viewers:
+            with self.subTest(viewer=viewer.display_name, relation=expected_relation):
+                feed = self.client.get("/api/posts/", **self.auth(token))
+                self.assertEqual(feed.json()["posts"][0]["relationship"], expected_relation)
+                result = self.client.get(path, **self.auth(token))
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(result.json()["status"], "ready", result.json())
+                summary = result.json()["text"].strip()
+                self.assertTrue(summary)
+                print(
+                    f"[{viewer.display_name} 관점 / 작성자 관계: {expected_relation}] {summary}",
+                    flush=True,
+                )
+
+        self.assertEqual(AdaptedMessage.objects.filter(post_id=post_id).count(), len(viewers))
 
     def test_upload_converts_sample_and_returns_feed_and_detail(self):
         response = self.upload("오늘 산책했어요", sample_image("sample_img_1.png"))

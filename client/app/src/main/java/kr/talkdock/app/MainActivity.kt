@@ -29,6 +29,10 @@ import kr.talkdock.app.data.*
 import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
+import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.PostQuestionPanel
+import kr.talkdock.app.ui.ReplyAudioButton
+import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
 import kr.talkdock.app.ui.PhotoPickerActivity
 import kr.talkdock.app.ui.PhotoCarousel
@@ -59,8 +63,9 @@ class MainActivity : ComponentActivity() {
     private val network = Executors.newSingleThreadExecutor()
     // Slow AI explanations must not queue ordinary comment requests behind them.
     private val summaries = Executors.newFixedThreadPool(2)
-    private var summaryRequest: java.util.concurrent.Future<*>? = null
-    private var summaryGeneration = 0
+    private val questions = Executors.newFixedThreadPool(2)
+    private var activePostAudio: InlinePostAudio? = null
+    private var replyPreview: ReplyAudioButton? = null
     private lateinit var imageLoader: ViewportPhotoLoader
     private var session: JSONObject? = null
     private var room = JSONObject()
@@ -144,7 +149,7 @@ class MainActivity : ComponentActivity() {
             when {
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
             restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
-            restoredScreen == "senior" && selectedPost != null -> senior(selectedPost!!)
+            restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!)
             session != null && session?.optJSONObject("room") != null -> home()
             session != null -> roomChoice()
             else -> welcome()
@@ -181,10 +186,10 @@ class MainActivity : ComponentActivity() {
             voiceButton?.text = "말하기 시작"
             voiceStatus?.text = "녹음이 중단됐어요. 다시 말하기 시작을 눌러 주세요."
         }
-        super.onPause(); speaker.stop(); recorder?.cancel()
+        super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
-        summaryRequest?.cancel(true); summaries.shutdownNow()
+        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
@@ -192,7 +197,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
-        summaryGeneration++; summaryRequest?.cancel(true); summaryRequest = null
+        stopPostAudio(); replyPreview?.stop(); replyPreview = null
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -251,11 +256,11 @@ class MainActivity : ComponentActivity() {
         ui.label(content, text, if (large) 30f else 26f, true); ui.gap(content, 12)
         if (sub != null) { ui.label(content, sub, if (large) 21f else 17f, color = ui.muted); ui.gap(content, 24) }
     }
-    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, complete: (T) -> Unit) {
+    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Unit)? = null, complete: (T) -> Unit) {
         if (busy) { refresh?.isRefreshing = false; return }
         busy = true
         val number = pageNumber
-        val cover = if (refresh == null) TodakWaitingView(this, message) else null
+        val cover = if (refresh == null && showLoading) TodakWaitingView(this, message) else null
         if (cover != null) root.addView(cover, FrameLayout.LayoutParams(-1, -1))
         refresh?.isRefreshing = true
         network.execute {
@@ -266,6 +271,7 @@ class MainActivity : ComponentActivity() {
                 refresh?.isRefreshing = false
                 if (isDestroyed || number != pageNumber) return@runOnUiThread
                 result.fold({ complete(it) }, { error ->
+                    if (failure != null) { failure(error); return@runOnUiThread }
                     if (error is ApiException && error.status == 401 && screen !in listOf("login", "register")) {
                         val username = session?.optString("username").orEmpty()
                         val userId = session?.optInt("user_id")
@@ -588,7 +594,11 @@ class MainActivity : ComponentActivity() {
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
             content.removeAllViews()
-            val posts = objects(data.getJSONArray("posts"))
+            val posts = objects(data.getJSONArray("posts")).sortedWith(
+                compareByDescending<JSONObject> {
+                    runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
+                }.thenByDescending { it.optLong("id") }
+            )
             if (posts.isEmpty()) {
                 ui.art(content, width = 280); ui.gap(content, 20)
                 heading("첫 소식을 기다리고 있어요", "멋진 사진이 없어도 괜찮아요.\n짧은 한마디로 하루를 전해 보세요.")
@@ -621,16 +631,19 @@ class MainActivity : ComponentActivity() {
                 author(card, post)
                 ui.label(card, post.optString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 18f)
                 ui.gap(card, 12); postPhotos(card, post)
+                val audio = postAudio(post)
                 if (large) {
-                    ui.button(card, "소식 듣기", false, 76) { senior(post) }
+                    card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
                     ui.button(card, "글로 댓글 쓰기", false, 76) { detail(post, focusComment = true) }
-                    ui.button(card, "목소리로 댓글 남기기", height = 76) { voice(post, fromDetail = true) }
+                    ui.button(card, "AI 요약", false, 76) { audio.showSummary() }
                 } else {
                     val actions = ui.row(); card.addView(actions)
                     postAction(actions, "comment", "댓글 " + post.getInt("comment_count")) { detail(post) }
-                    postAction(actions, "mic", "말로 답장") { voice(post, fromDetail = true) }
-                    postAction(actions, "listen", "듣기") { senior(post) }
+                    postAction(actions, "digest", "AI 요약") { audio.showSummary() }
+                    actions.addView(audio.toggle, LinearLayout.LayoutParams(0, -2, 1f))
                 }
+                card.addView(audio, LinearLayout.LayoutParams(-1, -2))
+                ui.button(card, "궁금한 점을 물어보세요", false, if (large) 76 else 48) { detail(post, focusQuestion = true) }
                 ui.gap(content, 20)
             }
         }
@@ -715,7 +728,7 @@ class MainActivity : ComponentActivity() {
         ui.label(labels, post.getString("relationship") + " · " + time, 14f, color = ui.muted)
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); parent.addView(row); ui.gap(parent, 14)
     }
-    private fun detail(post: JSONObject, focusComment: Boolean = false) {
+    private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false) {
         selectedPost = post
         navigation("가족의 소식", { home() }, name = "detail")
         val client = api
@@ -725,7 +738,13 @@ class MainActivity : ComponentActivity() {
             author(card, data)
             ui.label(card, data.getString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 18f)
             ui.gap(card, 12); postPhotos(card, data)
-            ui.button(card, "소식 듣기", false, if (large) 76 else 56) { senior(data) }
+            val audio = postAudio(data)
+            ui.button(card, "AI 요약", false, if (large) 76 else 56) { audio.showSummary() }
+            card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
+            card.addView(audio, LinearLayout.LayoutParams(-1, -2))
+            val qa = PostQuestionPanel(this, ui, data.getInt("id"), large, client, questions)
+            card.addView(qa, LinearLayout.LayoutParams(-1, -2))
+            if (focusQuestion) qa.post { if (qa.isAttachedToWindow) qa.open(focus = true) }
             val comments = objects(data.getJSONArray("comments"))
             ui.gap(content, 24); ui.label(content, "댓글 ${comments.size}", if (large) 24f else 20f, true); ui.gap(content, 20)
             if (comments.isEmpty()) { ui.label(content, "첫 댓글을 남겨 주세요.", 17f, color = ui.muted); ui.gap(content, 16) }
@@ -736,14 +755,27 @@ class MainActivity : ComponentActivity() {
                 ui.gap(content, 12)
             }
             ui.gap(content, 12)
-            val text = ui.input(content, "따뜻한 한마디 남기기", "가족에게 하고 싶은 말", multiline = true)
-            ui.button(content, "글로 댓글 보내기", height = if (large) 76 else 56) {
-                if (text.text.isBlank()) { toast("댓글을 입력해 주세요."); return@button }
-                val body = json("text" to text.text.toString())
-                async({ client.request("posts/" + data.getInt("id") + "/comments/", "POST", body) }, "가족에게 댓글을 전하고 있어요.") {
-                    postingSuccess("댓글을 달았어요!") { detail(data) }
+            lateinit var composer: CommentComposer
+            composer = CommentComposer(this, ui, large) { comment ->
+                if (!busy) {
+                    composer.setSending(true)
+                    val body = json("text" to comment)
+                    async({ client.request("posts/" + data.getInt("id") + "/comments/", "POST", body) },
+                        showLoading = false,
+                        failure = { error ->
+                            val message = if (error is ApiException && error.status == 401)
+                                "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요."
+                            else (error as? ApiException)?.message ?: "댓글을 보내지 못했어요. 작성한 내용은 유지돼요. 다시 시도해 주세요."
+                            composer.showError(message)
+                        }) {
+                        composer.input.setText("")
+                        composer.setSending(false)
+                        postingSuccess("댓글을 달았어요!") { detail(data) }
+                    }
                 }
             }
+            content.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            val text = composer.input
             ui.button(content, "목소리로 댓글 남기기", false, if (large) 76 else 56) { voice(data, fromDetail = true) }
             ui.gap(content, 12); ui.label(content, "댓글은 이 가족방에만 보여요.", 14f, color = ui.muted)
             if (focusComment) {
@@ -907,71 +939,23 @@ class MainActivity : ComponentActivity() {
             .setPositiveButton("그만하기") { _, _ -> clearPhotoDraft(); home() }
             .setNegativeButton("계속 쓰기", null).show()
     }
-    private fun senior(post: JSONObject, retry: Boolean = false) {
-        selectedPost = post
-        navigation("가족 소식 듣기", { if (large) home() else detail(post) }, name = "senior")
-        author(content, post); postPhotos(content, post); ui.gap(content, 24)
-        ui.button(content, "글로 댓글 쓰기", height = 76) { detail(post, focusComment = true) }
-        ui.button(content, "말로 댓글 쓰기", height = 76) { voice(post) }
-        ui.button(content, "가족 댓글 보기", false, 68) { detail(post) }
-        ui.gap(content, 24)
-        val summary = ui.note(content, "가족 소식을 준비하고 있어요.", true)
-        val controls = ui.column(); content.addView(controls)
-        loadSummaryInline(post, retry, summary, controls)
+    private fun stopPostAudio() {
+        activePostAudio?.stop()
+        activePostAudio = null
     }
-    private fun loadSummaryInline(post: JSONObject, retry: Boolean, summary: TextView, controls: LinearLayout) {
-        summaryRequest?.cancel(true)
-        val request = ++summaryGeneration
-        val number = pageNumber
-        val client = api
-        controls.removeAllViews()
-        summary.text = "가족 소식을 준비하고 있어요. 댓글은 바로 남길 수 있어요."
-        summary.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        fun originalCaption() {
-            if (post.optString("caption").isNotBlank()) listen(controls, post.getString("caption"), "가족이 쓴 글 듣기", 76)
+    private fun postAudio(post: JSONObject): InlinePostAudio = InlinePostAudio(
+        this, ui, post, large, api, speaker, summaries,
+        activate = { audio ->
+            if (activePostAudio !== audio) stopPostAudio()
+            activePostAudio = audio
+        },
+        login = {
+            val username = session?.optString("username").orEmpty()
+            val userId = session?.optInt("user_id"); val big = large
+            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
+            login(username, userId, big)
         }
-        summaryRequest = summaries.submit {
-            val result = runCatching {
-                client.request("posts/" + post.getInt("id") + "/message/", if (retry) "POST" else "GET", if (retry) JSONObject() else null)
-            }
-            runOnUiThread {
-                if (isDestroyed || number != pageNumber || request != summaryGeneration) return@runOnUiThread
-                summaryRequest = null
-                controls.removeAllViews()
-                result.fold({ data ->
-                    val ready = data.optString("status") == "ready"
-                    val processing = data.optString("status") == "processing"
-                    summary.text = when {
-                        ready -> data.optString("text")
-                        processing -> "가족 소식을 준비하고 있어요. 댓글은 바로 남길 수 있어요."
-                        else -> "설명을 준비하지 못했어요. 댓글은 바로 남길 수 있어요."
-                    }
-                    ui.gap(controls, 16)
-                    if (ready) listen(controls, data.getString("text"), "소리로 듣기", 76)
-                    else {
-                        ui.button(controls, if (processing) "다시 확인하기" else "설명 다시 준비하기", false, 76) {
-                            loadSummaryInline(post, !processing, summary, controls)
-                        }
-                        originalCaption()
-                    }
-                }, { error ->
-                    if (error is ApiException && error.status == 401) {
-                        summary.text = "로그인이 만료되었어요. 다시 로그인해 주세요."
-                        ui.button(controls, "다시 로그인", false, 76) {
-                            val username = session?.optString("username").orEmpty()
-                            val userId = session?.optInt("user_id"); val big = large
-                            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
-                            login(username, userId, big)
-                        }
-                    } else {
-                        summary.text = (error as? ApiException)?.message ?: "설명을 불러오지 못했어요. 댓글은 바로 남길 수 있어요."
-                        ui.button(controls, "설명 다시 준비하기", false, 76) { loadSummaryInline(post, true, summary, controls) }
-                        originalCaption()
-                    }
-                })
-            }
-        }
-    }
+    )
     private fun voice(post: JSONObject, fromDetail: Boolean = false) {
         selectedPost = post; recognized = ""; voiceFromDetail = fromDetail
         navigation("음성 댓글", { leaveVoice(post) }, name = "voice")
@@ -1006,7 +990,7 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "취소하기", false, 68) { leaveVoice(post) }
     }
     private fun leaveVoice(post: JSONObject) {
-        if (voiceFromDetail) detail(post) else senior(post)
+        if (voiceFromDetail) detail(post) else home()
     }
     private fun finishRecording() {
         recording = runCatching { recorder?.finish() }.getOrNull()
@@ -1046,9 +1030,12 @@ class MainActivity : ComponentActivity() {
         if (post.optString("caption").isNotBlank()) ui.note(content, post.getString("caption"), large)
         ui.label(content, "내가 한 말", 18f, color = ui.muted); ui.gap(content, 8)
         ui.note(content, draft.getString("recognized"), true); ui.gap(content, 24)
-        ui.label(content, "가족에게 전할 댓글", 18f, color = ui.muted); ui.gap(content, 8)
+        val replyHeading = ui.row(); content.addView(replyHeading)
+        replyHeading.addView(ui.text("가족에게 전할 댓글", if (large) 22f else 18f, color = ui.muted),
+            LinearLayout.LayoutParams(0, -2, 1f))
+        replyHeading.addView(ReplyAudioButton(this, ui, draft.getString("converted"), api, speaker, summaries, large).also { replyPreview = it })
+        ui.gap(content, 8)
         ui.note(content, draft.getString("converted"), true); ui.gap(content, 24)
-        listen(content, draft.getString("converted"), "댓글 소리로 확인하기", 68)
         ui.button(content, "가족에게 보내기", height = 76) {
             val client = api
             async({ client.request("replies/" + draft.getInt("id") + "/send/", "POST", JSONObject()) }, "가족에게 댓글을 전하고 있어요.") {
@@ -1056,7 +1043,6 @@ class MainActivity : ComponentActivity() {
             }
         }
         ui.button(content, "다시 말하기", false, 76) { voice(post, voiceFromDetail) }
-        ui.button(content, "취소하기", false, 68) { leaveVoice(post) }
     }
     private fun digest(date: String = digestDate, retry: Boolean = false) {
         digestDate = date
@@ -1084,7 +1070,7 @@ class MainActivity : ComponentActivity() {
                         postPhotos(content, p)
                         ui.label(content, p.getString("author_name"), 16f, true)
                         if (p.optString("caption").isNotBlank()) ui.label(content, p.getString("caption"), if (large) 23f else 18f)
-                        ui.button(content, "소식 보기", false) { if (large) senior(p) else detail(p) }
+                        ui.button(content, "소식 보기", false) { detail(p) }
                         ui.gap(content, 20)
                     }
                 }

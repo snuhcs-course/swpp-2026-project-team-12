@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-19",
+  "base": "iteration-2-demo @ 00ea2d04fb0b9c5814615ecfc868b732d7888dfd",
+  "device": "Android 16 (API 36), Medium_Phone emulator",
+  "build": "passed",
+  "lintDebug": "passed",
+  "new_inline_audio_tests": 12,
+  "existing_regression_tests": 21,
+  "failures": 0,
+  "coverage": [
+    "Feed and detail automatic summary playback without navigation",
+    "Toggle stops playing or pending summary/speech",
+    "Switching posts discards stale speech and deletes unused audio files",
+    "Completion restores the speaker action",
+    "Processing GET check and failed-summary POST retry",
+    "Original-caption fallback, HTTP and decoder speech retry",
+    "401 login recovery UI",
+    "Comment navigation, voice cancel, large text and digest links",
+    "Background cancels pending playback",
+    "Existing room, photo memory, carousel, posting feedback and feed refresh tests"
+  ],
+  "test_services": "Local mock HTTP server and generated WAV audio; no paid AI/TTS calls",
+  "not_tested": [
+    "Physical device audio output",
+    "Live backend/OpenAI/ElevenLabs integration",
+    "Android versions below API 36"
+  ]
+}
