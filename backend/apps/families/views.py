@@ -3,7 +3,8 @@ from django.http import JsonResponse
 from apps.api import APIError, api, body
 
 from .models import Membership
-from .services import create_room, find_invitation, join_room, parse_time, required_string, room_data
+from .services import create_room, find_invitation, parse_time, required_string, room_data
+from .utils.tree import join_tree
 
 
 @api("POST")
@@ -35,7 +36,7 @@ def join(request):
         required_string(data, "invite_code", 8),
         required_string(data, "password", 128),
     )
-    join_room(room, request.user, required_string(data, "slot", 30))
+    join_tree(room, request.user, data)
     return {"room": room_data(room, request.user)}
 
 

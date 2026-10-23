@@ -10,7 +10,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.api import APIError
 from apps.families.models import Membership
-from apps.families.services import relationship
+from apps.families.utils import relationship
 
 from .models import Post, PostPhoto
 

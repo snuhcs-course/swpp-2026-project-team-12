@@ -47,6 +47,29 @@ python backend/manage.py run_construction_worker --family-id 12
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
 
+## Family tree data and invitation API
+
+`FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
+
+`POST /api/families/lookup/` returns the room and `tree` snapshot (`version`, `owner_id`, `people`, `parents`, `partnerships`). Person IDs are strings. To join, submit the invitation credentials and the snapshot version, selected person, and sequential additions:
+
+```json
+{
+  "invite_code": "ABC123",
+  "password": "room-password",
+  "tree_version": 0,
+  "person_id": "new_me",
+  "additions": [
+    {"id": "new_parent", "anchor_id": "1", "relation": "father"},
+    {"id": "new_me", "anchor_id": "new_parent", "relation": "child"}
+  ]
+}
+```
+
+Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+
+Family migrations start directly with the tree schema. When updating an older local database that used slots, reset `backend/db.sqlite3` and run `python backend/manage.py migrate`; existing data is not imported. Parent edges always move one generation upward, and a person has at most two parents in this version. Ages are not collected, so sibling labels stay neutral instead of guessing Korean age-specific honorifics.
+
 ## Graphiti family history
 
 Graphiti stores each family's post history in Neo4j. Start Neo4j and configure
@@ -98,7 +121,7 @@ Send JSON request bodies for registration and login. Protected endpoints require
 
 | Endpoint | Authentication | Request body | Result |
 | --- | --- | --- | --- |
-| `POST /api/accounts/register/` | Not required | `username`, `password`, `name`, optional `gender` (`unknown`, `male`, `female`) | Creates an account and returns its profile and token. |
+| `POST /api/accounts/register/` | Not required | `username`, `password`, `name`, required `gender` (`male` or `female`) | Creates an account and returns its profile and token. |
 | `POST /api/accounts/login/` | Not required | `username`, `password` | Returns the account profile and a new token. |
 | `POST /api/accounts/logout/` | Required | None | Revokes the presented token; returns `{"ok": true}`. |
 | `GET /api/accounts/me/` | Required | None | Returns the current account profile without a token. |
@@ -113,11 +136,11 @@ Family rooms use the accounts created through `/api/accounts/register/`. Creatin
 | --- | --- | --- | --- |
 | `POST /api/families/create/` | Required | `room_name`, `password`, optional `digest_time` (`HH:MM`) | Creates a room and owner membership; returns `room`. |
 | `POST /api/families/lookup/` | Not required | `invite_code`, `password` | Returns room information when the invitation matches. |
-| `POST /api/families/join/` | Required | `invite_code`, `password`, `slot` | Adds the current account as a member; returns `room`. |
+| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. |
 | `GET /api/families/current/` | Required | None | Returns the current user's family room. |
 | `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
 
-Room passwords are hashed in the database. A room currently permits one user per family slot; see `backend/apps/families/TODO.md` for the multiple-children limitation.
+Room passwords are hashed in the database. Each tree person can be claimed by one account; multiple children of the same gender are supported.
 
 ### Post APIs
 
@@ -186,7 +209,7 @@ python backend/manage.py run_digest_scheduler --once
 ### Accounts and family relationships
 
 - [ ] **Edit account details:** The account API currently supports registration, login, logout, and read-only profile access. Define which fields can change (name, gender used for relationship labels, and password), the reauthentication rules, and the corresponding screen and API.
-- [ ] **Expand the relationship model:** Relationships are computed from eight fixed slots around the room owner. Some relationships between non-owner members display only “family,” and a second person cannot join the same slot (for example, a second son). Model relationships explicitly and revise display rules (see `backend/apps/families/`).
+- [x] **Expand the relationship model:** People, parent/child links, and partnerships form the family tree. Relationship labels are found from that graph, including through people without accounts.
 
 ### AI messages and speech
 

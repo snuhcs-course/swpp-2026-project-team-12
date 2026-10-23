@@ -13,11 +13,11 @@ def register_account(data):
     username = username_from(data.get("username"))
     name = data.get("name")
     password = data.get("password")
-    gender = data.get("gender", User.Gender.UNKNOWN)
+    gender = data.get("gender")
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
         raise APIError("이름을 다시 확인해 주세요.")
-    if gender not in User.Gender.values:
-        raise APIError("관계 표시를 다시 선택해 주세요.")
+    if gender not in (User.Gender.MALE, User.Gender.FEMALE):
+        raise APIError("성별을 선택해 주세요.")
     if not isinstance(password, str) or len(password) > 128:
         raise APIError("비밀번호를 다시 확인해 주세요.")
     if User.objects.filter(username__iexact=username).exists():
