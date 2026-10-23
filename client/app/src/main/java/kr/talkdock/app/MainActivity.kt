@@ -34,6 +34,7 @@ import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.ReplyAudioButton
 import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
+import kr.talkdock.app.ui.FamilyTreeView
 import kr.talkdock.app.ui.PhotoPickerActivity
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.ViewportPhotoLoader
@@ -70,7 +71,6 @@ class MainActivity : ComponentActivity() {
     private var session: JSONObject? = null
     private var room = JSONObject()
     private var screen = "welcome"
-    private var generation = 0
     private var pageNumber = 0
     private var busy = false
     private var foreground = false
@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
     private var voiceButton: Button? = null
     private var joinRoom = JSONObject()
     private var invitation = JSONObject()
-    private var pickedSlot: FamilySlot? = null
+    private var treeDraft: FamilyTreeDraft? = null
     private var digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     private var currentBack: (() -> Unit)? = null
     private val large get() = session?.optBoolean("large", false) ?: false
@@ -144,9 +144,21 @@ class MainActivity : ComponentActivity() {
         draftPhotoIndex = state?.getInt("draftPhotoIndex") ?: 0
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
         val restoredScreen = state?.getString("screen")
+        if (restoredScreen in listOf("tree", "profile") && state?.getString("joinRoom") != null) {
+            joinRoom = JSONObject(state.getString("joinRoom")!!)
+            invitation = JSONObject(state.getString("invitation")!!)
+            treeDraft = FamilyTreeDraft(joinRoom.getJSONObject("tree")).apply {
+                state.getString("treeDraft")?.let { restore(JSONObject(it)) }
+            }
+        }
         fun restoreScreen() {
+            if (!room.has("id") && treeDraft != null) {
+                if (restoredScreen == "tree") { tree(); return }
+                if (restoredScreen == "profile" && treeDraft?.selectedId != null) { profile(); return }
+            }
             if (!room.has("id")) { clearPhotoDraft(); selectedPost = null; roomChoice(); return }
             when {
+            restoredScreen == "familyTree" -> familyTree()
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
             restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
             restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!)
@@ -178,6 +190,10 @@ class MainActivity : ComponentActivity() {
         out.putString("caption", captionInput?.text?.toString() ?: caption)
         out.putInt("draftPhotoIndex", draftPhotoIndex)
         out.putString("post", selectedPost?.toString())
+        if (screen in listOf("tree", "profile")) {
+            out.putString("joinRoom", joinRoom.toString()); out.putString("invitation", invitation.toString())
+            out.putString("treeDraft", treeDraft?.payload()?.toString())
+        }
     }
     override fun onResume() { super.onResume(); foreground = true }
     override fun onPause() {
@@ -256,7 +272,7 @@ class MainActivity : ComponentActivity() {
         ui.label(content, text, if (large) 30f else 26f, true); ui.gap(content, 12)
         if (sub != null) { ui.label(content, sub, if (large) 21f else 17f, color = ui.muted); ui.gap(content, 24) }
     }
-    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Unit)? = null, complete: (T) -> Unit) {
+    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, complete: (T) -> Unit) {
         if (busy) { refresh?.isRefreshing = false; return }
         busy = true
         val number = pageNumber
@@ -271,7 +287,7 @@ class MainActivity : ComponentActivity() {
                 refresh?.isRefreshing = false
                 if (isDestroyed || number != pageNumber) return@runOnUiThread
                 result.fold({ complete(it) }, { error ->
-                    if (failure != null) { failure(error); return@runOnUiThread }
+                    if (failure?.invoke(error) == true) return@runOnUiThread
                     if (error is ApiException && error.status == 401 && screen !in listOf("login", "register")) {
                         val username = session?.optString("username").orEmpty()
                         val userId = session?.optInt("user_id")
@@ -431,21 +447,23 @@ class MainActivity : ComponentActivity() {
         ui.label(content, "비밀번호는 10자 이상이며 숫자를 포함해야 해요.\n아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요. 최대 128자예요.", 16f, color = ui.muted)
         ui.gap(content)
         val password = ui.input(content, "계정 비밀번호", "10자 이상 · 숫자 포함", password = true)
-        ui.label(content, "가족에게 표시할 관계", 16f, true)
+        ui.label(content, "성별 (필수)", 16f, true)
         val genders = Spinner(this)
-        genders.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("자녀 · 손주로 표시", "아들 · 손자로 표시", "딸 · 손녀로 표시"))
+        genders.contentDescription = "성별 (필수)"
+        genders.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("성별을 선택해 주세요", "남성", "여성"))
         content.addView(genders, LinearLayout.LayoutParams(-1, ui.dp(56)))
         ui.gap(content)
         ui.button(content, "계정 만들기") {
             if (username.text.isBlank() || password.text.isBlank() || name.text.isBlank()) {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
             }
+            if (genders.selectedItemPosition == 0) { toast("성별을 선택해 주세요."); return@button }
             if (password.text.length !in 10..128 || password.text.none { it in '0'..'9' }) {
                 password.error = "비밀번호는 10자 이상, 숫자 포함으로 입력해 주세요. 최대 128자예요."; return@button
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
-                "name" to name.text.toString().trim(), "gender" to listOf("unknown", "male", "female")[genders.selectedItemPosition])
+                "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
             val client = ApiClient(baseUrl = sessions.serverUrl())
             async({ client.request("accounts/register/", "POST", data) }) {
                 saveSession(it, false); roomChoice()
@@ -533,57 +551,87 @@ class MainActivity : ComponentActivity() {
             if (code.text.isBlank() || password.text.isBlank()) { toast("초대코드와 비밀번호를 입력해 주세요."); return@button }
             invitation = json("invite_code" to code.text.toString().trim().uppercase(), "password" to password.text.toString())
             async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
-                joinRoom = it; generation = 0; tree()
+                joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
             }
         }
     }
     private fun tree() {
-        navigation("가족에서 내 자리", { join() }, name = "tree")
-        val creator = joinRoom.getString("owner_name")
-        val list = objects(joinRoom.getJSONArray("members"))
-        heading(FamilyLogic.introduction(creator, list.filter { !it.getBoolean("is_owner") }.map { it.getString("name") }),
-            "위아래 화살표로 움직여\n가족에서 내 자리를 선택해 주세요.")
-        val board = ui.column(16).apply { background = ui.shape(ui.sage); gravity = Gravity.CENTER }
-        content.addView(board, LinearLayout.LayoutParams(-1, -2))
-        val levels = mapOf(2 to "두 세대 위", 1 to "한 세대 위", 0 to "기준", -1 to "한 세대 아래", -2 to "두 세대 아래")
-        fun choices() {
-            ui.label(board, levels[generation] ?: "", 16f, color = ui.muted)
-            FamilyLogic.slots.filter { it.generation == generation }.forEach { slot ->
-                val member = list.firstOrNull { it.optString("slot") == slot.key }
-                val qualifier = when (slot.key) { "grandma-father" -> " · 아버지 쪽"; "grandma-mother" -> " · 어머니 쪽"; else -> "" }
-                val button = ui.button(board, if (member == null) slot.label + qualifier else member.getString("name") + " · 가입한 가족", false) {
-                    pickedSlot = slot; profile()
-                }
-                if (member != null) { button.isEnabled = false; button.alpha = .45f }
+        val draft = treeDraft ?: return
+        navigation("가족에서 내 자리", { cancelTree() }, name = "tree")
+        heading("가계도에서\n내 자리를 찾아보세요.", "한 손가락으로 이동하고, 두 손가락으로 확대·축소하세요. +로 빈 가족을 추가하고 내 자리를 선택해 주세요.")
+        val selected = ui.text("", 17f, true, ui.coralDeep)
+        val next = ui.button(ui.column(), "선택한 자리로 계속하기") { profile() }
+        lateinit var board: FamilyTreeView
+        lateinit var undo: Button
+        fun update(focus: String? = null) {
+            selected.text = if (draft.selectedId == null) "아직 내 자리를 선택하지 않았어요." else session!!.getString("name") + "님의 자리를 선택했어요."
+            next.isEnabled = draft.selectedId != null; next.alpha = if (next.isEnabled) 1f else .45f
+            undo.isEnabled = draft.additions.isNotEmpty(); undo.alpha = if (undo.isEnabled) 1f else .45f
+            board.render(focus)
+        }
+        board = FamilyTreeView(this, ui, draft, session!!.getString("name"), onAdd = { action ->
+            runCatching { draft.add(action.anchor, action.relation, action.coParent) }.fold({ id ->
+                update(id); toast("빈 가족을 추가했어요. 이 자리가 나라면 노드를 눌러 선택해 주세요.")
+            }, { toast(it.message ?: "가족을 추가하지 못했어요.") })
+        }, onPerson = { id ->
+            val person = draft.people.getValue(id)
+            if (person.occupied) toast("이미 가입한 가족의 자리예요.") else {
+                val accountGender = session!!.optString("gender", "unknown")
+                if (person.gender != "unknown" && accountGender != "unknown" && person.gender != accountGender) {
+                    toast("선택한 자리와 계정의 성별이 달라요. 다른 자리를 선택해 주세요.")
+                } else AlertDialog.Builder(this).setTitle("이 자리가 나인가요?")
+                    .setMessage(session!!.getString("name") + "님의 계정 정보를 이 자리에 연결해요. 가입 완료 전까지는 저장되지 않아요.")
+                    .setPositiveButton("내 자리로 선택") { _, _ -> draft.selectedId = id; update(id) }
+                    .setNegativeButton("닫기", null).show()
             }
-        }
-        if (generation > 0) { choices(); ui.gap(board, 20); ui.line(board); ui.gap(board, 20) }
-        board.addView(ui.iconButton("up", "한 세대 위로") { if (generation < 2) { generation++; tree() } else toast("두 세대 위까지 선택할 수 있어요.") })
-        val owner = ui.text(creator, 24f, true, ui.green).apply {
-            gravity = Gravity.CENTER; setPadding(ui.dp(24), ui.dp(20), ui.dp(24), ui.dp(20)); background = ui.shape(Color.WHITE, stroke = true)
-            isClickable = true; isFocusable = true; contentDescription = creator + " 기준으로 돌아가기"
-            setOnClickListener { generation = 0; tree() }
-        }
-        board.addView(owner, LinearLayout.LayoutParams(-1, -2))
-        ui.gap(board, 16)
-        board.addView(ui.iconButton("down", "한 세대 아래로") { if (generation > -2) { generation--; tree() } else toast("두 세대 아래까지 선택할 수 있어요.") })
-        if (generation < 0) { ui.gap(board, 20); ui.line(board); ui.gap(board, 20); choices() }
-        ui.label(board, "이름을 누르면 기준 자리로 돌아와요.", 15f, color = ui.muted)
-        ui.gap(content, 20)
-        if (generation == 0) ui.label(content, "할머니라면 위 화살표를 두 번 눌러 주세요.", 17f, color = ui.muted)
+        })
+        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp(440)))
+        val controls = ui.row()
+        val reset = ui.button(ui.column(), "기준 인물로", false, 52) { board.centerOn(draft.ownerId) }
+        undo = ui.button(ui.column(), "추가 취소", false, 52) { draft.undo(); update(draft.selectedId ?: draft.ownerId) }
+        (reset.parent as LinearLayout).removeView(reset); (undo.parent as LinearLayout).removeView(undo)
+        controls.addView(reset, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) })
+        controls.addView(undo, LinearLayout.LayoutParams(0, -2, 1f)); content.addView(controls)
+        ui.gap(content, 16); content.addView(selected)
+        ui.label(content, "살구색: 가입한 가족 · 흰색: 빈 가족\n형제자매는 부모의 자녀 +에서 추가할 수 있어요.", 14f, color = ui.muted)
+        (next.parent as LinearLayout).removeView(next); content.addView(next)
+        update(draft.selectedId ?: draft.ownerId)
     }
+
+    private fun cancelTree() {
+        if (treeDraft?.additions?.isNotEmpty() == true || treeDraft?.selectedId != null) {
+            AlertDialog.Builder(this).setTitle("가계도 설정을 취소할까요?").setMessage("추가한 빈 가족과 선택한 자리는 저장되지 않아요.")
+                .setPositiveButton("설정 취소") { _, _ -> treeDraft = null; join() }.setNegativeButton("계속 설정", null).show()
+        } else { treeDraft = null; join() }
+    }
+
     private fun profile() {
         if (blockAdditionalRoom()) return
-        val slot = pickedSlot ?: return
+        val draft = treeDraft ?: return
+        if (draft.selectedId == null) return
         navigation("가족 방 참여", { tree() }, name = "profile")
-        heading(joinRoom.getString("owner_name") + "님의\n" + slot.relation + "로 함께해요.")
-        val big = Switch(this).apply { text = "큰 글씨로 보기"; textSize = 20f; typeface = ui.font; fontVariationSettings = "'wght' 400"; isChecked = slot.generation == 2; minimumHeight = ui.dp(64) }
+        heading(session!!.getString("name") + "님의 자리로\n가족 방에 함께해요.", "가입을 완료하면 추가한 가족과 관계가 함께 저장돼요.")
+        val big = Switch(this).apply { text = "큰 글씨로 보기"; textSize = 20f; typeface = ui.font; fontVariationSettings = "'wght' 400"; isChecked = draft.people.getValue(draft.selectedId!!).generation >= 2; minimumHeight = ui.dp(64) }
         content.addView(big); ui.gap(content, 24)
         ui.button(content, "가족 방에 들어가기") {
-            val data = JSONObject(invitation.toString()).put("slot", slot.key)
+            val data = draft.payload().put("invite_code", invitation.getString("invite_code")).put("password", invitation.getString("password"))
             val client = api
             withoutRoom {
-                async({ client.request("families/join/", "POST", data) }) {
+                async({ client.request("families/join/", "POST", data) }, failure = { error ->
+                    if (error is ApiException && error.status == 409) {
+                        AlertDialog.Builder(this).setTitle("가계도가 변경되었어요")
+                            .setMessage("변경 사항은 저장되지 않았어요. 최신 가계도에서 내 자리를 다시 선택해 주세요.")
+                            .setCancelable(false).setPositiveButton("다시 시작") { _, _ ->
+                                treeDraft = null
+                                join()
+                                async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
+                                    joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
+                                }
+                            }.show()
+                        true
+                    } else false
+                }) {
+                    treeDraft = null; invitation = JSONObject()
                     saveRoom(it, big.isChecked) { home() }
                 }
             }
@@ -767,6 +815,7 @@ class MainActivity : ComponentActivity() {
                                 "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요."
                             else (error as? ApiException)?.message ?: "댓글을 보내지 못했어요. 작성한 내용은 유지돼요. 다시 시도해 주세요."
                             composer.showError(message)
+                            true
                         }) {
                         composer.input.setText("")
                         composer.setSending(false)
@@ -1111,6 +1160,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun familyTree() {
+        navigation("우리 가족 가계도", { members() }, name = "familyTree")
+        heading("우리 가족의 연결을\n한눈에 살펴보세요.", "한 손가락으로 이동하고, 두 손가락으로 확대·축소하세요.")
+        val draft = FamilyTreeDraft(room.getJSONObject("tree"))
+        draft.selectedId = objects(room.getJSONArray("members"))
+            .firstOrNull { it.getInt("id") == session?.optInt("user_id") }?.optString("person_id")
+        val board = FamilyTreeView(this, ui, draft, session!!.getString("name"),
+            onAdd = {}, onPerson = {}, editable = false)
+        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp(440)))
+        ui.gap(content, 12)
+        ui.button(content, "내 자리로", false) { board.centerOn(draft.selectedId ?: draft.ownerId) }
+        ui.label(content, "진한 살구색: 나 · 살구색: 가입한 가족 · 흰색: 빈 가족", 14f, color = ui.muted)
+        board.post { board.centerOn(draft.selectedId ?: draft.ownerId) }
+    }
+
     private fun members() {
         navigation("내 설정", tab = 2, name = "members")
         val client = api
@@ -1143,7 +1207,9 @@ class MainActivity : ComponentActivity() {
             ui.label(invitationCard, "초대 코드  " + room.optString("invite_code"), 18f, color = ui.coralDeep)
             ui.button(invitationCard, "초대 코드 확인") { invite() }
             ui.gap(content, 20)
-            ui.label(content, "우리 가족", 20f, true); ui.gap(content, 12)
+            ui.label(content, "우리 가족", 20f, true)
+            ui.button(content, "가계도 보기", false) { familyTree() }
+            ui.gap(content, 12)
             objects(room.getJSONArray("members")).forEach { m ->
                 val row = ui.column(16).apply { background = ui.shape(ui.paper, 20, stroke = true) }
                 ui.label(row, m.getString("name"), 22f, true)

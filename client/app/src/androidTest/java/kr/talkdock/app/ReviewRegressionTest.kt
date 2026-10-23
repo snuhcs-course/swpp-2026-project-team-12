@@ -127,7 +127,7 @@ private class UiHarness(private val api: MockApi, room: JSONObject?, large: Bool
 private fun room(id: Int, name: String) = JSONObject().put("id",id).put("name",name)
     .put("invite_code","REVIEW").put("owner_name","테스트 사용자").put("digest_time","21:00")
     .put("members",JSONArray().put(JSONObject().put("id",999).put("name","테스트 사용자")
-        .put("is_owner",true).put("relationship","나").put("slot","owner")))
+        .put("is_owner",true).put("relationship","나")))
 private fun emptyFeed() = jsonReply(JSONObject().put("posts",JSONArray()))
 
 @RunWith(AndroidJUnit4::class)

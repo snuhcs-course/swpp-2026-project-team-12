@@ -4,6 +4,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.FamilyTreeDraft
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -17,7 +18,8 @@ class ApiRoundTripTest {
     private fun json(vararg values: Pair<String, Any>) = JSONObject().apply { values.forEach { put(it.first, it.second) } }
 
     @Test fun inviteUploadAndPublicCommentRoundTrip() {
-        val anonymous = ApiClient()
+        val server = InstrumentationRegistry.getArguments().getString("server") ?: BuildConfig.API_URL
+        val anonymous = ApiClient(baseUrl = server)
         val suffix = UUID.randomUUID().toString().replace("-", "").take(12)
         val ownerName = "android_owner_$suffix"
         val grandmaName = "android_grandma_$suffix"
@@ -27,7 +29,7 @@ class ApiRoundTripTest {
         assertEquals(ownerName, owner.getString("username"))
         val loggedIn = anonymous.request("accounts/login/", "POST", json(
             "username" to ownerName, "password" to accountPassword))
-        val member = ApiClient(loggedIn.getString("token"))
+        val member = ApiClient(loggedIn.getString("token"), server)
         assertEquals("준하", member.request("accounts/me/").getString("name"))
         val created = member.request("families/create/", "POST", json(
             "room_name" to "자동 연결 검사 $suffix", "password" to "test-room-password"))
@@ -36,8 +38,12 @@ class ApiRoundTripTest {
         assertEquals("준하", found.getString("owner_name"))
         val grandma = anonymous.request("accounts/register/", "POST", json(
             "username" to grandmaName, "password" to accountPassword, "name" to "경자", "gender" to "female"))
-        val elder = ApiClient(grandma.getString("token"))
-        elder.request("families/join/", "POST", JSONObject(invitation.toString()).put("slot", "grandma-father"))
+        val elder = ApiClient(grandma.getString("token"), server)
+        val draft = FamilyTreeDraft(found.getJSONObject("tree"))
+        val father = draft.add(draft.ownerId, "father")
+        draft.selectedId = draft.add(father, "mother")
+        elder.request("families/join/", "POST", draft.payload()
+            .put("invite_code", invitation.getString("invite_code")).put("password", invitation.getString("password")))
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val photo = File.createTempFile("contract-", ".png", context.cacheDir)
         try {
