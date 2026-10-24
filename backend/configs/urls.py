@@ -6,13 +6,17 @@ from apps.families import views as families
 from apps.posts import views as posts
 from apps.replies import views as replies
 from apps.digests import views as digests
+from apps.searching import views as searching
 from integrations.speech import views as speech
+from configs import web
 
 def test_reply(request):
     return JsonResponse({"status": "ok"})
 
 
 urlpatterns = [
+    path("", web.index, name="web-index"),
+    path("web/assets/<str:name>", web.asset, name="web-asset"),
     path("api/test_reply/", test_reply, name="test_reply"),
     path("api/accounts/register/", accounts.register, name="account-register"),
     path("api/accounts/login/", accounts.login, name="account-login"),
@@ -25,7 +29,9 @@ urlpatterns = [
     path("api/posts/", posts.feed, name="post-feed"),
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
+    path("api/posts/<int:pk>/photos/<int:photo_id>/", posts.extra_photo, name="post-extra-photo"),
     path("api/posts/<int:pk>/message/", posts.message, name="post-message"),
+    path("api/posts/<int:pk>/questions/", posts.question, name="post-question"),
     path("api/posts/<int:pk>/comments/", replies.text_comment, name="post-comment"),
     path("api/posts/<int:pk>/replies/prepare/", replies.prepare, name="reply-prepare"),
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),
@@ -33,4 +39,6 @@ urlpatterns = [
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),
     path("api/digests/", digests.daily, name="digest-daily"),
     path("api/digests/history/", digests.history, name="digest-history"),
+    path("api/searching/history/", searching.history, name="search-family-history"),
+    path("api/searching/memories/", searching.memories, name="search-family-memories"),
 ]

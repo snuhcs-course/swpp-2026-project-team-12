@@ -14,13 +14,15 @@ from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
 from apps.digests.models import Digest
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from apps.replies.models import Comment, VoiceDraft
 from integrations.ai import provider as ai_provider
 from integrations.speech import provider as speech_provider
 
 from .test_posts import SAMPLES_DIR, TEST_MEDIA_DIR, sample_image
+
+from .family_fixtures import add_member, link_parent
 
 
 GRANDMA_REPORT = TEST_MEDIA_DIR / "grandma_report.html"
@@ -68,9 +70,10 @@ class VoiceReplyAPITests(TestCase):
         other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=room, user=self.grandma, slot=Membership.Slot.GRANDMA_FATHER)
-        Membership.objects.create(room=other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(room, self.owner)
+        add_member(room, self.grandma, 2)
+        link_parent(room, self.grandma, room.owner, generations=2)
+        add_member(other_room, self.outsider)
         self.owner_token = AccessToken.issue(self.owner)
         self.grandma_token = AccessToken.issue(self.grandma)
         self.outsider_token = AccessToken.issue(self.outsider)
@@ -104,7 +107,7 @@ class VoiceReplyAPITests(TestCase):
                 f"/api/posts/{self.post.pk}/replies/prepare/", transcript.json()
             )
         self.assertEqual(prepared.status_code, 200)
-        rewrite.assert_called_once_with("정아 고생했다고 전해줘", "정아")
+        rewrite.assert_called_once_with("정아 고생했다고 전해줘", "정아", family_id=self.post.room_id)
         self.assertEqual(prepared.json()["converted"], "정아야, 고생 많았다.")
         self.assertEqual(prepared.json()["author_name"], "정아")
         draft = VoiceDraft.objects.get(pk=prepared.json()["id"])
@@ -316,10 +319,11 @@ class VoiceReplyAPITests(TestCase):
             self.assertEqual(self.json_post(path, {"recognized": "안녕"}).status_code, 503)
         self.assertFalse(VoiceDraft.objects.exists())
         self.assertFalse(Comment.objects.exists())
-        with patch.object(ai_provider, "generate", return_value="정아야, 고생 많았다.") as generate:
-            self.assertEqual(ai_provider.rewrite("정아 고생했다고 전해줘", "정아"), "정아야, 고생 많았다.")
-        self.assertIn("전달 요청", generate.call_args.args[0])
-        self.assertEqual(json.loads(generate.call_args.args[1]), {
+        with patch.object(ai_provider, "answer_with_memory", return_value="정아야, 고생 많았다.") as answer:
+            self.assertEqual(ai_provider.rewrite("정아 고생했다고 전해줘", "정아", family_id=self.post.room_id),
+                             "정아야, 고생 많았다.")
+        self.assertEqual(answer.call_args.args[:2], ("stt_correction", self.post.room_id))
+        self.assertEqual(json.loads(answer.call_args.args[2]), {
             "게시물 작성자": "정아", "인식된 말": "정아 고생했다고 전해줘"
         })
         print("Voice reply AI rewrite and failure test pass", flush=True)

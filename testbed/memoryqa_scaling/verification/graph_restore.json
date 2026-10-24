@@ -1,0 +1,25 @@
+{
+  "groups": {
+    "100": {
+      "nodes": 171,
+      "edges": 313,
+      "exact_properties_verified": true,
+      "search_indexes_online": true
+    },
+    "200": {
+      "nodes": 311,
+      "edges": 554,
+      "exact_properties_verified": true,
+      "search_indexes_online": true
+    },
+    "300": {
+      "nodes": 439,
+      "edges": 786,
+      "exact_properties_verified": true,
+      "search_indexes_online": true
+    }
+  },
+  "nonempty_database_refused": true,
+  "existing_data_unchanged": true,
+  "paid_calls": 0
+}

@@ -13,11 +13,11 @@ def register_account(data):
     username = username_from(data.get("username"))
     name = data.get("name")
     password = data.get("password")
-    gender = data.get("gender", User.Gender.UNKNOWN)
+    gender = data.get("gender")
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
         raise APIError("이름을 다시 확인해 주세요.")
-    if gender not in User.Gender.values:
-        raise APIError("관계 표시를 다시 선택해 주세요.")
+    if gender not in (User.Gender.MALE, User.Gender.FEMALE):
+        raise APIError("성별을 선택해 주세요.")
     if not isinstance(password, str) or len(password) > 128:
         raise APIError("비밀번호를 다시 확인해 주세요.")
     if User.objects.filter(username__iexact=username).exists():
@@ -27,7 +27,7 @@ def register_account(data):
     try:
         validate_password(password, user)
     except ValidationError as error:
-        raise APIError("비밀번호는 10자 이상으로, 이름과 비슷하거나 흔한 문자열·숫자만 사용할 수 없어요.") from error
+        raise APIError("비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자만으로는 만들 수 없어요.") from error
     user.set_password(password)
     try:
         user.full_clean()
@@ -80,3 +80,49 @@ def session_data(user):
     return {"token": AccessToken.issue(user), **account_data(user)}
 
 
+@transaction.atomic
+def update_account(user, data):
+    allowed = {"name", "current_password", "new_password"}
+    if not data or set(data) - allowed:
+        raise APIError("수정할 계정 정보를 다시 확인해 주세요.")
+    if ("current_password" in data) != ("new_password" in data):
+        raise APIError("비밀번호를 바꾸려면 현재 비밀번호와 새 비밀번호를 함께 입력해 주세요.")
+    # Work from a fresh locked row so parallel profile edits do not overwrite a password.
+    user = User.objects.select_for_update().get(pk=user.pk)
+    old_name = user.display_name
+    if "name" in data:
+        name = data["name"]
+        if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
+            raise APIError("이름은 1~40자로 입력해 주세요.")
+        user.display_name = name.strip()
+    changing_password = "new_password" in data
+    if changing_password:
+        current, replacement = data["current_password"], data["new_password"]
+        if not isinstance(current, str) or not user.check_password(current):
+            raise APIError("현재 비밀번호가 맞지 않아요.")
+        if not isinstance(replacement, str) or not 10 <= len(replacement) <= 128:
+            raise APIError("새 비밀번호는 10~128자로 입력해 주세요.")
+        try:
+            validate_password(replacement, user)
+        except ValidationError as error:
+            raise APIError("새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자만으로는 만들 수 없어요.") from error
+        user.set_password(replacement)
+    user.save(update_fields=["display_name", "password"])
+    if old_name != user.display_name:
+        # Cached generated wording can contain the previous display name.
+        from apps.posts.models import AdaptedMessage
+        from apps.digests.models import Digest
+        from apps.families.models import Membership
+        from django.utils import timezone
+        rooms = Membership.objects.filter(user=user).values("room_id")
+        AdaptedMessage.objects.filter(post__room_id__in=rooms).update(
+            status="pending", text="", updated_at=timezone.now()
+        )
+        Digest.objects.filter(room_id__in=rooms).update(
+            status="pending", text="", updated_at=timezone.now()
+        )
+    result = account_data(user)
+    if changing_password:
+        AccessToken.objects.filter(user=user).delete()
+        result["token"] = AccessToken.issue(user)
+    return result

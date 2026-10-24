@@ -1,0 +1,622 @@
+{
+  "tasks": 540,
+  "unique_questions": 30,
+  "repetitions": 3,
+  "levels": {
+    "100": {
+      "full_history": {
+        "tasks": 90,
+        "answer_satisfied": 90,
+        "answer_satisfaction_rate": 1,
+        "strict_correct": 84,
+        "answer_accuracy": 0.9333333333333333,
+        "evidence_sufficient": 90,
+        "evidence_coverage": 1,
+        "source_coverage": 90,
+        "source_post_coverage": 1,
+        "evidence_available_but_answer_failed": 0,
+        "correct_without_sufficient_evidence": 0,
+        "grounded_correct": 84,
+        "false_connections": 6,
+        "false_connection_rate": 0.06666666666666667,
+        "unsupported_additions": 6,
+        "unsupported_addition_rate": 0.06666666666666667,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 0,
+        "memory_update_error_rate": 0,
+        "generation_tokens_per_question": 16617.48888888889,
+        "input_tokens_per_question": 16584.7,
+        "output_tokens_per_question": 32.78888888888889,
+        "embedding_tokens_per_question": 0.0,
+        "generation_tokens_per_correct_answer": 17804.45238095238,
+        "mean_seconds": 2.8100456055667666,
+        "median_seconds": 2.7319026874611154,
+        "p95_seconds": 4.048471957910806,
+        "mean_stage_seconds": {
+          "decision": 0,
+          "search": 0,
+          "answer": 2.810008993977681
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 30,
+            "strict_correct": 28
+          },
+          "2": {
+            "answer_satisfied": 30,
+            "strict_correct": 28
+          },
+          "3": {
+            "answer_satisfied": 30,
+            "strict_correct": 28
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 90,
+              "input_tokens": 1492623,
+              "output_tokens": 2951,
+              "cached_input_tokens": 994902,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 1495574,
+          "observed_embedding_tokens": 0,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": true,
+            "evidence_coverage": true,
+            "answer_accuracy": true,
+            "false_connections": false,
+            "unsupported_additions": false
+          },
+          "quality_pass": false,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "graphiti": {
+        "tasks": 90,
+        "answer_satisfied": 67,
+        "answer_satisfaction_rate": 0.7444444444444445,
+        "strict_correct": 66,
+        "answer_accuracy": 0.7333333333333333,
+        "evidence_sufficient": 69,
+        "evidence_coverage": 0.7666666666666667,
+        "source_coverage": 69,
+        "source_post_coverage": 0.7666666666666667,
+        "evidence_available_but_answer_failed": 2,
+        "correct_without_sufficient_evidence": 0,
+        "grounded_correct": 66,
+        "false_connections": 6,
+        "false_connection_rate": 0.06666666666666667,
+        "unsupported_additions": 1,
+        "unsupported_addition_rate": 0.011111111111111112,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 5,
+        "memory_update_error_rate": 0.15151515151515152,
+        "generation_tokens_per_question": 9762.133333333333,
+        "input_tokens_per_question": 9689.844444444445,
+        "output_tokens_per_question": 72.28888888888889,
+        "embedding_tokens_per_question": 37.17777777777778,
+        "generation_tokens_per_correct_answer": 13312.0,
+        "mean_seconds": 5.487276602298436,
+        "median_seconds": 5.15734220854938,
+        "p95_seconds": 7.858025083085522,
+        "mean_stage_seconds": {
+          "decision": 2.811265337958725,
+          "search": 0.2720562953993471,
+          "answer": 2.399670312069874
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 21,
+            "strict_correct": 21
+          },
+          "2": {
+            "answer_satisfied": 22,
+            "strict_correct": 21
+          },
+          "3": {
+            "answer_satisfied": 24,
+            "strict_correct": 24
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 180,
+              "input_tokens": 872086,
+              "output_tokens": 6506,
+              "cached_input_tokens": 657759,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            },
+            {
+              "endpoint": "embedding",
+              "model": "text-embedding-3-small",
+              "calls": 90,
+              "input_tokens": 3346,
+              "output_tokens": 0,
+              "cached_input_tokens": 0,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 878592,
+          "observed_embedding_tokens": 3346,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": false,
+            "evidence_coverage": false,
+            "answer_accuracy": false,
+            "false_connections": false,
+            "unsupported_additions": true
+          },
+          "quality_pass": false,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "relative": {
+        "generation_token_ratio": 0.5874614027791336,
+        "generation_token_reduction": 0.4125385972208664,
+        "mean_latency_ratio": 1.9527357817353608,
+        "accuracy_difference": -0.20000000000000007,
+        "satisfaction_difference": -0.25555555555555554,
+        "evidence_difference": -0.23333333333333328,
+        "tokens_per_correct_ratio": 0.7476781489916245
+      },
+      "paired_question_bootstrap_95ci": {
+        "accuracy_difference": [
+          -0.35555555555555557,
+          -0.05555555555555556
+        ],
+        "token_ratio": [
+          0.5841999637543294,
+          0.5907833978112075
+        ],
+        "latency_ratio": [
+          1.8865513201018718,
+          2.021044239490533
+        ]
+      }
+    },
+    "200": {
+      "full_history": {
+        "tasks": 90,
+        "answer_satisfied": 90,
+        "answer_satisfaction_rate": 1,
+        "strict_correct": 83,
+        "answer_accuracy": 0.9222222222222223,
+        "evidence_sufficient": 90,
+        "evidence_coverage": 1,
+        "source_coverage": 90,
+        "source_post_coverage": 1,
+        "evidence_available_but_answer_failed": 0,
+        "correct_without_sufficient_evidence": 0,
+        "grounded_correct": 83,
+        "false_connections": 6,
+        "false_connection_rate": 0.06666666666666667,
+        "unsupported_additions": 7,
+        "unsupported_addition_rate": 0.07777777777777778,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 0,
+        "memory_update_error_rate": 0,
+        "generation_tokens_per_question": 29208.38888888889,
+        "input_tokens_per_question": 29174.7,
+        "output_tokens_per_question": 33.68888888888889,
+        "embedding_tokens_per_question": 0.0,
+        "generation_tokens_per_correct_answer": 31671.746987951807,
+        "mean_seconds": 3.007568565223159,
+        "median_seconds": 2.813495999900624,
+        "p95_seconds": 4.314056916860864,
+        "mean_stage_seconds": {
+          "decision": 0,
+          "search": 0,
+          "answer": 3.0075235259279403
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 30,
+            "strict_correct": 28
+          },
+          "2": {
+            "answer_satisfied": 30,
+            "strict_correct": 28
+          },
+          "3": {
+            "answer_satisfied": 30,
+            "strict_correct": 27
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 90,
+              "input_tokens": 2625723,
+              "output_tokens": 3032,
+              "cached_input_tokens": 1750302,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 2628755,
+          "observed_embedding_tokens": 0,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": true,
+            "evidence_coverage": true,
+            "answer_accuracy": true,
+            "false_connections": false,
+            "unsupported_additions": false
+          },
+          "quality_pass": false,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "graphiti": {
+        "tasks": 90,
+        "answer_satisfied": 70,
+        "answer_satisfaction_rate": 0.7777777777777778,
+        "strict_correct": 70,
+        "answer_accuracy": 0.7777777777777778,
+        "evidence_sufficient": 70,
+        "evidence_coverage": 0.7777777777777778,
+        "source_coverage": 70,
+        "source_post_coverage": 0.7777777777777778,
+        "evidence_available_but_answer_failed": 0,
+        "correct_without_sufficient_evidence": 0,
+        "grounded_correct": 70,
+        "false_connections": 2,
+        "false_connection_rate": 0.022222222222222223,
+        "unsupported_additions": 0,
+        "unsupported_addition_rate": 0,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 2,
+        "memory_update_error_rate": 0.06060606060606061,
+        "generation_tokens_per_question": 9748.855555555556,
+        "input_tokens_per_question": 9679.322222222223,
+        "output_tokens_per_question": 69.53333333333333,
+        "embedding_tokens_per_question": 37.355555555555554,
+        "generation_tokens_per_correct_answer": 12534.242857142857,
+        "mean_seconds": 5.437202582448824,
+        "median_seconds": 5.335062645957805,
+        "p95_seconds": 7.296817124821246,
+        "mean_stage_seconds": {
+          "decision": 2.817228518990386,
+          "search": 0.23009474996684326,
+          "answer": 2.38530432175224
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 22,
+            "strict_correct": 22
+          },
+          "2": {
+            "answer_satisfied": 24,
+            "strict_correct": 24
+          },
+          "3": {
+            "answer_satisfied": 24,
+            "strict_correct": 24
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 180,
+              "input_tokens": 871139,
+              "output_tokens": 6258,
+              "cached_input_tokens": 752211,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            },
+            {
+              "endpoint": "embedding",
+              "model": "text-embedding-3-small",
+              "calls": 90,
+              "input_tokens": 3362,
+              "output_tokens": 0,
+              "cached_input_tokens": 0,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 877397,
+          "observed_embedding_tokens": 3362,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": false,
+            "evidence_coverage": false,
+            "answer_accuracy": false,
+            "false_connections": true,
+            "unsupported_additions": true
+          },
+          "quality_pass": false,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "relative": {
+        "generation_token_ratio": 0.3337690275434569,
+        "generation_token_reduction": 0.6662309724565432,
+        "mean_latency_ratio": 1.807839942643299,
+        "accuracy_difference": -0.1444444444444445,
+        "satisfaction_difference": -0.2222222222222222,
+        "evidence_difference": -0.2222222222222222,
+        "tokens_per_correct_ratio": 0.3957547040872417
+      },
+      "paired_question_bootstrap_95ci": {
+        "accuracy_difference": [
+          -0.3111111111111111,
+          0.02222222222222223
+        ],
+        "token_ratio": [
+          0.3319396603373802,
+          0.3356081766549418
+        ],
+        "latency_ratio": [
+          1.7342810015996484,
+          1.8792313159617604
+        ]
+      }
+    },
+    "300": {
+      "full_history": {
+        "tasks": 90,
+        "answer_satisfied": 87,
+        "answer_satisfaction_rate": 0.9666666666666667,
+        "strict_correct": 84,
+        "answer_accuracy": 0.9333333333333333,
+        "evidence_sufficient": 90,
+        "evidence_coverage": 1,
+        "source_coverage": 90,
+        "source_post_coverage": 1,
+        "evidence_available_but_answer_failed": 3,
+        "correct_without_sufficient_evidence": 0,
+        "grounded_correct": 84,
+        "false_connections": 4,
+        "false_connection_rate": 0.044444444444444446,
+        "unsupported_additions": 3,
+        "unsupported_addition_rate": 0.03333333333333333,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 0,
+        "memory_update_error_rate": 0,
+        "generation_tokens_per_question": 41658.822222222225,
+        "input_tokens_per_question": 41625.7,
+        "output_tokens_per_question": 33.12222222222222,
+        "embedding_tokens_per_question": 0.0,
+        "generation_tokens_per_correct_answer": 44634.45238095238,
+        "mean_seconds": 3.04306386570291,
+        "median_seconds": 2.8378008119761944,
+        "p95_seconds": 4.1910482498351485,
+        "mean_stage_seconds": {
+          "decision": 0,
+          "search": 0,
+          "answer": 3.043017070323953
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 29,
+            "strict_correct": 29
+          },
+          "2": {
+            "answer_satisfied": 29,
+            "strict_correct": 26
+          },
+          "3": {
+            "answer_satisfied": 29,
+            "strict_correct": 29
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 90,
+              "input_tokens": 3746313,
+              "output_tokens": 2981,
+              "cached_input_tokens": 2497362,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 3749294,
+          "observed_embedding_tokens": 0,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": true,
+            "evidence_coverage": true,
+            "answer_accuracy": true,
+            "false_connections": true,
+            "unsupported_additions": true
+          },
+          "quality_pass": true,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "graphiti": {
+        "tasks": 90,
+        "answer_satisfied": 68,
+        "answer_satisfaction_rate": 0.7555555555555555,
+        "strict_correct": 66,
+        "answer_accuracy": 0.7333333333333333,
+        "evidence_sufficient": 70,
+        "evidence_coverage": 0.7777777777777778,
+        "source_coverage": 70,
+        "source_post_coverage": 0.7777777777777778,
+        "evidence_available_but_answer_failed": 3,
+        "correct_without_sufficient_evidence": 1,
+        "grounded_correct": 65,
+        "false_connections": 5,
+        "false_connection_rate": 0.05555555555555555,
+        "unsupported_additions": 2,
+        "unsupported_addition_rate": 0.022222222222222223,
+        "memory_update_subset_tasks": 33,
+        "memory_update_errors": 1,
+        "memory_update_error_rate": 0.030303030303030304,
+        "generation_tokens_per_question": 9771.944444444445,
+        "input_tokens_per_question": 9701.31111111111,
+        "output_tokens_per_question": 70.63333333333334,
+        "embedding_tokens_per_question": 38.93333333333333,
+        "generation_tokens_per_correct_answer": 13325.378787878788,
+        "mean_seconds": 5.507884040663743,
+        "median_seconds": 5.314232374890707,
+        "p95_seconds": 7.385028084041551,
+        "mean_stage_seconds": {
+          "decision": 2.832226605571082,
+          "search": 0.24034564073663206,
+          "answer": 2.4305779323628585
+        },
+        "by_repeat": {
+          "1": {
+            "answer_satisfied": 20,
+            "strict_correct": 20
+          },
+          "2": {
+            "answer_satisfied": 24,
+            "strict_correct": 23
+          },
+          "3": {
+            "answer_satisfied": 24,
+            "strict_correct": 23
+          }
+        },
+        "errors": 0,
+        "usage": {
+          "by_model_endpoint": [
+            {
+              "endpoint": "responses",
+              "model": "gpt-6-luna",
+              "calls": 180,
+              "input_tokens": 873118,
+              "output_tokens": 6357,
+              "cached_input_tokens": 749794,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            },
+            {
+              "endpoint": "embedding",
+              "model": "text-embedding-3-small",
+              "calls": 90,
+              "input_tokens": 3504,
+              "output_tokens": 0,
+              "cached_input_tokens": 0,
+              "reasoning_output_tokens": 0,
+              "usage_complete": true
+            }
+          ],
+          "usage_complete": true,
+          "observed_generation_tokens": 879475,
+          "observed_embedding_tokens": 3504,
+          "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+        },
+        "proposed_target_checks": {
+          "quality_gates": {
+            "answer_satisfaction": false,
+            "evidence_coverage": false,
+            "answer_accuracy": false,
+            "false_connections": false,
+            "unsupported_additions": true
+          },
+          "quality_pass": false,
+          "latency_pass": true,
+          "formal_team_signoff": false
+        }
+      },
+      "relative": {
+        "generation_token_ratio": 0.23457082853465214,
+        "generation_token_reduction": 0.7654291714653478,
+        "mean_latency_ratio": 1.809979771617935,
+        "accuracy_difference": -0.20000000000000007,
+        "satisfaction_difference": -0.21111111111111114,
+        "evidence_difference": -0.2222222222222222,
+        "tokens_per_correct_ratio": 0.2985446908622845
+      },
+      "paired_question_bootstrap_95ci": {
+        "accuracy_difference": [
+          -0.34444444444444444,
+          -0.05555555555555556
+        ],
+        "token_ratio": [
+          0.23353034829745511,
+          0.23555590878699056
+        ],
+        "latency_ratio": [
+          1.7218882213238582,
+          1.8967252755232313
+        ]
+      }
+    }
+  },
+  "usage": {
+    "by_model_endpoint": [
+      {
+        "endpoint": "responses",
+        "model": "gpt-6-luna",
+        "calls": 810,
+        "input_tokens": 10481002,
+        "output_tokens": 28085,
+        "cached_input_tokens": 7402330,
+        "reasoning_output_tokens": 0,
+        "usage_complete": true
+      },
+      {
+        "endpoint": "embedding",
+        "model": "text-embedding-3-small",
+        "calls": 270,
+        "input_tokens": 10212,
+        "output_tokens": 0,
+        "cached_input_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "usage_complete": true
+      }
+    ],
+    "usage_complete": true,
+    "observed_generation_tokens": 10509087,
+    "observed_embedding_tokens": 10212,
+    "sdk_retry_visibility": "SDK internal retries may consume tokens not exposed by a response; these are not estimated."
+  },
+  "api_task_errors": 0,
+  "all_new_responses": true,
+  "shared_app_changed": false,
+  "new_ingestion": 0,
+  "review": "AI semantic review; independent human/team signoff pending",
+  "criteria_status": "Pre-run local hash freeze; team agreement and Git commit pending",
+  "benchmark_scope": "Frozen photo+caption descriptions. Online QA costs only; construction excluded, not zero.",
+  "completed_analysis_at": "2026-10-22T14:13:36.118953+00:00"
+}

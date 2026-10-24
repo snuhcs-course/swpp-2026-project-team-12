@@ -1,0 +1,4490 @@
+[
+  {
+    "history_size": 100,
+    "question_id": "FQ01",
+    "question": "모모 아침밥은 몇 시에 주면 돼?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "아침 8시",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "아침 8시를 묻는다. 담당자 변경이 밥 시간을 바꿨다는 근거는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ02",
+    "question": "도윤이가 기르는 자주는 무슨 식물이야?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "제브리나",
+    "sufficient_evidence_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "제브리나/트라데스칸티아 제브리나를 인정한다. 알로에 새싹과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ03",
+    "question": "지민이의 첫 피아노 선생님은 누구야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 선생님은 민수이다. 현재 서연으로 바뀌어도 과거의 첫 선생님은 바뀌지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ04",
+    "question": "도윤이가 결제한 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "인버터",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터 장바구니에 넣었다~ 아직 결제는 안 함",
+        "stored_description": "2026년 10월 11일, 도윤은 매장에서 RYOBI 150W 인버터를 장바구니에 담았다고 알렸다. 아직 결제하지는 않았다. 첨부 사진에는 RYOBI 18V ONE+ 배터리를 전원으로 쓰는 150W 배터리 인버터 포장을 손에 든 모습이 보이며, 포장에는 배터리와 충전기는 별도인 ‘공구 본체만’ 제품이라고 표시되어 있다. 인버터에는 120V 콘센트 1개와 USB-A 포트 2개가 있다. 매장에는 다른 RYOBI 제품들도 진열되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "결제한 것은 인버터다. 사진·장바구니와 구매를 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ05",
+    "question": "선희가 받은 흰 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "민수가 선물한 사람이고 지민은 전달자다. 원문 기준 M05-4 또는 M05-6을 충분한 출처로 유지한다. 다만 M05-6의 저장 설명은 선물·전달 역할을 흐리므로, ID 확보만으로 실제 문맥의 근거 충분성을 인정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ06",
+    "question": "도윤이 Nissan 사진은 어디에서 찍은 거야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "병원 임시 주차장",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-3",
+        "author": "선희",
+        "created_at": "2026-10-13T10:30:00+09:00",
+        "caption": "새 집 주차장 사진인 줄 알고 봤네~",
+        "stored_description": "선희는 2026년 10월 13일 게시물에서, 무언가를 보고 처음에는 새 집 주차장 사진인 줄 알았다고 말했다. 무엇을 보고 그렇게 생각했는지와 실제 사진의 내용은 원문에 나오지 않는다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T10:30:00+09:00",
+        "caption": "병원 임시 주차장 사진이라고 고쳐 뒀어~",
+        "stored_description": "2026년 10월 16일, 도윤은 어떤 내용을 ‘병원 임시 주차장 사진’이라고 고쳐 두었다고 알렸다. 무엇을 어떻게 수정했는지는 게시물만으로 확인되지 않으므로, 수정 대상이나 이전 표현은 특정할 수 없다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "11일 사진은 정정된 병원 임시 주차장이다. M06-6은 어떤 사진인지 단독으로 명시하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ07",
+    "question": "지민이 검은 신발을 찾은 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "베란다 선반",
+    "sufficient_evidence_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "찾은 장소는 베란다 선반이다. 베란다만 답해도 핵심 위치를 충족한다. 도윤의 갈색 구두는 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ08",
+    "question": "이번 가족 산책 장소는 어디야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "강변 산책로",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이번 가족 산책은 강변 산책로로 변경되었다. 다음 달 친구와의 선셋 공원 약속과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ09",
+    "question": "수진이는 The Quiet War를 다 읽었어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "완독",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:00:00+09:00",
+        "caption": "이번 주에 The Quiet War 읽으려고. 지금은 아직 시작 안 했어",
+        "stored_description": "수진은 이번 주에 《The Quiet War》를 읽을 계획이라고 전했다. 게시물을 올린 시점에는 아직 책을 시작하지 않은 상태였다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-6",
+        "author": "선희",
+        "created_at": "2026-10-16T12:00:00+09:00",
+        "caption": "수진이가 The Quiet War 다 읽었다고 하네~",
+        "stored_description": "2026년 10월 16일, 선희는 수진이가 『The Quiet War』를 다 읽었다고 전했다. 선희는 이를 가벼운 말투로 알렸으며, 책에 대한 감상이나 수진이가 읽은 계기 등은 덧붙이지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "완독했다. 이후 반납을 실제로 마쳤는지는 별개이며 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ10",
+    "question": "건조대 청소는 지금 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "변경된 담당은 지민이다. M10-6은 역할 연결이 설명에서 약해 단독 충분 근거로 쓰지 않는다. 청소 완료 여부는 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ11",
+    "question": "모모 밥은 새로 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-1",
+        "author": "선희",
+        "created_at": "2026-10-11T08:00:00+09:00",
+        "caption": "우리 고양이 모모~ 밥은 내가 챙기고 있어ㅎㅎ",
+        "stored_description": "2026년 10월 10일, 선희는 “우리 고양이 모모”의 근황을 전하며 밥은 자신이 챙기고 있다고 말했다. 사진에는 갈색·검은색 줄무늬와 주황색 털, 흰색 털이 섞인 고양이 모모가 침대 위 짙은 남색 담요에 편하게 몸을 웅크리고 앉아 있다. 뒤로 큰 창문과 커튼, 쿠션이 보이는 방 안의 모습이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-3",
+        "author": "지민",
+        "created_at": "2026-10-13T08:00:00+09:00",
+        "caption": "할머니가 모모 밥 챙겨 주시니 든든ㅎㅎ",
+        "stored_description": "2026년 10월 12일, 지민은 할머니가 모모의 밥을 챙겨 주셔서 든든하다고 전했다. 모모가 누구인지는 원문에 구체적으로 설명되어 있지 않다. ‘ㅎㅎ’에서 가볍고 따뜻한 말투가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-4",
+        "author": "지민",
+        "created_at": "2026-10-14T08:00:00+09:00",
+        "caption": "오늘부터 모모 밥은 내가 맡기로! 할머니는 좀 쉬세요~",
+        "stored_description": "지민은 2026년 10월 13일, 오늘부터 모모의 밥 챙기는 일을 자신이 맡기로 했다고 알렸다. 할머니에게는 이제 좀 쉬시라고 전했다. 모모가 누구인지는 원문에서 구체적으로 밝히지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-6",
+        "author": "선희",
+        "created_at": "2026-10-16T08:00:00+09:00",
+        "caption": "지민이가 모모 아침밥 잘 챙기고 있네~ 고맙다",
+        "stored_description": "2026년 10월 15일, 선희는 지민이가 모모의 아침밥을 잘 챙겨 주고 있다고 전하며 지민이에게 고마움을 표현했다. 모모가 누구인지는 게시물만으로 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "담당 변경 이후 지민이다. 선희를 현재 담당이라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ12",
+    "question": "모모 간식은 얼마나 주라고 했어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "조금만",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "조금만/소량이면 충족한다. 정해진 그램 수나 간식 종류는 알려져 있지 않다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ13",
+    "question": "도윤이가 자주를 옮긴 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "도윤의 서재 창가",
+    "sufficient_evidence_sets": [
+      [
+        "M02-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-3",
+        "author": "수진",
+        "created_at": "2026-10-13T08:30:00+09:00",
+        "caption": "도윤 씨 자주가 거실 창가에서 잘 자라네~",
+        "stored_description": "2026년 10월 13일 오전 8시 30분경(한국 시각), 수진은 “도윤 씨 자주가 거실 창가에서 잘 자라네~”라고 전했다. ‘자주’가 무엇을 가리키는지는 원문만으로 분명하지 않으므로 표현을 그대로 둔다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T08:30:00+09:00",
+        "caption": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "stored_description": "도윤은 오늘 ‘자주’를 자신의 서재 창가로 옮겼다고 전했다. 이에 따라 거실에 있던 자리는 비워 두었다. 원문만으로는 ‘자주’가 무엇을 가리키는지 분명하지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-6",
+        "author": "지민",
+        "created_at": "2026-10-16T08:30:00+09:00",
+        "caption": "아빠 서재에 자주 보러 갔다가 왔어ㅎㅎ",
+        "stored_description": "2026년 10월 15일, 지민은 아빠 서재에 자주 보러 갔다가 돌아왔다고 전했다. 무엇을 보러 갔는지는 원문에 구체적으로 적혀 있지 않으며, 말끝의 “ㅎㅎ”에서 가벼운 어조가 드러난다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서재 창가가 정답이다. 서재만 답하면 핵심 위치는 충족하며 창가 누락은 표현 상세도에만 기록한다. 거실·부엌은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ14",
+    "question": "자주는 며칠에 한 번 물 주기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "이틀에 한 번",
+    "sufficient_evidence_sets": [
+      [
+        "M02-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T08:30:00+09:00",
+        "caption": "자주는 이틀에 한 번 물 주기로. 너무 많이 주진 말아야지",
+        "stored_description": "2026년 10월 11일, 도윤은 ‘자주’라는 대상에 이틀에 한 번 물을 주기로 했다. 물을 너무 많이 주지는 않겠다고 덧붙였다. 원문만으로는 ‘자주’가 무엇을 가리키는지 구체적으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이틀/2일 간격을 인정한다. 하루 두 번이나 매일은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ15",
+    "question": "지민이가 새로 배우기로 한 피아노 선생님은 누구야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "서연",
+    "sufficient_evidence_sets": [
+      [
+        "M03-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:00:00+09:00",
+        "caption": "지민이 민수 선생님 숙제 열심히 하네~",
+        "stored_description": "2026년 10월 13일, 수진은 지민이가 민수 선생님이 내준 숙제를 열심히 하고 있다고 전했다. “열심히 하네~”라는 말투에서 지민이의 노력을 긍정적으로 바라보는 분위기가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서연 선생님으로 변경되었다. 민수나 아빠의 동료 민수와 연결하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ16",
+    "question": "지민이는 서연 선생님 수업을 몇 번째로 들었다고 했어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "두 번째",
+    "sufficient_evidence_sets": [
+      [
+        "M03-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-6",
+        "author": "지민",
+        "created_at": "2026-10-16T09:00:00+09:00",
+        "caption": "서연 선생님 두 번째 수업도 좋았다~",
+        "stored_description": "2026년 10월 16일, 지민은 서연 선생님의 두 번째 수업도 좋았다고 전했다. ‘도’라는 표현으로 보아 앞선 수업에 이어 이번 수업에도 만족한 것으로 보인다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "두 번째/2회차를 인정한다. 현재까지 총 몇 회인지 추가로 추정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ17",
+    "question": "도윤이는 고압 세척기를 결국 샀어?",
+    "author": "선희",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "사지 않았다",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ],
+      [
+        "M04-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:30:00+09:00",
+        "caption": "도윤 씨 공구 두 개 다 아직 고민 중이래ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 수진은 도윤 씨가 ‘공구’ 두 개를 모두 아직 고민 중이라고 전했다. 글 끝의 “ㅎㅎ”에서 가볍고 편안한 말투가 드러난다. ‘공구’가 무엇을 가리키는지는 원문만으로 분명하지 않아 그대로 기록한다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T09:30:00+09:00",
+        "caption": "내 인버터 배송 기다리는 중~ 세척기는 사지 않은 걸로 끝ㅎㅎ",
+        "stored_description": "도윤은 인버터 배송을 기다리고 있다고 전했다. 세척기는 구매하지 않기로 하면서 관련 구매를 마무리했다고 덧붙였다. 게시 시각은 2026년 10월 16일 00:30(UTC)이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "안 샀다/구매하지 않기로 했다면 충족한다. 결제를 안 했다는 옛 사실만으로 나중의 구매 여부를 단정하는 근거는 불충분하다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ18",
+    "question": "옆집 철수가 샀다는 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "Hyper Tough 고압 세척기",
+    "sufficient_evidence_sets": [
+      [
+        "M04-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "고압 세척기만 답해도 충족한다. 철수가 인버터를 샀다거나 도윤이 산 세척기라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ19",
+    "question": "선희에게 흰 꽃을 전달해 준 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "전달자는 지민, 선물한 사람은 민수다. 전달과 구매·선물을 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ20",
+    "question": "수진이에게 분홍 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "친구 은영",
+    "sufficient_evidence_sets": [
+      [
+        "M05-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "은영/친구 은영을 인정한다. 흰 꽃의 민수·지민과 혼동하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ21",
+    "question": "수진이 친구네 새 집 주차장은 어디에 있대?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "지하",
+    "sufficient_evidence_sets": [
+      [
+        "M06-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "지하이다. 도윤의 Nissan 사진 장소나 수진네 실제 집 주소를 묻는 질문이 아니다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ22",
+    "question": "도윤이는 집 주소를 올린 적이 있다고 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "집 주소를 올린 적이 없다고 했다",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도윤이 올린 적 없다고 말한 사실을 답한다. 주소를 추정하거나 실제 모든 채널에서의 비공개를 보장하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ23",
+    "question": "도윤이가 못 찾겠다고 한 구두는 무슨 색이야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "갈색",
+    "sufficient_evidence_sets": [
+      [
+        "M07-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "갈색이다. 지민의 검은 신발과 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ24",
+    "question": "지민이는 처음 검은 신발 글을 올릴 때 신발이 어디 있는지 알고 있었어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "몰랐다. 찾지 못하고 있었다",
+    "sufficient_evidence_sets": [
+      [
+        "M07-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-6",
+        "author": "지민",
+        "created_at": "2026-10-16T11:00:00+09:00",
+        "caption": "검은 신발 다시 신고 나갔다 왔어ㅎㅎ",
+        "stored_description": "지민은 검은 신발을 다시 신고 외출했다가 돌아왔다고 전했다. “ㅎㅎ”를 덧붙여 가볍고 편안한 어조로 소식을 전했다. 작성 시각은 2026년 10월 16일 02:00(UTC)이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 게시 시점에는 못 찾았다고 답한다. 당시에도 베란다 위치를 알았다고 하면 오답이다. 현재 상태를 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ25",
+    "question": "18일 가족 산책은 몇 시에 만나기로 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "오후 3시",
+    "sufficient_evidence_sets": [
+      [
+        "M08-2"
+      ],
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-2",
+        "author": "수진",
+        "created_at": "2026-10-12T11:30:00+09:00",
+        "caption": "18일 가족 산책 약속은 오후 3시!",
+        "stored_description": "수진은 가족 산책 약속이 18일 오후 3시라고 알렸다. 원문에는 날짜의 월이나 산책 장소는 적혀 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-6",
+        "author": "선희",
+        "created_at": "2026-10-16T11:30:00+09:00",
+        "caption": "18일 일요일 가족 산책은 강변 산책로로 가는 거지~ 3시에 보자",
+        "stored_description": "선희는 2026년 10월 16일에 가족들에게 18일 일요일 산책 계획을 확인하며, 강변 산책로로 가는 것이 맞는지 물었다. 가족은 18일 3시에 만나기로 하자는 내용이다. 원문에는 오전·오후가 따로 명시되어 있지 않다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "오후 3시/15시를 인정한다. 그냥 3시는 문맥상 오후라고 명확한 경우 인정한다. M08-6만으로 오전·오후를 확인할 수는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ26",
+    "question": "가족 산책 장소를 바꾼 이유가 뭐야?",
+    "author": "지민",
+    "viewer": "도윤",
+    "app_relation": "딸",
+    "expected_answer": "선셋 공원이 공사 중이어서",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "공사 때문이면 충족한다. 날씨·가족 건강 등 다른 이유를 만들지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ27",
+    "question": "아빠가 읽는 중이라고 한 책은 뭐야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "Blue Exorcist",
+    "sufficient_evidence_sets": [
+      [
+        "M09-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "질문자 지민의 아빠는 도윤이다. Blue Exorcist/청의 엑소시스트를 인정한다. 엄마 수진의 The Quiet War와 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ28",
+    "question": "수진이는 The Quiet War를 다 읽고 어디에 반납할 예정이라고 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "도서관",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도서관이다. 반납 예정이므로 실제 반납을 완료했다는 추가 주장은 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ29",
+    "question": "지민이는 건조대 청소를 언제 하기로 했어?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "토요일 오전",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:30:00+09:00",
+        "caption": "건조대 청소는 토요일 오전에 하려고 해",
+        "stored_description": "수진은 건조대 청소를 토요일 오전에 할 계획이라고 전했다. 청소는 아직 예정된 일이며, 원문에는 구체적인 시간이나 다른 일정은 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "토요일 오전이다. 실제 완료 여부를 묻지 않으며 질문 시점에 아직 청소 전이라고 단정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 100,
+    "question_id": "FQ30",
+    "question": "담당이 바뀌기 전, 처음 건조대 청소를 하겠다고 한 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "수진",
+    "sufficient_evidence_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "처음 맡겠다고 한 수진이다. 현재 담당 지민과 구분한다. 본문상의 엄마를 인정한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ01",
+    "question": "모모 아침밥은 몇 시에 주면 돼?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "아침 8시",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "아침 8시를 묻는다. 담당자 변경이 밥 시간을 바꿨다는 근거는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ02",
+    "question": "도윤이가 기르는 자주는 무슨 식물이야?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "제브리나",
+    "sufficient_evidence_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "제브리나/트라데스칸티아 제브리나를 인정한다. 알로에 새싹과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ03",
+    "question": "지민이의 첫 피아노 선생님은 누구야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 선생님은 민수이다. 현재 서연으로 바뀌어도 과거의 첫 선생님은 바뀌지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ04",
+    "question": "도윤이가 결제한 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "인버터",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터 장바구니에 넣었다~ 아직 결제는 안 함",
+        "stored_description": "2026년 10월 11일, 도윤은 매장에서 RYOBI 150W 인버터를 장바구니에 담았다고 알렸다. 아직 결제하지는 않았다. 첨부 사진에는 RYOBI 18V ONE+ 배터리를 전원으로 쓰는 150W 배터리 인버터 포장을 손에 든 모습이 보이며, 포장에는 배터리와 충전기는 별도인 ‘공구 본체만’ 제품이라고 표시되어 있다. 인버터에는 120V 콘센트 1개와 USB-A 포트 2개가 있다. 매장에는 다른 RYOBI 제품들도 진열되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "결제한 것은 인버터다. 사진·장바구니와 구매를 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ05",
+    "question": "선희가 받은 흰 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "민수가 선물한 사람이고 지민은 전달자다. 원문 기준 M05-4 또는 M05-6을 충분한 출처로 유지한다. 다만 M05-6의 저장 설명은 선물·전달 역할을 흐리므로, ID 확보만으로 실제 문맥의 근거 충분성을 인정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ06",
+    "question": "도윤이 Nissan 사진은 어디에서 찍은 거야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "병원 임시 주차장",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-3",
+        "author": "선희",
+        "created_at": "2026-10-13T10:30:00+09:00",
+        "caption": "새 집 주차장 사진인 줄 알고 봤네~",
+        "stored_description": "선희는 2026년 10월 13일 게시물에서, 무언가를 보고 처음에는 새 집 주차장 사진인 줄 알았다고 말했다. 무엇을 보고 그렇게 생각했는지와 실제 사진의 내용은 원문에 나오지 않는다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T10:30:00+09:00",
+        "caption": "병원 임시 주차장 사진이라고 고쳐 뒀어~",
+        "stored_description": "2026년 10월 16일, 도윤은 어떤 내용을 ‘병원 임시 주차장 사진’이라고 고쳐 두었다고 알렸다. 무엇을 어떻게 수정했는지는 게시물만으로 확인되지 않으므로, 수정 대상이나 이전 표현은 특정할 수 없다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "11일 사진은 정정된 병원 임시 주차장이다. M06-6은 어떤 사진인지 단독으로 명시하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ07",
+    "question": "지민이 검은 신발을 찾은 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "베란다 선반",
+    "sufficient_evidence_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "찾은 장소는 베란다 선반이다. 베란다만 답해도 핵심 위치를 충족한다. 도윤의 갈색 구두는 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ08",
+    "question": "이번 가족 산책 장소는 어디야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "강변 산책로",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이번 가족 산책은 강변 산책로로 변경되었다. 다음 달 친구와의 선셋 공원 약속과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ09",
+    "question": "수진이는 The Quiet War를 다 읽었어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "완독",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:00:00+09:00",
+        "caption": "이번 주에 The Quiet War 읽으려고. 지금은 아직 시작 안 했어",
+        "stored_description": "수진은 이번 주에 《The Quiet War》를 읽을 계획이라고 전했다. 게시물을 올린 시점에는 아직 책을 시작하지 않은 상태였다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-6",
+        "author": "선희",
+        "created_at": "2026-10-16T12:00:00+09:00",
+        "caption": "수진이가 The Quiet War 다 읽었다고 하네~",
+        "stored_description": "2026년 10월 16일, 선희는 수진이가 『The Quiet War』를 다 읽었다고 전했다. 선희는 이를 가벼운 말투로 알렸으며, 책에 대한 감상이나 수진이가 읽은 계기 등은 덧붙이지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "완독했다. 이후 반납을 실제로 마쳤는지는 별개이며 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ10",
+    "question": "건조대 청소는 지금 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "변경된 담당은 지민이다. M10-6은 역할 연결이 설명에서 약해 단독 충분 근거로 쓰지 않는다. 청소 완료 여부는 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ11",
+    "question": "모모 밥은 새로 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-1",
+        "author": "선희",
+        "created_at": "2026-10-11T08:00:00+09:00",
+        "caption": "우리 고양이 모모~ 밥은 내가 챙기고 있어ㅎㅎ",
+        "stored_description": "2026년 10월 10일, 선희는 “우리 고양이 모모”의 근황을 전하며 밥은 자신이 챙기고 있다고 말했다. 사진에는 갈색·검은색 줄무늬와 주황색 털, 흰색 털이 섞인 고양이 모모가 침대 위 짙은 남색 담요에 편하게 몸을 웅크리고 앉아 있다. 뒤로 큰 창문과 커튼, 쿠션이 보이는 방 안의 모습이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-3",
+        "author": "지민",
+        "created_at": "2026-10-13T08:00:00+09:00",
+        "caption": "할머니가 모모 밥 챙겨 주시니 든든ㅎㅎ",
+        "stored_description": "2026년 10월 12일, 지민은 할머니가 모모의 밥을 챙겨 주셔서 든든하다고 전했다. 모모가 누구인지는 원문에 구체적으로 설명되어 있지 않다. ‘ㅎㅎ’에서 가볍고 따뜻한 말투가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-4",
+        "author": "지민",
+        "created_at": "2026-10-14T08:00:00+09:00",
+        "caption": "오늘부터 모모 밥은 내가 맡기로! 할머니는 좀 쉬세요~",
+        "stored_description": "지민은 2026년 10월 13일, 오늘부터 모모의 밥 챙기는 일을 자신이 맡기로 했다고 알렸다. 할머니에게는 이제 좀 쉬시라고 전했다. 모모가 누구인지는 원문에서 구체적으로 밝히지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-6",
+        "author": "선희",
+        "created_at": "2026-10-16T08:00:00+09:00",
+        "caption": "지민이가 모모 아침밥 잘 챙기고 있네~ 고맙다",
+        "stored_description": "2026년 10월 15일, 선희는 지민이가 모모의 아침밥을 잘 챙겨 주고 있다고 전하며 지민이에게 고마움을 표현했다. 모모가 누구인지는 게시물만으로 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "담당 변경 이후 지민이다. 선희를 현재 담당이라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ12",
+    "question": "모모 간식은 얼마나 주라고 했어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "조금만",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "조금만/소량이면 충족한다. 정해진 그램 수나 간식 종류는 알려져 있지 않다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ13",
+    "question": "도윤이가 자주를 옮긴 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "도윤의 서재 창가",
+    "sufficient_evidence_sets": [
+      [
+        "M02-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-3",
+        "author": "수진",
+        "created_at": "2026-10-13T08:30:00+09:00",
+        "caption": "도윤 씨 자주가 거실 창가에서 잘 자라네~",
+        "stored_description": "2026년 10월 13일 오전 8시 30분경(한국 시각), 수진은 “도윤 씨 자주가 거실 창가에서 잘 자라네~”라고 전했다. ‘자주’가 무엇을 가리키는지는 원문만으로 분명하지 않으므로 표현을 그대로 둔다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T08:30:00+09:00",
+        "caption": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "stored_description": "도윤은 오늘 ‘자주’를 자신의 서재 창가로 옮겼다고 전했다. 이에 따라 거실에 있던 자리는 비워 두었다. 원문만으로는 ‘자주’가 무엇을 가리키는지 분명하지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-6",
+        "author": "지민",
+        "created_at": "2026-10-16T08:30:00+09:00",
+        "caption": "아빠 서재에 자주 보러 갔다가 왔어ㅎㅎ",
+        "stored_description": "2026년 10월 15일, 지민은 아빠 서재에 자주 보러 갔다가 돌아왔다고 전했다. 무엇을 보러 갔는지는 원문에 구체적으로 적혀 있지 않으며, 말끝의 “ㅎㅎ”에서 가벼운 어조가 드러난다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서재 창가가 정답이다. 서재만 답하면 핵심 위치는 충족하며 창가 누락은 표현 상세도에만 기록한다. 거실·부엌은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ14",
+    "question": "자주는 며칠에 한 번 물 주기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "이틀에 한 번",
+    "sufficient_evidence_sets": [
+      [
+        "M02-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T08:30:00+09:00",
+        "caption": "자주는 이틀에 한 번 물 주기로. 너무 많이 주진 말아야지",
+        "stored_description": "2026년 10월 11일, 도윤은 ‘자주’라는 대상에 이틀에 한 번 물을 주기로 했다. 물을 너무 많이 주지는 않겠다고 덧붙였다. 원문만으로는 ‘자주’가 무엇을 가리키는지 구체적으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이틀/2일 간격을 인정한다. 하루 두 번이나 매일은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ15",
+    "question": "지민이가 새로 배우기로 한 피아노 선생님은 누구야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "서연",
+    "sufficient_evidence_sets": [
+      [
+        "M03-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:00:00+09:00",
+        "caption": "지민이 민수 선생님 숙제 열심히 하네~",
+        "stored_description": "2026년 10월 13일, 수진은 지민이가 민수 선생님이 내준 숙제를 열심히 하고 있다고 전했다. “열심히 하네~”라는 말투에서 지민이의 노력을 긍정적으로 바라보는 분위기가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서연 선생님으로 변경되었다. 민수나 아빠의 동료 민수와 연결하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ16",
+    "question": "지민이는 서연 선생님 수업을 몇 번째로 들었다고 했어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "두 번째",
+    "sufficient_evidence_sets": [
+      [
+        "M03-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-6",
+        "author": "지민",
+        "created_at": "2026-10-16T09:00:00+09:00",
+        "caption": "서연 선생님 두 번째 수업도 좋았다~",
+        "stored_description": "2026년 10월 16일, 지민은 서연 선생님의 두 번째 수업도 좋았다고 전했다. ‘도’라는 표현으로 보아 앞선 수업에 이어 이번 수업에도 만족한 것으로 보인다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "두 번째/2회차를 인정한다. 현재까지 총 몇 회인지 추가로 추정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ17",
+    "question": "도윤이는 고압 세척기를 결국 샀어?",
+    "author": "선희",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "사지 않았다",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ],
+      [
+        "M04-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:30:00+09:00",
+        "caption": "도윤 씨 공구 두 개 다 아직 고민 중이래ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 수진은 도윤 씨가 ‘공구’ 두 개를 모두 아직 고민 중이라고 전했다. 글 끝의 “ㅎㅎ”에서 가볍고 편안한 말투가 드러난다. ‘공구’가 무엇을 가리키는지는 원문만으로 분명하지 않아 그대로 기록한다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T09:30:00+09:00",
+        "caption": "내 인버터 배송 기다리는 중~ 세척기는 사지 않은 걸로 끝ㅎㅎ",
+        "stored_description": "도윤은 인버터 배송을 기다리고 있다고 전했다. 세척기는 구매하지 않기로 하면서 관련 구매를 마무리했다고 덧붙였다. 게시 시각은 2026년 10월 16일 00:30(UTC)이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "안 샀다/구매하지 않기로 했다면 충족한다. 결제를 안 했다는 옛 사실만으로 나중의 구매 여부를 단정하는 근거는 불충분하다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ18",
+    "question": "옆집 철수가 샀다는 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "Hyper Tough 고압 세척기",
+    "sufficient_evidence_sets": [
+      [
+        "M04-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "고압 세척기만 답해도 충족한다. 철수가 인버터를 샀다거나 도윤이 산 세척기라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ19",
+    "question": "선희에게 흰 꽃을 전달해 준 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "전달자는 지민, 선물한 사람은 민수다. 전달과 구매·선물을 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ20",
+    "question": "수진이에게 분홍 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "친구 은영",
+    "sufficient_evidence_sets": [
+      [
+        "M05-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "은영/친구 은영을 인정한다. 흰 꽃의 민수·지민과 혼동하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ21",
+    "question": "수진이 친구네 새 집 주차장은 어디에 있대?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "지하",
+    "sufficient_evidence_sets": [
+      [
+        "M06-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "지하이다. 도윤의 Nissan 사진 장소나 수진네 실제 집 주소를 묻는 질문이 아니다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ22",
+    "question": "도윤이는 집 주소를 올린 적이 있다고 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "집 주소를 올린 적이 없다고 했다",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도윤이 올린 적 없다고 말한 사실을 답한다. 주소를 추정하거나 실제 모든 채널에서의 비공개를 보장하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ23",
+    "question": "도윤이가 못 찾겠다고 한 구두는 무슨 색이야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "갈색",
+    "sufficient_evidence_sets": [
+      [
+        "M07-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "갈색이다. 지민의 검은 신발과 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ24",
+    "question": "지민이는 처음 검은 신발 글을 올릴 때 신발이 어디 있는지 알고 있었어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "몰랐다. 찾지 못하고 있었다",
+    "sufficient_evidence_sets": [
+      [
+        "M07-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-6",
+        "author": "지민",
+        "created_at": "2026-10-16T11:00:00+09:00",
+        "caption": "검은 신발 다시 신고 나갔다 왔어ㅎㅎ",
+        "stored_description": "지민은 검은 신발을 다시 신고 외출했다가 돌아왔다고 전했다. “ㅎㅎ”를 덧붙여 가볍고 편안한 어조로 소식을 전했다. 작성 시각은 2026년 10월 16일 02:00(UTC)이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 게시 시점에는 못 찾았다고 답한다. 당시에도 베란다 위치를 알았다고 하면 오답이다. 현재 상태를 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ25",
+    "question": "18일 가족 산책은 몇 시에 만나기로 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "오후 3시",
+    "sufficient_evidence_sets": [
+      [
+        "M08-2"
+      ],
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-2",
+        "author": "수진",
+        "created_at": "2026-10-12T11:30:00+09:00",
+        "caption": "18일 가족 산책 약속은 오후 3시!",
+        "stored_description": "수진은 가족 산책 약속이 18일 오후 3시라고 알렸다. 원문에는 날짜의 월이나 산책 장소는 적혀 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-6",
+        "author": "선희",
+        "created_at": "2026-10-16T11:30:00+09:00",
+        "caption": "18일 일요일 가족 산책은 강변 산책로로 가는 거지~ 3시에 보자",
+        "stored_description": "선희는 2026년 10월 16일에 가족들에게 18일 일요일 산책 계획을 확인하며, 강변 산책로로 가는 것이 맞는지 물었다. 가족은 18일 3시에 만나기로 하자는 내용이다. 원문에는 오전·오후가 따로 명시되어 있지 않다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "오후 3시/15시를 인정한다. 그냥 3시는 문맥상 오후라고 명확한 경우 인정한다. M08-6만으로 오전·오후를 확인할 수는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ26",
+    "question": "가족 산책 장소를 바꾼 이유가 뭐야?",
+    "author": "지민",
+    "viewer": "도윤",
+    "app_relation": "딸",
+    "expected_answer": "선셋 공원이 공사 중이어서",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "공사 때문이면 충족한다. 날씨·가족 건강 등 다른 이유를 만들지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ27",
+    "question": "아빠가 읽는 중이라고 한 책은 뭐야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "Blue Exorcist",
+    "sufficient_evidence_sets": [
+      [
+        "M09-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "질문자 지민의 아빠는 도윤이다. Blue Exorcist/청의 엑소시스트를 인정한다. 엄마 수진의 The Quiet War와 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ28",
+    "question": "수진이는 The Quiet War를 다 읽고 어디에 반납할 예정이라고 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "도서관",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도서관이다. 반납 예정이므로 실제 반납을 완료했다는 추가 주장은 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ29",
+    "question": "지민이는 건조대 청소를 언제 하기로 했어?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "토요일 오전",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:30:00+09:00",
+        "caption": "건조대 청소는 토요일 오전에 하려고 해",
+        "stored_description": "수진은 건조대 청소를 토요일 오전에 할 계획이라고 전했다. 청소는 아직 예정된 일이며, 원문에는 구체적인 시간이나 다른 일정은 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "토요일 오전이다. 실제 완료 여부를 묻지 않으며 질문 시점에 아직 청소 전이라고 단정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 200,
+    "question_id": "FQ30",
+    "question": "담당이 바뀌기 전, 처음 건조대 청소를 하겠다고 한 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "수진",
+    "sufficient_evidence_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "처음 맡겠다고 한 수진이다. 현재 담당 지민과 구분한다. 본문상의 엄마를 인정한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ01",
+    "question": "모모 아침밥은 몇 시에 주면 돼?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "아침 8시",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "아침 8시를 묻는다. 담당자 변경이 밥 시간을 바꿨다는 근거는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ02",
+    "question": "도윤이가 기르는 자주는 무슨 식물이야?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "제브리나",
+    "sufficient_evidence_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "제브리나/트라데스칸티아 제브리나를 인정한다. 알로에 새싹과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ03",
+    "question": "지민이의 첫 피아노 선생님은 누구야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 선생님은 민수이다. 현재 서연으로 바뀌어도 과거의 첫 선생님은 바뀌지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ04",
+    "question": "도윤이가 결제한 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "인버터",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터 장바구니에 넣었다~ 아직 결제는 안 함",
+        "stored_description": "2026년 10월 11일, 도윤은 매장에서 RYOBI 150W 인버터를 장바구니에 담았다고 알렸다. 아직 결제하지는 않았다. 첨부 사진에는 RYOBI 18V ONE+ 배터리를 전원으로 쓰는 150W 배터리 인버터 포장을 손에 든 모습이 보이며, 포장에는 배터리와 충전기는 별도인 ‘공구 본체만’ 제품이라고 표시되어 있다. 인버터에는 120V 콘센트 1개와 USB-A 포트 2개가 있다. 매장에는 다른 RYOBI 제품들도 진열되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "결제한 것은 인버터다. 사진·장바구니와 구매를 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ05",
+    "question": "선희가 받은 흰 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "민수",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "민수가 선물한 사람이고 지민은 전달자다. 원문 기준 M05-4 또는 M05-6을 충분한 출처로 유지한다. 다만 M05-6의 저장 설명은 선물·전달 역할을 흐리므로, ID 확보만으로 실제 문맥의 근거 충분성을 인정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ06",
+    "question": "도윤이 Nissan 사진은 어디에서 찍은 거야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "병원 임시 주차장",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-3",
+        "author": "선희",
+        "created_at": "2026-10-13T10:30:00+09:00",
+        "caption": "새 집 주차장 사진인 줄 알고 봤네~",
+        "stored_description": "선희는 2026년 10월 13일 게시물에서, 무언가를 보고 처음에는 새 집 주차장 사진인 줄 알았다고 말했다. 무엇을 보고 그렇게 생각했는지와 실제 사진의 내용은 원문에 나오지 않는다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T10:30:00+09:00",
+        "caption": "병원 임시 주차장 사진이라고 고쳐 뒀어~",
+        "stored_description": "2026년 10월 16일, 도윤은 어떤 내용을 ‘병원 임시 주차장 사진’이라고 고쳐 두었다고 알렸다. 무엇을 어떻게 수정했는지는 게시물만으로 확인되지 않으므로, 수정 대상이나 이전 표현은 특정할 수 없다. 첨부 사진은 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "11일 사진은 정정된 병원 임시 주차장이다. M06-6은 어떤 사진인지 단독으로 명시하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ07",
+    "question": "지민이 검은 신발을 찾은 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "베란다 선반",
+    "sufficient_evidence_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "찾은 장소는 베란다 선반이다. 베란다만 답해도 핵심 위치를 충족한다. 도윤의 갈색 구두는 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ08",
+    "question": "이번 가족 산책 장소는 어디야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "강변 산책로",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이번 가족 산책은 강변 산책로로 변경되었다. 다음 달 친구와의 선셋 공원 약속과 다르다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ09",
+    "question": "수진이는 The Quiet War를 다 읽었어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "완독",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:00:00+09:00",
+        "caption": "이번 주에 The Quiet War 읽으려고. 지금은 아직 시작 안 했어",
+        "stored_description": "수진은 이번 주에 《The Quiet War》를 읽을 계획이라고 전했다. 게시물을 올린 시점에는 아직 책을 시작하지 않은 상태였다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-6",
+        "author": "선희",
+        "created_at": "2026-10-16T12:00:00+09:00",
+        "caption": "수진이가 The Quiet War 다 읽었다고 하네~",
+        "stored_description": "2026년 10월 16일, 선희는 수진이가 『The Quiet War』를 다 읽었다고 전했다. 선희는 이를 가벼운 말투로 알렸으며, 책에 대한 감상이나 수진이가 읽은 계기 등은 덧붙이지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "완독했다. 이후 반납을 실제로 마쳤는지는 별개이며 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ10",
+    "question": "건조대 청소는 지금 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "선희",
+    "app_relation": "아들",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "변경된 담당은 지민이다. M10-6은 역할 연결이 설명에서 약해 단독 충분 근거로 쓰지 않는다. 청소 완료 여부는 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ11",
+    "question": "모모 밥은 새로 누가 맡기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-1",
+        "author": "선희",
+        "created_at": "2026-10-11T08:00:00+09:00",
+        "caption": "우리 고양이 모모~ 밥은 내가 챙기고 있어ㅎㅎ",
+        "stored_description": "2026년 10월 10일, 선희는 “우리 고양이 모모”의 근황을 전하며 밥은 자신이 챙기고 있다고 말했다. 사진에는 갈색·검은색 줄무늬와 주황색 털, 흰색 털이 섞인 고양이 모모가 침대 위 짙은 남색 담요에 편하게 몸을 웅크리고 앉아 있다. 뒤로 큰 창문과 커튼, 쿠션이 보이는 방 안의 모습이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-3",
+        "author": "지민",
+        "created_at": "2026-10-13T08:00:00+09:00",
+        "caption": "할머니가 모모 밥 챙겨 주시니 든든ㅎㅎ",
+        "stored_description": "2026년 10월 12일, 지민은 할머니가 모모의 밥을 챙겨 주셔서 든든하다고 전했다. 모모가 누구인지는 원문에 구체적으로 설명되어 있지 않다. ‘ㅎㅎ’에서 가볍고 따뜻한 말투가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-4",
+        "author": "지민",
+        "created_at": "2026-10-14T08:00:00+09:00",
+        "caption": "오늘부터 모모 밥은 내가 맡기로! 할머니는 좀 쉬세요~",
+        "stored_description": "지민은 2026년 10월 13일, 오늘부터 모모의 밥 챙기는 일을 자신이 맡기로 했다고 알렸다. 할머니에게는 이제 좀 쉬시라고 전했다. 모모가 누구인지는 원문에서 구체적으로 밝히지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M01-6",
+        "author": "선희",
+        "created_at": "2026-10-16T08:00:00+09:00",
+        "caption": "지민이가 모모 아침밥 잘 챙기고 있네~ 고맙다",
+        "stored_description": "2026년 10월 15일, 선희는 지민이가 모모의 아침밥을 잘 챙겨 주고 있다고 전하며 지민이에게 고마움을 표현했다. 모모가 누구인지는 게시물만으로 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "담당 변경 이후 지민이다. 선희를 현재 담당이라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ12",
+    "question": "모모 간식은 얼마나 주라고 했어?",
+    "author": "선희",
+    "viewer": "지민",
+    "app_relation": "할머니",
+    "expected_answer": "조금만",
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M01-2",
+        "author": "선희",
+        "created_at": "2026-10-12T08:00:00+09:00",
+        "caption": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "stored_description": "선희는 모모에게 아침 8시에 밥을 한 번 주고, 간식은 조금만 주라고 전했다. 모모의 종류나 간식의 종류는 원문에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M01-5",
+        "author": "수진",
+        "created_at": "2026-10-15T08:00:00+09:00",
+        "caption": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "stored_description": "수진은 친구네 고양이 나비는 친구가 밥을 준다고 전했다. 자신의 고양이 모모와 친구네 고양이 나비의 이름이 서로 다르다는 점을 가볍게 웃으며 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "조금만/소량이면 충족한다. 정해진 그램 수나 간식 종류는 알려져 있지 않다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ13",
+    "question": "도윤이가 자주를 옮긴 곳은 어디야?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "도윤의 서재 창가",
+    "sufficient_evidence_sets": [
+      [
+        "M02-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T08:30:00+09:00",
+        "caption": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "stored_description": "2026년 10월 10일, 도윤은 자신이 기르는 제브리나를 소개하며 “자주야~”라고 표현하고, 식물을 거실 창가에 두었다고 전했다. 사진에는 창가에 놓인 화분의 제브리나가 보인다. 잎은 길쭉하고 초록색과 자주빛·붉은빛이 함께 돌며, 줄기가 화분 가장자리 아래로 늘어져 있다. 도윤은 식물 옆에 손을 대어 크기를 보여 주고 있다. 근처에도 작은 화분이 있으며, 창으로 들어오는 빛을 받는 자리다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-3",
+        "author": "수진",
+        "created_at": "2026-10-13T08:30:00+09:00",
+        "caption": "도윤 씨 자주가 거실 창가에서 잘 자라네~",
+        "stored_description": "2026년 10월 13일 오전 8시 30분경(한국 시각), 수진은 “도윤 씨 자주가 거실 창가에서 잘 자라네~”라고 전했다. ‘자주’가 무엇을 가리키는지는 원문만으로 분명하지 않으므로 표현을 그대로 둔다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T08:30:00+09:00",
+        "caption": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "stored_description": "도윤은 오늘 ‘자주’를 자신의 서재 창가로 옮겼다고 전했다. 이에 따라 거실에 있던 자리는 비워 두었다. 원문만으로는 ‘자주’가 무엇을 가리키는지 분명하지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M02-6",
+        "author": "지민",
+        "created_at": "2026-10-16T08:30:00+09:00",
+        "caption": "아빠 서재에 자주 보러 갔다가 왔어ㅎㅎ",
+        "stored_description": "2026년 10월 15일, 지민은 아빠 서재에 자주 보러 갔다가 돌아왔다고 전했다. 무엇을 보러 갔는지는 원문에 구체적으로 적혀 있지 않으며, 말끝의 “ㅎㅎ”에서 가벼운 어조가 드러난다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서재 창가가 정답이다. 서재만 답하면 핵심 위치는 충족하며 창가 누락은 표현 상세도에만 기록한다. 거실·부엌은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ14",
+    "question": "자주는 며칠에 한 번 물 주기로 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "이틀에 한 번",
+    "sufficient_evidence_sets": [
+      [
+        "M02-2"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M02-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T08:30:00+09:00",
+        "caption": "자주는 이틀에 한 번 물 주기로. 너무 많이 주진 말아야지",
+        "stored_description": "2026년 10월 11일, 도윤은 ‘자주’라는 대상에 이틀에 한 번 물을 주기로 했다. 물을 너무 많이 주지는 않겠다고 덧붙였다. 원문만으로는 ‘자주’가 무엇을 가리키는지 구체적으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M02-5",
+        "author": "선희",
+        "created_at": "2026-10-15T08:30:00+09:00",
+        "caption": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "stored_description": "2026년 10월 14일, 선희는 알로에를 구경하고 있다며 사진을 올렸다. 사진에는 선희가 손으로 받쳐 든 붉은 화분에 크고 길쭉한 알로에 잎들이 여러 방향으로 뻗어 있는 모습이 담겼다. 유리문 너머로 도로와 건물, 보행자가 보여 화분은 상점 안쪽에서 촬영한 것으로 보인다. 선희는 자신이 키우는 알로에 새싹이 부엌 창가에서 잘 자라기를 바라는 마음을 전했다. 사진 속 큰 화분이 선희의 새싹인지, 구경 중인 알로에인지는 원문만으로 확정하기 어렵다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "이틀/2일 간격을 인정한다. 하루 두 번이나 매일은 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ15",
+    "question": "지민이가 새로 배우기로 한 피아노 선생님은 누구야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "서연",
+    "sufficient_evidence_sets": [
+      [
+        "M03-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:00:00+09:00",
+        "caption": "지민이 민수 선생님 숙제 열심히 하네~",
+        "stored_description": "2026년 10월 13일, 수진은 지민이가 민수 선생님이 내준 숙제를 열심히 하고 있다고 전했다. “열심히 하네~”라는 말투에서 지민이의 노력을 긍정적으로 바라보는 분위기가 드러난다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-4",
+        "author": "지민",
+        "created_at": "2026-10-14T09:00:00+09:00",
+        "caption": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "stored_description": "2026년 10월 14일, 지민은 오늘부터 피아노를 서연 선생님에게 배우기로 했다고 알렸다. 민수 선생님과의 수업은 끝났으며, 선생님을 바꾸게 된 이유는 게시물에 언급되지 않았다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M03-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T09:00:00+09:00",
+        "caption": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "stored_description": "2026년 10월 15일, 도윤은 동료 민수와 점심을 함께했다. 이 민수는 지민이의 피아노 선생님인 민수와는 다른 사람이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "서연 선생님으로 변경되었다. 민수나 아빠의 동료 민수와 연결하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ16",
+    "question": "지민이는 서연 선생님 수업을 몇 번째로 들었다고 했어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "두 번째",
+    "sufficient_evidence_sets": [
+      [
+        "M03-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M03-1",
+        "author": "지민",
+        "created_at": "2026-10-11T09:00:00+09:00",
+        "caption": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 지민은 피아노 민수 선생님과 첫 수업을 했다. 첫 수업이라 긴장했지만, 이를 웃음 섞인 말투로 전했다. 사진에는 검은 탁자 위에 피아노 악보가 놓여 있으며, 악보 제목은 애니메이션 《Adventure Time》의 ‘Island Song (Come along with me)’이다. 이 곡이 수업 자료로 준비된 것으로 보이지만, 실제로 수업에서 연주했는지는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M03-6",
+        "author": "지민",
+        "created_at": "2026-10-16T09:00:00+09:00",
+        "caption": "서연 선생님 두 번째 수업도 좋았다~",
+        "stored_description": "2026년 10월 16일, 지민은 서연 선생님의 두 번째 수업도 좋았다고 전했다. ‘도’라는 표현으로 보아 앞선 수업에 이어 이번 수업에도 만족한 것으로 보인다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "두 번째/2회차를 인정한다. 현재까지 총 몇 회인지 추가로 추정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ17",
+    "question": "도윤이는 고압 세척기를 결국 샀어?",
+    "author": "선희",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "사지 않았다",
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ],
+      [
+        "M04-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-2",
+        "author": "도윤",
+        "created_at": "2026-10-12T09:30:00+09:00",
+        "caption": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "stored_description": "2026년 10월 12일, 도윤은 Hyper Tough 고압 세척기를 장바구니에 담아두기만 했으며 아직 구매하지 않았다고 전했다. 첨부 사진에는 매장 진열대에 놓인 Hyper Tough 2000 PSI 전기식 고압 세척기 상자가 보인다. 상자에는 13암페어 모터와 2년 제한 보증이 표시되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-3",
+        "author": "수진",
+        "created_at": "2026-10-13T09:30:00+09:00",
+        "caption": "도윤 씨 공구 두 개 다 아직 고민 중이래ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 수진은 도윤 씨가 ‘공구’ 두 개를 모두 아직 고민 중이라고 전했다. 글 끝의 “ㅎㅎ”에서 가볍고 편안한 말투가 드러난다. ‘공구’가 무엇을 가리키는지는 원문만으로 분명하지 않아 그대로 기록한다. 첨부된 사진은 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-6",
+        "author": "도윤",
+        "created_at": "2026-10-16T09:30:00+09:00",
+        "caption": "내 인버터 배송 기다리는 중~ 세척기는 사지 않은 걸로 끝ㅎㅎ",
+        "stored_description": "도윤은 인버터 배송을 기다리고 있다고 전했다. 세척기는 구매하지 않기로 하면서 관련 구매를 마무리했다고 덧붙였다. 게시 시각은 2026년 10월 16일 00:30(UTC)이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "안 샀다/구매하지 않기로 했다면 충족한다. 결제를 안 했다는 옛 사실만으로 나중의 구매 여부를 단정하는 근거는 불충분하다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ18",
+    "question": "옆집 철수가 샀다는 공구는 뭐야?",
+    "author": "지민",
+    "viewer": "선희",
+    "app_relation": "손녀",
+    "expected_answer": "Hyper Tough 고압 세척기",
+    "sufficient_evidence_sets": [
+      [
+        "M04-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M04-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T09:30:00+09:00",
+        "caption": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "stored_description": "도윤은 2026년 10월 14일, RYOBI 150W 인버터만 결제했다. 함께 고려하던 고압 세척기는 사지 않기로 결정해 장바구니에서 뺐다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M04-5",
+        "author": "선희",
+        "created_at": "2026-10-15T09:30:00+09:00",
+        "caption": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "stored_description": "선희는 2026년 10월 15일에 옆집 철수가 Hyper Tough 고압 세척기를 샀다는 소식을 전했다. 선희는 그 고압 세척기가 자기 가족의 것이 아니라 옆집 철수의 것이라고 덧붙였다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "고압 세척기만 답해도 충족한다. 철수가 인버터를 샀다거나 도윤이 산 세척기라고 하면 오답이다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ19",
+    "question": "선희에게 흰 꽃을 전달해 준 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "지민",
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-1",
+        "author": "선희",
+        "created_at": "2026-10-11T10:00:00+09:00",
+        "caption": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "stored_description": "2026년 10월 11일, 선희는 오늘 지민이가 사 준 흰 꽃이 예쁘다며 고마움을 전했다. 사진에는 둥근 흰 꽃송이들과 초록 잎이 달린 꽃다발을 손에 든 모습이 담겨 있으며, 꽃은 나무 식탁 위에서 촬영됐다. 꽃의 종류는 확인되지 않는다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T10:00:00+09:00",
+        "caption": "어머니가 지민이 꽃이라고 좋아하시네ㅎㅎ",
+        "stored_description": "2026년 10월 13일, 도윤은 어머니가 “지민이 꽃”을 좋아하신다고 전했다. 어머니의 반응을 반가워하며 “ㅎㅎ”를 덧붙였지만, ‘지민이 꽃’이 구체적으로 어떤 꽃이나 대상을 가리키는지는 원문만으로 알 수 없다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-6",
+        "author": "선희",
+        "created_at": "2026-10-16T10:00:00+09:00",
+        "caption": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "stored_description": "선희는 흰 꽃을 보내거나 전해 준 민수에게 고맙다고 연락했다. 꽃을 전달해 준 지민에게도 감사 인사를 전했다. 꽃이 어떤 자리나 계기로 전달됐는지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "전달자는 지민, 선물한 사람은 민수다. 전달과 구매·선물을 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ20",
+    "question": "수진이에게 분홍 꽃을 준 사람은 누구야?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "친구 은영",
+    "sufficient_evidence_sets": [
+      [
+        "M05-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M05-4",
+        "author": "선희",
+        "created_at": "2026-10-14T10:00:00+09:00",
+        "caption": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "stored_description": "선희는 11일에 받은 흰 꽃의 출처를 잘못 알고 있었다며 정정했다. 흰 꽃은 민수가 준 것이고, 지민이는 꽃을 전달해 주기만 했으며 직접 산 것은 아니라고 전했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M05-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:00:00+09:00",
+        "caption": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "stored_description": "수진은 친구 은영에게서 분홍색 꽃다발을 받았다. 이 꽃다발은 ‘어머님’에게 드린 흰 꽃다발과는 별개의 것이라고 덧붙였다. 글만으로는 꽃을 주고받은 계기나 ‘어머님’이 누구를 가리키는지는 알 수 없다. 기록 시각은 2026년 10월 15일이다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "은영/친구 은영을 인정한다. 흰 꽃의 민수·지민과 혼동하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ21",
+    "question": "수진이 친구네 새 집 주차장은 어디에 있대?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "지하",
+    "sufficient_evidence_sets": [
+      [
+        "M06-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "지하이다. 도윤의 Nissan 사진 장소나 수진네 실제 집 주소를 묻는 질문이 아니다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ22",
+    "question": "도윤이는 집 주소를 올린 적이 있다고 했어?",
+    "author": "도윤",
+    "viewer": "수진",
+    "app_relation": "가족",
+    "expected_answer": "집 주소를 올린 적이 없다고 했다",
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M06-1",
+        "author": "도윤",
+        "created_at": "2026-10-11T10:30:00+09:00",
+        "caption": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "stored_description": "2026년 10월 11일, 도윤은 “우리 Nissan 주차 완료~ 여기 새 집 주차장이에요”라고 소식을 전했다. 새 집 주차장에 Nissan 차량을 주차한 뒤 찍은 사진으로 보이며, 어두운색 Nissan 승용차가 주차면에 세워져 있다. 주변에도 다른 차량들이 주차되어 있다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M06-4",
+        "author": "도윤",
+        "created_at": "2026-10-14T10:30:00+09:00",
+        "caption": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "stored_description": "도윤은 2026년 10월 14일, 11일에 올린 ‘Nissan’ 사진에 관한 설명을 정정했다. 사진은 새 집에서 찍은 것이 아니라 병원의 임시 주차장에서 찍은 것이며, 도윤은 집 주소를 게시한 적이 없다고 밝혔다. 사진이 첨부되지 않아 원문에 적힌 내용만 기록한다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M06-5",
+        "author": "수진",
+        "created_at": "2026-10-15T10:30:00+09:00",
+        "caption": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "stored_description": "수진은 친구가 새로 이사한 집의 주차장이 지하에 있다고 전했다. 이는 수진 자신의 집 주차장에 관한 이야기가 아니라고 덧붙이며, “우리 집 주차장 얘기는 아님ㅎㅎ”이라고 가볍게 정정했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도윤이 올린 적 없다고 말한 사실을 답한다. 주소를 추정하거나 실제 모든 채널에서의 비공개를 보장하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ23",
+    "question": "도윤이가 못 찾겠다고 한 구두는 무슨 색이야?",
+    "author": "지민",
+    "viewer": "수진",
+    "app_relation": "딸",
+    "expected_answer": "갈색",
+    "sufficient_evidence_sets": [
+      [
+        "M07-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T11:00:00+09:00",
+        "caption": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신의 갈색 구두가 아직 보이지 않는다고 전했다. 이 갈색 구두는 지민의 검은 신발과는 다른 신발이라고 덧붙였다. 원문만으로는 신발을 어디에서 찾거나 확인하고 있는지, “다른 신발”이 무엇을 가리키는지는 알 수 없다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "갈색이다. 지민의 검은 신발과 별개다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ24",
+    "question": "지민이는 처음 검은 신발 글을 올릴 때 신발이 어디 있는지 알고 있었어?",
+    "author": "수진",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "몰랐다. 찾지 못하고 있었다",
+    "sufficient_evidence_sets": [
+      [
+        "M07-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M07-1",
+        "author": "지민",
+        "created_at": "2026-10-11T11:00:00+09:00",
+        "caption": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "stored_description": "지민은 2026년 10월 11일, 전에 찍어 둔 자신의 검은 신발 사진을 공유했다. 사진에는 검은색 끈 달린 신발 한 켤레가 밝은 타일 바닥에 놓여 있고, 한쪽 신발이 다른 신발 위에 비스듬히 겹쳐 있다. 옆에는 흰색 커튼이 드리워져 있다. 지민은 지금 신발이 어디 있는지 찾지 못하고 있다며 아쉬움을 표현했다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M07-4",
+        "author": "지민",
+        "created_at": "2026-10-14T11:00:00+09:00",
+        "caption": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "stored_description": "지민은 2026년 10월 14일, 찾고 있던 검은 신발을 발견했다고 전했다. 신발은 베란다 선반에 있었다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M07-6",
+        "author": "지민",
+        "created_at": "2026-10-16T11:00:00+09:00",
+        "caption": "검은 신발 다시 신고 나갔다 왔어ㅎㅎ",
+        "stored_description": "지민은 검은 신발을 다시 신고 외출했다가 돌아왔다고 전했다. “ㅎㅎ”를 덧붙여 가볍고 편안한 어조로 소식을 전했다. 작성 시각은 2026년 10월 16일 02:00(UTC)이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "첫 게시 시점에는 못 찾았다고 답한다. 당시에도 베란다 위치를 알았다고 하면 오답이다. 현재 상태를 묻지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ25",
+    "question": "18일 가족 산책은 몇 시에 만나기로 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "오후 3시",
+    "sufficient_evidence_sets": [
+      [
+        "M08-2"
+      ],
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-2",
+        "author": "수진",
+        "created_at": "2026-10-12T11:30:00+09:00",
+        "caption": "18일 가족 산책 약속은 오후 3시!",
+        "stored_description": "수진은 가족 산책 약속이 18일 오후 3시라고 알렸다. 원문에는 날짜의 월이나 산책 장소는 적혀 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-6",
+        "author": "선희",
+        "created_at": "2026-10-16T11:30:00+09:00",
+        "caption": "18일 일요일 가족 산책은 강변 산책로로 가는 거지~ 3시에 보자",
+        "stored_description": "선희는 2026년 10월 16일에 가족들에게 18일 일요일 산책 계획을 확인하며, 강변 산책로로 가는 것이 맞는지 물었다. 가족은 18일 3시에 만나기로 하자는 내용이다. 원문에는 오전·오후가 따로 명시되어 있지 않다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "오후 3시/15시를 인정한다. 그냥 3시는 문맥상 오후라고 명확한 경우 인정한다. M08-6만으로 오전·오후를 확인할 수는 없다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ26",
+    "question": "가족 산책 장소를 바꾼 이유가 뭐야?",
+    "author": "지민",
+    "viewer": "도윤",
+    "app_relation": "딸",
+    "expected_answer": "선셋 공원이 공사 중이어서",
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M08-1",
+        "author": "수진",
+        "created_at": "2026-10-11T11:30:00+09:00",
+        "caption": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "stored_description": "수진은 2026년 10월 11일, 예전에 찍은 숲길 사진을 보니 다시 걷고 싶다는 마음이 들었다고 전했다. 사진에는 낙엽이 깔린 흙길과 잎이 거의 떨어진 나무들이 보이고, 맑은 날 햇빛에 나무 그림자가 길게 드리워져 있다. 이 사진을 떠올리며 가족 산책을 제안했고, 10월 18일 일요일에 선셋 공원에서 만나자고 했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T11:30:00+09:00",
+        "caption": "18일 일요일 선셋 공원 가려면 편한 신발 챙겨야겠네",
+        "stored_description": "도윤은 2026년 10월 18일 일요일에 선셋 공원에 가려면 편한 신발을 챙겨야겠다고 말했다. 공원에 갈 계획과 준비물에 관한 이야기이며, 어떤 활동을 할 예정인지는 원문에 구체적으로 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M08-4",
+        "author": "수진",
+        "created_at": "2026-10-14T11:30:00+09:00",
+        "caption": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "stored_description": "수진은 2026년 10월 18일 가족 산책 장소를 선셋 공원에서 강변 산책로로 변경한다고 알렸다. 선셋 공원이 공사 중이기 때문이며, 산책 시간은 기존대로 오후 3시다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M08-5",
+        "author": "지민",
+        "created_at": "2026-10-15T11:30:00+09:00",
+        "caption": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "stored_description": "지민은 2026년 10월 15일 게시물에서 친구 은영과 다음 달에 선셋 공원에 가기로 했다고 전했다. 이 약속은 게시물에서 언급한 이번 가족 산책과는 별개의 계획이다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "공사 때문이면 충족한다. 날씨·가족 건강 등 다른 이유를 만들지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ27",
+    "question": "아빠가 읽는 중이라고 한 책은 뭐야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "Blue Exorcist",
+    "sufficient_evidence_sets": [
+      [
+        "M09-5"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": true
+      }
+    ],
+    "interpretation": "질문자 지민의 아빠는 도윤이다. Blue Exorcist/청의 엑소시스트를 인정한다. 엄마 수진의 The Quiet War와 구분한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ28",
+    "question": "수진이는 The Quiet War를 다 읽고 어디에 반납할 예정이라고 했어?",
+    "author": "선희",
+    "viewer": "도윤",
+    "app_relation": "가족",
+    "expected_answer": "도서관",
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M09-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:00:00+09:00",
+        "caption": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "stored_description": "2026년 10월 11일, 수진은 『The Quiet War』 사진을 올리며 도서관에서 이 책을 빌려 왔다고 전했다. 사진에는 수진이 책을 손에 들고 서가 앞에 있는 모습이 담겨 있다. 표지에서 저자가 Paul McAuley임을 확인할 수 있다. 수진은 아직 책을 읽기 전이라며, 읽기 시작하기 전의 상태를 공유했다. 원문에서는 사진을 “서점에서 찍어 둔” 것이라고 표현했다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M09-4",
+        "author": "수진",
+        "created_at": "2026-10-14T12:00:00+09:00",
+        "caption": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "stored_description": "수진은 『The Quiet War』를 드디어 다 읽었다고 알렸다. 다음 날 도서관에 책을 반납할 예정이다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M09-5",
+        "author": "도윤",
+        "created_at": "2026-10-15T12:00:00+09:00",
+        "caption": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "stored_description": "2026년 10월 15일, 도윤은 자신이 읽고 있는 『Blue Exorcist』를 아직 다 읽지 않았다고 전했다. 수진 씨가 읽은 소설과는 다른 책이라고 덧붙여, 두 책을 혼동하지 않도록 구분했다. 사진에는 도윤이 『Blue Exorcist』 책을 손에 들고 있고, 주변에는 책장이 늘어선 서가와 책을 살펴보는 사람이 보인다. 책 표지에는 만화풍 그림과 제목이 크게 인쇄되어 있다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "도서관이다. 반납 예정이므로 실제 반납을 완료했다는 추가 주장은 지원되지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ29",
+    "question": "지민이는 건조대 청소를 언제 하기로 했어?",
+    "author": "수진",
+    "viewer": "선희",
+    "app_relation": "며느리",
+    "expected_answer": "토요일 오전",
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-2",
+        "author": "수진",
+        "created_at": "2026-10-12T12:30:00+09:00",
+        "caption": "건조대 청소는 토요일 오전에 하려고 해",
+        "stored_description": "수진은 건조대 청소를 토요일 오전에 할 계획이라고 전했다. 청소는 아직 예정된 일이며, 원문에는 구체적인 시간이나 다른 일정은 언급되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-3",
+        "author": "도윤",
+        "created_at": "2026-10-13T12:30:00+09:00",
+        "caption": "수진 씨가 토요일에 건조대 청소한다니 고맙네",
+        "stored_description": "도윤은 수진 씨가 토요일에 건조대를 청소할 예정이라는 소식을 전하며 고마움을 표현했다. 게시물에는 건조대의 종류나 청소를 맡게 된 경위는 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "토요일 오전이다. 실제 완료 여부를 묻지 않으며 질문 시점에 아직 청소 전이라고 단정하지 않는다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  },
+  {
+    "history_size": 300,
+    "question_id": "FQ30",
+    "question": "담당이 바뀌기 전, 처음 건조대 청소를 하겠다고 한 사람은 누구야?",
+    "author": "도윤",
+    "viewer": "지민",
+    "app_relation": "아버지",
+    "expected_answer": "수진",
+    "sufficient_evidence_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "source_records": [
+      {
+        "post_id": "M10-1",
+        "author": "수진",
+        "created_at": "2026-10-11T12:30:00+09:00",
+        "caption": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "stored_description": "2026년 10월 11일, 수진은 이번 주 식기 건조대 청소를 자신이 하겠다고 가족에게 알렸다. 아직 청소를 시작하지는 못했다고 덧붙였다. 함께 올린 사진에는 주방 조리대 위에 놓인 빈 회색 금속 2단 식기 건조대가 보이며, 그 아래에는 나무 도마가 놓여 있다. 건조대가 청소를 위해 옮겨진 것인지는 사진만으로 확인되지 않는다.",
+        "sufficient_source": true
+      },
+      {
+        "post_id": "M10-4",
+        "author": "지민",
+        "created_at": "2026-10-14T12:30:00+09:00",
+        "caption": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "stored_description": "지민은 2026년 10월 14일 가족에게 건조대 청소를 오늘부터 자신이 맡기로 했다고 알렸다. 청소는 토요일 오전에 할 예정이며, 엄마에게는 쉬라고 전했다. 엄마가 평소 건조대 청소를 해왔는지, 지민이 맡게 된 이유가 무엇인지는 게시물에 설명되어 있지 않다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-5",
+        "author": "선희",
+        "created_at": "2026-10-15T12:30:00+09:00",
+        "caption": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "stored_description": "선희는 “내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ”라고 게시했다. 자신의 화분 받침을 닦는 일은 부엌 건조대를 청소하는 일과 별개이며, 화분 받침은 본인이 직접 닦겠다는 뜻이다. 웃음 표현을 덧붙여 가볍고 친근한 어조로 전했다. 사진은 첨부되지 않았다.",
+        "sufficient_source": false
+      },
+      {
+        "post_id": "M10-6",
+        "author": "수진",
+        "created_at": "2026-10-16T12:30:00+09:00",
+        "caption": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "stored_description": "2026년 10월 16일, 수진은 지민이가 어떤 일을 맡아 주기로 한 데 대해 고맙다고 전했다. 맡기로 한 일이 무엇인지는 원문에 구체적으로 나오지 않는다. 수진은 건조대는 아직 청소하지 않았다고 덧붙였다.",
+        "sufficient_source": false
+      }
+    ],
+    "interpretation": "처음 맡겠다고 한 수진이다. 현재 담당 지민과 구분한다. 본문상의 엄마를 인정한다.",
+    "all_sources_before_question": true,
+    "all_gold_sources_identical_across_sizes": true,
+    "ai_semantic_review": "reviewed",
+    "independent_human_signoff": false
+  }
+]

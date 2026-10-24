@@ -13,11 +13,13 @@ from django.utils import timezone
 from apps.accounts.models import AccessToken, User
 from apps.digests.models import Digest
 from apps.digests.services import cutoff, generate_digest
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from integrations.ai import provider
 
 from .test_posts import sample_image
+
+from .family_fixtures import add_member, link_parent
 
 
 DAY = date(2026, 10, 1)
@@ -57,9 +59,10 @@ class DigestAPITests(TestCase):
         self.other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.grandma, slot=Membership.Slot.GRANDMA_FATHER)
-        Membership.objects.create(room=self.other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.grandma, 2)
+        link_parent(self.room, self.grandma, self.room.owner, generations=2)
+        add_member(self.other_room, self.outsider)
         self.grandma_token = AccessToken.issue(self.grandma)
         self.owner_token = AccessToken.issue(self.owner)
         self.outsider_token = AccessToken.issue(self.outsider)
@@ -231,11 +234,17 @@ class DigestAPITests(TestCase):
         print("Digest scheduler repeatability test pass", flush=True)
 
     def test_ai_summary_receives_post_text_and_image(self):
-        with patch.object(provider, "generate", return_value="가족의 하루") as generate:
+        with patch.object(provider, "answer_with_memory", return_value="가족의 하루") as answer:
             self.assertEqual(provider.summarize([self.post]), "가족의 하루")
-        self.assertIn("하루 요약", generate.call_args.args[0])
-        self.assertEqual(json.loads(generate.call_args.args[1]), [
+        self.assertEqual(answer.call_args.args[:2], ("digest", self.room.pk))
+        self.assertEqual(json.loads(answer.call_args.args[2]), [
             {"작성자": "정아", "원문": self.post.caption}
         ])
-        self.assertEqual(generate.call_args.args[2], [self.post.image])
+        self.assertEqual(answer.call_args.args[3], [self.post.image])
         print("Digest AI input test pass", flush=True)
+
+    def test_summary_rejects_posts_from_different_families(self):
+        with patch.object(provider, "answer_with_memory") as answer:
+            with self.assertRaises(provider.AIUnavailable):
+                provider.summarize([self.post, Post(room=self.other_room)])
+        answer.assert_not_called()

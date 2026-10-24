@@ -1,227 +1,158 @@
 import json
-import sys
-import unicodedata
 from datetime import time
 
 from django.contrib.auth.hashers import check_password
-from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 from django.test import TestCase
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
-
-
-class FamilySchemaTests(TestCase):
-    def setUp(self):
-        self.owner = User.objects.create_user(username="owner", password="Owner-Passphrase1!", display_name="하나")
-        self.member = User.objects.create_user(username="member", password="Member-Passphrase1!", display_name="둘")
-        self.room = FamilyRoom.objects.create(
-            name="우리 가족", invite_code="ROOM01", password_hash="hashed", owner=self.owner
-        )
-
-    def test_room_defaults_and_owner_protection(self):
-        self.assertEqual(self.room.digest_time, time(21))
-        self.assertIsNotNone(self.room.created_at)
-        self.assertEqual(Membership.objects.count(), 0)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            FamilyRoom.objects.create(
-                name="Duplicate code", invite_code="ROOM01", password_hash="hashed", owner=self.member
-            )
-        with self.assertRaises(ProtectedError):
-            self.owner.delete()
-        self.assertTrue(User.objects.filter(pk=self.owner.pk).exists())
-        print("Family room test pass", flush=True)
-
-    def test_membership_is_unique_per_user_and_slot_within_a_room(self):
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.FATHER)
-        with self.assertRaises(IntegrityError), transaction.atomic():
-            Membership.objects.create(room=self.room, user=self.member, slot=Membership.Slot.OWNER)
-
-        second_room = FamilyRoom.objects.create(
-            name="Another family", invite_code="ROOM02", password_hash="hashed", owner=self.member
-        )
-        Membership.objects.create(room=second_room, user=self.owner, slot=Membership.Slot.OWNER)
-        self.assertEqual(Membership.objects.count(), 2)
-        print("Family membership test pass", flush=True)
-
-    def test_deleting_a_room_removes_its_memberships(self):
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        self.room.delete()
-        self.assertFalse(Membership.objects.exists())
-        self.assertTrue(User.objects.filter(pk=self.owner.pk).exists())
-        print("Family deletion test pass", flush=True)
+from apps.families.models import FamilyPerson, FamilyRoom, Membership, ParentChild, Partnership
+from apps.families.utils import relationship
 
 
 class FamilyWorkflowTests(TestCase):
-    family_tree_snapshot = None
-
-    @staticmethod
-    def graph_row(*nodes):
-        def width(value):
-            return sum(2 if unicodedata.east_asian_width(char) in "WF" else 1 for char in value)
-
-        row = ""
-        cursor = 0
-        for center, label in nodes:
-            left = max(center - width(label) // 2, cursor)
-            row += " " * (left - cursor) + label
-            cursor = left + width(label)
-        return row.rstrip()
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.family_tree_snapshot is not None:
-            if hasattr(sys.stdout, "reconfigure"):
-                sys.stdout.reconfigure(encoding="utf-8")
-            room_name, members = cls.family_tree_snapshot
-            print(f"Test family graph: {room_name} (arrows point from child to parent)")
-            print(cls.graph_row(
-                (15, f"[{members[Membership.Slot.GRANDMA_FATHER]} · 친할머니]"),
-                (65, f"[{members[Membership.Slot.GRANDMA_MOTHER]} · 외할머니]"),
-            ))
-            print(cls.graph_row((15, "↑"), (65, "↑")))
-            print(cls.graph_row(
-                (15, f"[{members[Membership.Slot.FATHER]} · 아버지]"),
-                (65, f"[{members[Membership.Slot.MOTHER]} · 어머니]"),
-            ))
-            print(cls.graph_row((19, "↖"), (61, "↗")))
-            for left, right in ((24, 56), (29, 51), (34, 46)):
-                print(cls.graph_row((left, "╲"), (right, "╱")))
-            print(cls.graph_row((40, f"[{members[Membership.Slot.OWNER]} · 본인]")))
-            print(cls.graph_row((36, "↗"), (44, "↖")))
-            for left, right in ((32, 48), (28, 52), (24, 56)):
-                print(cls.graph_row((left, "╱"), (right, "╲")))
-            print(cls.graph_row(
-                (20, f"[{members[Membership.Slot.SON]} · 아들]"),
-                (60, f"[{members[Membership.Slot.DAUGHTER]} · 딸]"),
-            ))
-            sys.stdout.flush()
-        super().tearDownClass()
-
     def setUp(self):
-        self.owner = User.objects.create_user(
-            username="owner", password="Owner-Passphrase1!", display_name="정아", gender=User.Gender.FEMALE
-        )
-        self.member = User.objects.create_user(
-            username="member", password="Member-Passphrase1!", display_name="선희", gender=User.Gender.FEMALE
-        )
-        self.owner_token = AccessToken.issue(self.owner)
-        self.member_token = AccessToken.issue(self.member)
+        self.owner = User.objects.create_user(username="owner", display_name="준하", gender="male")
+        self.member = User.objects.create_user(username="member", display_name="구본재", gender="male")
+        self.owner_token, self.member_token = AccessToken.issue(self.owner), AccessToken.issue(self.member)
+        response = self.post("/api/families/create/", {"room_name": "준하네", "password": "roompass"}, self.owner_token)
+        self.assertEqual(response.status_code, 201)
+        self.room = FamilyRoom.objects.get(pk=response.json()["room"]["id"])
+        self.invitation = {"invite_code": self.room.invite_code, "password": "roompass"}
+        self.root = str(self.room.people.get().pk)
 
     def post(self, path, data, token=None):
         headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"} if token else {}
         return self.client.post(path, json.dumps(data), content_type="application/json", **headers)
 
-    def create_room(self):
-        response = self.post(
-            "/api/families/create/",
-            {"room_name": "정아네", "password": "roompass"},
-            self.owner_token,
-        )
-        self.assertEqual(response.status_code, 201)
-        return FamilyRoom.objects.get(pk=response.json()["room"]["id"])
+    def join(self, additions, selected, version=0, token=None):
+        return self.post("/api/families/join/", {**self.invitation, "tree_version": version,
+                         "additions": additions, "person_id": selected}, token or self.member_token)
 
-    def test_create_uses_existing_account_and_current_updates_digest_time(self):
-        self.assertEqual(self.post("/api/families/create/", {"room_name": "정아네", "password": "roompass"}).status_code, 401)
-        room = self.create_room()
-        self.assertEqual(User.objects.count(), 2)
-        self.assertEqual(room.owner, self.owner)
-        self.assertNotEqual(room.password_hash, "roompass")
-        self.assertTrue(check_password("roompass", room.password_hash))
-        self.assertTrue(Membership.objects.filter(room=room, user=self.owner, slot=Membership.Slot.OWNER).exists())
+    def add(self, key, anchor, relation, co=None):
+        value = {"id": "new_" + key, "anchor_id": anchor, "relation": relation}
+        if co:
+            value["co_parent_id"] = co
+        return value
 
-        current = self.client.get("/api/families/current/", HTTP_AUTHORIZATION=f"Bearer {self.owner_token}")
-        self.assertEqual(current.status_code, 200)
-        self.assertEqual(current.json()["digest_time"], "21:00")
-        updated = self.client.patch(
-            "/api/families/current/", json.dumps({"digest_time": "19:30"}),
-            content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {self.owner_token}"
-        )
+    def test_create_lookup_and_current(self):
+        self.assertTrue(check_password("roompass", self.room.password_hash))
+        self.assertEqual(self.room.digest_time, time(21))
+        self.assertEqual(self.room.members.get().person_id, int(self.root))
+        found = self.post("/api/families/lookup/", {**self.invitation, "invite_code": self.room.invite_code.lower()})
+        self.assertEqual(found.status_code, 200)
+        self.assertNotIn("password_hash", found.json())
+        self.assertEqual(found.json()["tree"]["owner_id"], self.root)
+        self.assertEqual(found.json()["tree"]["version"], 0)
+        self.assertNotIn("slot", found.json()["members"][0])
+        self.assertEqual(self.post("/api/families/lookup/", {**self.invitation, "password": "bad"}).status_code, 403)
+        updated = self.client.patch("/api/families/current/", json.dumps({"digest_time": "19:30"}),
+                                   content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {self.owner_token}")
         self.assertEqual(updated.status_code, 200)
-        room.refresh_from_db()
-        self.assertEqual(room.digest_time, time(19, 30))
-        print("Family create/current API test pass", flush=True)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.digest_time, time(19, 30))
 
-    def test_lookup_checks_invitation_password(self):
-        room = self.create_room()
-        response = self.post(
-            "/api/families/lookup/", {"invite_code": room.invite_code.lower(), "password": "roompass"}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["id"], room.pk)
-        self.assertNotIn("password_hash", response.json())
-        self.assertEqual(self.post(
-            "/api/families/lookup/", {"invite_code": room.invite_code, "password": "wrong"}
-        ).status_code, 403)
-        print("Family lookup API test pass", flush=True)
-
-    def test_join_uses_existing_account_and_rejects_occupied_slot(self):
-        room = self.create_room()
-        data = {"invite_code": room.invite_code, "password": "roompass", "slot": "grandma-mother"}
-        joined = self.post("/api/families/join/", data, self.member_token)
-        self.assertEqual(joined.status_code, 200)
+    def test_expand_parent_sibling_nephew_through_blank_people(self):
+        additions = [self.add("dad", self.root, "father"), self.add("mom", self.root, "mother"),
+                     self.add("sibling", "new_dad", "child", "new_mom"),
+                     self.add("nephew", "new_sibling", "child")]
+        self.post("/api/families/lookup/", self.invitation)
+        self.assertEqual(self.room.people.count(), 1)
+        response = self.join(additions, "new_nephew")
+        self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(User.objects.count(), 2)
-        self.assertTrue(Membership.objects.filter(room=room, user=self.member, slot="grandma-mother").exists())
-        owner = next(member for member in joined.json()["room"]["members"] if member["is_owner"])
-        self.assertEqual(owner["relationship"], "손녀")
-        self.assertEqual(self.post("/api/families/join/", data, self.member_token).status_code, 409)
-        self.assertEqual(self.post("/api/families/join/", {**data, "slot": "father"}, self.member_token).status_code, 409)
-        self.assertEqual(self.post("/api/families/join/", {**data, "slot": "invented"}, self.member_token).status_code, 400)
-        self.assertEqual(Membership.objects.filter(room=room).count(), 2)
+        self.assertEqual(self.room.people.count(), 5)
+        self.assertEqual(self.room.members.count(), 2)
+        nephew = self.room.members.get(user=self.member).person
+        sibling = nephew.parent_links.get().parent
+        self.assertEqual(sibling.name, "")
+        self.assertFalse(Membership.objects.filter(person=sibling).exists())
+        self.assertEqual(set(sibling.parent_links.values_list("parent_id", flat=True)),
+                         set(ParentChild.objects.filter(child_id=self.root).values_list("parent_id", flat=True)))
+        self.assertEqual(relationship(self.owner, self.member, self.room), "조카")
+        self.assertEqual(response.json()["room"]["tree"]["version"], 1)
 
-        father = User.objects.create_user(
-            username="father", password="Father-Passphrase1!", display_name="병호", gender=User.Gender.MALE
-        )
-        father_token = AccessToken.issue(father)
-        self.assertEqual(self.post(
-            "/api/families/join/", {**data, "slot": "father"}, father_token
-        ).status_code, 200)
-        another_user = User.objects.create_user(
-            username="another", password="Another-Passphrase1!", display_name="가족"
-        )
-        another_token = AccessToken.issue(another_user)
-        self.assertEqual(self.post("/api/families/join/", data, another_token).status_code, 409)
-        self.assertEqual(Membership.objects.filter(room=room).count(), 3)
-        self.assertEqual(self.client.patch(
-            "/api/families/current/", json.dumps({"digest_time": "18:00"}),
-            content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {self.member_token}"
-        ).status_code, 403)
-        for username, name, gender, slot in (
-            ("paternal_grandma", "경자", User.Gender.FEMALE, Membership.Slot.GRANDMA_FATHER),
-            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER),
-            ("son", "준호", User.Gender.MALE, Membership.Slot.SON),
-            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER),
-        ):
-            relative = User.objects.create_user(
-                username=username, password="Relative-Passphrase1!", display_name=name, gender=gender
-            )
-            token = AccessToken.issue(relative)
-            self.assertEqual(self.post(
-                "/api/families/join/", {**data, "slot": slot}, token
-            ).status_code, 200)
-        self.assertEqual(Membership.objects.filter(room=room).count(), 7)
-        type(self).family_tree_snapshot = (
-            room.name,
-            {
-                membership.slot: membership.user.display_name
-                for membership in room.members.select_related("user").order_by("joined_at", "pk")
-            },
-        )
-        print("Family join API test pass", flush=True)
+    def test_claim_existing_blank_person_and_prevent_double_claim(self):
+        self.assertEqual(self.join([self.add("child", self.root, "child"), self.add("grandchild", "new_child", "child")], "new_grandchild").status_code, 200)
+        child = self.room.people.get(generation=-1)
+        third = User.objects.create_user(username="third", display_name="수진", gender="female")
+        self.assertEqual(self.join([], str(child.pk), version=1, token=AccessToken.issue(third)).status_code, 200)
+        child.refresh_from_db()
+        self.assertEqual(child.name, "수진")
+        fourth = User.objects.create_user(username="fourth", display_name="다른 사람")
+        self.assertEqual(self.join([], str(child.pk), version=2, token=AccessToken.issue(fourth)).status_code, 409)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 2)
 
-    def test_invalid_requests_and_missing_membership(self):
-        self.assertEqual(self.client.get(
-            "/api/families/current/", HTTP_AUTHORIZATION=f"Bearer {self.owner_token}"
-        ).status_code, 403)
-        self.assertEqual(self.post(
-            "/api/families/create/", {"room_name": "", "password": "roompass"}, self.owner_token
-        ).status_code, 400)
-        self.assertEqual(self.post(
-            "/api/families/create/", {"room_name": "정아네", "password": "roompass", "digest_time": "bad"},
-            self.owner_token
-        ).status_code, 400)
-        self.assertEqual(FamilyRoom.objects.count(), 0)
-        print("Family API validation test pass", flush=True)
+    def test_stale_draft_does_not_partially_save(self):
+        self.assertEqual(self.join([self.add("first", self.root, "child")], "new_first").status_code, 200)
+        third = User.objects.create_user(username="third", display_name="다른 가족")
+        response = self.join([self.add("stale", self.root, "child")], "new_stale", token=AccessToken.issue(third))
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.room.people.count(), 2)
+        self.assertEqual(self.room.members.count(), 2)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 1)
+
+    def test_invalid_operations_roll_back_people_edges_and_revision(self):
+        cases = [
+            ([self.add("first", self.root, "child")], "missing"),
+            ([self.add("first", self.root, "child"), self.add("first", self.root, "child")], "new_first"),
+            ([self.add("a", self.root, "father"), self.add("b", self.root, "father")], "new_a"),
+            ([self.add("a", self.root, "father"), self.add("b", self.root, "mother"), self.add("c", self.root, "parent")], "new_a"),
+            ([self.add("a", self.root, "child"), self.add("b", "new_a", "child", self.root)], "new_a"),
+            ([self.add("a", self.root, "child", self.root)], "new_a"),
+            ([self.add("a", self.root, "sibling")], "new_a"),
+            ([{"id": "new_a", "anchor_id": [], "relation": "child"}], "new_a"),
+            ([None], "new_a"),
+        ]
+        for additions, selected in cases:
+            with self.subTest(additions=additions):
+                self.assertEqual(self.join(additions, selected).status_code, 400)
+                self.assertEqual(self.room.people.count(), 1)
+                self.assertEqual(ParentChild.objects.count(), 0)
+                self.assertEqual(self.room.members.count(), 1)
+                self.room.refresh_from_db()
+                self.assertEqual(self.room.tree_version, 0)
+
+    def test_other_room_people_cannot_be_claimed_or_connected(self):
+        other = FamilyRoom.objects.create(name="other", owner=self.owner, invite_code="OTHER", password_hash="x")
+        person = FamilyPerson.objects.create(room=other)
+        self.assertEqual(self.join([], str(person.pk)).status_code, 400)
+        self.assertEqual(self.join([self.add("a", str(person.pk), "child")], "new_a").status_code, 400)
+        self.assertEqual(relationship(self.owner, self.owner, other), "가족")
+
+    def test_spouse_and_joint_child(self):
+        response = self.join([self.add("spouse", self.root, "spouse"), self.add("child", self.root, "child", "new_spouse")], "new_child")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Partnership.objects.count(), 1)
+        self.assertEqual(self.room.members.get(user=self.member).person.parent_links.count(), 2)
+        self.assertEqual(relationship(self.owner, self.member, self.room), "아들")
+
+    def test_multiple_sons_have_distinct_people(self):
+        self.assertEqual(self.join([self.add("a", self.root, "child")], "new_a").status_code, 200)
+        second_son = User.objects.create_user(username="son2", display_name="둘째", gender="male")
+        self.assertEqual(self.join([self.add("b", self.root, "child")], "new_b", version=1,
+                                  token=AccessToken.issue(second_son)).status_code, 200)
+        self.assertEqual(relationship(self.member, second_son, self.room), "형제자매")
+
+    def test_join_accepts_200_additions_and_rejects_201_without_saving(self):
+        additions = [self.add(f"child_{index}", self.root, "child") for index in range(201)]
+        self.assertEqual(self.join(additions, "new_child_0").status_code, 400)
+        self.assertEqual(self.room.people.count(), 1)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 0)
+        self.assertEqual(self.join(additions[:200], "new_child_0").status_code, 200)
+        self.assertEqual(self.room.people.count(), 201)
+
+    def test_auth_validation_and_occupied_owner(self):
+        self.assertEqual(self.post("/api/families/join/", self.invitation).status_code, 401)
+        self.assertEqual(self.join([], self.root).status_code, 409)
+        for version in (None, True, -1, "0"):
+            self.assertEqual(self.join([], self.root, version=version).status_code, 400)
+        self.assertEqual(self.join([], "new_absent").status_code, 400)
+        self.assertEqual(self.join([self.add("mom", self.root, "mother")], "new_mom").status_code, 400)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 0)
+        with self.assertRaises(ProtectedError):
+            self.owner.delete()

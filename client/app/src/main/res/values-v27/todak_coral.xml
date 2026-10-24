@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.TalkDock.Coral.V27"
+        parent="Theme.TalkDock.Coral.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <style name="Theme.TalkDock.Coral"
+        parent="Theme.TalkDock.Coral.V27" />
+</resources>

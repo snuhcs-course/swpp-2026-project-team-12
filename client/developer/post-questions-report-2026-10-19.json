@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-19",
+  "branch": "feature/frontend-inline-post-actions",
+  "device": "Android 16 (API 36), Medium_Phone emulator",
+  "build": "passed",
+  "lintDebug": "passed",
+  "backend_tests": {"count": 24, "result": "passed"},
+  "new_android_tests": {"count": 5, "result": "passed"},
+  "existing_android_regressions": {
+    "count": 20,
+    "result": "passed after updating test selectors and newest-first expectations",
+    "initial_failures": "Four comment tests assumed a single composer; one audio test assumed the oldest fixture post appeared first. All five passed on rerun."
+  },
+  "coverage": [
+    "Feed returns newest 100 posts before truncation, with descending ID tie-break and family isolation",
+    "Android sorts timezone-aware timestamps and IDs in both text sizes",
+    "Feed question entry opens the selected post and sends the question to its API",
+    "Answers appear in detail without creating family comments",
+    "Follow-up requests include at most ten prior messages of at most 1000 characters each",
+    "Failures preserve the draft and do not add failed turns to conversation history",
+    "Duplicate sends are blocked and comment input stays available during QA requests",
+    "Navigation discards late answers and does not leak conversation to another post",
+    "Existing inline audio, comment keyboard/send/retry, feed refresh, and photo loading behavior"
+  ],
+  "test_services": "Local mock HTTP API for Android; mocked AI/Graphiti in backend tests. No paid AI calls.",
+  "limitations": [
+    "Live model answer quality and a deployed backend were not tested",
+    "Question history is kept only while the detail screen stays open",
+    "Physical devices and Android versions below API 36 were not tested"
+  ]
+}

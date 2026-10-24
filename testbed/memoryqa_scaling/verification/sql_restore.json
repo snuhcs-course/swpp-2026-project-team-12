@@ -1,0 +1,30 @@
+{
+  "levels": [
+    {
+      "history_size": 100,
+      "posts": 120,
+      "history_descriptions": 100,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    },
+    {
+      "history_size": 200,
+      "posts": 220,
+      "history_descriptions": 200,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    },
+    {
+      "history_size": 300,
+      "posts": 320,
+      "history_descriptions": 300,
+      "question_payloads_verified": 30,
+      "paid_calls": 0,
+      "graph_calls": 0
+    }
+  ],
+  "total_question_payloads_verified": 90,
+  "paid_calls": 0
+}

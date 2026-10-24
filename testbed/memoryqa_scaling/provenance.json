@@ -1,0 +1,547 @@
+{
+  "packaged_on": "2026-10-23",
+  "source_run_date": "2026-10-22",
+  "original_artifacts_edited": false,
+  "files": [
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/qa_runtime.json",
+      "source_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "packaged": "datasets/history_100/qa_runtime.json",
+      "packaged_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/family_metadata.json",
+      "source_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "packaged": "datasets/history_100/family_metadata.json",
+      "packaged_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/probe_posts.json",
+      "source_sha256": "7ad738c1bf9850b3bd1b66306e20e9265c3d16b45ee03afbd3a8be82390f0dd8",
+      "packaged": "datasets/history_100/probe_posts.json",
+      "packaged_sha256": "c0a2e9f5410978a3629ef0c932784c1db98a400c379365f8c2a9a62a850bc5f4",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/memory_posts.json",
+      "source_sha256": "9ae6e125a08bdac1ed9dc5f40e5b2497348e74098bf633e04fadadaf5d035003",
+      "packaged": "datasets/history_100/memory_posts.json",
+      "packaged_sha256": "a524e2126e88cd6dc7b3990b69c1aa02a9749f6691bd9fa3947fc8b430d36a48",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/family.json",
+      "source_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "packaged": "datasets/history_100/family.json",
+      "packaged_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/qa_gold.json",
+      "source_sha256": "b4946f3e38d622fd6ff3d0f8caf801c7367c28f021ff5f9a8c2b296a25c4fa3e",
+      "packaged": "datasets/history_100/qa_gold.json",
+      "packaged_sha256": "b4946f3e38d622fd6ff3d0f8caf801c7367c28f021ff5f9a8c2b296a25c4fa3e",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/selection_gold.json",
+      "source_sha256": "d38a5cdb45ef977d65da4fad7ef0a5ba753b356cb856c8c00146e905dda6fe11",
+      "packaged": "datasets/history_100/selection_gold.json",
+      "packaged_sha256": "a310caaf6be1f0592ed2449b20f20705c158190e3ae5ffd6b86ee8c4b5adc24a",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/checksums.json",
+      "source_sha256": "4851ccf5331a03502710894d1b6059022be49e7546e26bceab05ceaefa3018a3",
+      "packaged": "datasets/history_100/checksums.json",
+      "packaged_sha256": "42ce346a80e55540dd540a68aa572dd7257f1cabdd387d7ba87fc40d9a315625",
+      "change": "Recomputed distribution file checksums after path relocation; original checksum-file hash retained"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/assets.json",
+      "source_sha256": "ac279a951296424e33ba53fbcd9ff39c6de4d0b9be731d79fa986d6042c9cf08",
+      "packaged": "datasets/history_100/assets.json",
+      "packaged_sha256": "a4a3acc5d69f987c2dcd2fdc5346b9f952f056446b7945bcc69ba3812ec89604",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/summary_runtime.json",
+      "source_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "packaged": "datasets/history_100/summary_runtime.json",
+      "packaged_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/summary_gold.json",
+      "source_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "packaged": "datasets/history_100/summary_gold.json",
+      "packaged_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_100/fact_catalog_gold.json",
+      "source_sha256": "ef3316c7cc27442f44bc466144382d465c9c913562b912142b3014935c066e59",
+      "packaged": "datasets/history_100/fact_catalog_gold.json",
+      "packaged_sha256": "ef3316c7cc27442f44bc466144382d465c9c913562b912142b3014935c066e59",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_100/descriptions.json",
+      "source_sha256": "f666cbe4297e71352d5b0f8e8087e8871627b150064eec11b2e72cd0296bfe41",
+      "packaged": "snapshots/history_100/descriptions.json",
+      "packaged_sha256": "f666cbe4297e71352d5b0f8e8087e8871627b150064eec11b2e72cd0296bfe41",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_100/descriptions.jsonl",
+      "source_sha256": "76b936736a2859b741b809ae65927ed2a2615e5196e7b44b67b0510a7f8abee1",
+      "packaged": "snapshots/history_100/descriptions.jsonl",
+      "packaged_sha256": "76b936736a2859b741b809ae65927ed2a2615e5196e7b44b67b0510a7f8abee1",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_100/db_import.json",
+      "source_sha256": "f6ac1497ca4270ffa7d1b5cfa0f5fb075d684b07da093547264c01e55273bffa",
+      "packaged": "snapshots/history_100/db_import.json",
+      "packaged_sha256": "f6ac1497ca4270ffa7d1b5cfa0f5fb075d684b07da093547264c01e55273bffa",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_100/graph_seed.json",
+      "source_sha256": "58d0e975ccc6aadaa8e4bdf631e041cbba84bbdb92c9ca257ec4ff83869cc90f",
+      "packaged": "snapshots/history_100/graph_seed.json",
+      "packaged_sha256": "58d0e975ccc6aadaa8e4bdf631e041cbba84bbdb92c9ca257ec4ff83869cc90f",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/history_100/tasks.json",
+      "source_sha256": "4e90edd4200190cb88870c9bfe898f3f6aa84cce032afd26faabbd953b8085a9",
+      "packaged": "panel/history_100/tasks.json",
+      "packaged_sha256": "52bfbb12f884c1e80758d58b9b6ce8f0aeae8d9c363dbc439251311ae684ae7e",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/history_100/results.jsonl",
+      "source_sha256": "41a033768eaa18bef31106bd030f0c8780c090dff974b8ae60a51dd917d4c4ae",
+      "packaged": "results/history_100/results.jsonl",
+      "packaged_sha256": "863fa234220a1be60634c0db418874ca899fbc9e0f0d1d22ae8ba02084246c46",
+      "change": "Image path relocation only; answers, contexts, response IDs, usage and durations unchanged"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/qa_runtime.json",
+      "source_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "packaged": "datasets/history_200/qa_runtime.json",
+      "packaged_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/family_metadata.json",
+      "source_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "packaged": "datasets/history_200/family_metadata.json",
+      "packaged_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/probe_posts.json",
+      "source_sha256": "7ad738c1bf9850b3bd1b66306e20e9265c3d16b45ee03afbd3a8be82390f0dd8",
+      "packaged": "datasets/history_200/probe_posts.json",
+      "packaged_sha256": "c0a2e9f5410978a3629ef0c932784c1db98a400c379365f8c2a9a62a850bc5f4",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/memory_posts.json",
+      "source_sha256": "b12d9a02a2fe3e9d1c554e5c0dac562002717064e154d280ad58179edd19b968",
+      "packaged": "datasets/history_200/memory_posts.json",
+      "packaged_sha256": "403ff89693b49887915a3ba64339a9c9a99e78e38328b2d3181901b15fa1623d",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/family.json",
+      "source_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "packaged": "datasets/history_200/family.json",
+      "packaged_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/qa_gold.json",
+      "source_sha256": "2b2f039a49dc685d1a9fcb7770d52ead321965ef5f67681b5088911e4a953a12",
+      "packaged": "datasets/history_200/qa_gold.json",
+      "packaged_sha256": "2b2f039a49dc685d1a9fcb7770d52ead321965ef5f67681b5088911e4a953a12",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/selection_gold.json",
+      "source_sha256": "677cf3c06b46e5fc5f0c2f2f132159a430afd452f988c23c8b6041ff3f28f96f",
+      "packaged": "datasets/history_200/selection_gold.json",
+      "packaged_sha256": "85594610a309c6fed66c05e97bdd7e6d1edabb70c97552c952b7d04b6c9a0958",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/checksums.json",
+      "source_sha256": "849c81c625324f05865346921df071d1752a14de71d775a01042955a7f49c134",
+      "packaged": "datasets/history_200/checksums.json",
+      "packaged_sha256": "dab7ad96a6e520239b538c341b37ac5ee754cb4f71ff7057c06186d91f4b408b",
+      "change": "Recomputed distribution file checksums after path relocation; original checksum-file hash retained"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/assets.json",
+      "source_sha256": "dcb9cca24d9226e58fe5cbd2261a07242ef004faad27b5ed19766b3eae5ca526",
+      "packaged": "datasets/history_200/assets.json",
+      "packaged_sha256": "2946f6755cbba774de46ef7ef63c76d1dc37e348886f84cbcbbd790afc1949d3",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/summary_runtime.json",
+      "source_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "packaged": "datasets/history_200/summary_runtime.json",
+      "packaged_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/summary_gold.json",
+      "source_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "packaged": "datasets/history_200/summary_gold.json",
+      "packaged_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_200/fact_catalog_gold.json",
+      "source_sha256": "df8cdd573d9fddb33d860c30229ebf700c5bcd10552fbd7e7fb3bab299ef3029",
+      "packaged": "datasets/history_200/fact_catalog_gold.json",
+      "packaged_sha256": "df8cdd573d9fddb33d860c30229ebf700c5bcd10552fbd7e7fb3bab299ef3029",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_200/descriptions.json",
+      "source_sha256": "205d886d04268dcc93ee340359736c8fefed29c85cdae9cb2e8199eb0c8284ce",
+      "packaged": "snapshots/history_200/descriptions.json",
+      "packaged_sha256": "205d886d04268dcc93ee340359736c8fefed29c85cdae9cb2e8199eb0c8284ce",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_200/descriptions.jsonl",
+      "source_sha256": "a018964209d42e533b7cc20f45f96d6134b6b36cb91c5e72d9b468f5038ea509",
+      "packaged": "snapshots/history_200/descriptions.jsonl",
+      "packaged_sha256": "a018964209d42e533b7cc20f45f96d6134b6b36cb91c5e72d9b468f5038ea509",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_200/db_import.json",
+      "source_sha256": "4135e0d2530c8ac80450b02ec06857b11e1bdf90bc9bcb6c66c3254af365e789",
+      "packaged": "snapshots/history_200/db_import.json",
+      "packaged_sha256": "4135e0d2530c8ac80450b02ec06857b11e1bdf90bc9bcb6c66c3254af365e789",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_200/graph_seed.json",
+      "source_sha256": "bfef452715fecb8c20b2b15a9d1281788d7feb94f71ae3f3b093a5ebf29acd84",
+      "packaged": "snapshots/history_200/graph_seed.json",
+      "packaged_sha256": "bfef452715fecb8c20b2b15a9d1281788d7feb94f71ae3f3b093a5ebf29acd84",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/history_200/tasks.json",
+      "source_sha256": "98bdaa518d110bf1d4d51b436ede878076de641a48b4aa8254d22d62891645b5",
+      "packaged": "panel/history_200/tasks.json",
+      "packaged_sha256": "4472fcc161bbcfd443ad06ebfb807737bb5c013f66ed53a83cea909b09240c8c",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/history_200/results.jsonl",
+      "source_sha256": "9f2af287f0b91a2ac11893b8224d9f00931cb922ffb9cb57d605ed02a026974c",
+      "packaged": "results/history_200/results.jsonl",
+      "packaged_sha256": "2c5bd5c438968dba117770c41c8f184708be7d6e317ee9f06c4a1ad357f6b27b",
+      "change": "Image path relocation only; answers, contexts, response IDs, usage and durations unchanged"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/qa_runtime.json",
+      "source_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "packaged": "datasets/history_300/qa_runtime.json",
+      "packaged_sha256": "da9a3b20f749f0b37b68ae656d43c94a083d901543c933403d545e18abe469fd",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/family_metadata.json",
+      "source_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "packaged": "datasets/history_300/family_metadata.json",
+      "packaged_sha256": "15d46f1acb1073b3666c05e2ba91343065932af9f8aa406047a5a4936d7421b7",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/probe_posts.json",
+      "source_sha256": "7ad738c1bf9850b3bd1b66306e20e9265c3d16b45ee03afbd3a8be82390f0dd8",
+      "packaged": "datasets/history_300/probe_posts.json",
+      "packaged_sha256": "c0a2e9f5410978a3629ef0c932784c1db98a400c379365f8c2a9a62a850bc5f4",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/memory_posts.json",
+      "source_sha256": "367b25b57b5d275e0cbe43d18da09b75474ff787b57c8208f238f6ac750ce1c8",
+      "packaged": "datasets/history_300/memory_posts.json",
+      "packaged_sha256": "09c88c5c427bbb7fa905ade57b10f920b1e2bca40d40e9d6eb617fa2addd19a3",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/family.json",
+      "source_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "packaged": "datasets/history_300/family.json",
+      "packaged_sha256": "34fe241524164950346e722609d92c12899bc675a9001daff00460542fb46c7d",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/qa_gold.json",
+      "source_sha256": "0b2420594b8a194957c38905ca40834335fe9cd1469af796f6c6a919e418795e",
+      "packaged": "datasets/history_300/qa_gold.json",
+      "packaged_sha256": "0b2420594b8a194957c38905ca40834335fe9cd1469af796f6c6a919e418795e",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/selection_gold.json",
+      "source_sha256": "3c0013455208f229ebbfe833ba4b2789a252d20aa52246171cbc377d0ca7a6be",
+      "packaged": "datasets/history_300/selection_gold.json",
+      "packaged_sha256": "83843afba34955b57a55b5b707e0bfab62be61e22e106d6232ce4af843305ea3",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/checksums.json",
+      "source_sha256": "173ee7219b3ea39e326a0800901994f9ac3d81abf70d3a756c8636daddbb7a5a",
+      "packaged": "datasets/history_300/checksums.json",
+      "packaged_sha256": "e2dff8741ff7463809aaeb2bf36f97dd88882e40789a1963b3ea9b29fcb57f39",
+      "change": "Recomputed distribution file checksums after path relocation; original checksum-file hash retained"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/assets.json",
+      "source_sha256": "864e8852fb8eb8b223a7c6b22ee0bd1ef33aa663ae95992943f3de02f9a7e216",
+      "packaged": "datasets/history_300/assets.json",
+      "packaged_sha256": "736bbb1036701a1973cd04cdb750b612e9139e1fff3fef04506847c0af542db7",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/summary_runtime.json",
+      "source_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "packaged": "datasets/history_300/summary_runtime.json",
+      "packaged_sha256": "e1b6ecd656086e4b03cf851b6c7610d523080cd03bd9dc2b74fef9242c9fb4fb",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/summary_gold.json",
+      "source_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "packaged": "datasets/history_300/summary_gold.json",
+      "packaged_sha256": "f73e9c361bf144f610d7fdccca02e138eca3451cce784a5c212202c3830c5c3b",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/test_media/memory_catalog_scaling_20261022/history_300/fact_catalog_gold.json",
+      "source_sha256": "900e13c41513cf980774382a6b909033183aa29f10ca7b96e8717bb166f9d502",
+      "packaged": "datasets/history_300/fact_catalog_gold.json",
+      "packaged_sha256": "900e13c41513cf980774382a6b909033183aa29f10ca7b96e8717bb166f9d502",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_300/descriptions.json",
+      "source_sha256": "5f553142508e7129175b46e9d77024ced6374693ef63561b10414c1a0e348a37",
+      "packaged": "snapshots/history_300/descriptions.json",
+      "packaged_sha256": "5f553142508e7129175b46e9d77024ced6374693ef63561b10414c1a0e348a37",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_300/descriptions.jsonl",
+      "source_sha256": "52353a49749a176fb15144ad796e4cbefef1a1d51121050d3d1b778649242e42",
+      "packaged": "snapshots/history_300/descriptions.jsonl",
+      "packaged_sha256": "52353a49749a176fb15144ad796e4cbefef1a1d51121050d3d1b778649242e42",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_300/db_import.json",
+      "source_sha256": "6e188f3f38985a41f37cf7e7d8c7959e50a1990596012c3bb6445abdb5f304b3",
+      "packaged": "snapshots/history_300/db_import.json",
+      "packaged_sha256": "6e188f3f38985a41f37cf7e7d8c7959e50a1990596012c3bb6445abdb5f304b3",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/MemoryQA-Scaling-100-200-300-2026-10-22/runs/history_300/graph_seed.json",
+      "source_sha256": "23a1bd66b40001478f2b7c46e6fa84b0a9de3a2274a886ceb9d9a4aa2032106a",
+      "packaged": "snapshots/history_300/graph_seed.json",
+      "packaged_sha256": "23a1bd66b40001478f2b7c46e6fa84b0a9de3a2274a886ceb9d9a4aa2032106a",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/history_300/tasks.json",
+      "source_sha256": "482dae32626153f771cda98fe4d3609cbe9bc11d829ebcb4bedcea6ad417269b",
+      "packaged": "panel/history_300/tasks.json",
+      "packaged_sha256": "32c80d31c2bdcb65fe95cdd0ffe0695fe5afb2ba3168672d999283ca1410df20",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/history_300/results.jsonl",
+      "source_sha256": "792ed5f4cba60be0d8cb2b2879c1489176d525f44f66ddb819b26e1310580762",
+      "packaged": "results/history_300/results.jsonl",
+      "packaged_sha256": "b97475e833d9fe323c9986eed7b7ff8476a1aa1028fc89e302b83f3fda288c26",
+      "change": "Image path relocation only; answers, contexts, response IDs, usage and durations unchanged"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/qa_runtime.json",
+      "source_sha256": "ea358b86b609f0096d8d9a691eea1516a336c975ec0a0151b32d67c21fa6f90e",
+      "packaged": "panel/qa_runtime.json",
+      "packaged_sha256": "ea358b86b609f0096d8d9a691eea1516a336c975ec0a0151b32d67c21fa6f90e",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/qa_gold.json",
+      "source_sha256": "15fe6283fdf071606a9387ec3f8342c4be4abb2e013bc83e8837755abd9112d7",
+      "packaged": "panel/qa_gold.json",
+      "packaged_sha256": "15fe6283fdf071606a9387ec3f8342c4be4abb2e013bc83e8837755abd9112d7",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/evidence_review.json",
+      "source_sha256": "fa7711922978f858f952a6f39ff99f9f294b2777df00d493e7d9d01ef77a62ef",
+      "packaged": "panel/evidence_review.json",
+      "packaged_sha256": "fa7711922978f858f952a6f39ff99f9f294b2777df00d493e7d9d01ef77a62ef",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/review_checklist.json",
+      "source_sha256": "f73c252c826bfecee131f3100a24398f2611da0ea6ec1c61d5e8f72462f7e77b",
+      "packaged": "panel/review_checklist.json",
+      "packaged_sha256": "f73c252c826bfecee131f3100a24398f2611da0ea6ec1c61d5e8f72462f7e77b",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/change_log.json",
+      "source_sha256": "b0e034aaad39dcd998a7cb4a7e6047b013648b900e6443f5c6c6de3aa5b7716c",
+      "packaged": "panel/change_log.json",
+      "packaged_sha256": "b0e034aaad39dcd998a7cb4a7e6047b013648b900e6443f5c6c6de3aa5b7716c",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/acceptance_criteria.json",
+      "source_sha256": "b3ea972a51bce999dfd0ae336d8bf41c820be1743bcac467aea870f2b27e593f",
+      "packaged": "panel/acceptance_criteria.json",
+      "packaged_sha256": "b3ea972a51bce999dfd0ae336d8bf41c820be1743bcac467aea870f2b27e593f",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/grade_index.json",
+      "source_sha256": "75210a42fcea024944b4f9e92247d35ba48b1a8e0719aca96ad02d9005be5867",
+      "packaged": "results/grade_index.json",
+      "packaged_sha256": "75210a42fcea024944b4f9e92247d35ba48b1a8e0719aca96ad02d9005be5867",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/answer_decisions.json",
+      "source_sha256": "666615c0c3e8513ab56ece8e845f4a226dab4f8a410fb4cb07a4db24979ab86c",
+      "packaged": "results/answer_decisions.json",
+      "packaged_sha256": "666615c0c3e8513ab56ece8e845f4a226dab4f8a410fb4cb07a4db24979ab86c",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/evidence_decisions.json",
+      "source_sha256": "8cb06a3f779cd34869e13b45263a289620cc91c4b60e080f6276f8492d16b42c",
+      "packaged": "results/evidence_decisions.json",
+      "packaged_sha256": "8cb06a3f779cd34869e13b45263a289620cc91c4b60e080f6276f8492d16b42c",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/source_support_review.json",
+      "source_sha256": "8df4b08e70fb424aebe7624d3177bf5b8a9205e481ddd54692d63f93e0308e87",
+      "packaged": "results/source_support_review.json",
+      "packaged_sha256": "8df4b08e70fb424aebe7624d3177bf5b8a9205e481ddd54692d63f93e0308e87",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/source_fact_audit.json",
+      "source_sha256": "e607af519529f0fa6eb55cce4fcec771f5819d31818a3d92cdede35804c26aea",
+      "packaged": "results/source_fact_audit.json",
+      "packaged_sha256": "e607af519529f0fa6eb55cce4fcec771f5819d31818a3d92cdede35804c26aea",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/comparison.json",
+      "source_sha256": "fecd14254d23f2ddb650cc951107592403f1bbbe1b84298502997d2b631ed7cf",
+      "packaged": "results/comparison.json",
+      "packaged_sha256": "fecd14254d23f2ddb650cc951107592403f1bbbe1b84298502997d2b631ed7cf",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/per_question.json",
+      "source_sha256": "ec77be4d337024b46ee40c903153daa2f49ffc237a89cb84c9e42e007d86d151",
+      "packaged": "results/per_question.json",
+      "packaged_sha256": "ec77be4d337024b46ee40c903153daa2f49ffc237a89cb84c9e42e007d86d151",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/failures.json",
+      "source_sha256": "81a9c482d1ccc11d40c17d0c453942910e1e9f5d74e72469c054c3e16b522c98",
+      "packaged": "results/failures.json",
+      "packaged_sha256": "81a9c482d1ccc11d40c17d0c453942910e1e9f5d74e72469c054c3e16b522c98",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/failure_diagnosis.json",
+      "source_sha256": "d6e4a56eb1ebcc68d03eff224e42bbb9a75e5daad5b2b66fe226981d72b0d54c",
+      "packaged": "results/failure_diagnosis.json",
+      "packaged_sha256": "d6e4a56eb1ebcc68d03eff224e42bbb9a75e5daad5b2b66fe226981d72b0d54c",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/verification.json",
+      "source_sha256": "d23af24c08145a0297b41964f8b6b2b4e0f013fc2330a8b43f2e62358840f2f0",
+      "packaged": "results/verification.json",
+      "packaged_sha256": "d23af24c08145a0297b41964f8b6b2b4e0f013fc2330a8b43f2e62358840f2f0",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/completion.json",
+      "source_sha256": "4251298d67efa842b0990872f3108a698d4728d63afdf59a9297fb337bd4d41f",
+      "packaged": "results/completion.json",
+      "packaged_sha256": "4251298d67efa842b0990872f3108a698d4728d63afdf59a9297fb337bd4d41f",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "team/iter2/Family-Memory-QA-30-2026-10-22/run_20261022/final_integrity.json",
+      "source_sha256": "0398fc36344d71234e1d2c361ab5182ce5a73b5ebcc8d5ece8c6547406b5ae1b",
+      "packaged": "results/final_integrity.json",
+      "packaged_sha256": "0398fc36344d71234e1d2c361ab5182ce5a73b5ebcc8d5ece8c6547406b5ae1b",
+      "change": "JSON reformatting and absolute path relocation only"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/memory_catalog_eval/__init__.py",
+      "source_sha256": "d3f1ead37691cf41cfd3c59893c205443c92d4b32698f3511512ce3c18c699be",
+      "packaged": "lib/original/__init__.py",
+      "packaged_sha256": "d3f1ead37691cf41cfd3c59893c205443c92d4b32698f3511512ce3c18c699be",
+      "change": "none; preserved experiment helper"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/memory_catalog_eval/live.py",
+      "source_sha256": "d9eee1c324a2aa5835ec6c3b28ec8777f2b48cac6157eee97397f01f8bb7f955",
+      "packaged": "lib/original/live.py",
+      "packaged_sha256": "d9eee1c324a2aa5835ec6c3b28ec8777f2b48cac6157eee97397f01f8bb7f955",
+      "change": "none; preserved experiment helper"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/memory_catalog_eval/protocol.py",
+      "source_sha256": "65c9aacbb3ef791fc869e744a42e718ba6b7934a74ba59868058d141b5e93fcc",
+      "packaged": "lib/original/protocol.py",
+      "packaged_sha256": "65c9aacbb3ef791fc869e744a42e718ba6b7934a74ba59868058d141b5e93fcc",
+      "change": "none; preserved experiment helper"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/memory_catalog_eval/app_contract.py",
+      "source_sha256": "2d07202fa78ad53fc6ac8af50c87748d563c5430947dfc8faa50ce1eeab302db",
+      "packaged": "lib/original/app_contract.py",
+      "packaged_sha256": "2d07202fa78ad53fc6ac8af50c87748d563c5430947dfc8faa50ce1eeab302db",
+      "change": "none; preserved experiment helper"
+    },
+    {
+      "source": "talkdock-inline-listening/backend/developer/memory_catalog_eval/usage.py",
+      "source_sha256": "a41a1d0a6691e63ac6ed316ca5073f7c194e413e08ff90ec1880274d26f5bec2",
+      "packaged": "lib/original/usage.py",
+      "packaged_sha256": "a41a1d0a6691e63ac6ed316ca5073f7c194e413e08ff90ec1880274d26f5bec2",
+      "change": "none; preserved experiment helper"
+    }
+  ],
+  "note": "This is a portable distribution adapter. Source answers, Gold, prompts, usage and timing are preserved. Paths and byte hashes of relocated containers change; original hashes are retained here. The 2026-10-22 source panel was not committed before execution."
+}

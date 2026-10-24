@@ -12,6 +12,7 @@ A mobile app for Korean families to share photos and updates with older adults, 
 
 ```text
 client/                 Kotlin Android app (accounts, family, posts, voice, digest)
+web/                    Desktop web UI, integrated launcher, and setup guide
 backend/
   configs/              Django settings and API routes
   apps/accounts/        Account registration and authentication
@@ -19,7 +20,9 @@ backend/
   apps/posts/           Photo posts and family feed
   apps/replies/         Text comments and reviewed voice replies
   apps/digests/         Daily summaries and scheduler
-  integrations/ai/      AI adapter for viewer-specific post messages
+  apps/searching/       Family history search and construction worker
+  integrations/ai/      LLM adapters and shared 2-way/3-way flow
+  integrations/ai_workers/ Graphiti construction, retrieval, and worker management
   integrations/speech/  ElevenLabs speech playback and voice recognition
   developer/            Developer tools and sample data TODOs
   media/                Uploaded images and cached speech
@@ -37,9 +40,80 @@ The server reads process environment variables in `.env`.
 ```bash
 python backend/manage.py migrate
 python backend/manage.py runserver 127.0.0.1:8000
+
+# Run Graphiti Construction Worker
+python backend/manage.py run_construction_worker --family-id 12
+# Note that Searching Workers are automatically started when the first searching occurs.
 ```
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
+
+## Family tree data and invitation API
+
+`FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
+
+`POST /api/families/lookup/` returns the room and `tree` snapshot (`version`, `owner_id`, `people`, `parents`, `partnerships`). Person IDs are strings. To join, submit the invitation credentials and the snapshot version, selected person, and sequential additions:
+
+```json
+{
+  "invite_code": "ABC123",
+  "password": "room-password",
+  "tree_version": 0,
+  "person_id": "new_me",
+  "additions": [
+    {"id": "new_parent", "anchor_id": "1", "relation": "father"},
+    {"id": "new_me", "anchor_id": "new_parent", "relation": "child"}
+  ]
+}
+```
+
+Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+
+Family migrations start directly with the tree schema. When updating an older local database that used slots, reset `backend/db.sqlite3` and run `python backend/manage.py migrate`; existing data is not imported. Parent edges always move one generation upward, and a person has at most two parents in this version. Ages are not collected, so sibling labels stay neutral instead of guessing Korean age-specific honorifics.
+
+## Graphiti family history
+
+Graphiti stores each family's post history in Neo4j. Start Neo4j and configure
+`OPENAI_API_KEY`, `NEO4J_URI`, `NEO4J_USER`, and `NEO4J_PASSWORD` in `.env`.
+
+### Construction (storing posts)
+
+Run this in a separate terminal for each family and keep it running:
+
+```powershell
+python backend/manage.py run_construction_worker --family-id 12
+```
+
+Uploading a post saves it to the app DB. The worker finds posts not yet stored in
+Graphiti, processes up to 100 author/caption records in creation order, then waits
+5 seconds before checking again. Uploads do not enqueue work directly.
+Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
+
+### Search (retrieving history)
+
+Search and AI requests submit work to a shared thread pool inside the Django
+process and wait for the result. Threads are reused across families, while each
+request searches only its own family's records. No separate search command is needed.
+
+Family history uses `search -> LLM`. Basic post summaries use only the current
+post and photos. Additional questions use `LLM -> search -> LLM`, skipping
+retrieval when the LLM can answer from the current input alone.
+
+### Post feed and additional questions
+
+The feed returns the latest 100 posts, ordered by creation time and then ID, both
+descending. The Android client also sorts responses by the same rule.
+
+Tap **AI 요약** to display the post summary without playing audio. Listening uses
+the same summary and reuses it if already loaded. Voice replies remain available
+in post detail.
+
+Tap **궁금한 점을 물어보세요** on a feed card or below the summary controls in post detail to
+ask about that post. Answers appear in the same detail screen. Successful turns
+remain visible while the detail screen stays open; follow-up requests include
+the last five question/answer pairs, with each message limited to 1,000 characters.
+Leaving the detail screen clears this conversation. Questions are separate from
+family comments, and failed requests keep the typed question for retry.
 
 ## APIs
 ### Account APIs
@@ -48,7 +122,7 @@ Send JSON request bodies for registration and login. Protected endpoints require
 
 | Endpoint | Authentication | Request body | Result |
 | --- | --- | --- | --- |
-| `POST /api/accounts/register/` | Not required | `username`, `password`, `name`, optional `gender` (`unknown`, `male`, `female`) | Creates an account and returns its profile and token. |
+| `POST /api/accounts/register/` | Not required | `username`, `password`, `name`, required `gender` (`male` or `female`) | Creates an account and returns its profile and token. |
 | `POST /api/accounts/login/` | Not required | `username`, `password` | Returns the account profile and a new token. |
 | `POST /api/accounts/logout/` | Required | None | Revokes the presented token; returns `{"ok": true}`. |
 | `GET /api/accounts/me/` | Required | None | Returns the current account profile without a token. |
@@ -63,11 +137,11 @@ Family rooms use the accounts created through `/api/accounts/register/`. Creatin
 | --- | --- | --- | --- |
 | `POST /api/families/create/` | Required | `room_name`, `password`, optional `digest_time` (`HH:MM`) | Creates a room and owner membership; returns `room`. |
 | `POST /api/families/lookup/` | Not required | `invite_code`, `password` | Returns room information when the invitation matches. |
-| `POST /api/families/join/` | Required | `invite_code`, `password`, `slot` | Adds the current account as a member; returns `room`. |
+| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. |
 | `GET /api/families/current/` | Required | None | Returns the current user's family room. |
 | `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
 
-Room passwords are hashed in the database. A room currently permits one user per family slot; see `backend/apps/families/TODO.md` for the multiple-children limitation.
+Room passwords are hashed in the database. Each tree person can be claimed by one account; multiple children of the same gender are supported.
 
 ### Post APIs
 
@@ -81,6 +155,7 @@ All post endpoints require a bearer token and a family membership. Upload a phot
 | `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
+| `POST /api/posts/<id>/questions/` | Answers a question about the post; JSON body: `question` (up to 1,000 characters) and optional `prior_dialogue` (up to 10 user/assistant messages, each with `role` and `text`, up to 1,000 characters). Returns `text`. |
 | `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
 Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
@@ -135,7 +210,7 @@ python backend/manage.py run_digest_scheduler --once
 ### Accounts and family relationships
 
 - [ ] **Edit account details:** The account API currently supports registration, login, logout, and read-only profile access. Define which fields can change (name, gender used for relationship labels, and password), the reauthentication rules, and the corresponding screen and API.
-- [ ] **Expand the relationship model:** Relationships are computed from eight fixed slots around the room owner. Some relationships between non-owner members display only “family,” and a second person cannot join the same slot (for example, a second son). Model relationships explicitly and revise display rules (see `backend/apps/families/`).
+- [x] **Expand the relationship model:** People, parent/child links, and partnerships form the family tree. Relationship labels are found from that graph, including through people without accounts.
 
 ### AI messages and speech
 

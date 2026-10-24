@@ -5,7 +5,8 @@ import os
 from contextlib import nullcontext
 from datetime import timedelta
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -14,9 +15,12 @@ from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
-from apps.families.models import FamilyRoom, Membership
+from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
-from integrations.ai import provider
+from integrations.ai import flow, provider, post_flow
+from integrations.ai_workers import graphiti_client, searching_workers
+
+from .family_fixtures import add_member, link_parent, sample_family
 
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
@@ -29,6 +33,13 @@ def sample_image(name="sample_img_1.png"):
 
 class PostAPITests(TestCase):
     def setUp(self):
+        pool = searching_workers.SearchPool(1)
+        self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
+        self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
+        self.addCleanup(pool.shutdown)
+        with patch.object(graphiti_client, "create_graphiti",
+                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+            pool.start()
         media_settings = override_settings(MEDIA_ROOT=TEST_MEDIA_DIR)
         media_settings.enable()
         self.addCleanup(media_settings.disable)
@@ -48,9 +59,10 @@ class PostAPITests(TestCase):
         self.other_room = FamilyRoom.objects.create(
             name="다른 가족", invite_code="ROOM02", password_hash="hashed", owner=self.outsider
         )
-        Membership.objects.create(room=self.room, user=self.owner, slot=Membership.Slot.OWNER)
-        Membership.objects.create(room=self.room, user=self.relative, slot=Membership.Slot.SON)
-        Membership.objects.create(room=self.other_room, user=self.outsider, slot=Membership.Slot.OWNER)
+        add_member(self.room, self.owner)
+        add_member(self.room, self.relative, -1)
+        link_parent(self.room, self.room.owner, self.relative)
+        add_member(self.other_room, self.outsider)
         self.owner_token = AccessToken.issue(self.owner)
         self.relative_token = AccessToken.issue(self.relative)
         self.outsider_token = AccessToken.issue(self.outsider)
@@ -66,38 +78,30 @@ class PostAPITests(TestCase):
             **self.auth(self.owner_token),
         )
 
+    def test_feed_returns_latest_100_in_stable_newest_first_order(self):
+        posts = Post.objects.bulk_create([
+            Post(room=self.room, author=self.owner, caption=f"소식 {index}") for index in range(102)
+        ])
+        # Equal timestamps still have a stable newest-first ID order.
+        Post.objects.filter(pk__in=[posts[-1].pk, posts[-2].pk]).update(
+            created_at=timezone.now() + timedelta(days=1)
+        )
+        Post.objects.create(room=self.other_room, author=self.outsider, caption="다른 가족 소식")
+        response = self.client.get("/api/posts/", **self.auth(self.relative_token))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([item["id"] for item in response.json()["posts"]],
+                         [post.pk for post in reversed(posts)][:100])
+        self.assertTrue(all(item["comment_count"] == 0 for item in response.json()["posts"]))
+
     def test_grandma_post_summaries(self):
         use_mock = os.getenv("MOCK_AI_TESTS") == "1"
         if not use_mock and not settings.OPENAI_API_KEY:
             self.skipTest("Set OPENAI_API_KEY for live summaries, or MOCK_AI_TESTS=1 for fixed responses")
 
-        # Re-create the seven members from test_families.py in this isolated test database.
-        family = (
-            ("paternal_grandma", "경자", User.Gender.FEMALE, Membership.Slot.GRANDMA_FATHER),
-            ("maternal_grandma", "선희", User.Gender.FEMALE, Membership.Slot.GRANDMA_MOTHER),
-            ("father", "병호", User.Gender.MALE, Membership.Slot.FATHER),
-            ("mother", "지현", User.Gender.FEMALE, Membership.Slot.MOTHER),
-            ("daughter", "수아", User.Gender.FEMALE, Membership.Slot.DAUGHTER),
-        )
-        for username, name, gender, slot in family:
-            user = User.objects.create_user(
-                username=username, password="Relative-Passphrase1!", display_name=name, gender=gender
-            )
-            Membership.objects.create(room=self.room, user=user, slot=slot)
-            if slot == Membership.Slot.GRANDMA_FATHER:
-                grandma_token = AccessToken.issue(user)
-        self.assertEqual(
-            {member.slot: member.user.display_name for member in self.room.members.select_related("user")},
-            {
-                Membership.Slot.OWNER: "정아",
-                Membership.Slot.GRANDMA_FATHER: "경자",
-                Membership.Slot.GRANDMA_MOTHER: "선희",
-                Membership.Slot.FATHER: "병호",
-                Membership.Slot.MOTHER: "지현",
-                Membership.Slot.SON: "준호",
-                Membership.Slot.DAUGHTER: "수아",
-            },
-        )
+        family = sample_family(self.room, self.owner, son=self.relative)
+        grandma_token = AccessToken.issue(family["paternal_grandma"])
+        self.assertEqual({user.display_name for user in family.values()},
+                         {"정아", "경자", "선희", "병호", "지현", "준호", "수아"})
 
         mock_responses = (
             "손녀 정아가 포챔스에서 색이 다른 독개굴을 잡았다고 해요. 멋진지 가족에게 물어봤어요.",
@@ -115,6 +119,7 @@ class PostAPITests(TestCase):
                 self.assertEqual(Post.objects.get(pk=post_id).caption, caption)
                 path = f"/api/posts/{post_id}/message/"
                 result = self.client.get(path, **self.auth(grandma_token))
+                print(result.json()["text"], flush=True)
                 self.assertEqual(result.status_code, 200)
                 self.assertEqual(result.json()["status"], "ready", result.json())
                 self.assertTrue(result.json()["text"].strip())
@@ -129,6 +134,46 @@ class PostAPITests(TestCase):
         feed = self.client.get("/api/posts/", **self.auth(grandma_token))
         self.assertEqual([post["relationship"] for post in feed.json()["posts"]], ["손녀", "손녀"])
         print(f"Grandma {'mock' if use_mock else 'live'} AI summaries test pass", flush=True)
+
+    def test_live_family_member_post_summaries(self):
+        if os.getenv("RUN_LIVE_SUMMARY_MATRIX") != "1":
+            self.skipTest("Set RUN_LIVE_SUMMARY_MATRIX=1 to compare live summaries for every viewer")
+        if not settings.OPENAI_API_KEY:
+            self.skipTest("Set OPENAI_API_KEY to run live summaries")
+
+        viewers = [
+            (self.owner, self.owner_token, "나"),
+            (self.relative, self.relative_token, "어머니"),
+        ]
+        family = sample_family(self.room, self.owner, son=self.relative)
+        for key, expected_relation in (("paternal_grandma", "손녀"), ("maternal_grandma", "손녀"),
+                                       ("father", "딸"), ("mother", "딸"), ("daughter", "어머니")):
+            viewer = family[key]
+            viewers.append((viewer, AccessToken.issue(viewer), expected_relation))
+
+        uploaded = self.upload(
+            "포챔스에서 독개굴 이로치 잡았다~ 간지 ㅁㅌㅊ?",
+            sample_image("sample_img_1.png"),
+        )
+        self.assertEqual(uploaded.status_code, 200)
+        post_id = uploaded.json()["id"]
+        path = f"/api/posts/{post_id}/message/"
+
+        for viewer, token, expected_relation in viewers:
+            with self.subTest(viewer=viewer.display_name, relation=expected_relation):
+                feed = self.client.get("/api/posts/", **self.auth(token))
+                self.assertEqual(feed.json()["posts"][0]["relationship"], expected_relation)
+                result = self.client.get(path, **self.auth(token))
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(result.json()["status"], "ready", result.json())
+                summary = result.json()["text"].strip()
+                self.assertTrue(summary)
+                print(
+                    f"[{viewer.display_name} 관점 / 작성자 관계: {expected_relation}] {summary}",
+                    flush=True,
+                )
+
+        self.assertEqual(AdaptedMessage.objects.filter(post_id=post_id).count(), len(viewers))
 
     def test_upload_converts_sample_and_returns_feed_and_detail(self):
         response = self.upload("오늘 산책했어요", sample_image("sample_img_1.png"))
@@ -259,37 +304,51 @@ class PostAPITests(TestCase):
             adapt.assert_called_once()
         print("Post AI message processing test pass", flush=True)
 
-    @override_settings(OPENAI_API_KEY="test-only", OPENAI_MODEL="gpt-4.1-mini")
+    @override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna")
     def test_ai_provider_sends_photo_and_caption_and_reads_completed_text(self):
         post_id = self.upload(caption="오늘 산책했어요").json()["id"]
-        response = {
-            "status": "completed",
-            "output": [{"type": "message", "content": [
-                {"type": "output_text", "text": "정아가 오늘 산책했어요."}
-            ]}],
-        }
-        with patch("urllib.request.urlopen", return_value=io.BytesIO(json.dumps(response).encode())) as call:
+        first = SimpleNamespace(status="completed", output_text="", output=[
+            SimpleNamespace(type="function_call", name="search_family_memory", call_id="relation",
+                            arguments=json.dumps({"query": "정아의 가족 관계"})),
+        ])
+        final = SimpleNamespace(status="completed", output_text="정아가 오늘 산책했어요.")
+        graph = SimpleNamespace(search=AsyncMock(return_value=[]))
+        with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             patch.object(post_flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=final)
             result = self.client.get(f"/api/posts/{post_id}/message/", **self.auth(self.relative_token))
         self.assertEqual(result.json(), {"text": "정아가 오늘 산책했어요.", "status": "ready"})
-        request = call.call_args.args[0]
-        self.assertEqual(request.full_url, "https://api.openai.com/v1/responses")
-        self.assertEqual(request.get_header("Authorization"), "Bearer test-only")
-        payload = json.loads(request.data)
-        self.assertEqual(payload["model"], "gpt-4.1-mini")
+        graph.search.assert_not_awaited()
+        close.assert_not_awaited()
+        client.responses.create.assert_awaited_once()
+        payload = client.responses.create.await_args_list[0].kwargs
+        self.assertEqual(payload["model"], "gpt-6-luna")
+        self.assertNotIn("tools", payload)
+        self.assertEqual(payload["service_tier"], "fast")
+        self.assertEqual(payload["reasoning"], {"effort": "none"})
         self.assertFalse(payload["store"])
+        self.assertIn("두 문장", payload["instructions"])
         content = payload["input"][0]["content"]
         self.assertIn("오늘 산책했어요", content[0]["text"])
         self.assertIn("어머니", content[0]["text"])
-        self.assertEqual(content[1]["detail"], "low")
+        self.assertEqual(content[1]["detail"], "high")
         self.assertTrue(base64.b64decode(content[1]["image_url"].split(",", 1)[1]).startswith(b"\xff\xd8"))
+        self.assertEqual(client.responses.create.call_args.kwargs["input"][0]["content"], content)
         print("Post AI provider request test pass", flush=True)
 
     @override_settings(OPENAI_API_KEY="test-only")
     def test_ai_provider_rejects_incomplete_response(self):
         post_id = self.upload().json()["id"]
-        with patch("urllib.request.urlopen", return_value=io.BytesIO(b'{"status":"incomplete","output":[]}')):
+        with patch.object(graphiti_client, "create_graphiti", return_value="graph"), \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             patch.object(post_flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="incomplete"))
             response = self.client.get(
                 f"/api/posts/{post_id}/message/", **self.auth(self.relative_token)
             )
         self.assertEqual(response.json(), {"text": "", "status": "failed"})
+        close.assert_not_awaited()
         print("Post AI provider failure test pass", flush=True)

@@ -1,0 +1,362 @@
+[
+  {
+    "image_id": "c92dd80616286775",
+    "path": "assets/images/c92dd80616286775.jpg",
+    "sha256": "b193c005d259f6d6ab347a6cd6e6fbcf2b3e927781cf5ae7f8741096d67058a7",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "108fd2942fbdf0bc",
+    "path": "assets/images/108fd2942fbdf0bc.jpg",
+    "sha256": "ec8091ecfd59dba6f0f6192eb12aa0f49bbfa7b13d9fc00eaaa55c40418156f2",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "d42aecdf856b60d9",
+    "path": "assets/images/d42aecdf856b60d9.jpg",
+    "sha256": "f42eb480dc8efe4d5d493315cf0e694ef37b6e5a1ca7b17bfc074d314142b5d1",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "322812be2c1c79de",
+    "path": "assets/images/322812be2c1c79de.jpg",
+    "sha256": "b0609ac852ff2b59ae40ab84c9bed541e0cd6ed1c1a497b0df4c7b9aaaff02b5",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "9b4d2674bd48d851",
+    "path": "assets/images/9b4d2674bd48d851.jpg",
+    "sha256": "7f6d82a074d9ad7219340122b84f5ee00f8505c0c6a412e82d7d0cf22d0a7e59",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "f631d5af131848e6",
+    "path": "assets/images/f631d5af131848e6.jpg",
+    "sha256": "13e2dafccd9382ad1a3345789a7f57dda229ac43c943deb844f4a4692ea1a2b6",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "896fcc1858131492",
+    "path": "assets/images/896fcc1858131492.jpg",
+    "sha256": "1ba629e6d48105ec717e3193f85ae0f3dd3d19b659f84ce926982fa333e03eca",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "40c702d91f9d7c85",
+    "path": "assets/images/40c702d91f9d7c85.jpg",
+    "sha256": "93d111b28ba73da4cdc422629a4f7d8a14f2ec79419b8ac421d5a483fcb0c9a1",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "087c628243cd5ffd",
+    "path": "assets/images/087c628243cd5ffd.jpg",
+    "sha256": "34576338beed4e72663d6a902d0dc5e2723a33a163d3c4dea3035901fd4bfe65",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "ad37376e09e3a0b1",
+    "path": "assets/images/ad37376e09e3a0b1.jpg",
+    "sha256": "75c27d28eff86c0a478644afe9f986f7f5596e494bd4a2083742f9e7e599955e",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "806ffc5e7ded718a",
+    "path": "assets/images/806ffc5e7ded718a.jpg",
+    "sha256": "31159e01a9815bc131576cf4e0f6a0b070070c44709086583b66434957212882",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "102b616cd758124e",
+    "path": "assets/images/102b616cd758124e.jpg",
+    "sha256": "96fb1f90627691b6d336bff0b0729527fba4126cc3f931c19fc42752033cc64b",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "d53cf83f851dbb33",
+    "path": "assets/images/d53cf83f851dbb33.jpg",
+    "sha256": "f8fd5c1108db4602f1ffdace57d5acc7086a03bfca909133a0766591e6335358",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "20ff21036a32ccbb",
+    "path": "assets/images/20ff21036a32ccbb.jpg",
+    "sha256": "70a2275130c86a020d1a9bf6d56599ae18fb37a8d6f9c929c07fd7a52c9a4a5a",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "99615304e50fff26",
+    "path": "assets/images/99615304e50fff26.jpg",
+    "sha256": "4af6775c3a78e137af37aae1891a072054c06e15549053cbb1a73fc3b1c912de",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "3bc06ef7b55e54d4",
+    "path": "assets/images/3bc06ef7b55e54d4.jpg",
+    "sha256": "362a6dcee7e0b602e979cad9a633580f74d025c827c0f60309065e7860211696",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "a86fd16cd839d525",
+    "path": "assets/images/a86fd16cd839d525.jpg",
+    "sha256": "93ed4477da06267d6d63975a916d9c717c650abd60e4ba753425509f9638614f",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "a3aab7ac628731df",
+    "path": "assets/images/a3aab7ac628731df.jpg",
+    "sha256": "5c779e3f3fd139336978de70c6a3a2bfbb722045623f1d5a7a8ee2217f918921",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "bd5ea925a4e908ab",
+    "path": "assets/images/bd5ea925a4e908ab.jpg",
+    "sha256": "2f9eb670bdd9c5d6b725740cd2b2538b2c496467e1252e91321c33f9d84e8123",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "d5454e7099fdb8a9",
+    "path": "assets/images/d5454e7099fdb8a9.jpg",
+    "sha256": "5a275e9b08933c816e1367058f03ed291697c73cd445bc9d4c9b7acae0dbf146",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "2d3439c42d571c4f",
+    "path": "assets/images/2d3439c42d571c4f.jpg",
+    "sha256": "c45aa7e5c243b0dfd6c4aa5d7794cb08c8d864997f8a4cf20f205d24b44e4169",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "9d0ed2b8e17a6514",
+    "path": "assets/images/9d0ed2b8e17a6514.jpg",
+    "sha256": "737cd67bcf5522ad934f9fe1b2214522ef9a4c74a8f35e82d13f073d23d01ddf",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "69698cfcc97cb70b",
+    "path": "assets/images/69698cfcc97cb70b.jpg",
+    "sha256": "21e1d6aa46ae647f39e97873a973e5bf49938fd2729ad418c46f0c6ab0e330ab",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "bd63102a1d0cf589",
+    "path": "assets/images/bd63102a1d0cf589.jpg",
+    "sha256": "ce1a127663aabd07f501b81a062ae371a09aa6a66509db5d03570b989f8d6085",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "9af74124e5fb403b",
+    "path": "assets/images/9af74124e5fb403b.jpg",
+    "sha256": "c101a2ec317595f13d58be6b08ee7faf06b42277e947faa4193f06ae9d5cbb04",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "4e8815992f2e401d",
+    "path": "assets/images/4e8815992f2e401d.jpg",
+    "sha256": "c6c6107fb951d837f010ab2ff51906ec3d624a152a10bb83d53bd001f713df21",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "694a0292128ef1ac",
+    "path": "assets/images/694a0292128ef1ac.jpg",
+    "sha256": "db4b6520c553fd04605f67cfbbb61ad3e51d53459bbb8b9600be86f16c4f4244",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "e0862949cc164648",
+    "path": "assets/images/e0862949cc164648.jpg",
+    "sha256": "18727f7b29e1b4b1f9dc07db02764b65c9ae7c24e22f51f4f484b4c010f74b3c",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "1d05481f372ba1d7",
+    "path": "assets/images/1d05481f372ba1d7.jpg",
+    "sha256": "d8216d4a12bdec5f87fcfebe6745a7be9fc0175e4d6eb0016fb53d852f403b76",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "50514bc47fde28cc",
+    "path": "assets/images/50514bc47fde28cc.jpg",
+    "sha256": "96ecf20957d80156021d0261631c748b4cefc27d98593ac406b85275b3600565",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "9e7776d8129d03c7",
+    "path": "assets/images/9e7776d8129d03c7.jpg",
+    "sha256": "834a4dd47f943fcccc64c37ecdea2dfd121cafd217905d1b7f0eca35154eea54",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "9b5499a34c44af1f",
+    "path": "assets/images/9b5499a34c44af1f.jpg",
+    "sha256": "f3bf21b69cd4c0877808a7fb726458d19b793c47a0b728d0a449c0c3204b4f36",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "dcb29a154e8dc9dc",
+    "path": "assets/images/dcb29a154e8dc9dc.jpg",
+    "sha256": "c1ce1df6339c0d550b4519f28ad02af197dd0472d18b6a84de449f51c76248a8",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "0d2d27d9816111ba",
+    "path": "assets/images/0d2d27d9816111ba.jpg",
+    "sha256": "6562d6838f40a17d2588d7a7154127637a20c5319ddc001eaf60cd0263cd2293",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "09f2d289ffe4efac",
+    "path": "assets/images/09f2d289ffe4efac.jpg",
+    "sha256": "71446d5f41faf944560c5356ab8a1ff692ad4a996e6753ab26b4cc468e49f80b",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "5740494717944e39",
+    "path": "assets/images/5740494717944e39.jpg",
+    "sha256": "ae2cc0869fa800a08cad0ce538d454be22d7fa75f4bf59980663e91c94305810",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "10e66e49cf4350b2",
+    "path": "assets/images/10e66e49cf4350b2.jpg",
+    "sha256": "d7494d64e9e25c785db7fcded2ac8d7a6139394b7b40911e1f88ba7ce06bf593",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "cd41925c5129eaf2",
+    "path": "assets/images/cd41925c5129eaf2.jpg",
+    "sha256": "d79597d205436ba5ebb63d2d7c224af897e33dd9e3ae01185c98d44135144e34",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "1343058103eacd2b",
+    "path": "assets/images/1343058103eacd2b.jpg",
+    "sha256": "311f07ea75b8ab9cc12ea5c774a47d70369acb669ce7241d8de7f8e89ce7fb1e",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  },
+  {
+    "image_id": "8ef2bb78f97f751e",
+    "path": "assets/images/8ef2bb78f97f751e.jpg",
+    "sha256": "99b42d891c40c07dda35cdc4c2619cdcd056b18a14fde5503e73418bdfb237c5",
+    "source": "https://github.com/facebookresearch/MemoryQA",
+    "source_commit": "8676e3131346be9a69a1f62bea72e752eea225f5",
+    "license": "CC BY-NC 4.0",
+    "synthetic_family_metadata": true
+  }
+]

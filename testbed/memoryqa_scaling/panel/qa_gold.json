@@ -1,0 +1,821 @@
+[
+  {
+    "question_id": "FQ01",
+    "category": "explicit_fact",
+    "expected_answer": "아침 8시",
+    "required_answer_units": [
+      "아침 8시"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ01",
+    "attribute": "feeding_time",
+    "thread_id": "01",
+    "semantic_rubric": "아침 8시를 묻는다. 담당자 변경이 밥 시간을 바꿨다는 근거는 없다.",
+    "confusable_or_prior_sources": [
+      "M01-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ02",
+    "category": "explicit_fact",
+    "expected_answer": "제브리나",
+    "required_answer_units": [
+      "제브리나"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-1"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ03",
+    "attribute": "plant_species",
+    "thread_id": "02",
+    "semantic_rubric": "제브리나/트라데스칸티아 제브리나를 인정한다. 알로에 새싹과 다르다.",
+    "confusable_or_prior_sources": [
+      "M02-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ03",
+    "category": "explicit_fact",
+    "expected_answer": "민수",
+    "required_answer_units": [
+      "민수"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-1"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ05",
+    "attribute": "first_teacher",
+    "thread_id": "03",
+    "semantic_rubric": "첫 선생님은 민수이다. 현재 서연으로 바뀌어도 과거의 첫 선생님은 바뀌지 않는다.",
+    "confusable_or_prior_sources": [
+      "M03-4",
+      "M03-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ04",
+    "category": "latest_explicit_fact",
+    "expected_answer": "인버터",
+    "required_answer_units": [
+      "인버터"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ07",
+    "attribute": "paid_tool",
+    "thread_id": "04",
+    "semantic_rubric": "결제한 것은 인버터다. 사진·장바구니와 구매를 구분한다.",
+    "confusable_or_prior_sources": [
+      "M04-1",
+      "M04-2",
+      "M04-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ05",
+    "category": "latest_explicit_fact",
+    "expected_answer": "민수",
+    "required_answer_units": [
+      "민수"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ09",
+    "attribute": "white_flower_giver",
+    "thread_id": "05",
+    "semantic_rubric": "민수가 선물한 사람이고 지민은 전달자다. 원문 기준 M05-4 또는 M05-6을 충분한 출처로 유지한다. 다만 M05-6의 저장 설명은 선물·전달 역할을 흐리므로, ID 확보만으로 실제 문맥의 근거 충분성을 인정하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M05-1",
+      "M05-3",
+      "M05-5"
+    ],
+    "case_origin": "inherited",
+    "stored_description_caveat": "M05-6 source caption supports the giver, but its frozen description may blur giving versus delivery. Source Post Coverage can pass while semantic Evidence Coverage fails; inspect the actual final context."
+  },
+  {
+    "question_id": "FQ06",
+    "category": "latest_explicit_fact",
+    "expected_answer": "병원 임시 주차장",
+    "required_answer_units": [
+      "병원 임시 주차장"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ11",
+    "attribute": "nissan_photo_place",
+    "thread_id": "06",
+    "semantic_rubric": "11일 사진은 정정된 병원 임시 주차장이다. M06-6은 어떤 사진인지 단독으로 명시하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M06-1",
+      "M06-3",
+      "M06-5",
+      "M06-6"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ07",
+    "category": "latest_explicit_fact",
+    "expected_answer": "베란다 선반",
+    "required_answer_units": [
+      "베란다 선반"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ13",
+    "attribute": "found_shoe_place",
+    "thread_id": "07",
+    "semantic_rubric": "찾은 장소는 베란다 선반이다. 베란다만 답해도 핵심 위치를 충족한다. 도윤의 갈색 구두는 별개다.",
+    "confusable_or_prior_sources": [
+      "M07-1",
+      "M07-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ08",
+    "category": "latest_explicit_fact",
+    "expected_answer": "강변 산책로",
+    "required_answer_units": [
+      "강변 산책로"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ15",
+    "attribute": "current_walk_place",
+    "thread_id": "08",
+    "semantic_rubric": "이번 가족 산책은 강변 산책로로 변경되었다. 다음 달 친구와의 선셋 공원 약속과 다르다.",
+    "confusable_or_prior_sources": [
+      "M08-1",
+      "M08-3",
+      "M08-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ09",
+    "category": "latest_explicit_fact",
+    "expected_answer": "완독",
+    "required_answer_units": [
+      "완독"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ],
+      [
+        "M09-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ17",
+    "attribute": "reading_completion",
+    "thread_id": "09",
+    "semantic_rubric": "완독했다. 이후 반납을 실제로 마쳤는지는 별개이며 지원되지 않는다.",
+    "confusable_or_prior_sources": [
+      "M09-1",
+      "M09-2",
+      "M09-5"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ10",
+    "category": "latest_explicit_fact",
+    "expected_answer": "지민",
+    "required_answer_units": [
+      "지민"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:01:00+09:00",
+    "primary_rule": "One requested attribute correct; direct contradiction of that attribute fails. Ancillary mistakes separately flagged.",
+    "additional_claim_rule": "Record material false additions separately; also report satisfied_without_material_false_additions.",
+    "prior_question_id": "EQ19",
+    "attribute": "current_cleaner",
+    "thread_id": "10",
+    "semantic_rubric": "변경된 담당은 지민이다. M10-6은 역할 연결이 설명에서 약해 단독 충분 근거로 쓰지 않는다. 청소 완료 여부는 묻지 않는다.",
+    "confusable_or_prior_sources": [
+      "M10-1",
+      "M10-3",
+      "M10-5",
+      "M10-6"
+    ],
+    "case_origin": "inherited"
+  },
+  {
+    "question_id": "FQ11",
+    "category": "explicit_fact",
+    "attribute": "feeding_owner",
+    "thread_id": "01",
+    "expected_answer": "지민",
+    "required_answer_units": [
+      "지민"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-4"
+      ],
+      [
+        "M01-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "담당 변경 이후 지민이다. 선희를 현재 담당이라고 하면 오답이다.",
+    "confusable_or_prior_sources": [
+      "M01-1",
+      "M01-3",
+      "M01-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ12",
+    "category": "explicit_fact",
+    "attribute": "snack_quantity",
+    "thread_id": "01",
+    "expected_answer": "조금만",
+    "required_answer_units": [
+      "조금만"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M01-2"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T08:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "조금만/소량이면 충족한다. 정해진 그램 수나 간식 종류는 알려져 있지 않다.",
+    "confusable_or_prior_sources": [
+      "M01-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ13",
+    "category": "explicit_fact",
+    "attribute": "plant_location",
+    "thread_id": "02",
+    "expected_answer": "도윤의 서재 창가",
+    "required_answer_units": [
+      "도윤의 서재 창가"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "서재 창가가 정답이다. 서재만 답하면 핵심 위치는 충족하며 창가 누락은 표현 상세도에만 기록한다. 거실·부엌은 오답이다.",
+    "confusable_or_prior_sources": [
+      "M02-1",
+      "M02-3",
+      "M02-5",
+      "M02-6"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ14",
+    "category": "explicit_fact",
+    "attribute": "watering_interval",
+    "thread_id": "02",
+    "expected_answer": "이틀에 한 번",
+    "required_answer_units": [
+      "이틀에 한 번"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M02-2"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T09:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "이틀/2일 간격을 인정한다. 하루 두 번이나 매일은 오답이다.",
+    "confusable_or_prior_sources": [
+      "M02-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ15",
+    "category": "explicit_fact",
+    "attribute": "current_teacher",
+    "thread_id": "03",
+    "expected_answer": "서연",
+    "required_answer_units": [
+      "서연"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "서연 선생님으로 변경되었다. 민수나 아빠의 동료 민수와 연결하면 오답이다.",
+    "confusable_or_prior_sources": [
+      "M03-1",
+      "M03-3",
+      "M03-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ16",
+    "category": "explicit_fact",
+    "attribute": "lesson_number",
+    "thread_id": "03",
+    "expected_answer": "두 번째",
+    "required_answer_units": [
+      "두 번째"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M03-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T10:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "두 번째/2회차를 인정한다. 현재까지 총 몇 회인지 추가로 추정하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M03-1"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ17",
+    "category": "explicit_fact",
+    "attribute": "washer_purchase_state",
+    "thread_id": "04",
+    "expected_answer": "사지 않았다",
+    "required_answer_units": [
+      "사지 않았다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-4"
+      ],
+      [
+        "M04-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "안 샀다/구매하지 않기로 했다면 충족한다. 결제를 안 했다는 옛 사실만으로 나중의 구매 여부를 단정하는 근거는 불충분하다.",
+    "confusable_or_prior_sources": [
+      "M04-2",
+      "M04-3",
+      "M04-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ18",
+    "category": "explicit_fact",
+    "attribute": "neighbor_tool",
+    "thread_id": "04",
+    "expected_answer": "Hyper Tough 고압 세척기",
+    "required_answer_units": [
+      "Hyper Tough 고압 세척기"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M04-5"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T11:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "고압 세척기만 답해도 충족한다. 철수가 인버터를 샀다거나 도윤이 산 세척기라고 하면 오답이다.",
+    "confusable_or_prior_sources": [
+      "M04-4"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ19",
+    "category": "explicit_fact",
+    "attribute": "flower_courier",
+    "thread_id": "05",
+    "expected_answer": "지민",
+    "required_answer_units": [
+      "지민"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-4"
+      ],
+      [
+        "M05-6"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "전달자는 지민, 선물한 사람은 민수다. 전달과 구매·선물을 구분한다.",
+    "confusable_or_prior_sources": [
+      "M05-1",
+      "M05-3",
+      "M05-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ20",
+    "category": "explicit_fact",
+    "attribute": "pink_flower_giver",
+    "thread_id": "05",
+    "expected_answer": "친구 은영",
+    "required_answer_units": [
+      "친구 은영"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M05-5"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T12:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "은영/친구 은영을 인정한다. 흰 꽃의 민수·지민과 혼동하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M05-4"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ21",
+    "category": "explicit_fact",
+    "attribute": "friend_parking",
+    "thread_id": "06",
+    "expected_answer": "지하",
+    "required_answer_units": [
+      "지하"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-5"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "지하이다. 도윤의 Nissan 사진 장소나 수진네 실제 집 주소를 묻는 질문이 아니다.",
+    "confusable_or_prior_sources": [
+      "M06-1",
+      "M06-4"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ22",
+    "category": "explicit_fact",
+    "attribute": "address_disclosure_claim",
+    "thread_id": "06",
+    "expected_answer": "집 주소를 올린 적이 없다고 했다",
+    "required_answer_units": [
+      "집 주소를 올린 적이 없다고 했다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M06-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T13:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "도윤이 올린 적 없다고 말한 사실을 답한다. 주소를 추정하거나 실제 모든 채널에서의 비공개를 보장하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M06-1",
+      "M06-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ23",
+    "category": "explicit_fact",
+    "attribute": "other_shoe_color",
+    "thread_id": "07",
+    "expected_answer": "갈색",
+    "required_answer_units": [
+      "갈색"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-5"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "갈색이다. 지민의 검은 신발과 별개다.",
+    "confusable_or_prior_sources": [
+      "M07-1",
+      "M07-4"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ24",
+    "category": "explicit_fact",
+    "attribute": "initial_shoe_state",
+    "thread_id": "07",
+    "expected_answer": "몰랐다. 찾지 못하고 있었다",
+    "required_answer_units": [
+      "몰랐다. 찾지 못하고 있었다"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M07-1"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T14:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "첫 게시 시점에는 못 찾았다고 답한다. 당시에도 베란다 위치를 알았다고 하면 오답이다. 현재 상태를 묻지 않는다.",
+    "confusable_or_prior_sources": [
+      "M07-4",
+      "M07-6"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ25",
+    "category": "explicit_fact",
+    "attribute": "walk_time",
+    "thread_id": "08",
+    "expected_answer": "오후 3시",
+    "required_answer_units": [
+      "오후 3시"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-2"
+      ],
+      [
+        "M08-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "오후 3시/15시를 인정한다. 그냥 3시는 문맥상 오후라고 명확한 경우 인정한다. M08-6만으로 오전·오후를 확인할 수는 없다.",
+    "confusable_or_prior_sources": [
+      "M08-5",
+      "M08-6"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ26",
+    "category": "explicit_fact",
+    "attribute": "walk_change_reason",
+    "thread_id": "08",
+    "expected_answer": "선셋 공원이 공사 중이어서",
+    "required_answer_units": [
+      "선셋 공원이 공사 중이어서"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M08-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T15:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "공사 때문이면 충족한다. 날씨·가족 건강 등 다른 이유를 만들지 않는다.",
+    "confusable_or_prior_sources": [
+      "M08-1",
+      "M08-3",
+      "M08-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ27",
+    "category": "explicit_fact",
+    "attribute": "father_book",
+    "thread_id": "09",
+    "expected_answer": "Blue Exorcist",
+    "required_answer_units": [
+      "Blue Exorcist"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-5"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "질문자 지민의 아빠는 도윤이다. Blue Exorcist/청의 엑소시스트를 인정한다. 엄마 수진의 The Quiet War와 구분한다.",
+    "confusable_or_prior_sources": [
+      "M09-1",
+      "M09-4"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ28",
+    "category": "explicit_fact",
+    "attribute": "planned_return_place",
+    "thread_id": "09",
+    "expected_answer": "도서관",
+    "required_answer_units": [
+      "도서관"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M09-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T16:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "도서관이다. 반납 예정이므로 실제 반납을 완료했다는 추가 주장은 지원되지 않는다.",
+    "confusable_or_prior_sources": [
+      "M09-1",
+      "M09-5"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ29",
+    "category": "explicit_fact",
+    "attribute": "new_cleaner_schedule",
+    "thread_id": "10",
+    "expected_answer": "토요일 오전",
+    "required_answer_units": [
+      "토요일 오전"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-4"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:31:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "토요일 오전이다. 실제 완료 여부를 묻지 않으며 질문 시점에 아직 청소 전이라고 단정하지 않는다.",
+    "confusable_or_prior_sources": [
+      "M10-2",
+      "M10-3",
+      "M10-6"
+    ],
+    "case_origin": "added"
+  },
+  {
+    "question_id": "FQ30",
+    "category": "explicit_fact",
+    "attribute": "initial_cleaner",
+    "thread_id": "10",
+    "expected_answer": "수진",
+    "required_answer_units": [
+      "수진"
+    ],
+    "sufficient_evidence_sets": [
+      [
+        "M10-1"
+      ]
+    ],
+    "evidence_metric_eligible": true,
+    "answerability": "answerable",
+    "question_time": "2026-10-17T17:01:00+09:00",
+    "primary_rule": "Requested meaning correct and uncontradicted. Semantic paraphrases accepted; rubric specifies acceptable granularity.",
+    "additional_claim_rule": "Material false or unsupported additions separately flagged and fail strict Answer Accuracy.",
+    "semantic_rubric": "처음 맡겠다고 한 수진이다. 현재 담당 지민과 구분한다. 본문상의 엄마를 인정한다.",
+    "confusable_or_prior_sources": [
+      "M10-4",
+      "M10-5",
+      "M10-6"
+    ],
+    "case_origin": "added"
+  }
+]

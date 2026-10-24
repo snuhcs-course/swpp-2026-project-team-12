@@ -1,4 +1,4 @@
-plugins { id("com.android.application") }
+﻿plugins { id("com.android.application") }
 
 android {
     namespace = "kr.talkdock.app"
@@ -19,14 +19,19 @@ android {
         release { isMinifyEnabled = false }
     }
     buildFeatures { buildConfig = true }
+    sourceSets {
+        getByName("androidTest").java.srcDir("../../testbed/iter2_frontend/androidTest/java")
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
 dependencies {
+    implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

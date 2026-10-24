@@ -9,7 +9,7 @@ import java.io.File
 class Speaker(private val error: (String) -> Unit) {
     private var player: MediaPlayer? = null
     private var file: File? = null
-    fun play(audio: File) {
+    fun play(audio: File, completed: () -> Unit = {}, failed: ((String) -> Unit)? = null) {
         stop()
         file = audio
         try {
@@ -17,14 +17,25 @@ class Speaker(private val error: (String) -> Unit) {
             player = engine
             engine.apply {
                 setDataSource(audio.absolutePath)
-                setOnPreparedListener { it.start() }
-                setOnCompletionListener { stop() }
-                setOnErrorListener { _, _, _ -> stop(); error("소리를 재생하지 못했어요. 다시 시도해 주세요."); true }
+                setOnPreparedListener { if (player === it) it.start() }
+                setOnCompletionListener { if (player === it) { stop(); completed() } }
+                setOnErrorListener { source, _, _ ->
+                    if (player === source) { stop(); (failed ?: error)("소리를 재생하지 못했어요. 다시 시도해 주세요.") }
+                    true
+                }
                 prepareAsync()
             }
-        } catch (_: Exception) { stop(); error("소리를 재생하지 못했어요. 다시 시도해 주세요.") }
+        } catch (_: Exception) { stop(); (failed ?: error)("소리를 재생하지 못했어요. 다시 시도해 주세요.") }
     }
-    fun stop() { player?.release(); player = null; file?.delete(); file = null }
+    fun stop() {
+        val previous = player
+        player = null
+        previous?.setOnPreparedListener(null)
+        previous?.setOnCompletionListener(null)
+        previous?.setOnErrorListener(null)
+        previous?.release()
+        file?.delete(); file = null
+    }
     fun close() = stop()
 }
 

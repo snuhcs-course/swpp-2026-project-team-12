@@ -1,0 +1,2002 @@
+[
+  {
+    "fact_id": "F01-1",
+    "entity_id": "cat_momo",
+    "predicate": "feeding_person",
+    "value": "선희",
+    "source_post_ids": [
+      "M01-1",
+      "M01-3"
+    ],
+    "known_at": "2026-10-11T08:00:00+09:00",
+    "valid_from": "2026-10-11T08:00:00+09:00",
+    "valid_until": "2026-10-14T08:00:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F01-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M01-1",
+        "known_at": "2026-10-11T08:00:00+09:00",
+        "quote": "우리 고양이 모모~ 밥은 내가 챙기고 있어ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M01-3",
+        "known_at": "2026-10-13T08:00:00+09:00",
+        "quote": "할머니가 모모 밥 챙겨 주시니 든든ㅎㅎ",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F01-2",
+    "entity_id": "cat_momo",
+    "predicate": "additional_context",
+    "value": "아침 8시",
+    "source_post_ids": [
+      "M01-2"
+    ],
+    "known_at": "2026-10-12T08:00:00+09:00",
+    "valid_from": "2026-10-12T08:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F01-2",
+    "evidence_assertions": [
+      {
+        "post_id": "M01-2",
+        "known_at": "2026-10-12T08:00:00+09:00",
+        "quote": "모모 밥은 아침 8시에 한 번 줘요. 간식은 조금만~",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F01-3",
+    "entity_id": "cat_momo",
+    "predicate": "feeding_person",
+    "value": "지민",
+    "source_post_ids": [
+      "M01-4",
+      "M01-6"
+    ],
+    "known_at": "2026-10-14T08:00:00+09:00",
+    "valid_from": "2026-10-14T08:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F01-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F01-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M01-4",
+        "known_at": "2026-10-14T08:00:00+09:00",
+        "quote": "오늘부터 모모 밥은 내가 맡기로! 할머니는 좀 쉬세요~",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M01-6",
+        "known_at": "2026-10-16T08:00:00+09:00",
+        "quote": "지민이가 모모 아침밥 잘 챙기고 있네~ 고맙다",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F01-4",
+    "entity_id": "cat_nabi",
+    "predicate": "feeding_person",
+    "value": "수진의 친구",
+    "source_post_ids": [
+      "M01-5"
+    ],
+    "known_at": "2026-10-15T08:00:00+09:00",
+    "valid_from": "2026-10-15T08:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F01-4",
+    "evidence_assertions": [
+      {
+        "post_id": "M01-5",
+        "known_at": "2026-10-15T08:00:00+09:00",
+        "quote": "친구네 고양이 나비는 친구가 밥 준대. 우리 모모랑 이름도 다르네ㅎㅎ",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-1",
+    "entity_id": "plant_jaju",
+    "predicate": "location",
+    "value": "거실 창가",
+    "source_post_ids": [
+      "M02-1"
+    ],
+    "known_at": "2026-10-11T08:30:00+09:00",
+    "valid_from": "2026-10-11T08:30:00+09:00",
+    "valid_until": "2026-10-14T08:30:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-1",
+        "known_at": "2026-10-11T08:30:00+09:00",
+        "quote": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-2",
+    "entity_id": "plant_jaju",
+    "predicate": "additional_context",
+    "value": "이틀에 한 번 물 주기",
+    "source_post_ids": [
+      "M02-2"
+    ],
+    "known_at": "2026-10-12T08:30:00+09:00",
+    "valid_from": "2026-10-12T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-2",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-2",
+        "known_at": "2026-10-12T08:30:00+09:00",
+        "quote": "자주는 이틀에 한 번 물 주기로. 너무 많이 주진 말아야지",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-3",
+    "entity_id": "plant_jaju",
+    "predicate": "location",
+    "value": "도윤의 서재",
+    "source_post_ids": [
+      "M02-4",
+      "M02-6"
+    ],
+    "known_at": "2026-10-14T08:30:00+09:00",
+    "valid_from": "2026-10-14T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F02-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-4",
+        "known_at": "2026-10-14T08:30:00+09:00",
+        "quote": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M02-6",
+        "known_at": "2026-10-16T08:30:00+09:00",
+        "quote": "아빠 서재에 자주 보러 갔다가 왔어ㅎㅎ",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-4",
+    "entity_id": "plant_saessak",
+    "predicate": "location",
+    "value": "선희의 부엌 창가",
+    "source_post_ids": [
+      "M02-5"
+    ],
+    "known_at": "2026-10-15T08:30:00+09:00",
+    "valid_from": "2026-10-15T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "reported_expectation",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "reported_expectation",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-4",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-5",
+        "known_at": "2026-10-15T08:30:00+09:00",
+        "quote": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F03-1",
+    "entity_id": "jimin_piano",
+    "predicate": "teacher",
+    "value": "민수",
+    "source_post_ids": [
+      "M03-1"
+    ],
+    "known_at": "2026-10-11T09:00:00+09:00",
+    "valid_from": "2026-10-11T09:00:00+09:00",
+    "valid_until": "2026-10-14T09:00:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F03-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M03-1",
+        "known_at": "2026-10-11T09:00:00+09:00",
+        "quote": "피아노 민수 선생님이랑 첫 수업! 긴장했네ㅎㅎ",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F03-2",
+    "entity_id": "jimin_piano",
+    "predicate": "additional_context",
+    "value": "연습곡 Island Song",
+    "source_post_ids": [
+      "M03-2"
+    ],
+    "known_at": "2026-10-12T09:00:00+09:00",
+    "valid_from": "2026-10-12T09:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F03-2",
+    "evidence_assertions": [
+      {
+        "post_id": "M03-2",
+        "known_at": "2026-10-12T09:00:00+09:00",
+        "quote": "오늘은 All Of Me도 연습~ 민수쌤이 내준 Island Song부터 마저 해야지",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F03-3",
+    "entity_id": "jimin_piano",
+    "predicate": "teacher",
+    "value": "서연",
+    "source_post_ids": [
+      "M03-4",
+      "M03-6"
+    ],
+    "known_at": "2026-10-14T09:00:00+09:00",
+    "valid_from": "2026-10-14T09:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F03-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F03-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M03-4",
+        "known_at": "2026-10-14T09:00:00+09:00",
+        "quote": "오늘부터 피아노는 서연 선생님께 배우기로 했어. 민수 선생님 수업은 끝!",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M03-6",
+        "known_at": "2026-10-16T09:00:00+09:00",
+        "quote": "서연 선생님 두 번째 수업도 좋았다~",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F03-4",
+    "entity_id": "minsu_colleague",
+    "predicate": "distinct_from",
+    "value": "지민의 예전 피아노 선생님 민수",
+    "source_post_ids": [
+      "M03-5"
+    ],
+    "known_at": "2026-10-15T09:00:00+09:00",
+    "valid_from": "2026-10-15T09:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F03-4",
+    "evidence_assertions": [
+      {
+        "post_id": "M03-5",
+        "known_at": "2026-10-15T09:00:00+09:00",
+        "quote": "내 동료 민수랑 점심~ 지민이 피아노 선생님 민수랑은 다른 사람이야",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-1",
+    "entity_id": "doyun_inverter",
+    "predicate": "purchase_status",
+    "value": "미구매",
+    "source_post_ids": [
+      "M04-1"
+    ],
+    "known_at": "2026-10-11T09:30:00+09:00",
+    "valid_from": "2026-10-11T09:30:00+09:00",
+    "valid_until": "2026-10-14T09:30:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-1",
+    "purchase_stage": "in_cart_unpaid",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-1",
+        "known_at": "2026-10-11T09:30:00+09:00",
+        "quote": "RYOBI 150W 인버터 장바구니에 넣었다~ 아직 결제는 안 함",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-2",
+    "entity_id": "doyun_pressure_washer",
+    "predicate": "purchase_status",
+    "value": "미구매",
+    "source_post_ids": [
+      "M04-2"
+    ],
+    "known_at": "2026-10-12T09:30:00+09:00",
+    "valid_from": "2026-10-12T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-2",
+        "known_at": "2026-10-12T09:30:00+09:00",
+        "quote": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-3",
+    "entity_id": "doyun_inverter",
+    "predicate": "purchase_status",
+    "value": "구매",
+    "source_post_ids": [
+      "M04-4"
+    ],
+    "known_at": "2026-10-14T09:30:00+09:00",
+    "valid_from": "2026-10-14T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F04-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-4",
+        "known_at": "2026-10-14T09:30:00+09:00",
+        "quote": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-4",
+    "entity_id": "cheolsu_pressure_washer",
+    "predicate": "purchase_status",
+    "value": "구매",
+    "source_post_ids": [
+      "M04-5"
+    ],
+    "known_at": "2026-10-15T09:30:00+09:00",
+    "valid_from": "2026-10-15T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-5",
+        "known_at": "2026-10-15T09:30:00+09:00",
+        "quote": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-1",
+    "entity_id": "white_bouquet",
+    "predicate": "giver",
+    "value": "지민",
+    "source_post_ids": [
+      "M05-1"
+    ],
+    "known_at": "2026-10-11T10:00:00+09:00",
+    "valid_from": "2026-10-11T10:00:00+09:00",
+    "valid_until": "2026-10-14T10:00:00+09:00",
+    "claim_type": "retracted_report",
+    "supersedes_fact_ids": [],
+    "retracted_at": "2026-10-14T10:00:00+09:00",
+    "temporal_semantics": "reported_belief_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": "2026-10-11",
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-1",
+        "known_at": "2026-10-11T10:00:00+09:00",
+        "quote": "오늘 지민이가 사 준 흰 꽃 예쁘다~ 고마워ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-2",
+    "entity_id": "white_bouquet",
+    "predicate": "vase_location",
+    "value": "식탁",
+    "source_post_ids": [
+      "M05-2"
+    ],
+    "known_at": "2026-10-12T10:00:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "point_observation",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-2",
+    "observed_at": "2026-10-12T10:00:00+09:00",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-2",
+        "known_at": "2026-10-12T10:00:00+09:00",
+        "quote": "어제 그 흰 꽃은 식탁에 꽂아 뒀어요",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-3",
+    "entity_id": "white_bouquet",
+    "predicate": "giver",
+    "value": "민수",
+    "source_post_ids": [
+      "M05-4",
+      "M05-6"
+    ],
+    "known_at": "2026-10-14T10:00:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "corrected_event_truth",
+    "supersedes_fact_ids": [
+      "F05-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "corrected_event_truth",
+    "time_basis": "known_at is disclosure time; exact event clock time is not recorded",
+    "event_date": "2026-10-11",
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-4",
+        "known_at": "2026-10-14T10:00:00+09:00",
+        "quote": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M05-6",
+        "known_at": "2026-10-16T10:00:00+09:00",
+        "quote": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-4",
+    "entity_id": "pink_bouquet",
+    "predicate": "giver",
+    "value": "은영",
+    "source_post_ids": [
+      "M05-5"
+    ],
+    "known_at": "2026-10-15T10:00:00+09:00",
+    "valid_from": "2026-10-15T10:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-5",
+        "known_at": "2026-10-15T10:00:00+09:00",
+        "quote": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F06-1",
+    "entity_id": "nissan_photo_11",
+    "predicate": "photo_location",
+    "value": "새 집 주차장",
+    "source_post_ids": [
+      "M06-1"
+    ],
+    "known_at": "2026-10-11T10:30:00+09:00",
+    "valid_from": "2026-10-11T10:30:00+09:00",
+    "valid_until": "2026-10-14T10:30:00+09:00",
+    "claim_type": "retracted_report",
+    "supersedes_fact_ids": [],
+    "retracted_at": "2026-10-14T10:30:00+09:00",
+    "temporal_semantics": "reported_belief_knowledge_interval",
+    "time_basis": "11일은 업로드 날짜이며 촬영 날짜/시각은 미기록",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F06-1",
+    "photo_reference_post_id": "M06-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M06-1",
+        "known_at": "2026-10-11T10:30:00+09:00",
+        "quote": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F06-2",
+    "entity_id": "nissan_photo_11",
+    "predicate": "car_owner",
+    "value": "도윤 가족",
+    "source_post_ids": [
+      "M06-1"
+    ],
+    "known_at": "2026-10-11T10:30:00+09:00",
+    "valid_from": "2026-10-11T10:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "11일은 업로드 날짜이며 촬영 날짜/시각은 미기록",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F06-2",
+    "photo_reference_post_id": "M06-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M06-1",
+        "known_at": "2026-10-11T10:30:00+09:00",
+        "quote": "우리 Nissan 주차 완료~ 여기 새 집 주차장이에요",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F06-3",
+    "entity_id": "nissan_photo_11",
+    "predicate": "photo_location",
+    "value": "병원 임시 주차장",
+    "source_post_ids": [
+      "M06-4"
+    ],
+    "known_at": "2026-10-14T10:30:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "corrected_event_truth",
+    "supersedes_fact_ids": [
+      "F06-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "corrected_event_truth",
+    "time_basis": "11일은 업로드 날짜이며 촬영 날짜/시각은 미기록",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F06-3",
+    "photo_reference_post_id": "M06-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M06-4",
+        "known_at": "2026-10-14T10:30:00+09:00",
+        "quote": "11일 Nissan 사진 설명 정정! 새 집이 아니라 병원 임시 주차장에서 찍은 거야. 집 주소는 올린 적 없어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F06-4",
+    "entity_id": "sujin_friend_home",
+    "predicate": "parking_type",
+    "value": "지하 주차장",
+    "source_post_ids": [
+      "M06-5"
+    ],
+    "known_at": "2026-10-15T10:30:00+09:00",
+    "valid_from": "2026-10-15T10:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F06-4",
+    "evidence_assertions": [
+      {
+        "post_id": "M06-5",
+        "known_at": "2026-10-15T10:30:00+09:00",
+        "quote": "친구네 새 집 주차장은 지하래. 우리 집 주차장 얘기는 아님ㅎㅎ",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-1",
+    "entity_id": "jimin_black_shoes",
+    "predicate": "lost_status",
+    "value": "미발견",
+    "source_post_ids": [
+      "M07-1",
+      "M07-2"
+    ],
+    "known_at": "2026-10-11T11:00:00+09:00",
+    "valid_from": "2026-10-11T11:00:00+09:00",
+    "valid_until": "2026-10-14T11:00:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-1",
+        "known_at": "2026-10-11T11:00:00+09:00",
+        "quote": "전에 찍어 둔 내 검은 신발 사진~ 지금은 어디 갔는지 못 찾겠어ㅠㅠ",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M07-2",
+        "known_at": "2026-10-12T11:00:00+09:00",
+        "quote": "검은 신발 찾는 중~ 현관에는 없네",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-2",
+    "entity_id": "jimin_black_shoes",
+    "predicate": "search_observation",
+    "value": "현관에는 없음",
+    "source_post_ids": [
+      "M07-2"
+    ],
+    "known_at": "2026-10-12T11:00:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "point_observation",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-2",
+    "observed_at": "2026-10-12T11:00:00+09:00",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-2",
+        "known_at": "2026-10-12T11:00:00+09:00",
+        "quote": "검은 신발 찾는 중~ 현관에는 없네",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-3",
+    "entity_id": "jimin_black_shoes",
+    "predicate": "lost_status",
+    "value": "발견",
+    "source_post_ids": [
+      "M07-4"
+    ],
+    "known_at": "2026-10-14T11:00:00+09:00",
+    "valid_from": "2026-10-14T11:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F07-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-4",
+        "known_at": "2026-10-14T11:00:00+09:00",
+        "quote": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-4",
+    "entity_id": "doyun_brown_shoes",
+    "predicate": "lost_status",
+    "value": "미발견",
+    "source_post_ids": [
+      "M07-5"
+    ],
+    "known_at": "2026-10-15T11:00:00+09:00",
+    "valid_from": "2026-10-15T11:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-5",
+        "known_at": "2026-10-15T11:00:00+09:00",
+        "quote": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-1",
+    "entity_id": "family_sunday_walk",
+    "predicate": "meeting_location",
+    "value": "선셋 공원",
+    "source_post_ids": [
+      "M08-1"
+    ],
+    "known_at": "2026-10-11T11:30:00+09:00",
+    "valid_from": "2026-10-11T11:30:00+09:00",
+    "valid_until": "2026-10-14T11:30:00+09:00",
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-18",
+    "capture_time": null,
+    "canonical_fact_id": "F08-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-1",
+        "known_at": "2026-10-11T11:30:00+09:00",
+        "quote": "예전 숲길 사진 보니 또 걷고 싶네~ 18일 일요일 가족 산책은 선셋 공원에서 만나자",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-2",
+    "entity_id": "family_sunday_walk",
+    "predicate": "meeting_time",
+    "value": "15:00",
+    "source_post_ids": [
+      "M08-2"
+    ],
+    "known_at": "2026-10-12T11:30:00+09:00",
+    "valid_from": "2026-10-12T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-18",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-2",
+        "known_at": "2026-10-12T11:30:00+09:00",
+        "quote": "18일 가족 산책 약속은 오후 3시!",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-3",
+    "entity_id": "family_sunday_walk",
+    "predicate": "meeting_location",
+    "value": "강변 산책로",
+    "source_post_ids": [
+      "M08-4",
+      "M08-6"
+    ],
+    "known_at": "2026-10-14T11:30:00+09:00",
+    "valid_from": "2026-10-14T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [
+      "F08-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-18",
+    "capture_time": null,
+    "canonical_fact_id": "F08-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-4",
+        "known_at": "2026-10-14T11:30:00+09:00",
+        "quote": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M08-6",
+        "known_at": "2026-10-16T11:30:00+09:00",
+        "quote": "18일 일요일 가족 산책은 강변 산책로로 가는 거지~ 3시에 보자",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-4",
+    "entity_id": "jimin_eunyoung_walk",
+    "predicate": "meeting_location",
+    "value": "선셋 공원",
+    "source_post_ids": [
+      "M08-5"
+    ],
+    "known_at": "2026-10-15T11:30:00+09:00",
+    "valid_from": "2026-10-15T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-11",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-5",
+        "known_at": "2026-10-15T11:30:00+09:00",
+        "quote": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-1",
+    "entity_id": "sujin_quiet_war",
+    "predicate": "reading_status",
+    "value": "미독",
+    "source_post_ids": [
+      "M09-1"
+    ],
+    "known_at": "2026-10-11T12:00:00+09:00",
+    "valid_from": "2026-10-11T12:00:00+09:00",
+    "valid_until": "2026-10-14T12:00:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F09-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-1",
+        "known_at": "2026-10-11T12:00:00+09:00",
+        "quote": "서점에서 찍어 둔 The Quiet War 사진~ 도서관에서 빌려 왔어. 아직 읽기 전",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-2",
+    "entity_id": "sujin_quiet_war",
+    "predicate": "reading_status",
+    "value": "미시작",
+    "source_post_ids": [
+      "M09-2"
+    ],
+    "known_at": "2026-10-12T12:00:00+09:00",
+    "valid_from": "2026-10-12T12:00:00+09:00",
+    "valid_until": "2026-10-14T12:00:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F09-2",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-2",
+        "known_at": "2026-10-12T12:00:00+09:00",
+        "quote": "이번 주에 The Quiet War 읽으려고. 지금은 아직 시작 안 했어",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-3",
+    "entity_id": "sujin_quiet_war",
+    "predicate": "reading_status",
+    "value": "완독",
+    "source_post_ids": [
+      "M09-4",
+      "M09-6"
+    ],
+    "known_at": "2026-10-14T12:00:00+09:00",
+    "valid_from": "2026-10-14T12:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F09-1",
+      "F09-2"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F09-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-4",
+        "known_at": "2026-10-14T12:00:00+09:00",
+        "quote": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M09-6",
+        "known_at": "2026-10-16T12:00:00+09:00",
+        "quote": "수진이가 The Quiet War 다 읽었다고 하네~",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-4",
+    "entity_id": "doyun_blue_exorcist",
+    "predicate": "reading_status",
+    "value": "읽는 중",
+    "source_post_ids": [
+      "M09-5"
+    ],
+    "known_at": "2026-10-15T12:00:00+09:00",
+    "valid_from": "2026-10-15T12:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F09-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-5",
+        "known_at": "2026-10-15T12:00:00+09:00",
+        "quote": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-1",
+    "entity_id": "dish_rack_cleaning",
+    "predicate": "responsible_person",
+    "value": "수진",
+    "source_post_ids": [
+      "M10-1"
+    ],
+    "known_at": "2026-10-11T12:30:00+09:00",
+    "valid_from": "2026-10-11T12:30:00+09:00",
+    "valid_until": "2026-10-14T12:30:00+09:00",
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F10-1",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-1",
+        "known_at": "2026-10-11T12:30:00+09:00",
+        "quote": "이번 주 식기 건조대 청소는 내가 할게~ 아직 손은 못 댔네",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-2",
+    "entity_id": "dish_rack_cleaning",
+    "predicate": "cleaning_plan",
+    "value": "토요일 오전 청소 예정",
+    "source_post_ids": [
+      "M10-2"
+    ],
+    "known_at": "2026-10-12T12:30:00+09:00",
+    "valid_from": "2026-10-12T12:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-17",
+    "capture_time": null,
+    "canonical_fact_id": "F10-2",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-2",
+        "known_at": "2026-10-12T12:30:00+09:00",
+        "quote": "건조대 청소는 토요일 오전에 하려고 해",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-3",
+    "entity_id": "dish_rack_cleaning",
+    "predicate": "responsible_person",
+    "value": "지민",
+    "source_post_ids": [
+      "M10-4",
+      "M10-6"
+    ],
+    "known_at": "2026-10-14T12:30:00+09:00",
+    "valid_from": "2026-10-14T12:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [
+      "F10-1"
+    ],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F10-3",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-4",
+        "known_at": "2026-10-14T12:30:00+09:00",
+        "quote": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M10-6",
+        "known_at": "2026-10-16T12:30:00+09:00",
+        "quote": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-4",
+    "entity_id": "sunhee_plant_tray_cleaning",
+    "predicate": "responsible_person",
+    "value": "선희",
+    "source_post_ids": [
+      "M10-5"
+    ],
+    "known_at": "2026-10-15T12:30:00+09:00",
+    "valid_from": "2026-10-15T12:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F10-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-5",
+        "known_at": "2026-10-15T12:30:00+09:00",
+        "quote": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-X1",
+    "entity_id": "plant_jaju",
+    "predicate": "plant_type",
+    "value": "제브리나",
+    "source_post_ids": [
+      "M02-1"
+    ],
+    "known_at": "2026-10-11T08:30:00+09:00",
+    "valid_from": "2026-10-11T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-1",
+        "known_at": "2026-10-11T08:30:00+09:00",
+        "quote": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-X2",
+    "entity_id": "plant_jaju",
+    "predicate": "owner",
+    "value": "도윤",
+    "source_post_ids": [
+      "M02-1"
+    ],
+    "known_at": "2026-10-11T08:30:00+09:00",
+    "valid_from": "2026-10-11T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-1",
+        "known_at": "2026-10-11T08:30:00+09:00",
+        "quote": "내가 기르는 제브리나 자주야~ 거실 창가에 뒀어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-X3",
+    "entity_id": "plant_saessak",
+    "predicate": "plant_type",
+    "value": "알로에",
+    "source_post_ids": [
+      "M02-5"
+    ],
+    "known_at": "2026-10-15T08:30:00+09:00",
+    "valid_from": "2026-10-15T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-5",
+        "known_at": "2026-10-15T08:30:00+09:00",
+        "quote": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-X4",
+    "entity_id": "plant_saessak",
+    "predicate": "owner",
+    "value": "선희",
+    "source_post_ids": [
+      "M02-5"
+    ],
+    "known_at": "2026-10-15T08:30:00+09:00",
+    "valid_from": "2026-10-15T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-X4",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-5",
+        "known_at": "2026-10-15T08:30:00+09:00",
+        "quote": "알로에 구경 중~ 내 알로에 새싹은 부엌 창가에서 잘 자라겠지ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-X1",
+    "entity_id": "doyun_pressure_washer",
+    "predicate": "purchase_status",
+    "value": "미구매",
+    "source_post_ids": [
+      "M04-2",
+      "M04-4",
+      "M04-6"
+    ],
+    "known_at": "2026-10-12T09:30:00+09:00",
+    "valid_from": "2026-10-12T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-2",
+        "known_at": "2026-10-12T09:30:00+09:00",
+        "quote": "Hyper Tough 고압 세척기도 장바구니에 담아만 뒀어. 이것도 아직 안 샀어",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M04-4",
+        "known_at": "2026-10-14T09:30:00+09:00",
+        "quote": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M04-6",
+        "known_at": "2026-10-16T09:30:00+09:00",
+        "quote": "내 인버터 배송 기다리는 중~ 세척기는 사지 않은 걸로 끝ㅎㅎ",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-X2",
+    "entity_id": "doyun_pressure_washer",
+    "predicate": "purchase_status",
+    "value": "미구매",
+    "source_post_ids": [
+      "M04-4"
+    ],
+    "known_at": "2026-10-14T09:30:00+09:00",
+    "valid_from": "2026-10-14T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-4",
+        "known_at": "2026-10-14T09:30:00+09:00",
+        "quote": "RYOBI 150W 인버터만 오늘 결제했어! 고압 세척기는 안 사기로 하고 장바구니에서 뺐다",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F04-X3",
+    "entity_id": "cheolsu_pressure_washer",
+    "predicate": "purchase_status",
+    "value": "구매",
+    "source_post_ids": [
+      "M04-5"
+    ],
+    "known_at": "2026-10-15T09:30:00+09:00",
+    "valid_from": "2026-10-15T09:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F04-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M04-5",
+        "known_at": "2026-10-15T09:30:00+09:00",
+        "quote": "옆집 철수는 Hyper Tough 고압 세척기 샀대~ 우리 건 아니고",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-X1",
+    "entity_id": "white_bouquet",
+    "predicate": "courier",
+    "value": "지민이 전달만 함",
+    "source_post_ids": [
+      "M05-4",
+      "M05-6"
+    ],
+    "known_at": "2026-10-14T10:00:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "corrected_event_truth",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "corrected_event_truth",
+    "time_basis": "11일 꽃 전달 사건; 정확한 시각 미기록, 14일 정정으로 알려짐",
+    "event_date": "2026-10-11",
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-4",
+        "known_at": "2026-10-14T10:00:00+09:00",
+        "quote": "아이고 내가 잘못 알았네! 11일 흰 꽃은 민수가 준 거고, 지민이는 전달만 해 줬대. 지민이가 산 게 아니었어",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M05-6",
+        "known_at": "2026-10-16T10:00:00+09:00",
+        "quote": "민수한테 흰 꽃 고맙다고 연락했어~ 지민이도 전달해 줘서 고맙고",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-X2",
+    "entity_id": "pink_bouquet",
+    "predicate": "giver",
+    "value": "은영",
+    "source_post_ids": [
+      "M05-5"
+    ],
+    "known_at": "2026-10-15T10:00:00+09:00",
+    "valid_from": "2026-10-15T10:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-5",
+        "known_at": "2026-10-15T10:00:00+09:00",
+        "quote": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F05-X3",
+    "entity_id": "pink_bouquet",
+    "predicate": "recipient",
+    "value": "수진",
+    "source_post_ids": [
+      "M05-5"
+    ],
+    "known_at": "2026-10-15T10:00:00+09:00",
+    "valid_from": "2026-10-15T10:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F05-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M05-5",
+        "known_at": "2026-10-15T10:00:00+09:00",
+        "quote": "내 친구 은영이한테 받은 분홍 꽃~ 어머님 흰 꽃이랑은 다른 꽃다발이야",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-X1",
+    "entity_id": "jimin_black_shoes",
+    "predicate": "found_location",
+    "value": "베란다 선반",
+    "source_post_ids": [
+      "M07-4"
+    ],
+    "known_at": "2026-10-14T11:00:00+09:00",
+    "valid_from": "2026-10-14T11:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-4",
+        "known_at": "2026-10-14T11:00:00+09:00",
+        "quote": "내 검은 신발 찾았다! 베란다 선반에 있었어",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F07-X2",
+    "entity_id": "doyun_brown_shoes",
+    "predicate": "lost_status",
+    "value": "미발견",
+    "source_post_ids": [
+      "M07-5"
+    ],
+    "known_at": "2026-10-15T11:00:00+09:00",
+    "valid_from": "2026-10-15T11:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F07-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M07-5",
+        "known_at": "2026-10-15T11:00:00+09:00",
+        "quote": "내 갈색 구두는 아직 안 보이네. 지민이 검은 신발이랑 다른 신발이야",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-X1",
+    "entity_id": "family_sunday_walk",
+    "predicate": "meeting_time",
+    "value": "15:00",
+    "source_post_ids": [
+      "M08-2",
+      "M08-4",
+      "M08-6"
+    ],
+    "known_at": "2026-10-12T11:30:00+09:00",
+    "valid_from": "2026-10-12T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-18",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-2",
+        "known_at": "2026-10-12T11:30:00+09:00",
+        "quote": "18일 가족 산책 약속은 오후 3시!",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M08-4",
+        "known_at": "2026-10-14T11:30:00+09:00",
+        "quote": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      },
+      {
+        "post_id": "M08-6",
+        "known_at": "2026-10-16T11:30:00+09:00",
+        "quote": "18일 일요일 가족 산책은 강변 산책로로 가는 거지~ 3시에 보자",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-X2",
+    "entity_id": "family_sunday_walk",
+    "predicate": "meeting_time",
+    "value": "15:00",
+    "source_post_ids": [
+      "M08-4"
+    ],
+    "known_at": "2026-10-14T11:30:00+09:00",
+    "valid_from": "2026-10-14T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-18",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-4",
+        "known_at": "2026-10-14T11:30:00+09:00",
+        "quote": "18일 가족 산책 장소는 강변 산책로로 바꿀게! 선셋 공원은 공사 중이래. 시간은 오후 3시 그대로",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-X3",
+    "entity_id": "jimin_eunyoung_walk",
+    "predicate": "meeting_location",
+    "value": "선셋 공원",
+    "source_post_ids": [
+      "M08-5"
+    ],
+    "known_at": "2026-10-15T11:30:00+09:00",
+    "valid_from": "2026-10-15T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-11",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X3",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-5",
+        "known_at": "2026-10-15T11:30:00+09:00",
+        "quote": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F08-X4",
+    "entity_id": "jimin_eunyoung_walk",
+    "predicate": "meeting_month",
+    "value": "2026-11",
+    "source_post_ids": [
+      "M08-5"
+    ],
+    "known_at": "2026-10-15T11:30:00+09:00",
+    "valid_from": "2026-10-15T11:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-11",
+    "capture_time": null,
+    "canonical_fact_id": "F08-X4",
+    "evidence_assertions": [
+      {
+        "post_id": "M08-5",
+        "known_at": "2026-10-15T11:30:00+09:00",
+        "quote": "친구 은영이랑 다음 달 선셋 공원 가기로 했어. 이번 가족 산책과는 별개!",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-X1",
+    "entity_id": "sujin_quiet_war",
+    "predicate": "return_plan",
+    "value": "2026-10-15 도서관 반납 예정",
+    "source_post_ids": [
+      "M09-4"
+    ],
+    "known_at": "2026-10-14T12:00:00+09:00",
+    "valid_from": "2026-10-14T12:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-15",
+    "capture_time": null,
+    "canonical_fact_id": "F09-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-4",
+        "known_at": "2026-10-14T12:00:00+09:00",
+        "quote": "The Quiet War 드디어 다 읽었다! 내일 도서관에 반납할 예정",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F09-X2",
+    "entity_id": "doyun_blue_exorcist",
+    "predicate": "reading_status",
+    "value": "읽는 중",
+    "source_post_ids": [
+      "M09-5"
+    ],
+    "known_at": "2026-10-15T12:00:00+09:00",
+    "valid_from": "2026-10-15T12:00:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F09-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M09-5",
+        "known_at": "2026-10-15T12:00:00+09:00",
+        "quote": "내 Blue Exorcist는 아직 읽는 중~ 수진 씨가 읽은 소설이랑 다른 책이야",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-X1",
+    "entity_id": "dish_rack_cleaning",
+    "predicate": "cleaning_plan",
+    "value": "지민이 토요일 오전 청소 예정",
+    "source_post_ids": [
+      "M10-4"
+    ],
+    "known_at": "2026-10-14T12:30:00+09:00",
+    "valid_from": "2026-10-14T12:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "stated_plan",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "plan_knowledge_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": "2026-10-17",
+    "capture_time": null,
+    "canonical_fact_id": "F10-X1",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-4",
+        "known_at": "2026-10-14T12:30:00+09:00",
+        "quote": "건조대 청소는 오늘부터 내가 맡기로 했어! 토요일 오전에 할게. 엄마는 쉬세요~",
+        "author_key": "jimin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-X2",
+    "entity_id": "sunhee_plant_tray_cleaning",
+    "predicate": "responsible_person",
+    "value": "선희",
+    "source_post_ids": [
+      "M10-5"
+    ],
+    "known_at": "2026-10-15T12:30:00+09:00",
+    "valid_from": "2026-10-15T12:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F10-X2",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-5",
+        "known_at": "2026-10-15T12:30:00+09:00",
+        "quote": "내 화분 받침은 내가 닦을 거야. 부엌 건조대 청소랑은 따로ㅎㅎ",
+        "author_key": "sunhee",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F10-X3",
+    "entity_id": "dish_rack_cleaning",
+    "predicate": "completion_status",
+    "value": "미완료",
+    "source_post_ids": [
+      "M10-6"
+    ],
+    "known_at": "2026-10-16T12:30:00+09:00",
+    "valid_from": null,
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "point_observation",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F10-X3",
+    "observed_at": "2026-10-16T12:30:00+09:00",
+    "evidence_assertions": [
+      {
+        "post_id": "M10-6",
+        "known_at": "2026-10-16T12:30:00+09:00",
+        "quote": "지민이가 맡아 준다니 고마워~ 건조대는 아직 청소 전이야",
+        "author_key": "sujin",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  },
+  {
+    "fact_id": "F02-X5",
+    "entity_id": "plant_jaju",
+    "predicate": "location_detail",
+    "value": "도윤의 서재 창가",
+    "source_post_ids": [
+      "M02-4"
+    ],
+    "known_at": "2026-10-14T08:30:00+09:00",
+    "valid_from": "2026-10-14T08:30:00+09:00",
+    "valid_until": null,
+    "claim_type": "asserted_fact",
+    "supersedes_fact_ids": [],
+    "retracted_at": null,
+    "temporal_semantics": "record_state_interval",
+    "time_basis": "post timestamp bounds knowledge/state in the fixture; not exact real-world onset",
+    "event_date": null,
+    "scheduled_for": null,
+    "capture_time": null,
+    "canonical_fact_id": "F02-X5",
+    "evidence_assertions": [
+      {
+        "post_id": "M02-4",
+        "known_at": "2026-10-14T08:30:00+09:00",
+        "quote": "자주 오늘 내 서재 창가로 옮겼어~ 거실 자리는 비웠고",
+        "author_key": "doyun",
+        "review_method": "AI semantic audit; human signoff pending"
+      }
+    ]
+  }
+]

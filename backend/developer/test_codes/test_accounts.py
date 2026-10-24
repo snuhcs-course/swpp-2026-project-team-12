@@ -42,7 +42,7 @@ class AccountAuthenticationTests(TestCase):
         return self.client.post(path, json.dumps(data), content_type="application/json", **headers)
 
     def register(self, **changes):
-        data = {"username": "SampleID", "password": self.password, "name": "하나"}
+        data = {"username": "SampleID", "password": self.password, "name": "하나", "gender": "female"}
         data.update(changes)
         return self.post("/api/accounts/register/", data)
 
@@ -117,3 +117,18 @@ class AccountAuthenticationTests(TestCase):
         self.assertEqual(self.register(username="bad name").status_code, 400)
         self.assertEqual(User.objects.count(), 0)
         print("Registration request test pass", flush=True)
+
+    def test_registration_requires_an_explicit_gender(self):
+        data = {"username": "SampleID", "password": self.password, "name": "하나"}
+        for extra in ({}, *({"gender": value} for value in (None, "", "unknown", "invalid", 1, []))):
+            with self.subTest(extra=extra):
+                response = self.post("/api/accounts/register/", {**data, **extra})
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json()["error"], "성별을 선택해 주세요.")
+        self.assertEqual(User.objects.count(), 0)
+        self.assertEqual(AccessToken.objects.count(), 0)
+        for gender in ("male", "female"):
+            response = self.register(username=f"account_{gender}", gender=gender)
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.json()["gender"], gender)
+            self.assertEqual(User.objects.get(username=f"account_{gender}").gender, gender)

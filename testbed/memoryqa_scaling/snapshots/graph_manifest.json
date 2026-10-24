@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "groups": {
+    "100": {
+      "path": "snapshots/history_100/graph.json.gz",
+      "sha256": "e1af24d51f7fbe79388cbafd2a1f0e12824d7f1fc62aea040384596a4bf4714c",
+      "content_sha256": "d9a2dff22b5b63d668b7d50d69a9cf9d4a69190488bf8f47ccb752cbdc0a603f",
+      "nodes": 171,
+      "edges": 313,
+      "bytes": 914547,
+      "group_id": "family_998232411",
+      "recorded_fingerprint": "72dc61e6f8e26325e9cbccad9b54085efbcd7db73608090d0e361bd19ff6f4ce"
+    },
+    "200": {
+      "path": "snapshots/history_200/graph.json.gz",
+      "sha256": "610cf168dd35c7d005dbf10e0360125a713f8997b27644803ba256cf51ac765f",
+      "content_sha256": "2f79fe95a1e2c295bb2d1fa11654656299e8deab68652de848dea647f1c89b4d",
+      "nodes": 311,
+      "edges": 554,
+      "bytes": 1476002,
+      "group_id": "family_919415463",
+      "recorded_fingerprint": "aef6f16b423ebe09dae4c52a40a66eb2f939bb25f159df92ecc3dba6b16f1644"
+    },
+    "300": {
+      "path": "snapshots/history_300/graph.json.gz",
+      "sha256": "6ee37716cf0866625e634155f57ca345a65684bddf71c0596ee7c995fc36a69a",
+      "content_sha256": "f8bd103a3187983ce9f7e730803ae331f40a23f5ca0c0ac1357c7be946454978",
+      "nodes": 439,
+      "edges": 786,
+      "bytes": 1986217,
+      "group_id": "family_904751969",
+      "recorded_fingerprint": "c9392c8273bb4617f32f3032cdcabe3c55b23b10ceaa0bc7efb8629b815e1ee1"
+    }
+  },
+  "source_access": "Neo4j read transactions only; no schema/index or LLM call",
+  "canonicalization": "Sort labels and UUIDs; retain property types, embeddings and all recorded facts."
+}
