@@ -107,6 +107,14 @@ and every photo from `Post.photo_files()` in order. Text-only posts use the same
 path with no image inputs. This uses `OPENAI_MODEL`; displayed post summaries and
 follow-up QA continue to use `POST_AI_MODEL` and the existing post flow.
 
+`Post.images` contains the ordered storage paths; `photo_files()` returns lazy
+storage references with the same `open()` boundary used by the AI flows. Apply
+`posts.0006_post_images` with API/worker processes stopped to collect the previous
+cover and attachments without moving the media files. The migration retains
+`Post.description`, post IDs and timestamps. Graphiti still receives a text
+episode named `post_<id>` in the same family group, so this storage-only upgrade
+does not require re-describing posts or rebuilding existing graph episodes.
+
 The description is cached in `Post.description`. If Graphiti storage fails, retry
 reuses the description. If description generation fails, nothing is sent to
 Graphiti and the post remains eligible for retry. Existing `post_<id>` episodes

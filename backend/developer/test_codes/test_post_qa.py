@@ -9,13 +9,15 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
-from apps.posts.models import AdaptedMessage, Post, PostPhoto
+from apps.posts.models import AdaptedMessage, Post
+from apps.posts.services import save_post
 from integrations.ai import post_flow, prompts, provider
 from integrations.ai_workers import graphiti_client, searching_workers
 
@@ -45,8 +47,8 @@ class PostQATests(TestCase):
         self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.viewer)}
         self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
         b = io.BytesIO();Image.new("RGB", (3, 3)).save(b, "JPEG")
-        self.post = Post.objects.create(room=self.room, author=self.author, caption="초록이 사진이에요.",
-                                        image=SimpleUploadedFile("test.jpg", b.getvalue(), content_type="image/jpeg"))
+        self.post = save_post(room=self.room, author=self.author, caption="초록이 사진이에요.",
+                              images=[SimpleUploadedFile("test.jpg", b.getvalue(), content_type="image/jpeg")])
         self.path = f"/api/posts/{self.post.pk}/questions/"
 
     def ask(self, data, **auth):
@@ -199,9 +201,9 @@ class PostQATests(TestCase):
             self.assertEqual(adapt.call_count, 2)
 
     def test_text_only_summary_and_question_reach_the_post_flow_without_images(self):
-        self.post.image = ""
+        self.post.images = []
         self.post.caption = "오늘 산책했어요."
-        self.post.save(update_fields=["image", "caption"])
+        self.post.save(update_fields=["images", "caption"])
         answer = SimpleNamespace(status="completed", output=[], output_text="산책 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
@@ -218,10 +220,11 @@ class PostQATests(TestCase):
         graph.assert_not_called()
 
     def test_summary_and_question_receive_every_photo_in_upload_order(self):
-        for position, color in [(2, "blue"), (1, "red")]:
+        for position, color in [(1, "red"), (2, "blue")]:
             image = io.BytesIO(); Image.new("RGB", (3, 3), color).save(image, "JPEG")
-            PostPhoto.objects.create(post=self.post, position=position,
-                image=SimpleUploadedFile(f"extra-{position}.jpg", image.getvalue(), content_type="image/jpeg"))
+            self.post.images.append(default_storage.save(f"extra-{position}.jpg",
+                SimpleUploadedFile(f"extra-{position}.jpg", image.getvalue(), content_type="image/jpeg")))
+        self.post.save(update_fields=["images"])
         expected = []
         for image in self.post.photo_files():
             with image.open("rb") as file:
