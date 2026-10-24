@@ -14,12 +14,21 @@ class TreeSeedTests(unittest.TestCase):
         config["download_images"] = False
         manifest = build_plan(config, validate_config(config, read_json(ROOT / "input/event_catalog.example.json")))
         with tempfile.TemporaryDirectory() as folder:
+            from PIL import Image
+
+            image = Path(folder) / "seed.jpg"
+            Image.new("RGB", (8, 6), "red").save(image, "JPEG")
+            event = dict(manifest["events"][0], image_path="seed.jpg")
             adapter = TalkDockDjangoAdapter(ROOT.parents[1] / "backend", Path(folder) / "test.sqlite3", Path(folder) / "media")
             adapter.setup()
             try:
-                first = adapter.seed(manifest, Path(folder) / "manifest.json", [])
-                second = adapter.seed(manifest, Path(folder) / "manifest.json", [])
+                first = adapter.seed(manifest, Path(folder) / "manifest.json", [event])
+                second = adapter.seed(manifest, Path(folder) / "manifest.json", [event])
                 self.assertEqual(first, second)
+                post = adapter.models["post"].objects.get()
+                self.assertEqual(len(post.images), 1)
+                with post.photo_files()[0].open("rb") as stored:
+                    self.assertEqual(stored.read(), image.read_bytes())
                 self.assertEqual(adapter.models["membership"].objects.count(), 4)
                 self.assertEqual(adapter.models["person"].objects.count(), 4)
                 self.assertEqual(adapter.models["parent_child"].objects.count(), 3)

@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, patch
 from django.core.management import call_command
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -22,7 +23,7 @@ from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
-from apps.posts.models import Post, PostPhoto
+from apps.posts.models import Post
 from apps.searching import services
 from integrations.ai import feed_description, flow, provider
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
@@ -79,12 +80,12 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertIn("가족 기록", failed.json()["error"])
 
     def test_construction_is_ordered_scoped_and_resumes_saved_posts(self):
-        first = Post.objects.create(room=self.room, author=self.user, caption="처음 기록", image="test.jpg")
-        second = Post.objects.create(room=self.room, author=self.user, caption="다음 기록", image="test.jpg")
-        saved = Post.objects.create(room=self.room, author=self.user, caption="저장된 기록", image="test.jpg")
+        first = Post.objects.create(room=self.room, author=self.user, caption="처음 기록", images=["test.jpg"])
+        second = Post.objects.create(room=self.room, author=self.user, caption="다음 기록", images=["test.jpg"])
+        saved = Post.objects.create(room=self.room, author=self.user, caption="저장된 기록", images=["test.jpg"])
         Post.objects.filter(pk=second.pk).update(created_at=first.created_at - timedelta(days=1))
         other = FamilyRoom.objects.create(owner=self.user, name="다른 가족", invite_code="HIST02", password_hash="hashed")
-        Post.objects.create(room=other, author=self.user, caption="다른 가족 기록", image="test.jpg")
+        Post.objects.create(room=other, author=self.user, caption="다른 가족 기록", images=["test.jpg"])
         records = [{"name": f"post_{saved.pk}"}]
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
@@ -111,7 +112,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertEqual(saved.description, "")
 
     def test_construction_failure_can_be_retried(self):
-        Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
+        Post.objects.create(room=self.room, author=self.user, caption="기록", images=["test.jpg"])
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
@@ -129,7 +130,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
 
     def test_construction_creates_and_reuses_client_on_one_loop_across_polls(self):
         post = Post.objects.create(room=self.room, author=self.user, caption="기록",
-                                   description="상세 기록", image="test.jpg")
+                                   description="상세 기록", images=["test.jpg"])
         saved = []
         created = []
 
@@ -172,7 +173,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertTrue(created[0].loop.is_closed())
 
     def test_description_failure_does_not_save_memory_and_can_retry(self):
-        post = Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
+        post = Post.objects.create(room=self.room, author=self.user, caption="기록", images=["test.jpg"])
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
@@ -199,11 +200,10 @@ class HistoryAPITests(FamilyFixture, TestCase):
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
         )
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
-            post = Post.objects.create(room=self.room, author=self.user, caption="여러 사진의 소식",
-                                       image=ContentFile(b"cover", name="cover.jpg"))
-            PostPhoto.objects.create(post=post, position=2, image=ContentFile(b"third", name="third.jpg"))
-            PostPhoto.objects.create(post=post, position=1, image=ContentFile(b"second", name="second.jpg"))
-            text_post = Post.objects.create(room=self.room, author=self.user, caption="글로만 남긴 소식", image="")
+            paths = [default_storage.save(name, ContentFile(content))
+                     for name, content in [("cover.jpg", b"cover"), ("second.jpg", b"second"), ("third.jpg", b"third")]]
+            post = Post.objects.create(room=self.room, author=self.user, caption="여러 사진의 소식", images=paths)
+            text_post = Post.objects.create(room=self.room, author=self.user, caption="글로만 남긴 소식", images=[])
             with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
                  patch.object(graphiti_client, "close_graphiti", new=AsyncMock()), \
                  patch.object(construction_graphiti, "add_memory", new=AsyncMock()) as add, \

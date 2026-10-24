@@ -4,6 +4,7 @@ import logging
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -12,7 +13,7 @@ from apps.api import APIError
 from apps.families.models import Membership
 from apps.families.utils import relationship
 
-from .models import Post, PostPhoto
+from .models import Post
 
 def current_room(request):
     membership = Membership.objects.select_related("room").filter(
@@ -24,7 +25,7 @@ def current_room(request):
 
 
 def post_for(request, pk):
-    post = Post.objects.select_related("author", "room").prefetch_related("photos").filter(
+    post = Post.objects.select_related("author", "room").filter(
         pk=pk, room=current_room(request)
     ).first()
     if post is None:
@@ -40,16 +41,15 @@ def serialize(post, request):
         comment_count = post.comments.count()
     def url(path):
         return origin + path if origin else request.build_absolute_uri(path)
-    images = [{"id": 0, "url": url(image_path)}] if post.image else []
-    images.extend({"id": photo.pk, "url": url(f"/api/posts/{post.pk}/photos/{photo.pk}/")}
-                  for photo in post.photos.all())
+    images = [{"id": index, "url": url(f"/api/posts/{post.pk}/images/{index}/")}
+              for index in range(len(post.images))]
     return {
         "id": post.pk,
         "author_id": post.author_id,
         "author_name": post.author.display_name,
         "relationship": relationship(request.user, post.author, post.room),
         "created_at": timezone.localtime(post.created_at).isoformat(),
-        "image_url": url(image_path) if post.image else "",
+        "image_url": url(image_path) if images else "",
         "images": images,
         "image_count": len(images),
         "caption": post.caption,
@@ -95,16 +95,12 @@ def save_post(room, author, caption, images):
     created_files = []
     try:
         with transaction.atomic():
-            post = Post.objects.create(room=room, author=author, caption=caption, image="")
-            field = Post._meta.get_field("image")
-            for index, image in enumerate(images):
-                name = field.storage.save(field.generate_filename(post, image.name), image)
-                created_files.append((field.storage, name))
-                if index == 0:
-                    post.image = name
-                else:
-                    PostPhoto.objects.create(post=post, image=name, position=index)
-            post.save(update_fields=["image"])
+            paths = []
+            for image in images:
+                name = default_storage.save(timezone.localtime().strftime("posts/%Y/%m/") + image.name, image)
+                created_files.append((default_storage, name))
+                paths.append(name)
+            post = Post.objects.create(room=room, author=author, caption=caption, images=paths)
         return post
     except Exception:
         for storage, name in created_files:

@@ -1,5 +1,26 @@
 # Developer Tools
 
+## Unified photo storage regression checks
+
+`Post.images` stores ordered file paths. `test_post_images_migration` upgrades
+legacy cover/attachment rows (including gapped positions), checks unchanged file
+bytes through the construction-description input, preserves post identity and
+description/summary/comment records, and checks a backward/forward migration.
+`test_post_migration_compat` covers all earlier posts migration branches.
+`test_post_photos`, `test_post_qa`, and `test_searching` cover protected indexed
+photo URLs, upload cleanup, ordered summary/QA inputs, and Graphiti construction.
+
+Run offline checks from the repository root:
+
+```sh
+MOCK_AI_TESTS=1 LIVE_GRAPHITI_TESTS=0 OPENAI_API_KEY= ELEVENLABS_API_KEY= python backend/manage.py test developer.test_codes developer.test_ai_prompts web
+python backend/manage.py makemigrations --check --dry-run
+node --test web/test_images.mjs
+```
+
+The Node tests check all indexed photo URLs, local authenticated fetching when
+`PUBLIC_ORIGIN` uses another hostname, and session image-cache clearing.
+
 ## Sample images
 ```
 backend\developer\samples

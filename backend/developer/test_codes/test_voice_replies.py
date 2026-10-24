@@ -227,7 +227,7 @@ class VoiceReplyAPITests(TestCase):
             )
             values = (
                 post.pk, post.room.name, post.author.display_name, post.caption,
-                post.image.name, timezone.localtime(post.created_at).isoformat(timespec="seconds"),
+                post.images[0], timezone.localtime(post.created_at).isoformat(timespec="seconds"),
                 comment.pk, comment.source,
             )
             rows.append("<tr>" + "".join(f"<td>{escape(str(value))}</td>" for value in values) + "</tr>")

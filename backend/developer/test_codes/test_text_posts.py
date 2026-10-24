@@ -54,7 +54,7 @@ class TextPostTests(TestCase):
         self.assertEqual(data["caption"], "오늘 산책을 다녀왔어요.")
         self.assertEqual((data["image_url"], data["images"], data["image_count"]), ("", [], 0))
         post = Post.objects.get()
-        self.assertFalse(post.image)
+        self.assertEqual(post.images, [])
         self.assertEqual(post.photo_files(), [])
         self.assertFalse(any(item.is_file() for item in self.media.rglob("*")))
 
@@ -94,7 +94,7 @@ class TextPostTests(TestCase):
         detail = self.client.get(f"/api/posts/{pk}/", **self.auth)
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["image_url"], "")
-        for path in (f"/api/posts/{pk}/image/", f"/api/posts/{pk}/photos/12345/"):
+        for path in (f"/api/posts/{pk}/image/", f"/api/posts/{pk}/images/12345/"):
             self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
             self.assertEqual(self.client.get(path, **self.other_auth).status_code, 404)
             self.assertEqual(self.client.get(path).status_code, 401)
