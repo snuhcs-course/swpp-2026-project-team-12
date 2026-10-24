@@ -17,7 +17,7 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post, PostPhoto
 from integrations.ai import post_flow, prompts, provider
-from integrations.ai_workers import graphiti_client
+from integrations.ai_workers import graphiti_client, searching_workers
 
 from .family_fixtures import add_member, link_parent
 
@@ -26,6 +26,13 @@ from .family_fixtures import add_member, link_parent
                    POST_AI_SERVICE_TIER="fast", POST_AI_REASONING_EFFORT="none")
 class PostQATests(TestCase):
     def setUp(self):
+        pool = searching_workers.SearchPool(1)
+        self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
+        self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
+        self.addCleanup(pool.shutdown)
+        with patch.object(graphiti_client, "create_graphiti",
+                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+            pool.start()
         folder = tempfile.TemporaryDirectory(); self.addCleanup(folder.cleanup)
         media = override_settings(MEDIA_ROOT=folder.name);media.enable();self.addCleanup(media.disable)
         self.author = User.objects.create_user(username="author", display_name="지민")
@@ -61,11 +68,14 @@ class PostQATests(TestCase):
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
-             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close:
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             searching_workers.SearchPool(1) as pool, \
+             patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(side_effect=[first, final])
             result = self.ask({"question": "학교와 악기 등 알려줘", "family_id": 999,
                                "caption": "공격자 본문", "prior_dialogue": [{"role": "assistant", "text": "이전 답"}]})
+            close.assert_not_awaited()
         self.assertEqual(result.status_code, 200);self.assertEqual(result.json(), {"text": final.output_text})
         self.assertEqual(result["Cache-Control"], "no-store")
         self.assertEqual(graph.search.await_count, 5)
@@ -90,7 +100,7 @@ class PostQATests(TestCase):
         self.assertEqual(json.loads(outputs[-1]["output"]), {"facts": [], "sources": []})
         close.assert_awaited_once_with(graph)
 
-    def test_direct_answer_and_summary_never_construct_graphiti(self):
+    def test_direct_answer_and_summary_use_prepared_worker_without_retrieval(self):
         response = SimpleNamespace(status="completed", output=[], output_text="초록이는 화분이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
@@ -113,17 +123,20 @@ class PostQATests(TestCase):
             client.responses.create = AsyncMock(return_value=SimpleNamespace(status="incomplete"))
             self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
 
-    def test_search_failure_closes_graphiti_and_returns_retryable_error(self):
+    def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
         graph = SimpleNamespace(search=AsyncMock(side_effect=RuntimeError("offline")))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
-             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close:
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             searching_workers.SearchPool(1) as pool, \
+             patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=SimpleNamespace(status="completed", output=[call]))
             self.assertEqual(self.ask({"question": "초록이는 뭐야?"}).status_code, 503)
             client.responses.create.assert_awaited_once()
-            close.assert_awaited_once_with(graph)
+            close.assert_not_awaited()
+        close.assert_awaited_once_with(graph)
 
     def test_auth_family_and_input_validation_happen_before_ai(self):
         with patch.object(provider, "ask") as ask:
