@@ -145,25 +145,20 @@ Room passwords are hashed in the database. Each tree person can be claimed by on
 
 ### Post APIs
 
-All post endpoints require a bearer token and a family membership. Upload with `multipart/form-data`: a non-blank `caption`, up to five repeated `images` files, or both. The legacy single-file `image` input remains accepted; do not mix it with `images`.
+All post endpoints require a bearer token and a family membership. Upload a photo with `multipart/form-data`; `caption` is optional.
 
 | Endpoint | Result |
 | --- | --- |
 | `GET /api/posts/` | Lists up to 100 posts in the current family room, newest first. |
-| `POST /api/posts/` | Creates a text-only or multi-photo post; returns the new post (200). |
+| `POST /api/posts/` | Creates a post from `image` and optional `caption`; returns the new post (200). |
 | `GET /api/posts/<id>/` | Returns a post in the current family room. |
-| `GET /api/posts/<id>/images/<index>/` | Streams a photo at its zero-based position only to members of that room. |
-| `GET /api/posts/<id>/image/` | Compatibility alias for the first photo; 404 for text-only posts. |
+| `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
 | `POST /api/posts/<id>/questions/` | Answers a question about the post; JSON body: `question` (up to 1,000 characters) and optional `prior_dialogue` (up to 10 user/assistant messages, each with `role` and `text`, up to 1,000 characters). Returns `text`. |
 | `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
-Uploads are limited to 10 MB and 20 million source pixels per photo, 30 MB combined, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; displayed summaries and follow-up questions use `POST_AI_MODEL`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
-
-Photo paths are stored in one ordered `Post.images` JSON list. The API still returns an `images` array of `{id, url}` objects and `image_count`; each image `id` is now its position within that post, not a global photo ID. Clients must use the supplied URL. The old `/photos/<photo_id>/` route has been removed; refresh browser tabs after updating the backend and web assets together. Android already uses the supplied URLs.
-
-When upgrading from the current tree-based family schema, stop the API server and construction/digest workers, back up the database and media, then run `python backend/manage.py migrate` before restarting them. `posts.0006_post_images` collects the former cover followed by attachments ordered by `(position, id)`, removes `Post.image` and `PostPhoto`, and keeps the actual files in place. It preserves post IDs, creation times, descriptions, and cached summaries. Reversing this migration preserves file paths and order but assigns new attachment IDs. This photo migration does not require a database reset; the separate historical family-schema reset described above still applies only to slot-based databases.
+Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
 
 ### Speech API
 
@@ -202,8 +197,8 @@ python backend/manage.py run_digest_scheduler --once
 
 ### Photos and feed
 
-- [ ] **Edit a published photo:** Photos are stored in `Post.images`, and there is no update API. Design and implement a way to replace or remove a photo after publication. This is separate from choosing a different photo before posting.
-- [x] **Upload multiple photos:** Up to five ordered photos per post, with feed/detail navigation and unified path storage.
+- [ ] **Edit a published photo:** A post currently stores one image (`Post.image`), and there is no update API. Design and implement a way to replace or remove a photo after publication. This is separate from choosing a different photo before posting.
+- [ ] **Upload multiple photos:** Add a data model, upload API, and feed/detail navigation for multiple photos in one post.
 - [ ] **Decide how photos should open and fit:** Tapping a feed photo currently opens the detail or listening screen, with no full-screen view. Compare full-screen viewing, aspect-ratio preservation, and square frames with padding on real phones.
 
 ### Older adult experience and accessibility

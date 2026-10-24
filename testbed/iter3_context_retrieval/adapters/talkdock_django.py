@@ -146,14 +146,12 @@ class TalkDockDjangoAdapter:
             if post is None:
                 source = manifest_root / event["image_path"]
                 with source.open("rb") as handle:
-                    if hasattr(Post, "images"):
-                        from apps.posts.services import save_post
-
-                        post = save_post(room, author, event["caption"], [File(handle, name=source.name)])
-                    else:
-                        # The benchmark can also target the historical single-image backend.
-                        post = Post.objects.create(room=room, author=author, caption=event["caption"],
-                                                   image=File(handle, name=source.name))
+                    post = Post.objects.create(
+                        room=room,
+                        author=author,
+                        caption=event["caption"],
+                        image=File(handle, name=source.name),
+                    )
                 Post.objects.filter(pk=post.pk).update(created_at=event["created_at"])
                 post.refresh_from_db()
             post_ids[event["feed_key"]] = post.pk

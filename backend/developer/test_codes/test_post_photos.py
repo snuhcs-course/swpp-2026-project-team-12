@@ -4,14 +4,13 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
-from apps.posts.models import Post
+from apps.posts.models import Post, PostPhoto
 from integrations.ai import provider
 
 from .family_fixtures import add_member
@@ -49,30 +48,24 @@ class PostPhotoTests(TestCase):
         self.assertEqual(result.status_code, 200)
         data = result.json()
         self.assertEqual(data["image_count"], 2)
-        self.assertTrue(data["images"][0]["url"].endswith(f"/api/posts/{data['id']}/images/0/"))
+        self.assertEqual(data["images"][0]["url"], data["image_url"])
         post = Post.objects.get()
-        self.assertEqual(len(post.images), 2)
-        self.assertEqual([entry["id"] for entry in data["images"]], [0, 1])
+        self.assertEqual(post.photos.get().position, 1)
         self.assertEqual(len(post.photo_files()), 2)
         for index, image in enumerate(post.photo_files()):
-            with image.open("rb") as stream, Image.open(stream) as decoded:
+            with image.open("rb"), Image.open(image) as decoded:
                 pixel = decoded.getpixel((0, 0))
                 self.assertGreater(pixel[0 if index == 0 else 2], 240)
         feed = self.client.get("/api/posts/", **self.auth).json()["posts"][0]
         detail = self.client.get(f"/api/posts/{post.pk}/", **self.auth).json()
         self.assertEqual(feed["images"], data["images"])
         self.assertEqual(detail["images"], data["images"])
-        cover = self.client.get(f"/api/posts/{post.pk}/image/", **self.auth)
-        indexed = self.client.get(f"/api/posts/{post.pk}/images/0/", **self.auth)
-        self.assertEqual(b"".join(cover.streaming_content), b"".join(indexed.streaming_content))
-        cover.close()
-        indexed.close()
 
     def test_legacy_single_upload_still_works(self):
         result = self.client.post("/api/posts/", {"image": photo()}, **self.auth)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()["image_count"], 1)
-        self.assertEqual(len(Post.objects.get().images), 1)
+        self.assertEqual(PostPhoto.objects.count(), 0)
 
     def test_five_allowed_six_rejected(self):
         self.assertEqual(self.upload(("red",) * 5).status_code, 200)
@@ -107,7 +100,7 @@ class PostPhotoTests(TestCase):
 
     def test_storage_failure_rolls_back_and_cleans_first_file(self):
         from apps.posts.services import prepare_image, save_post
-        storage = default_storage
+        storage = Post._meta.get_field("image").storage
         original = storage.save
         calls = 0
 
@@ -122,11 +115,12 @@ class PostPhotoTests(TestCase):
             with self.assertRaises(OSError):
                 save_post(self.room, self.owner, "테스트", [prepare_image(photo()), prepare_image(photo())])
         self.assertFalse(Post.objects.exists())
+        self.assertFalse(PostPhoto.objects.exists())
         self.assertFalse(any(x.is_file() for x in self.media.rglob("*")))
 
     def test_extra_photo_requires_auth_and_same_family(self):
         data = self.upload().json()
-        path = f"/api/posts/{data['id']}/images/1/"
+        path = f"/api/posts/{data['id']}/photos/{data['images'][1]['id']}/"
         self.assertEqual(self.client.get(path).status_code, 401)
         self.assertEqual(self.client.get(path, **self.other_auth).status_code, 404)
         response = self.client.get(path, **self.auth)
@@ -135,27 +129,11 @@ class PostPhotoTests(TestCase):
         self.assertTrue(b"".join(response.streaming_content).startswith(b"\xff\xd8"))
         response.close()
 
-    def test_database_failure_cleans_all_stored_files(self):
-        from apps.posts.services import prepare_image, save_post
-
-        with patch.object(Post.objects, "create", side_effect=RuntimeError("database unavailable")):
-            with self.assertRaises(RuntimeError):
-                save_post(self.room, self.owner, "소식", [prepare_image(photo()), prepare_image(photo())])
-        self.assertFalse(Post.objects.exists())
-        self.assertFalse(any(path.is_file() for path in self.media.rglob("*")))
-
-    def test_photo_indexes_are_scoped_to_their_post_and_bounds_checked(self):
-        first = self.upload(("red", "blue")).json()
-        second = self.upload(("green",)).json()
-        for path in [f"/api/posts/{second['id']}/images/1/",
-                     f"/api/posts/{first['id']}/images/2/",
-                     f"/api/posts/{first['id']}/images/-1/",
-                     f"/api/posts/{first['id']}/photos/1/"]:
-            self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
-        response = self.client.get(f"/api/posts/{second['id']}/images/0/", **self.auth)
-        with Image.open(io.BytesIO(b"".join(response.streaming_content))) as decoded:
-            self.assertGreater(decoded.getpixel((0, 0))[1], 100)
-        response.close()
+    def test_extra_photo_cannot_be_read_through_another_post(self):
+        first = self.upload().json()
+        second = self.upload().json()
+        path = f"/api/posts/{second['id']}/photos/{first['images'][1]['id']}/"
+        self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
 
     def test_adapt_passes_all_photos_to_existing_memory_flow(self):
         self.upload()

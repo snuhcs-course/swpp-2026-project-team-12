@@ -182,9 +182,12 @@ class PostAPITests(TestCase):
         self.assertEqual(post.room, self.room)
         self.assertEqual(post.author, self.owner)
         self.assertEqual(post.caption, "오늘 산책했어요")
-        with post.photo_files()[0].open("rb") as image, Image.open(image) as stored:
-            self.assertEqual(stored.format, "JPEG")
-            self.assertEqual(stored.size, (1345, 622))
+        try:
+            with Image.open(post.image) as stored:
+                self.assertEqual(stored.format, "JPEG")
+                self.assertEqual(stored.size, (1345, 622))
+        finally:
+            post.image.close()
 
         feed = self.client.get("/api/posts/", **self.auth(self.relative_token))
         self.assertEqual(feed.status_code, 200)
@@ -206,9 +209,12 @@ class PostAPITests(TestCase):
         ))
         self.assertEqual(response.status_code, 200)
         post = Post.objects.get(pk=response.json()["id"])
-        with post.photo_files()[0].open("rb") as image, Image.open(image) as stored:
-            self.assertEqual(stored.format, "JPEG")
-            self.assertLessEqual(max(stored.size), 1600)
+        try:
+            with Image.open(post.image) as stored:
+                self.assertEqual(stored.format, "JPEG")
+                self.assertLessEqual(max(stored.size), 1600)
+        finally:
+            post.image.close()
         print("Post image resize test pass", flush=True)
 
     def test_photo_requires_membership_and_stays_within_room(self):

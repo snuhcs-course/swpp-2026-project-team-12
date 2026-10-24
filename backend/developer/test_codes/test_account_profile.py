@@ -137,7 +137,7 @@ class AccountProfileTests(TestCase):
     def test_profile_change_invalidates_related_cached_wording(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC001", password_hash="unused", owner=self.user)
         add_member(room, self.user)
-        post = Post.objects.create(room=room, author=self.user, images=["unused.jpg"], caption="산책")
+        post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
         message = AdaptedMessage.objects.create(post=post, viewer=self.other, status="ready", text="정아 소식")
         digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루")
         digest.posts.add(post)
@@ -149,7 +149,7 @@ class AccountProfileTests(TestCase):
     def test_inflight_explanation_cannot_restore_a_previous_name(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC002", password_hash="unused", owner=self.user)
         add_member(room, self.user)
-        post = Post.objects.create(room=room, author=self.user, images=["unused.jpg"], caption="산책")
+        post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
 
         def old_explanation(*args):
             self.assertEqual(self.update({"name": "새 이름"}).status_code, 200)

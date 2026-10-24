@@ -240,7 +240,7 @@ class DigestAPITests(TestCase):
         self.assertEqual(json.loads(answer.call_args.args[2]), [
             {"작성자": "정아", "원문": self.post.caption}
         ])
-        self.assertEqual(answer.call_args.args[3], self.post.photo_files())
+        self.assertEqual(answer.call_args.args[3], [self.post.image])
         print("Digest AI input test pass", flush=True)
 
     def test_summary_rejects_posts_from_different_families(self):

@@ -36,7 +36,7 @@ def question(request, pk):
 def feed(request):
     room = current_room(request)
     if request.method == "GET":
-        posts = (room.posts.select_related("author")
+        posts = (room.posts.select_related("author").prefetch_related("photos")
                  .annotate(comment_count=Count("comments")).order_by("-created_at", "-id")[:100])
         return {"posts": [serialize(post, request) for post in posts]}
 
@@ -68,11 +68,22 @@ def detail(request, pk):
 
 
 @api("GET")
-def photo(request, pk, image_index=0):
+def photo(request, pk):
     post = post_for(request, pk)
-    if not 0 <= image_index < len(post.images):
+    if not post.image:
+        raise APIError("이 게시물에는 사진이 없어요.", 404)
+    response = FileResponse(post.image.open("rb"), content_type="image/jpeg")
+    response["Cache-Control"] = "private, max-age=300"
+    return response
+
+
+@api("GET")
+def extra_photo(request, pk, photo_id):
+    post = post_for(request, pk)
+    photo = post.photos.filter(pk=photo_id).first()
+    if photo is None:
         raise APIError("사진을 찾을 수 없어요.", 404)
-    response = FileResponse(post.photo_files()[image_index].open("rb"), content_type="image/jpeg")
+    response = FileResponse(photo.image.open("rb"), content_type="image/jpeg")
     response["Cache-Control"] = "private, max-age=300"
     return response
 

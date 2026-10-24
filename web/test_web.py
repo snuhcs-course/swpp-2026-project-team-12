@@ -77,7 +77,7 @@ class WebJourneyTests(TestCase):
         self.assertEqual(post["image_count"], 2)
         self.assertTrue(post["images"][0]["url"].startswith("https://android.example/"))
         for photo in post["images"]:
-            path = f'/api/posts/{post["id"]}/images/{photo["id"]}/'
+            path = f'/api/posts/{post["id"]}/image/' if photo["id"] == 0 else f'/api/posts/{post["id"]}/photos/{photo["id"]}/'
             self.assertEqual(self.client.get(path).status_code, 401)
             image = self.client.get(path, **auth)
             self.assertEqual(image.status_code, 200)
