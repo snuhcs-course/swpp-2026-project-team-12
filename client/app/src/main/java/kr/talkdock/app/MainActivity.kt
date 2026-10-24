@@ -31,6 +31,7 @@ import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.CommentComposer
 import kr.talkdock.app.ui.PostQuestionPanel
+import kr.talkdock.app.ui.FamilyMemoryPanel
 import kr.talkdock.app.ui.ReplyAudioButton
 import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
@@ -67,6 +68,7 @@ class MainActivity : ComponentActivity() {
     private val questions = Executors.newFixedThreadPool(2)
     private var activePostAudio: InlinePostAudio? = null
     private var replyPreview: ReplyAudioButton? = null
+    private var memoryPanel: FamilyMemoryPanel? = null
     private lateinit var imageLoader: ViewportPhotoLoader
     private var session: JSONObject? = null
     private var room = JSONObject()
@@ -158,6 +160,10 @@ class MainActivity : ComponentActivity() {
             }
             if (!room.has("id")) { clearPhotoDraft(); selectedPost = null; roomChoice(); return }
             when {
+            restoredScreen == "memories" -> familyMemories(state?.getBundle("memories")?.takeIf {
+                it.getInt("userId", -1) == session?.optInt("user_id") &&
+                    it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
+            })
             restoredScreen == "familyTree" -> familyTree()
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
             restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
@@ -190,6 +196,10 @@ class MainActivity : ComponentActivity() {
         out.putString("caption", captionInput?.text?.toString() ?: caption)
         out.putInt("draftPhotoIndex", draftPhotoIndex)
         out.putString("post", selectedPost?.toString())
+        if (screen == "memories") out.putBundle("memories", memoryPanel?.snapshot()?.apply {
+            putInt("userId", session?.optInt("user_id") ?: -1)
+            putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
+        })
         if (screen in listOf("tree", "profile")) {
             out.putString("joinRoom", joinRoom.toString()); out.putString("invitation", invitation.toString())
             out.putString("treeDraft", treeDraft?.payload()?.toString())
@@ -221,6 +231,7 @@ class MainActivity : ComponentActivity() {
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
         imageLoader.clearViews()
         root.removeAllViews()
+        memoryPanel = null
         page = ui.column(); root.addView(page, FrameLayout.LayoutParams(-1, -1))
         val header = ui.row().apply { setPadding(ui.dp(16), ui.dp(10), ui.dp(16), ui.dp(10)); minimumHeight = ui.dp(72) }
         if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() })
@@ -411,6 +422,7 @@ class MainActivity : ComponentActivity() {
             if (names.isNotBlank()) ui.label(labels, names, 14f, color = ui.muted)
             intro.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); card.addView(intro)
             ui.button(card, "가족 소식 보기", false) { home() }
+            ui.button(card, "가족 추억 찾기", false) { familyMemories() }
             ui.gap(content, 20)
         }
         if (!inRoom) {
@@ -642,6 +654,8 @@ class MainActivity : ComponentActivity() {
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
             content.removeAllViews()
+            ui.button(content, "가족 추억 찾기", false, if (large) 76 else 56) { familyMemories() }
+            ui.gap(content, 20)
             val posts = objects(data.getJSONArray("posts")).sortedWith(
                 compareByDescending<JSONObject> {
                     runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
@@ -695,6 +709,18 @@ class MainActivity : ComponentActivity() {
                 ui.gap(content, 20)
             }
         }
+    }
+    private fun familyMemories(saved: Bundle? = null) {
+        if (!room.has("id")) { roomChoice(); return }
+        navigation("가족 추억 찾기", { home() }, tab = 0, name = "memories")
+        heading("함께 쌓아온 추억 찾기", "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.")
+        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved) {
+            val username = session?.optString("username").orEmpty()
+            val userId = session?.optInt("user_id")
+            val big = large
+            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
+            login(username, userId, big)
+        }.also { content.addView(it, LinearLayout.LayoutParams(-1, -2)) }
     }
     private fun postAction(parent: LinearLayout, symbol: String, label: String, action: () -> Unit) {
         val item = ui.column(4).apply {

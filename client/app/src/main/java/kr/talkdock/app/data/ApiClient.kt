@@ -6,20 +6,52 @@ import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.io.InterruptedIOException
 
 class ApiException(message: String, val status: Int = 0) : Exception(message)
 
+/** A single request's connection, so leaving a slow AI screen also releases its worker. */
+class RequestCancellation {
+    private var cancelled = false
+    private var connection: HttpURLConnection? = null
+
+    @Synchronized fun attach(value: HttpURLConnection) {
+        if (cancelled) throw InterruptedIOException("Request cancelled")
+        connection = value
+    }
+    @Synchronized fun release(value: HttpURLConnection) {
+        if (connection === value) connection = null
+    }
+    fun cancel() {
+        val active = synchronized(this) {
+            cancelled = true
+            connection.also { connection = null }
+        }
+        active?.disconnect()
+    }
+}
+
 class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL) {
-    fun request(path: String, method: String = "GET", data: JSONObject? = null): JSONObject {
+    fun request(path: String, method: String = "GET", data: JSONObject? = null,
+                readTimeoutMillis: Int = 80_000, cancellation: RequestCancellation? = null): JSONObject {
         val connection = open(baseUrl + path, method)
         try {
+            connection.readTimeout = readTimeoutMillis
+            cancellation?.attach(connection)
             if (data != null) {
                 connection.doOutput = true
                 connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 connection.outputStream.use { it.write(data.toString().toByteArray(StandardCharsets.UTF_8)) }
             }
             return response(connection)
-        } finally { connection.disconnect() }
+        } finally { cancellation?.release(connection); connection.disconnect() }
+    }
+
+    fun searchHistory(question: String, cancellation: RequestCancellation): String {
+        val text = request("searching/history/", "POST", JSONObject().put("question", question.trim()),
+            readTimeoutMillis = 150_000, cancellation = cancellation).getString("text")
+        if (text.isBlank()) throw ApiException("추억을 찾지 못했어요. 잠시 후 다시 시도해 주세요.")
+        return text
     }
 
     fun upload(photo: File, caption: String): JSONObject {
