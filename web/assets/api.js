@@ -45,8 +45,12 @@ export async function api(path, { method = 'GET', data, binary = false } = {}) {
 // PUBLIC_ORIGIN points the Android app at a different server or tunnel.
 const images = new Map();
 let imageGeneration = 0;
-export async function imageURL(postId, photoId) {
-  const path = Number(photoId) === 0 ? `posts/${postId}/image/` : `posts/${postId}/photos/${photoId}/`;
+export async function imageURL(photoUrl) {
+  const pathname = new URL(photoUrl, window.location.origin).pathname;
+  if (!/^\/api\/posts\/\d+\/(?:image|images\/\d+)\/$/.test(pathname)) {
+    throw new ApiError('사진 주소를 확인해 주세요.');
+  }
+  const path = pathname.slice('/api/'.length);
   if (!images.has(path)) {
     const generation = imageGeneration;
     images.set(path, api(path, { binary: true }).then(blob => {

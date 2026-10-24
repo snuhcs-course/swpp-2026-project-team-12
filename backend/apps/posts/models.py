@@ -1,13 +1,26 @@
+from dataclasses import dataclass
+
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.db import models
 
 from apps.families.models import FamilyRoom
 
 
+@dataclass(frozen=True)
+class StoredPhoto:
+    """A lazy storage reference; callers own and close the opened file."""
+
+    name: str
+
+    def open(self, mode="rb"):
+        return default_storage.open(self.name, mode)
+
+
 class Post(models.Model):
     room = models.ForeignKey(FamilyRoom, on_delete=models.CASCADE, related_name="posts")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
-    image = models.ImageField(upload_to="posts/%Y/%m/", blank=True)
+    images = models.JSONField(default=list, blank=True)
     caption = models.CharField(max_length=2000, blank=True)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -16,17 +29,7 @@ class Post(models.Model):
         ordering = ["-created_at", "-id"]
 
     def photo_files(self):
-        return [image for image in [self.image, *(photo.image for photo in self.photos.all())] if image]
-
-
-class PostPhoto(models.Model):
-    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="photos")
-    image = models.ImageField(upload_to="posts/%Y/%m/")
-    position = models.PositiveSmallIntegerField()
-
-    class Meta:
-        ordering = ["position", "id"]
-        constraints = [models.UniqueConstraint(fields=["post", "position"], name="unique_post_photo_position")]
+        return [StoredPhoto(name) for name in self.images]
 
 
 class AdaptedMessage(models.Model):

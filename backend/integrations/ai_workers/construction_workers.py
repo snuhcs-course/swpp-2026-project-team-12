@@ -51,7 +51,7 @@ def construct(family_id, once, stdout, stderr):
                     if name.startswith("post_") and name[5:].isdigit()
                 }
                 posts = Post.objects.filter(room_id=family_id).exclude(pk__in=completed)
-                for post in posts.select_related("author").prefetch_related("photos").order_by("created_at", "pk")[:100]:
+                for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
                     try:
                         if not post.description:
                             post.description = runner.run(describe_post(post))
