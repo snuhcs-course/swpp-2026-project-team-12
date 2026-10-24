@@ -84,6 +84,10 @@ jobs:
       DJANGO_MEDIA_ROOT: ${{ github.workspace }}/e2e-media
       # The emulator reaches the runner's Django server through 10.0.2.2.
       DJANGO_ALLOWED_HOSTS: 10.0.2.2,127.0.0.1,localhost
+      # configs/wsgi.py starts the Graphiti search pool at boot, which refuses empty credentials.
+      # ApiRoundTripTest never searches, so placeholders only let the server start.
+      OPENAI_API_KEY: ci-placeholder
+      NEO4J_PASSWORD: ci-placeholder
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -96,7 +100,7 @@ jobs:
         run: |
           python backend/manage.py migrate --noinput
           nohup python backend/manage.py runserver 0.0.0.0:8000 --noreload > runserver.log 2>&1 &
-          timeout 60 bash -c 'until curl -sf http://127.0.0.1:8000/api/test_reply/ > /dev/null; do sleep 1; done'
+          timeout 60 bash -c 'until curl -sf http://127.0.0.1:8000/api/test_reply/ > /dev/null; do sleep 1; done' || { cat runserver.log; exit 1; }
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
