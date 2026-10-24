@@ -4,7 +4,7 @@ Adopted prompts live in `prompts.py`. Runtime code does not import developer scr
 
 ## Calls
 
-- `GET /api/posts/<id>/message/`: basic summary from the post photo, caption, author and viewer relationship. One LLM call; no search tools or Graphiti client. Cached separately per viewer and prompt/configuration version. `POST` retries a failed summary.
+- `GET /api/posts/<id>/message/`: basic summary from the post photo, caption, author and viewer relationship. One LLM call; no search tools or retrieval. Cached separately per viewer and prompt/configuration version. `POST` retries a failed summary.
 - `POST /api/posts/<id>/questions/`: follow-up QA. The API loads the authorized family's post itself; request fields cannot override its photo, caption, author or family ID. History is client-supplied, untrusted context embedded in JSON, never system messages.
 
 Example request (Bearer token and `Content-Type: application/json` required):
@@ -21,7 +21,7 @@ Example request (Bearer token and `Content-Type: application/json` required):
 
 Response: `{"text": "..."}`. Responses are `no-store`. Question length: 1–1,000 characters. Optional history: at most 10 turns, each `user` or `assistant` with 1–1,000 characters of `text`. History is not persisted; clients send preceding turns on the next question. Temporary provider/search failures return HTTP 503; invalid inputs return 400/415. Authentication and family membership are required. Cross-family posts are not exposed.
 
-QA uses C (`decomposed_5`): search decision → at most five parallel queries in one batch → answer with `tool_choice=none`. If no search is requested, it returns the first answer without creating Graphiti. Each query retrieves five facts. Round-robin deduplication selects **five facts total**, and returns a tool output for every call, including calls receiving no selected facts. Sources are attached and deduplicated within each tool output. This preserves the evaluated policy, including its documented evidence-loss limitation; no additional retrieval loop or new ranking policy was introduced.
+QA uses C (`decomposed_5`): search decision → at most five parallel queries in one batch → answer with `tool_choice=none`. If no search is requested, it returns the first answer without retrieval. Each query retrieves five facts. Round-robin deduplication selects **five facts total**, and returns a tool output for every call, including calls receiving no selected facts. Sources are attached and deduplicated within each tool output. This preserves the evaluated policy, including its documented evidence-loss limitation; no additional retrieval loop or new ranking policy was introduced.
 
 The Android follow-up question button/screen is not part of this backend change.
 
@@ -36,6 +36,23 @@ POST_AI_REASONING_EFFORT=none
 ```
 
 Decision output limit: 1,200 tokens; answer output limit: 700; image detail: high; `store=False`. Service tier/model overrides are explicit operator choices; there is no automatic model fallback. The shared request worker pool still uses `GRAPHITI_SEARCH_WORKERS` (default 4); experimental concurrency 3 is not a production throughput guarantee.
+
+WSGI/ASGI startup starts all search workers and waits for each worker to create
+its Graphiti client on its own event loop, before accepting requests. Set
+`OPENAI_API_KEY` and `NEO4J_PASSWORD` before starting the server; initialization
+errors fail startup and close clients already initialized by other workers.
+Each worker keeps one `asyncio.Runner` around its request loop and reuses its
+client and loop, passing family scope and search options on each call. Requests
+run sequentially within a worker; workers and the queries within a request can
+run in parallel. Summaries and QA without retrieval use the prepared worker
+without searching. Client construction does not prewarm network connections.
+Request failures leave the worker available for the next request. On normal
+process shutdown, the pool drains queued requests and closes each worker's
+Graphiti/SDK clients on their owning loop before closing the loop.
+
+Construction workers use the same initialization helper before polling posts,
+then reuse their client and loop until the worker exits. Management commands
+such as migrations do not start the server's search pool.
 
 Before starting the updated backend:
 
@@ -65,7 +82,7 @@ that invalidate an explanation while generation is in progress.
 From the repository root:
 
 ```sh
-MOCK_AI_TESTS=1 ELEVENLABS_API_KEY= .venv/bin/python backend/manage.py test developer.test_codes.test_post_qa developer.test_codes.test_searching.MemoryFlowTests developer.test_codes.test_searching.HistoryAPITests developer.test_codes.test_posts developer.test_codes.test_digests developer.test_codes.test_voice_replies
+MOCK_AI_TESTS=1 ELEVENLABS_API_KEY= .venv/bin/python backend/manage.py test developer.test_codes.test_searching_workers developer.test_codes.test_post_qa developer.test_codes.test_searching.MemoryFlowTests developer.test_codes.test_searching.HistoryAPITests developer.test_codes.test_posts developer.test_codes.test_digests developer.test_codes.test_voice_replies
 .venv/bin/python backend/manage.py makemigrations --check --dry-run
 git diff --check
 ```

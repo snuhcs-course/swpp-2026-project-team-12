@@ -127,6 +127,50 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertEqual(add.await_count, 2)
         describe.assert_awaited_once()
 
+    def test_construction_creates_and_reuses_client_on_one_loop_across_polls(self):
+        post = Post.objects.create(room=self.room, author=self.user, caption="기록",
+                                   description="상세 기록", image="test.jpg")
+        saved = []
+        created = []
+
+        def create():
+            graph = SimpleNamespace(loop=asyncio.get_running_loop())
+            created.append(graph)
+
+            async def build():
+                self.assertIs(asyncio.get_running_loop(), graph.loop)
+
+            graph.build_indices_and_constraints = AsyncMock(side_effect=build)
+            return graph
+
+        async def names(graph, family_id):
+            self.assertIs(graph, created[0])
+            self.assertIs(asyncio.get_running_loop(), graph.loop)
+            self.assertEqual(family_id, self.room.pk)
+            return set(saved)
+
+        async def add(graph, family_id, text, source, at):
+            self.assertIs(graph, created[0])
+            self.assertIs(asyncio.get_running_loop(), graph.loop)
+            saved.append(source)
+
+        async def close(graph):
+            self.assertIs(asyncio.get_running_loop(), graph.loop)
+
+        with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
+             patch.object(graphiti_client, "create_graphiti", side_effect=create) as factory, \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock(side_effect=close)) as cleanup, \
+             patch.object(construction_graphiti, "episode_names", new=AsyncMock(side_effect=names)) as polls, \
+             patch.object(construction_graphiti, "add_memory", new=AsyncMock(side_effect=add)) as store, \
+             patch("integrations.ai_workers.construction_workers.time.sleep", side_effect=[None, KeyboardInterrupt]):
+            call_command("run_construction_worker", family_id=self.room.pk, stdout=io.StringIO())
+        factory.assert_called_once()
+        self.assertEqual(polls.await_count, 2)
+        store.assert_awaited_once()
+        self.assertEqual(saved, [f"post_{post.pk}"])
+        cleanup.assert_awaited_once_with(created[0])
+        self.assertTrue(created[0].loop.is_closed())
+
     def test_description_failure_does_not_save_memory_and_can_retry(self):
         post = Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
         graph = SimpleNamespace(
@@ -264,14 +308,18 @@ class MemoryFlowTests(SimpleTestCase):
 
         asyncio.run(run())
 
-    def test_search_failure_still_closes_clients(self):
+    def test_flow_failure_keeps_prepared_client_until_shutdown(self):
         with patch.object(flow, "answer_with_memory", new=AsyncMock(side_effect=RuntimeError)), \
-             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close:
+             patch.object(graphiti_client, "create_graphiti", return_value="graph") as create, \
+             patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
+             searching_workers.SearchPool(1) as pool:
             with self.assertRaises(RuntimeError):
-                asyncio.run(searching_workers.search_and_close("graph", "family_history", 1, "질문"))
+                pool.submit("family_history", 1, "질문").result(timeout=3)
+            create.assert_called_once()
+            close.assert_not_awaited()
         close.assert_awaited_once_with("graph")
 
-    def test_failed_parallel_query_cancels_other_work_before_client_close(self):
+    def test_failed_parallel_query_cancels_other_work_before_worker_reuse(self):
         async def run():
             started = asyncio.Event()
             cancelled = asyncio.Event()
