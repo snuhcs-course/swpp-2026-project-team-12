@@ -13,10 +13,15 @@ photo URLs, upload cleanup, ordered summary/QA inputs, and Graphiti construction
 Run offline checks from the repository root:
 
 ```sh
-MOCK_AI_TESTS=1 LIVE_GRAPHITI_TESTS=0 OPENAI_API_KEY= ELEVENLABS_API_KEY= python backend/manage.py test developer.test_codes developer.test_ai_prompts web
+MOCK_AI_TESTS=1 LIVE_GRAPHITI_TESTS=0 OPENAI_API_KEY= ELEVENLABS_API_KEY= python -m pytest
 python backend/manage.py makemigrations --check --dry-run
-node --test web/test_images.mjs
+node --test web/test_family_tree.mjs web/test_images.mjs
 ```
+
+`pytest.ini` at the repository root collects `developer.test_codes`,
+`developer.test_ai_prompts` and `web/test_web.py`.
+GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every pull
+request, plus Android unit tests and the instrumented tests on an emulator.
 
 The Node tests check all indexed photo URLs, local authenticated fetching when
 `PUBLIC_ORIGIN` uses another hostname, and session image-cache clearing.

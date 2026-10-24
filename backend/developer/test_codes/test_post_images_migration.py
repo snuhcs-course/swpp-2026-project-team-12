@@ -57,7 +57,7 @@ class PostImagesMigrationTests(TransactionTestCase):
             content = _description_content(saved)
             self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in content[1:]],
                              expected_bytes)
-            self.assertEqual({str(path.relative_to(folder)): path.read_bytes()
+            self.assertEqual({path.relative_to(folder).as_posix(): path.read_bytes()
                               for path in Path(folder).rglob("*.jpg")}, dict(zip(expected_paths, expected_bytes)))
         self.assertEqual(saved.messages.get(pk=message.pk).text, "캐시된 요약")
         self.assertEqual(saved.messages.get(pk=message.pk).prompt_version, "unchanged")
