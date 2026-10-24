@@ -38,10 +38,10 @@ def construct(family_id, once, stdout, stderr):
     from integrations.ai.feed_description import describe_post
 
     from .construction_graphiti import add_memory, episode_names
-    from .graphiti_client import close_graphiti, create_graphiti
+    from .graphiti_client import close_graphiti, initialize_graphiti
 
-    graphiti = create_graphiti()
     with asyncio.Runner() as runner:
+        graphiti = runner.run(initialize_graphiti())
         try:
             runner.run(graphiti.build_indices_and_constraints())
             while True:

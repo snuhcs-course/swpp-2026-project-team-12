@@ -24,6 +24,10 @@ def create_graphiti():
     )
 
 
+async def initialize_graphiti():
+    return create_graphiti()
+
+
 async def close_graphiti(graphiti):
     try:
         await graphiti.close()
