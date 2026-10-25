@@ -75,7 +75,8 @@ class AccountScreensTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api, null, signedIn = false).use { ui ->
             ui.await { ui.has("토닥 시작하기") }
-            ui.click("토닥 시작하기"); ui.await { ui.has("계정 만들기") && ui.fields().size == 3 }
+            ui.click("토닥 시작하기"); ui.await { ui.has("계정 만들기") && ui.fields().size == 4 }
+            ui.test.waitForIdleSync(); Thread.sleep(400); ui.screenshot("register-password-confirmation.png")
             ui.click("계정 만들기")
             ui.test.runOnMainSync {
                 val (name, username, password) = ui.fields()
@@ -86,11 +87,34 @@ class AccountScreensTest {
             ui.click("계정 만들기")
             ui.test.runOnMainSync { assertNotNull(ui.fields()[2].error) }
             assertTrue("Blank, genderless, or short-password forms must not be sent", api.requestsTo("/api/accounts/register/").isEmpty())
+            ui.test.runOnMainSync {
+                ui.fields()[2].setText("Family-pass-789")
+                assertFalse("Confirmation must not persist through view state", ui.fields()[3].isSaveEnabled)
+            }
+            ui.click("계정 만들기")
+            ui.test.runOnMainSync { assertNotNull("Empty confirmation must be rejected", ui.fields()[3].error) }
+            assertTrue(api.requestsTo("/api/accounts/register/").isEmpty())
+            for (mismatch in listOf("Family-pass-788", "Family-pass-789 ")) {
+                ui.test.runOnMainSync { ui.fields()[3].setText(mismatch) }
+                ui.click("계정 만들기")
+                ui.test.runOnMainSync { assertNotNull("Confirmation must match exactly", ui.fields()[3].error) }
+                assertTrue("Mismatched passwords must not reach the server", api.requestsTo("/api/accounts/register/").isEmpty())
+            }
+            ui.test.runOnMainSync {
+                ui.fields()[3].setText("Family-pass-789")
+                ui.fields()[2].setText("Family-pass-790")
+            }
+            ui.click("계정 만들기")
+            ui.test.runOnMainSync { assertNotNull("Changing the original password must recheck confirmation", ui.fields()[3].error) }
+            assertTrue(api.requestsTo("/api/accounts/register/").isEmpty())
             ui.test.runOnMainSync { ui.fields()[2].setText("Family-pass-789") }
             ui.click("계정 만들기"); ui.await { ui.has("새 가족방 만들기") && ui.has("초대 코드로 참여하기") }
             val sent = JSONObject(api.requestsTo("/api/accounts/register/").single().body)
             assertEquals(listOf("new-user", "Family-pass-789", "새 가족", "female"),
                 listOf(sent.getString("username"), sent.getString("password"), sent.getString("name"), sent.getString("gender")))
+            assertEquals("Only the existing registration fields are sent", setOf("username", "password", "name", "gender"),
+                sent.keys().asSequence().toSet())
+            assertEquals(1, api.requestsTo("/api/accounts/register/").size)
             assertEquals("new-token", api.requestsTo("/api/families/").last().token)
         } }
     }

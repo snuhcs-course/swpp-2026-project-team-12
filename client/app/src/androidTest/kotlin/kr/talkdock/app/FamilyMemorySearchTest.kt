@@ -148,7 +148,7 @@ class FamilyMemorySearchTest {
         }
     }
 
-    @Test fun examplesBlankValidationAndInputLimitWorkInBothFontSizes() {
+    @Test fun blankValidationAndInputLimitWorkInBothFontSizes() {
         for (large in listOf(false, true)) Server { answer("찾은 답변") }.use { server -> Screen(server, large).use { screen ->
             screen.open()
             screen.test.runOnMainSync {
@@ -158,8 +158,6 @@ class FamilyMemorySearchTest {
                 screen.panel().input.setText("가".repeat(1001))
                 assertEquals(1000, screen.panel().input.length())
             }
-            screen.click("최근 가족 여행 이야기 찾아줘")
-            screen.test.runOnMainSync { assertEquals("최근 가족 여행 이야기 찾아줘", screen.panel().input.text.toString()) }
             assertTrue(server.searches().isEmpty())
             screen.screenshot(if (large) "memory-large.png" else "memory-idle.png")
         } }

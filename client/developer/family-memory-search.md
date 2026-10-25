@@ -6,7 +6,7 @@ commit `62c33e5c9bf9fbfd1fe7d449e64249472be61747`.
 ## Behavior
 
 - Open **가족 추억 찾기** from the feed or the existing family room.
-- Enter a question (up to 1,000 characters), or select one of the three examples.
+- Enter a question (up to 1,000 characters).
 - Submit the same authenticated `POST /api/searching/history/` request used by
   the web app. The only body field is `question`; the server determines the
   current family from the signed-in account.
@@ -38,7 +38,7 @@ Production credentials and real family records were not used.
 
 Android test coverage:
 
-1. Empty/whitespace validation, 1,000-character limit, example selection, both font sizes.
+1. Empty/whitespace validation, 1,000-character limit, both font sizes.
 2. Authenticated family-wide POST payload and displayed answer; no comment/post-question submission.
 3. Duplicate prevention, navigation while searching, and suppression of stale answers.
 4. Server failure preserves the exact draft; retry succeeds.

@@ -26,6 +26,7 @@ class Ui(val context: Context) {
     val green = coralDeep
     val ink = Color.rgb(68, 60, 56)
     val muted = Color.rgb(121, 112, 106)
+    val hintGray = Color.rgb(158, 154, 145)
     val sage = sky
     val border = Color.rgb(233, 224, 215)
     val font: Typeface = context.resources.getFont(R.font.noto_kr)
