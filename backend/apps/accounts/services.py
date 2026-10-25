@@ -112,9 +112,11 @@ def update_account(user, data):
         # Cached generated wording can contain the previous display name.
         from apps.posts.models import AdaptedMessage
         from apps.digests.models import Digest
-        from apps.families.models import Membership
+        from apps.families.models import FamilyRoom, Membership
+        from django.db.models import F
         from django.utils import timezone
         rooms = Membership.objects.filter(user=user).values("room_id")
+        FamilyRoom.objects.filter(pk__in=rooms).update(tree_version=F("tree_version") + 1)
         AdaptedMessage.objects.filter(post__room_id__in=rooms).update(
             status="pending", text="", updated_at=timezone.now()
         )

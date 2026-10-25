@@ -89,6 +89,13 @@ Graphiti, processes up to 100 author/caption records in creation order, then wai
 5 seconds before checking again. Uploads do not enqueue work directly.
 Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
 
+Before posts, the worker syncs confirmed family members and their relationships.
+Creation, joining, and name edits leave a pending tree version; failures retry on
+the next pass. `FamilyPerson.graphiti_uuid` keeps each member's node identity.
+An unclaimed node is reused only when its name is unique in both the room's graph
+and member list. Ambiguous names get separate nodes. Relationships have stable
+UUIDs and `family_registry_<room>_v<version>` source episodes, without creating posts.
+
 ### Search (retrieving history)
 
 Search and AI requests submit work to a shared thread pool inside the Django
