@@ -18,7 +18,7 @@ htmlcov/
 backend/media/*
 backend/developer/test_media/
 backend/developer/family_tree.html
-testbed/iter3_context_retrieval/output/
+testbed/context_retrieval/output/
 testbed/**/input/*.local.json
 *.log
 
@@ -50,4 +50,3 @@ client/app/build/outputs/apk/debug/*
 htmlcov/
 coverage.xml
 .coverage.*
-testbed/iter2_backend/coverage_html/
