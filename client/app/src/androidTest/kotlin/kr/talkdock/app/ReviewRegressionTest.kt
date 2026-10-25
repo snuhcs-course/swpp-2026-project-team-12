@@ -351,7 +351,8 @@ class PhotoLoaderRegressionTest {
                 ui.test.runOnMainSync {
                     ui.all().first { it.contentDescription == "${index + 1}번째 사진으로 이동" }.performClick()
                 }
-                ui.await {
+                // Each jump downloads and decodes a photo, which can exceed 6s on a software-rendered CI emulator.
+                ui.await(15000) {
                     val carousel = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>().single()
                     val image = ui.all(carousel).filterIsInstance<ImageView>()
                         .filter { it.scaleType == ImageView.ScaleType.FIT_CENTER }[index]
