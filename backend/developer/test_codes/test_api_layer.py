@@ -11,13 +11,13 @@ from django.test import TestCase, override_settings
 
 from apps.accounts.models import AccessToken
 from apps.families.models import FamilyRoom
-from developer.test_codes.family_fixtures import add_member, link_parent
+from .family_fixtures import add_member, link_parent
 from apps.posts.models import AdaptedMessage, Post
 from apps.replies.models import Comment, VoiceDraft
 from integrations.ai.provider import AIUnavailable
 from integrations.speech.provider import SpeechUnavailable
 
-from .helpers import corrupt_upload, image_upload
+from .upload_fixtures import corrupt_upload, image_upload
 
 
 User = get_user_model()
@@ -106,7 +106,8 @@ class ApiContractIntegrationTests(ApiLayerFixture):
         photo = self.client.get(f"/api/posts/{post['id']}/image/", **self.member_auth)
         self.assertEqual(photo.status_code, 200)
         photo.close()
-        extra_photo = self.client.get(f"/api/posts/{post['id']}/photos/{post['images'][1]['id']}/", **self.member_auth)
+        self.assertTrue(post["images"][1]["url"].endswith(f"/api/posts/{post['id']}/images/1/"))
+        extra_photo = self.client.get(post["images"][1]["url"], **self.member_auth)
         self.assertEqual(extra_photo.status_code, 200)
         extra_photo.close()
 

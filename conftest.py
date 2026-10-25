@@ -1,4 +1,4 @@
-"""Pytest bootstrap for the isolated Iteration 3 backend suite."""
+"""Pytest bootstrap shared by the backend and web suites."""
 import os
 
 # pytest-django reads settings after loading conftest.  Remove paths that may

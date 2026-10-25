@@ -4,7 +4,7 @@ from django.db import IntegrityError, transaction
 from django.test import TestCase
 
 from apps.families.models import FamilyPerson, FamilyRoom, Membership
-from developer.test_codes.family_fixtures import add_member
+from .family_fixtures import add_member
 
 
 User = get_user_model()

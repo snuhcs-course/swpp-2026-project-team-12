@@ -11,11 +11,11 @@ from apps.api import APIError, required
 from apps.families.models import FamilyRoom
 from apps.families.services import parse_time
 from apps.families.utils import relationship
-from developer.test_codes.family_fixtures import add_member, link_parent
+from .family_fixtures import add_member, link_parent
 from apps.posts.models import Post
 from apps.posts.services import prepare_image, prepare_uploads, serialize
 
-from .helpers import corrupt_upload, image_upload
+from .upload_fixtures import corrupt_upload, image_upload
 
 
 User = get_user_model()

@@ -1,7 +1,8 @@
 [run]
 branch = True
 source =
-    apps
+    backend/apps
+    backend/integrations
 omit =
     */migrations/*
 

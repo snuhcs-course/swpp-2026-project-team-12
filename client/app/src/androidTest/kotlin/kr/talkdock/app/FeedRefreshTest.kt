@@ -50,7 +50,8 @@ class FeedRefreshTest {
         }
         val density = view.resources.displayMetrics.density
         val x = location[0] + if (horizontal) 32 * density else width / 2f
-        val y = location[1] + 24 * density
+        // Start in the feed's top padding; 24dp now lands on the edge of the "가족 추억 찾기" button.
+        val y = location[1] + 4 * density
         val distance = (if (short) 20 else 220) * density
         val down = SystemClock.uptimeMillis()
         for (step in 0..12) {
