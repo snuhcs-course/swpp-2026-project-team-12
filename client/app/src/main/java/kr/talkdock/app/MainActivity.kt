@@ -312,7 +312,16 @@ class MainActivity : ComponentActivity() {
                     } else {
                         val message = (error as? ApiException)?.message ?: "서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요."
                         if (screen == "home" && refresh == null) { feedError(message); return@runOnUiThread }
-                        AlertDialog.Builder(this).setTitle("다시 확인해 주세요").setMessage(message)
+                        if (screen == "roomSync") {
+                            content.removeAllViews()
+                            ui.art(content, "grandchild_sad", 180); ui.gap(content, 20)
+                            heading("잠시 이용이 어려워요", message)
+                            ui.button(content, "다시 연결하기") { recreate() }
+                            return@runOnUiThread
+                        }
+                        val title = if (error is ApiException && (error.status in 500..599 || error.cause is java.io.IOException))
+                            "잠시 이용이 어려워요" else "다시 확인해 주세요"
+                        AlertDialog.Builder(this).setTitle(title).setMessage(message)
                             .setPositiveButton("확인", null).show()
                     }
                 })
@@ -486,9 +495,10 @@ class MainActivity : ComponentActivity() {
         heading("어떻게 불러드릴까요?", "가족에게 보일 이름을 알려주세요.")
         val name = ui.input(content, "내 이름", "예: 홍정아")
         val username = ui.input(content, "아이디", "로그인할 아이디", identifier = true)
-        ui.label(content, "비밀번호는 10자 이상이며 숫자를 포함해야 해요.\n아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요. 최대 128자예요.", 16f, color = ui.muted)
-        ui.gap(content)
-        val password = ui.input(content, "계정 비밀번호", "10자 이상 · 숫자 포함", password = true)
+        val password = ui.input(content, "계정 비밀번호", "숫자를 포함한 10자 이상", password = true).apply { typeface = ui.font; setHintTextColor(ui.hintGray) }
+        val confirmation = ui.input(content, "비밀번호 확인", "비밀번호를 한 번 더 입력해 주세요", password = true).apply {
+            typeface = ui.font; setHintTextColor(ui.hintGray)
+        }
         ui.label(content, "성별 (필수)", 16f, true)
         val genders = Spinner(this)
         genders.contentDescription = "성별 (필수)"
@@ -502,6 +512,13 @@ class MainActivity : ComponentActivity() {
             if (genders.selectedItemPosition == 0) { toast("성별을 선택해 주세요."); return@button }
             if (password.text.length !in 10..128 || password.text.none { it in '0'..'9' }) {
                 password.error = "비밀번호는 10자 이상, 숫자 포함으로 입력해 주세요. 최대 128자예요."; return@button
+            }
+            confirmation.error = null
+            if (confirmation.text.isEmpty() || password.text.toString() != confirmation.text.toString()) {
+                confirmation.error = if (confirmation.text.isEmpty()) "비밀번호를 한 번 더 입력해 주세요."
+                    else "비밀번호가 일치하지 않아요. 다시 확인해 주세요."
+                confirmation.requestFocus()
+                return@button
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
@@ -762,7 +779,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun feedError(message: String) {
         content.removeAllViews()
-        ui.art(content, "grandchild", 180); ui.gap(content, 20)
+        ui.art(content, "grandchild_sad", 180); ui.gap(content, 20)
         heading("소식을 불러오지 못했어요", message)
         ui.button(content, "다시 불러오기") { home() }
         ui.button(content, "가족방으로", false) { roomChoice() }
@@ -1193,8 +1210,7 @@ class MainActivity : ComponentActivity() {
         name.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
         ui.label(content, "비밀번호를 바꿀 때만 아래 두 칸을 입력해 주세요. 변경하면 다른 기기에서는 다시 로그인해야 해요.", 17f, color = ui.muted)
         val current = ui.input(content, "현재 비밀번호", "변경할 때만 입력", password = true)
-        ui.label(content, "새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요. 최대 128자예요.", 16f, color = ui.muted)
-        val replacement = ui.input(content, "새 비밀번호", "10자 이상 · 숫자 포함", password = true)
+        val replacement = ui.input(content, "새 비밀번호", "숫자를 포함한 10자 이상", password = true).apply { typeface = ui.font; setHintTextColor(ui.hintGray) }
         ui.button(content, "수정 내용 저장하기") {
             if (name.text.isBlank()) { name.error = "이름을 입력해 주세요."; return@button }
             val changingPassword = current.text.isNotEmpty() || replacement.text.isNotEmpty()

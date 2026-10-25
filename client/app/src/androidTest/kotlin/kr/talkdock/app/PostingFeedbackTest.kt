@@ -4,10 +4,11 @@ package kr.talkdock.app
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Movie
 import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.view.ViewGroup
+import android.animation.ValueAnimator
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kr.talkdock.app.ui.TodakArtView
@@ -18,7 +19,7 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Checks the supplied GIF on Android's decoder without sending anything to the server. */
+/** Checks local posting feedback without sending anything to a deployed server. */
 @RunWith(AndroidJUnit4::class)
 class PostingFeedbackTest {
     @Test fun successShowsJoyAndMessageWithoutWaitingSpinnerOrOverlappingText() {
@@ -50,23 +51,47 @@ class PostingFeedbackTest {
         }
     }
 
-    @Test fun suppliedJoyPreviewRendersDifferentPosesOnAndroid() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val movie = context.assets.open("todak/todak_joy.gif").use { Movie.decodeStream(it) }
-        assertNotNull(movie)
-        assertTrue(movie.duration() >= 2500)
-        fun frame(time: Int): Bitmap {
-            val bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.ARGB_8888)
-            movie.setTime(time)
-            movie.draw(Canvas(bitmap), 0f, 0f)
-            return bitmap
-        }
-        val resting = frame(0)
-        val jumping = frame(600)
-        try {
-            assertFalse("The preview must animate rather than remain a still image", resting.sameAs(jumping))
-        } finally {
-            resting.recycle(); jumping.recycle()
-        }
+    @Test fun boySuccessMovesAndStopsWhenRemoved() {
+        org.junit.Assume.assumeTrue(ValueAnimator.areAnimatorsEnabled())
+        MockApi { request -> if (request.path == "/api/families/current/")
+            jsonReply(room(1, "완료 화면 테스트")) else emptyFeed()
+        }.use { api -> UiHarness(api, room(1, "완료 화면 테스트")).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            lateinit var host: ViewGroup
+            lateinit var success: TodakSuccessView
+            lateinit var boy: TodakJoyView
+            fun frame(): Bitmap {
+                lateinit var image: Bitmap
+                ui.test.runOnMainSync {
+                    image = Bitmap.createBitmap(host.width, host.height, Bitmap.Config.ARGB_8888)
+                    host.draw(Canvas(image))
+                }
+                return image
+            }
+            ui.test.runOnMainSync {
+                host = ui.activity.findViewById(android.R.id.content)
+                success = TodakSuccessView(ui.activity, "댓글을 달았어요!") {}
+                host.addView(success, ViewGroup.LayoutParams(-1, -1))
+                boy = (0 until success.childCount).map { success.getChildAt(it) }.filterIsInstance<TodakJoyView>().single()
+            }
+            ui.test.waitForIdleSync()
+            val resting = frame()
+            Thread.sleep(500)
+            val celebrating = frame()
+            try {
+                assertFalse("The new boy must visibly move on success", resting.sameAs(celebrating))
+                ui.screenshot("boy-posting-success.png")
+                ui.test.runOnMainSync {
+                    assertTrue(kotlin.math.abs(boy.translationY) > .1f || kotlin.math.abs(boy.rotation) > .1f)
+                    host.removeView(success)
+                    assertFalse(boy.isAttachedToWindow)
+                    assertEquals(0f, boy.translationY, .001f)
+                    assertEquals(0f, boy.rotation, .001f)
+                }
+            } finally {
+                resting.recycle(); celebrating.recycle()
+                ui.test.runOnMainSync { host.removeView(success) }
+            }
+        } }
     }
 }

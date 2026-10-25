@@ -7,8 +7,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.io.InterruptedIOException
+import java.io.IOException
+import java.io.FileNotFoundException
+import java.net.SocketTimeoutException
 
-class ApiException(message: String, val status: Int = 0) : Exception(message)
+class ApiException(message: String, val status: Int = 0, cause: Throwable? = null) : Exception(message, cause)
 
 /** A single request's connection, so leaving a slow AI screen also releases its worker. */
 class RequestCancellation {
@@ -45,7 +48,8 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
                 connection.outputStream.use { it.write(data.toString().toByteArray(StandardCharsets.UTF_8)) }
             }
             return response(connection)
-        } finally { cancellation?.release(connection); connection.disconnect() }
+        } catch (error: IOException) { throw networkFailure(error) }
+        finally { cancellation?.release(connection); connection.disconnect() }
     }
 
     fun searchHistory(question: String, cancellation: RequestCancellation): String {
@@ -97,7 +101,8 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
                 stream.write(suffix)
             }
             return response(connection)
-        } finally { connection.disconnect() }
+        } catch (error: IOException) { throw networkFailure(error) }
+        finally { connection.disconnect() }
     }
 
     fun speech(text: String): ByteArray {
@@ -108,15 +113,19 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray(StandardCharsets.UTF_8)) }
             if (connection.responseCode !in 200..299) response(connection)
             return connection.inputStream.use { it.readBytes() }
-        } finally { connection.disconnect() }
+        } catch (error: IOException) { throw networkFailure(error) }
+        finally { connection.disconnect() }
     }
 
     fun image(url: String): ByteArray {
         val connection = open(url, "GET")
         try {
-            if (connection.responseCode != 200) throw ApiException("사진을 불러오지 못했어요.")
+            val status = connection.responseCode
+            if (status != 200) throw ApiException(
+                if (status in 500..599) ApiFailureMessages.UNAVAILABLE else "사진을 불러오지 못했어요.", status)
             return connection.inputStream.use { it.readBytes() }
-        } finally { connection.disconnect() }
+        } catch (error: IOException) { throw networkFailure(error) }
+        finally { connection.disconnect() }
     }
 
     private fun open(url: String, method: String): HttpURLConnection {
@@ -133,10 +142,20 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         val code = connection.responseCode
         val stream = if (code in 200..299) connection.inputStream else connection.errorStream
         val raw = stream?.bufferedReader()?.use { it.readText() } ?: "{}"
-        val json = runCatching { JSONObject(raw) }.getOrElse {
-            throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
+        val json = runCatching { JSONObject(raw) }.getOrNull()
+        if (code !in 200..299) {
+            // Keep application-specific JSON errors (validation, AI availability, etc.).
+            // Maintenance proxies often return HTML or an empty body instead of JSON.
+            val message = json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
+            throw ApiException(message ?: ApiFailureMessages.http(code), code)
         }
-        if (code !in 200..299) throw ApiException(json.optString("error", "가족 방에 연결하지 못했어요. 다시 시도해 주세요."), code)
-        return json
+        return json ?: throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
+    }
+
+    private fun networkFailure(error: IOException): Exception = when (error) {
+        is SocketTimeoutException -> ApiException(ApiFailureMessages.TIMEOUT, cause = error)
+        // Navigation cancellation and local file access are not server outages.
+        is InterruptedIOException, is FileNotFoundException -> error
+        else -> ApiException(ApiFailureMessages.CONNECTION, cause = error)
     }
 }
