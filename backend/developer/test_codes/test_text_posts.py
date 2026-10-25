@@ -18,7 +18,7 @@ from apps.posts.services import save_post
 from apps.api import APIError
 from integrations.ai import provider
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 def photo():
@@ -41,8 +41,8 @@ class TextPostTests(TestCase):
         other_room = FamilyRoom.objects.create(owner=self.other, name="다른 가족", invite_code="TEXT02", password_hash="unused")
         add_member(self.room, self.owner)
         add_member(other_room, self.other)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
+        self.auth = auth_headers(AccessToken.issue(self.owner))
+        self.other_auth = auth_headers(AccessToken.issue(self.other))
 
     def upload(self, caption="오늘 산책을 다녀왔어요.", **files):
         return self.client.post("/api/posts/", {"caption": caption, **files}, **self.auth)
@@ -103,7 +103,7 @@ class TextPostTests(TestCase):
     def test_post_requires_login_and_family(self):
         self.assertEqual(self.client.post("/api/posts/", {"caption": "소식"}).status_code, 401)
         user = User.objects.create_user(username="text-no-room", password="Offline-Pass-789!", display_name="미가입자")
-        auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(user)}
+        auth = auth_headers(AccessToken.issue(user))
         self.assertEqual(self.client.post("/api/posts/", {"caption": "소식"}, **auth).status_code, 403)
         self.assertFalse(Post.objects.exists())
 

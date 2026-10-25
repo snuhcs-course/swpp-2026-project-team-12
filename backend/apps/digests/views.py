@@ -3,14 +3,15 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from apps.api import APIError, api, body
-from apps.posts.services import current_room, serialize
+from apps.families.services import room_for
+from apps.posts.services import serialize
 
 from .services import generate_digest
 
 
 @api("GET", "POST")
 def daily(request):
-    room = current_room(request)
+    room = room_for(request)
     requested = request.GET.get("date") if request.method == "GET" else body(request).get("date")
     try:
         chosen = timezone.localdate() if requested in (None, "") else date.fromisoformat(requested)
@@ -31,7 +32,7 @@ def daily(request):
 
 @api("GET")
 def history(request):
-    room = current_room(request)
+    room = room_for(request)
     dates = {timezone.localdate()}
     for created_at in room.posts.values_list("created_at", flat=True)[:200]:
         local = timezone.localtime(created_at)

@@ -14,7 +14,7 @@ from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from integrations.ai import provider
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 def photo(color="red"):
@@ -38,8 +38,8 @@ class PostPhotoTests(TestCase):
         other = FamilyRoom.objects.create(name="다른 가족", invite_code="PHOTO2", password_hash="unused", owner=self.outsider)
         add_member(self.room, self.owner)
         add_member(other, self.outsider)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.outsider)}
+        self.auth = auth_headers(AccessToken.issue(self.owner))
+        self.other_auth = auth_headers(AccessToken.issue(self.outsider))
 
     def upload(self, colors=("red", "blue")):
         return self.client.post("/api/posts/", {"images": [photo(c) for c in colors], "caption": "공원에 갔어요"}, **self.auth)

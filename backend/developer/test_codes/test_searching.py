@@ -28,7 +28,7 @@ from apps.searching import services
 from integrations.ai import feed_description, flow, provider
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 class FamilyFixture:
@@ -38,7 +38,7 @@ class FamilyFixture:
             owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed",
         )
         add_member(self.room, self.user)
-        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {AccessToken.issue(self.user)}"}
+        self.auth = auth_headers(AccessToken.issue(self.user))
 
     def post(self, path, data):
         return self.client.post(path, json.dumps(data), content_type="application/json", **self.auth)

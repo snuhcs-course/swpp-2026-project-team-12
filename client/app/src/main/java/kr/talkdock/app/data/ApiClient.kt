@@ -31,7 +31,8 @@ class RequestCancellation {
     }
 }
 
-class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL) {
+/** [roomId] picks the family room for room-scoped endpoints such as the feed and digests. */
+class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL, val roomId: Int? = null) {
     fun request(path: String, method: String = "GET", data: JSONObject? = null,
                 readTimeoutMillis: Int = 80_000, cancellation: RequestCancellation? = null): JSONObject {
         val connection = open(baseUrl + path, method)
@@ -124,6 +125,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         connection.connectTimeout = 10_000
         connection.readTimeout = 80_000
         if (token.isNotEmpty()) connection.setRequestProperty("Authorization", "Bearer " + token)
+        if (roomId != null) connection.setRequestProperty("X-Family-Room", roomId.toString())
         return connection
     }
 

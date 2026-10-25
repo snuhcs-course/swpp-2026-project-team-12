@@ -34,11 +34,14 @@ class ApiRoundTripTest {
         val created = member.request("families/create/", "POST", json(
             "room_name" to "자동 연결 검사 $suffix", "password" to "test-room-password"))
         val invitation = json("invite_code" to created.getJSONObject("room").getString("invite_code"), "password" to "test-room-password")
+        // Room-scoped requests such as uploads and the feed name the room, like the app does.
+        val roomId = created.getJSONObject("room").getInt("id")
+        val memberInRoom = ApiClient(loggedIn.getString("token"), server, roomId)
         val found = anonymous.request("families/lookup/", "POST", invitation)
         assertEquals("준하", found.getString("owner_name"))
         val grandma = anonymous.request("accounts/register/", "POST", json(
             "username" to grandmaName, "password" to accountPassword, "name" to "경자", "gender" to "female"))
-        val elder = ApiClient(grandma.getString("token"), server)
+        val elder = ApiClient(grandma.getString("token"), server, roomId)
         val draft = FamilyTreeDraft(found.getJSONObject("tree"))
         val father = draft.add(draft.ownerId, "father")
         draft.selectedId = draft.add(father, "mother")
@@ -50,7 +53,7 @@ class ApiRoundTripTest {
             context.resources.openRawResource(R.drawable.family).use { source ->
                 photo.outputStream().use { source.copyTo(it) }
             }
-            val uploaded = member.upload(photo, "학교에서 점심 먹었어요")
+            val uploaded = memberInRoom.upload(photo, "학교에서 점심 먹었어요")
             val id = uploaded.getInt("id")
             val feed = elder.request("posts/").getJSONArray("posts").getJSONObject(0)
             assertEquals(id, feed.getInt("id"))

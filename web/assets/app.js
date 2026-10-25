@@ -1,4 +1,4 @@
-import { api, ApiError, hasToken, setToken, imageURL, clearImages } from './api.js';
+import { api, ApiError, hasToken, setToken, setRoom, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
@@ -8,7 +8,7 @@ const modal = document.querySelector('#modal');
 const toastBox = document.querySelector('#toast');
 const busyIndicator = document.querySelector('#busy-indicator');
 const pendingOperations = new Set();
-const state = { user: null, room: null, posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
+const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
 const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
@@ -104,7 +104,9 @@ function resetSession() {
   state.pageVersion++;
   state.user = state.room = state.lookup = state.digest = null;
   state.posts = [];
+  state.rooms = [];
   setToken('');
+  setRoom(null);
   clearImages();
   stopAudio();
   if (modal.open) modal.close();
@@ -129,23 +131,77 @@ function renderAuth(register = false) {
       </form><p class="auth-hint">${icon('heart')}안드로이드에서 쓰던 계정으로도 로그인할 수 있어요.</p></div></section></main>`;
 }
 
+// The last opened room is remembered per account in this browser.
+const roomKey = () => `talkdock.web.room.${state.user.user_id}`;
+function savedRoom() {
+  try { return Number(localStorage.getItem(roomKey())) || null; } catch { return null; }
+}
+function rememberRoom(id) {
+  try { if (id) localStorage.setItem(roomKey(), String(id)); else localStorage.removeItem(roomKey()); } catch { /* Storage can be blocked. */ }
+}
+
 async function enterApp() {
   const session = state.session;
   state.user = await api('accounts/me/');
   if (session !== state.session) return;
-  try { state.room = await api('families/current/'); }
-  catch (error) { if (error.status !== 403) throw error; state.room = null; }
+  const { rooms } = await api('families/');
   if (session !== state.session) return;
-  if (!state.room) return renderOnboarding();
+  state.rooms = rooms;
+  const chosen = rooms.find(room => room.id === savedRoom()) ?? (rooms.length === 1 ? rooms[0] : null);
+  if (!chosen) return renderRoomChoice();
+  await openRoom(chosen.id, { keepRoute: true });
+}
+
+function useRoom(room) {
+  state.room = room;
+  state.posts = [];
+  state.digest = state.lookup = null;
+  setRoom(room.id);
+  rememberRoom(room.id);
+  clearImages();
+}
+// Switching rooms starts at the feed; reopening the app keeps the page in the address bar.
+async function openRoom(id, { keepRoute = false } = {}) {
+  const session = state.session;
+  let room;
+  // Pass the room explicitly so requests of the room on screen keep their header until the switch completes.
+  try { room = await api('families/current/', { room: id }); }
+  catch (error) {
+    if (error.status !== 403 || session !== state.session) throw error;
+    rememberRoom(null);
+    state.room = null;
+    setRoom(null);
+    state.rooms = (await api('families/')).rooms;
+    if (session === state.session) renderRoomChoice('그 가족방에는 더 이상 들어갈 수 없어요. 다른 가족방을 골라 주세요.');
+    return;
+  }
+  if (session !== state.session) return;
+  useRoom(room);
+  if (!keepRoute) location.hash = '#/feed';
   renderShell();
   await renderPage();
 }
 
-function renderOnboarding() {
+function renderRoomChoice(message = '') {
+  const joined = state.rooms.length > 0;
   app.innerHTML = `<main id="main" class="onboarding"><header>${brand()}${button('logout', '로그아웃', 'logout', 'button quiet')}</header>
-    <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, 가족과 연결해 볼까요?</h1><p class="muted">새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.</p></div>
-    <div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
-    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div></main>`;
+    <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, ${joined ? '어느 가족방으로 갈까요?' : '가족과 연결해 볼까요?'}</h1><p class="muted">${joined ? '들어갈 가족방을 고르거나, 새 가족방을 만들고 참여할 수 있어요.' : '새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.'}</p></div>
+    ${message ? errorBlock(message) : ''}${roomList()}${roomForms()}</main>`;
+}
+function renderRooms() {
+  $('#page').innerHTML = `${pageHeading('OUR FAMILY ROOMS', '가족방', '다른 가족방을 누르면 그 가족의 소식으로 바뀌어요.')}${roomList()}${roomForms()}`;
+}
+function roomList() {
+  if (!state.rooms.length) return '';
+  return `<ul class="room-list" aria-label="내 가족방">${state.rooms.map(room => {
+    const current = room.id === state.room?.id;
+    const details = [room.is_owner ? '내가 만든 방' : '', `${room.member_count}명`].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="room-card${current ? ' current' : ''}" data-action="open-room" data-id="${room.id}"${current ? ' aria-current="true"' : ''}><span class="empty-icon${current ? '' : ' sage'}">${icon('home')}</span><span class="room-card-text">${current ? '<span class="tag">지금 보는 가족방</span>' : ''}<strong>${e(room.name)}</strong><small>${details}</small></span>${icon('arrow')}</button></li>`;
+  }).join('')}</ul>`;
+}
+function roomForms() {
+  return `<div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
+    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div>`;
 }
 
 function renderJoinPreview(message = '') {
@@ -174,13 +230,13 @@ function renderShell() {
   app.innerHTML = `<div class="app-layout"><aside class="sidebar">${brand()}<div class="sidebar-label">우리의 이야기</div><nav aria-label="주 메뉴">${nav.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span>${icon('chevron', 'nav-chevron')}</a>`).join('')}</nav>
     <div class="sidebar-note">${icon('heart')}<p>자주 보지 못해도,<br>마음은 늘 가까이.</p><span>오늘도 안부를 전해 보세요.</span></div>
     <div class="sidebar-bottom"><a href="#/settings" data-nav="settings">${icon('settings')}계정 설정</a><button type="button" data-action="logout">${icon('logout')}로그아웃</button><div class="profile">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><small>@${e(state.user.username)}</small></div><span class="online-dot" title="로그인됨"></span></div></div></aside>
-    <div class="workspace"><header class="topbar"><span class="room-label">${icon('home')}<span>${e(state.room.name)}</span><span class="private-badge">가족 전용</span></span><div class="topbar-actions"><span class="today-label">${dateLabel(new Date(), false)}</span>${button('text-size', '큰 글씨', 'text', 'button quiet compact', `aria-pressed="${document.documentElement.classList.contains('large-text')}"`)}</div></header><main id="main" tabindex="-1"><div id="page"></div></main><footer class="workspace-footer"><span>토닥</span>가족의 일상을 잇는 따뜻한 공간</footer></div></div>`;
+    <div class="workspace"><header class="topbar"><a class="room-label" href="#/rooms" title="가족방 바꾸기" aria-label="${e(state.room.name)} · 가족방 바꾸기">${icon('home')}<span>${e(state.room.name)}</span><span class="private-badge">가족 전용</span>${icon('chevron', 'room-switch')}</a><div class="topbar-actions"><span class="today-label">${dateLabel(new Date(), false)}</span>${button('text-size', '큰 글씨', 'text', 'button quiet compact', `aria-pressed="${document.documentElement.classList.contains('large-text')}"`)}</div></header><main id="main" tabindex="-1"><div id="page"></div></main><footer class="workspace-footer"><span>토닥</span>가족의 일상을 잇는 따뜻한 공간</footer></div></div>`;
   window.scrollTo(0, 0);
 }
 function pageHeading(eyebrow, title, text, controls = '') {
   return `<header class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="muted">${text}</p></div>${controls}</header>`;
 }
-function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings'].includes(route) ? route : 'feed'; }
+function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings', 'rooms'].includes(route) ? route : 'feed'; }
 async function renderPage() {
   if (!state.room || !state.user) return;
   const route = currentRoute();
@@ -203,6 +259,13 @@ async function renderPage() {
       renderFamily();
     }
     if (route === 'settings') renderSettings();
+    if (route === 'rooms') {
+      page.innerHTML = loading('가족방을 불러오고 있어요');
+      const { rooms } = await api('families/');
+      if (version !== state.pageVersion) return;
+      state.rooms = rooms;
+      renderRooms();
+    }
   } catch (error) {
     if (version === state.pageVersion) page.innerHTML = `${errorBlock(error.message)}${button('refresh-page', '다시 불러오기', 'refresh')}`;
   }
@@ -425,7 +488,7 @@ const formHandlers = {
   },
   async 'create-room'(data) {
     const result = await api('families/create/', { method: 'POST', data });
-    state.room = result.room;
+    useRoom(result.room);
     location.hash = '#/feed';
     renderShell();
     await renderPage();
@@ -438,6 +501,7 @@ const formHandlers = {
     if (session !== state.session || !$('#join-panel')) return;
     const form = $('[data-form="lookup-room"]');
     if ($('[name="invite_code"]', form).value !== data.invite_code || $('[name="password"]', form).value !== data.password) return;
+    if (room.members.some(member => member.id === state.user.user_id)) throw new ApiError('이미 참여한 가족방이에요. 가족방 목록에서 골라 들어가 주세요.');
     state.lookup = { ...data, room, draft: new FamilyTreeDraft(room.tree) };
     renderJoinPreview();
   },
@@ -463,8 +527,7 @@ const formHandlers = {
       throw error;
     }
     if (session !== state.session) return;
-    state.lookup = null;
-    state.room = result.room;
+    useRoom(result.room);
     location.hash = '#/feed';
     renderShell();
     await renderPage();
@@ -571,6 +634,11 @@ document.addEventListener('click', async event => {
   if (action === 'select-photo') return showPhoto(Number(target.dataset.index));
   if (action === 'remove-photo') { state.files.splice(Number(target.dataset.index), 1); return renderPreviews(); }
   if (action === 'refresh-page' || action === 'refresh-feed') return renderPage();
+  if (action === 'open-room') {
+    const id = Number(target.dataset.id);
+    if (id === state.room?.id) { location.hash = '#/feed'; return; }
+    return busy(target, () => openRoom(id));
+  }
   if (action === 'stop-audio') return stopAudio();
   if (action === 'cancel-record') { stopRecording(true); $('#voice-panel').innerHTML = ''; return; }
   if (action === 'finish-record') { stopRecording(); return; }

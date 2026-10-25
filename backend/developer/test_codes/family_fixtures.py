@@ -1,6 +1,23 @@
 """Small tree fixtures shared by API tests."""
 
+from apps.accounts.models import AccessToken
 from apps.families.models import FamilyPerson, Membership, ParentChild
+
+
+def auth_headers(token, room=None):
+    """Bearer headers that also select a room, like the clients do.
+
+    Without ``room`` the account's first joined room is used; an account with no
+    room sends no X-Family-Room header.
+    """
+    headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+    if room is None:
+        access = AccessToken.from_raw(token)
+        membership = access and Membership.objects.filter(user=access.user).order_by("joined_at", "pk").first()
+        room = membership.room_id if membership else None
+    if room is not None:
+        headers["HTTP_X_FAMILY_ROOM"] = str(getattr(room, "pk", room))
+    return headers
 
 
 def add_member(room, user, generation=0):

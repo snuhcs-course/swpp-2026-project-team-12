@@ -5,11 +5,12 @@ from django.db.models import Count, Q
 from django.utils import timezone
 
 from apps.api import APIError, api, body, required
+from apps.families.services import room_for
 from apps.families.utils import relationship
 from integrations.ai import provider
 
 from .models import AdaptedMessage, Post
-from .services import current_room, post_for, prepare_uploads, save_post, serialize
+from .services import post_for, prepare_uploads, save_post, serialize
 
 
 @api("POST")
@@ -34,7 +35,7 @@ def question(request, pk):
 
 @api("GET", "POST")
 def feed(request):
-    room = current_room(request)
+    room = room_for(request)
     if request.method == "GET":
         posts = (room.posts.select_related("author")
                  .annotate(comment_count=Count("comments")).order_by("-created_at", "-id")[:100])

@@ -135,17 +135,20 @@ Family rooms use the accounts created through `/api/accounts/register/`. Creatin
 
 | Endpoint | Authentication | Request body | Result |
 | --- | --- | --- | --- |
+| `GET /api/families/` | Required | None | Lists the user's rooms as `rooms` (`id`, `name`, `is_owner`, `member_count`) in join order. |
 | `POST /api/families/create/` | Required | `room_name`, `password`, optional `digest_time` (`HH:MM`) | Creates a room and owner membership; returns `room`. |
 | `POST /api/families/lookup/` | Not required | `invite_code`, `password` | Returns room information when the invitation matches. |
-| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. |
-| `GET /api/families/current/` | Required | None | Returns the current user's family room. |
-| `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
+| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. Joining a room twice returns 409. |
+| `GET /api/families/current/` | Required | None | Returns the selected family room. |
+| `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the selected room's digest time. |
 
 Room passwords are hashed in the database. Each tree person can be claimed by one account; multiple children of the same gender are supported.
 
+An account can create and join several rooms. Room-scoped endpoints (`families/current/`, `GET`/`POST /api/posts/`, `digests/`, `searching/`, `speech/`) use the room named by the `X-Family-Room: <room id>` header and return 403 when the header is missing or names a room the account does not belong to. Endpoints under `/api/posts/<id>/` and `/api/replies/` use the post's own room and need no header.
+
 ### Post APIs
 
-All post endpoints require a bearer token and a family membership. Upload with `multipart/form-data`: a non-blank `caption`, up to five repeated `images` files, or both. The legacy single-file `image` input remains accepted; do not mix it with `images`.
+All post endpoints require a bearer token and membership in the post's room. Upload with `multipart/form-data`: a non-blank `caption`, up to five repeated `images` files, or both. The legacy single-file `image` input remains accepted; do not mix it with `images`.
 
 | Endpoint | Result |
 | --- | --- |

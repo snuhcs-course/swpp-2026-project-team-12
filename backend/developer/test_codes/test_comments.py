@@ -12,7 +12,7 @@ from apps.replies.models import Comment
 
 from .test_posts import sample_image
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 class CommentAPITests(TestCase):
@@ -59,7 +59,7 @@ class CommentAPITests(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def comment(self, text, token=None):
         return self.client.post(

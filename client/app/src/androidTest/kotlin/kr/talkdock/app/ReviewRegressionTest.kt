@@ -23,11 +23,16 @@ import java.net.ServerSocket
 import java.net.SocketException
 import java.util.Collections
 
-private data class Request(val method: String, val path: String, val body: String)
+/** [room] is the request's X-Family-Room header. */
+private data class Request(val method: String, val path: String, val body: String, val room: String? = null)
 private data class Reply(val body: ByteArray, val status: Int = 200, val type: String = "application/json")
 private fun jsonReply(value: JSONObject, status: Int = 200) = Reply(value.toString().toByteArray(), status)
 
-private class MockApi(private val respond: (Request) -> Reply) : AutoCloseable {
+/**
+ * Unless [rooms] answers `/api/families/`, the room list is derived from the test's
+ * `/api/families/current/` reply: that room on 200, no rooms on 403, the same error otherwise.
+ */
+private class MockApi(private val rooms: ((Request) -> Reply)? = null, private val respond: (Request) -> Reply) : AutoCloseable {
     private val socket = ServerSocket(0)
     val base = "http://127.0.0.1:${socket.localPort}/api/"
     val requests = Collections.synchronizedList(mutableListOf<Request>())
@@ -55,9 +60,10 @@ private class MockApi(private val respond: (Request) -> Reply) : AutoCloseable {
                         if (count < 0) break
                         offset += count
                     }
-                    val request = Request(first[0], first[1], String(bytes, Charsets.UTF_8))
+                    val room = lines.firstOrNull { it.startsWith("X-Family-Room:", true) }?.substringAfter(":")?.trim()
+                    val request = Request(first[0], first[1], String(bytes, Charsets.UTF_8), room)
                     requests.add(request)
-                    val reply = respond(request)
+                    val reply = if (request.path == "/api/families/") rooms?.invoke(request) ?: roomsFromCurrent(request) else respond(request)
                     client.getOutputStream().apply {
                         write("HTTP/1.1 ${reply.status} Test\r\nContent-Type: ${reply.type}\r\nContent-Length: ${reply.body.size}\r\nConnection: close\r\n\r\n".toByteArray())
                         write(reply.body); flush()
@@ -66,9 +72,19 @@ private class MockApi(private val respond: (Request) -> Reply) : AutoCloseable {
             } catch (_: SocketException) { if (socket.isClosed) break }
         }
     }.apply { isDaemon = true; start() }
+    private fun roomsFromCurrent(request: Request): Reply {
+        val current = respond(request.copy(path = "/api/families/current/"))
+        if (current.status == 403) return jsonReply(JSONObject().put("rooms", JSONArray()))
+        if (current.status != 200) return current
+        val room = JSONObject(String(current.body, Charsets.UTF_8))
+        return jsonReply(JSONObject().put("rooms", JSONArray().put(roomSummary(room.getInt("id"), room.getString("name")))))
+    }
     fun paths(): List<String> = synchronized(requests) { requests.map { it.path } }
     override fun close() { socket.close(); worker.join(1000) }
 }
+
+private fun roomSummary(id: Int, name: String) =
+    JSONObject().put("id", id).put("name", name).put("is_owner", true).put("member_count", 1)
 
 private class UiHarness(private val api: MockApi, room: JSONObject?, large: Boolean = false) : AutoCloseable {
     val test = InstrumentationRegistry.getInstrumentation()
@@ -132,15 +148,27 @@ private fun emptyFeed() = jsonReply(JSONObject().put("posts",JSONArray()))
 
 @RunWith(AndroidJUnit4::class)
 class ReviewRoomUiTest {
-    @Test fun existingMemberCannotSeeAdditionalRoomActions() {
+    @Test fun existingMemberCanStillCreateOrJoinAnotherRoom() {
         MockApi { request -> if(request.path=="/api/families/current/") jsonReply(room(1,"검증 가족 A")) else emptyFeed() }.use { api -> UiHarness(api,room(1,"검증 가족 A")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
             ui.click("가족방")
-            ui.await { ui.has("가족 소식 보기") }
+            ui.await { ui.has("지금 보는 가족방") && ui.has("검증 가족 A") }
             ui.test.runOnMainSync {
-                assertFalse(ui.has("새 가족방 만들기")); assertFalse(ui.has("초대 코드로 참여하기"))
+                assertTrue(ui.has("새 가족방 만들기")); assertTrue(ui.has("초대 코드로 참여하기"))
             }
             ui.screenshot("review-existing-room.png")
+        } }
+    }
+    @Test fun severalRoomsWithoutSavedChoiceOpenThePicker() {
+        MockApi(rooms = { jsonReply(JSONObject().put("rooms", JSONArray().put(roomSummary(1,"가족 A")).put(roomSummary(2,"가족 B")))) }) { request -> when(request.path) {
+            "/api/families/current/" -> jsonReply(if(request.room=="2") room(2,"가족 B") else room(1,"가족 A"))
+            else -> emptyFeed()
+        } }.use { api -> UiHarness(api,null).use { ui ->
+            ui.await { ui.has("들어갈 가족방을 골라 주세요.") && ui.has("가족 A") && ui.has("가족 B") }
+            ui.screenshot("review-room-picker.png")
+            ui.click("가족 B"); ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            val feeds = synchronized(api.requests) { api.requests.filter { it.path == "/api/posts/" }.map { it.room } }
+            assertEquals("The feed must be requested for the chosen room", "2", feeds.last())
         } }
     }
     @Test fun accountWithoutRoomCanStillCreateOrJoin() {
@@ -216,26 +244,30 @@ class ReviewRoomUiTest {
             assertTrue(paths.drop(createdIndex+1).contains("/api/families/current/"))
         } }
     }
-    @Test fun membershipAddedElsewherePreventsCreateRequest() {
-        var joinedElsewhere = false
-        MockApi { request -> when(request.path) {
-            "/api/families/current/" -> if(joinedElsewhere) jsonReply(room(1,"이미 가입한 가족 A")) else jsonReply(JSONObject().put("error","가족방 없음"),403)
+    @Test fun memberCanCreateAnotherRoomAndSwitchesToIt() {
+        var created = false
+        MockApi(rooms = { jsonReply(JSONObject().put("rooms", JSONArray().put(roomSummary(1,"가족 A"))
+                .apply { if(created) put(roomSummary(2,"새 가족 B")) })) }) { request -> when(request.path) {
+            "/api/families/create/" -> { created = true; jsonReply(JSONObject().put("room",room(2,"새 가족 B")),201) }
+            "/api/families/current/" -> jsonReply(if(request.room=="2") room(2,"새 가족 B") else room(1,"가족 A"))
             else -> emptyFeed()
-        } }.use { api -> UiHarness(api,null).use { ui ->
-            ui.await { ui.has("새 가족방 만들기") }; ui.click("새 가족방 만들기")
-            joinedElsewhere = true
+        } }.use { api -> UiHarness(api,room(1,"가족 A")).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("가족방"); ui.await { ui.has("새 가족방 만들기") }; ui.click("새 가족방 만들기")
             ui.test.runOnMainSync {
                 val fields=ui.all().filterIsInstance<EditText>()
                 fields[0].setText("새 가족 B"); fields[1].setText("Review-Room-12345")
             }
-            ui.click("가족 방 만들기"); ui.await { ui.has("이미 가입한 가족 A") && ui.has("가족 소식 보기") }
-            assertFalse(api.paths().contains("/api/families/create/"))
+            ui.click("가족 방 만들기"); ui.await { ui.has("가족 방이 준비됐어요.") && ui.has("새 가족 B") }
+            ui.click("가족 소식으로 가기"); ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            val feeds = synchronized(api.requests) { api.requests.filter { it.path == "/api/posts/" }.map { it.room } }
+            assertEquals("The feed after creation must be requested for the new room", "2", feeds.last())
         } }
     }
     @Test fun failedStartupCheckDoesNotOpenCachedRoomOrFetchPosts() {
         MockApi { request -> if(request.path=="/api/families/current/") jsonReply(JSONObject().put("error","테스트 서버 확인 실패"),503) else emptyFeed() }
             .use { api -> UiHarness(api,room(2,"확인되지 않은 가족 B")).use { ui ->
-                ui.await { api.paths().contains("/api/families/current/") }
+                ui.await { api.paths().contains("/api/families/") }
                 Thread.sleep(300)
                 ui.test.runOnMainSync { assertFalse(ui.has("확인되지 않은 가족 B")); assertFalse(ui.has("첫 소식 쓰기")) }
                 assertFalse(api.paths().contains("/api/posts/"))

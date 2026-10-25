@@ -19,7 +19,7 @@ from integrations.ai import provider
 
 from .test_posts import sample_image
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 DAY = date(2026, 10, 1)
@@ -72,7 +72,7 @@ class DigestAPITests(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def upload(self, caption, image_name):
         response = self.client.post(

@@ -80,9 +80,11 @@ class FeedRefreshTest {
                         val requestLine = input.readLine().orEmpty()
                         var line = input.readLine()
                         while (!line.isNullOrEmpty()) line = input.readLine()
-                        if (requestLine.contains("/api/families/current/")) {
+                        val path = requestLine.split(" ").getOrNull(1)
+                        if (path == "/api/families/" || path == "/api/families/current/") {
                             val room = JSONObject().put("id",1).put("name","테스트 가족방").put("members",JSONArray())
-                            val bytes = room.toString().toByteArray(Charsets.UTF_8)
+                            val reply = if (path == "/api/families/") JSONObject().put("rooms", JSONArray().put(room)) else room
+                            val bytes = reply.toString().toByteArray(Charsets.UTF_8)
                             socket.getOutputStream().apply {
                                 write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray())
                                 write(bytes); flush()

@@ -20,7 +20,7 @@ from apps.posts.models import AdaptedMessage, Post
 from integrations.ai import flow, provider, post_flow
 from integrations.ai_workers import graphiti_client, searching_workers
 
-from .family_fixtures import add_member, link_parent, sample_family
+from .family_fixtures import auth_headers, add_member, link_parent, sample_family
 
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
@@ -68,7 +68,7 @@ class PostAPITests(TestCase):
         self.outsider_token = AccessToken.issue(self.outsider)
 
     def auth(self, token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def upload(self, caption="", image=None):
         return self.client.post(

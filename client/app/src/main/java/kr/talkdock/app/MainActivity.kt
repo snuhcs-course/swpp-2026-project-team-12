@@ -94,7 +94,8 @@ class MainActivity : ComponentActivity() {
     private var digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     private var currentBack: (() -> Unit)? = null
     private val large get() = session?.optBoolean("large", false) ?: false
-    private val api get() = ApiClient(session?.optString("token", "") ?: "", sessions.serverUrl())
+    private val api get() = ApiClient(session?.optString("token", "") ?: "", sessions.serverUrl(),
+        room.optInt("id").takeIf { room.has("id") })
     private val cameraCode = 10
     private val microphoneCode = 12
     private val photoPicker = registerForActivityResult(
@@ -154,7 +155,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         fun restoreScreen() {
-            if (!room.has("id") && treeDraft != null) {
+            if (treeDraft != null) {
                 if (restoredScreen == "tree") { tree(); return }
                 if (restoredScreen == "profile" && treeDraft?.selectedId != null) { profile(); return }
             }
@@ -371,13 +372,15 @@ class MainActivity : ComponentActivity() {
         imageLoader.clear()
     }
     private fun saveRoom(value: JSONObject, big: Boolean = large, complete: () -> Unit) {
-        val account = session ?: return
+        // Switch to the room just created or joined.
+        val account = JSONObject((session ?: return).toString()).put("room", value.getJSONObject("room"))
         val expected = value.getJSONObject("room").getInt("id")
-        async({ loadRoom(JSONObject(account.toString())) }, "가족방을 확인하고 있어요.") { current ->
+        val previous = room.optInt("id", -1)
+        async({ loadRoom(account) }, "가족방을 확인하고 있어요.") { current ->
             saveSession(current, big)
+            if (previous != room.optInt("id", -1)) resetRoomState()
             if (room.optInt("id", -1) == expected) complete()
             else {
-                clearPhotoDraft(); selectedPost = null
                 if (room.has("id")) home() else roomChoice()
                 AlertDialog.Builder(this).setTitle("가족방을 다시 확인했어요")
                     .setMessage("서버에서 확인한 현재 가족방을 사용해요. 다른 가족방으로 소식을 보내지 않았어요.")
@@ -385,24 +388,24 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private fun withoutRoom(complete: () -> Unit) {
-        val account = session ?: return login()
-        val big = large
-        async({ loadRoom(JSONObject(account.toString())) }, "가족방을 확인하고 있어요.") { current ->
-            saveSession(current, big)
-            if (room.has("id")) { roomChoice(); toast("이미 참여한 가족방이 있어요. 현재 가족방을 이용해 주세요.") }
-            else complete()
-        }
+    /** Drafts, the open post and the digest date belong to one room, so drop them when switching. */
+    private fun resetRoomState() {
+        clearPhotoDraft(); selectedPost = null
+        digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     }
-    private fun blockAdditionalRoom(): Boolean {
-        if (!room.has("id")) return false
-        roomChoice(); toast("이미 참여한 가족방이 있어요. 현재 가족방을 이용해 주세요.")
-        return true
-    }
+    /**
+     * Keeps the account's saved room while it is still joined, or opens the only joined room.
+     * With several rooms and no saved choice the account is left without a room for [roomChoice].
+     */
     private fun loadRoom(account: JSONObject): JSONObject {
-        val client = ApiClient(account.getString("token"), sessions.serverUrl())
-        val currentRoom = try { client.request("families/current/") }
+        val token = account.getString("token")
+        val rooms = objects(ApiClient(token, sessions.serverUrl()).request("families/").getJSONArray("rooms"))
+        val saved = account.optJSONObject("room")?.optInt("id", -1)
+        val chosen = rooms.firstOrNull { it.getInt("id") == saved } ?: rooms.singleOrNull()
+        val currentRoom = chosen?.let {
+            try { ApiClient(token, sessions.serverUrl(), it.getInt("id")).request("families/current/") }
             catch (error: ApiException) { if (error.status == 403) null else throw error }
+        }
         account.remove("room")
         if (currentRoom != null) account.put("room", currentRoom)
         return account
@@ -410,31 +413,58 @@ class MainActivity : ComponentActivity() {
     private fun roomChoice() {
         val inRoom = room.has("id")
         navigation("우리 가족방", if (inRoom) null else ({ welcome() }), tab = if (inRoom) 1 else null, name = "roomChoice")
-        ui.label(content, "나를 반기는 작은 공간", 14f, color = ui.muted); ui.gap(content, 16)
-        heading("오늘은 누구의 하루가\n궁금한가요?", if (inRoom) null else "가족방을 만들거나 초대 코드로 참여해 주세요.")
-        if (inRoom) {
-            val card = ui.card(content)
-            val intro = ui.row()
-            intro.addView(TodakArtView(this, "grandmother", 72), LinearLayout.LayoutParams(ui.dp(72), ui.dp(86)))
-            val labels = ui.column().apply { setPadding(ui.dp(12), 0, 0, 0) }
-            ui.label(labels, room.optString("name", "우리 가족"), 22f, true)
-            val names = room.optJSONArray("members")?.let { objects(it).joinToString(" · ") { m -> m.optString("name") } }.orEmpty()
-            if (names.isNotBlank()) ui.label(labels, names, 14f, color = ui.muted)
-            intro.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); card.addView(intro)
-            ui.button(card, "가족 소식 보기", false) { home() }
-            ui.button(card, "가족 추억 찾기", false) { familyMemories() }
-            ui.gap(content, 20)
+        val client = api
+        async({ objects(client.request("families/").getJSONArray("rooms")) }, "가족방을 불러오고 있어요.", failure = {
+            ui.ghost(content, "가족방 다시 불러오기") { roomChoice() }; false
+        }) { rooms ->
+            ui.label(content, "나를 반기는 작은 공간", 14f, color = ui.muted); ui.gap(content, 16)
+            heading("오늘은 누구의 하루가\n궁금한가요?", when {
+                rooms.isEmpty() -> "가족방을 만들거나 초대 코드로 참여해 주세요."
+                inRoom -> "다른 가족방을 누르면 그 가족의 소식으로 바뀌어요."
+                else -> "들어갈 가족방을 골라 주세요."
+            })
+            rooms.forEach { roomCard(it); ui.gap(content, 12) }
+            if (room.has("id")) { ui.button(content, "가족 추억 찾기", false, if (large) 76 else 56) { familyMemories() }; ui.gap(content, 12) }
+            if (rooms.isNotEmpty()) ui.gap(content, 8)
+            ui.button(content, "새 가족방 만들기", height = if (large) 76 else 56) { create() }
+            ui.button(content, "초대 코드로 참여하기", false, if (large) 76 else 56) { join() }
+            ui.gap(content)
+            if (!inRoom) {
+                ui.ghost(content, "내 계정 수정") { editAccount() }
+                ui.ghost(content, "다른 계정으로 로그인") { login() }
+            }
+            if (BuildConfig.DEBUG) ui.ghost(content, "테스트 연결 설정") { connectionSettings() }
         }
-        if (!inRoom) {
-            ui.button(content, "새 가족방 만들기") { create() }
-            ui.button(content, "초대 코드로 참여하기", false) { join() }
+    }
+    private fun roomCard(item: JSONObject) {
+        val current = item.getInt("id") == room.optInt("id", -1)
+        val name = item.getString("name")
+        val card = ui.card(content).apply {
+            // A white card keeps the illustration's white background seamless; the current room gets a coral outline.
+            if (current) background = ui.shape(ui.paper, 20).apply { setStroke(ui.dp(2), ui.coralDeep) }
+            isClickable = true; isFocusable = true
+            contentDescription = if (current) "$name, 지금 보고 있는 가족방" else "$name 가족방으로 이동"
+            setOnClickListener { enterRoom(item.getInt("id")) }
         }
-        ui.gap(content)
-        if (!inRoom) {
-            ui.ghost(content, "내 계정 수정") { editAccount() }
-            ui.ghost(content, "다른 계정으로 로그인") { login() }
+        val intro = ui.row().apply { minimumHeight = ui.dp(if (large) 96 else 80) }
+        intro.addView(TodakArtView(this, "grandmother", 56), LinearLayout.LayoutParams(ui.dp(56), ui.dp(67)))
+        val labels = ui.column().apply { setPadding(ui.dp(12), 0, ui.dp(8), 0) }
+        if (current) { ui.label(labels, "지금 보는 가족방", if (large) 17f else 14f, true, ui.coralDeep); ui.gap(labels, 4) }
+        ui.label(labels, name, if (large) 26f else 22f, true)
+        val details = listOfNotNull("내가 만든 방".takeIf { item.optBoolean("is_owner") }, "${item.optInt("member_count")}명")
+        ui.label(labels, details.joinToString(" · "), if (large) 19f else 15f, color = ui.muted)
+        intro.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+        intro.addView(IconView(this, "next", if (current) ui.coralDeep else ui.ink), LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)))
+        card.addView(intro)
+    }
+    private fun enterRoom(id: Int) {
+        if (room.optInt("id", -1) == id) return home()
+        val account = JSONObject((session ?: return login()).toString()).put("room", JSONObject().put("id", id))
+        val big = large
+        async({ loadRoom(account) }, "가족방을 열고 있어요.") { current ->
+            saveSession(current, big); resetRoomState()
+            if (room.has("id")) home() else roomChoice()
         }
-        if (BuildConfig.DEBUG) ui.ghost(content, "테스트 연결 설정") { connectionSettings() }
     }
     private fun welcome() {
         navigation("토닥", name = "welcome")
@@ -507,7 +537,6 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "새 계정 만들기", false) { register() }
     }
     private fun create() {
-        if (blockAdditionalRoom()) return
         navigation("우리 가족 방", { roomChoice() }, name = "create")
         ui.art(content, width = 200); ui.gap(content, 20)
         heading("우리 가족만의\n공간을 만들어요", "초대 코드와 가족방 비밀번호로 함께할 수 있어요.")
@@ -528,10 +557,8 @@ class MainActivity : ComponentActivity() {
             if (roomName.text.isBlank() || password.text.isBlank()) { toast("가족 방 이름과 비밀번호를 입력해 주세요."); return@button }
             val data = json("room_name" to roomName.text.toString(), "password" to password.text.toString(), "digest_time" to at)
             val client = api
-            withoutRoom {
-                async({ client.request("families/create/", "POST", data) }) {
-                    saveRoom(it) { invite(password.text.toString()) }
-                }
+            async({ client.request("families/create/", "POST", data) }) {
+                saveRoom(it) { invite(password.text.toString()) }
             }
         }
     }
@@ -553,7 +580,6 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "가족 소식으로 가기") { home() }
     }
     private fun join() {
-        if (blockAdditionalRoom()) return
         navigation("가족 방에 들어가기", { roomChoice() }, name = "join")
         ui.label(content, "초대받으셨나요?", 14f, color = ui.muted); ui.gap(content, 16)
         heading("가족이 보낸 코드를\n입력해 주세요.", "초대 코드와 가족방 비밀번호를 입력해 주세요.")
@@ -563,6 +589,10 @@ class MainActivity : ComponentActivity() {
             if (code.text.isBlank() || password.text.isBlank()) { toast("초대코드와 비밀번호를 입력해 주세요."); return@button }
             invitation = json("invite_code" to code.text.toString().trim().uppercase(), "password" to password.text.toString())
             async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
+                val userId = session?.optInt("user_id")
+                if (objects(it.getJSONArray("members")).any { member -> member.optInt("id") == userId }) {
+                    toast("이미 참여한 가족방이에요."); return@async
+                }
                 joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
             }
         }
@@ -618,7 +648,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun profile() {
-        if (blockAdditionalRoom()) return
         val draft = treeDraft ?: return
         if (draft.selectedId == null) return
         navigation("가족 방 참여", { tree() }, name = "profile")
@@ -628,24 +657,22 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "가족 방에 들어가기") {
             val data = draft.payload().put("invite_code", invitation.getString("invite_code")).put("password", invitation.getString("password"))
             val client = api
-            withoutRoom {
-                async({ client.request("families/join/", "POST", data) }, failure = { error ->
-                    if (error is ApiException && error.status == 409) {
-                        AlertDialog.Builder(this).setTitle("가계도가 변경되었어요")
-                            .setMessage("변경 사항은 저장되지 않았어요. 최신 가계도에서 내 자리를 다시 선택해 주세요.")
-                            .setCancelable(false).setPositiveButton("다시 시작") { _, _ ->
-                                treeDraft = null
-                                join()
-                                async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
-                                    joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
-                                }
-                            }.show()
-                        true
-                    } else false
-                }) {
-                    treeDraft = null; invitation = JSONObject()
-                    saveRoom(it, big.isChecked) { home() }
-                }
+            async({ client.request("families/join/", "POST", data) }, failure = { error ->
+                if (error is ApiException && error.status == 409) {
+                    AlertDialog.Builder(this).setTitle("가계도가 변경되었어요")
+                        .setMessage("변경 사항은 저장되지 않았어요. 최신 가계도에서 내 자리를 다시 선택해 주세요.")
+                        .setCancelable(false).setPositiveButton("다시 시작") { _, _ ->
+                            treeDraft = null
+                            join()
+                            async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
+                                joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
+                            }
+                        }.show()
+                    true
+                } else false
+            }) {
+                treeDraft = null; invitation = JSONObject()
+                saveRoom(it, big.isChecked) { home() }
             }
         }
     }

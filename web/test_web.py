@@ -51,9 +51,14 @@ class WebJourneyTests(TestCase):
         configured.enable()
         self.addCleanup(configured.disable)
 
-    def request(self, path, data, token=None, method="post"):
+    @staticmethod
+    def auth(token, room=None):
+        # Like the browser, name the room on screen for room-scoped endpoints.
+        return {"HTTP_AUTHORIZATION": "Bearer " + token, **({"HTTP_X_FAMILY_ROOM": str(room)} if room else {})}
+
+    def request(self, path, data, token=None, method="post", room=None):
         return getattr(self.client, method)(path, json.dumps(data), content_type="application/json",
-                                          **({"HTTP_AUTHORIZATION": "Bearer " + token} if token else {}))
+                                          **(self.auth(token, room) if token else {}))
 
     def register(self, username, gender="female"):
         response = self.request("/api/accounts/register/", {
@@ -64,10 +69,10 @@ class WebJourneyTests(TestCase):
 
     def test_shared_account_room_multiphoto_comment_and_private_images(self):
         token = self.register("web-owner")
-        auth = {"HTTP_AUTHORIZATION": "Bearer " + token}
         room = self.request("/api/families/create/", {"room_name": "웹 테스트 가족", "password": "room-password"}, token)
         self.assertEqual(room.status_code, 201)
         room = room.json()["room"]
+        auth = self.auth(token, room["id"])
         output = io.BytesIO()
         Image.new("RGB", (20, 30), "#c8aa80").save(output, "PNG")
         files = [SimpleUploadedFile(f"photo-{index}.png", output.getvalue(), "image/png") for index in range(2)]
@@ -105,8 +110,8 @@ class WebJourneyTests(TestCase):
 
     def test_summary_question_search_and_profile_contract_without_external_calls(self):
         token = self.register("web-ai")
-        auth = {"HTTP_AUTHORIZATION": "Bearer " + token}
-        self.request("/api/families/create/", {"room_name": "오프라인 테스트", "password": "room-password"}, token)
+        room = self.request("/api/families/create/", {"room_name": "오프라인 테스트", "password": "room-password"}, token).json()["room"]
+        auth = self.auth(token, room["id"])
         post = self.client.post("/api/posts/", {"caption": "가족이 함께 산책했어요."}, **auth).json()
         with patch("apps.posts.views.provider.adapt", return_value="함께 산책한 하루예요."):
             summary = self.client.post(f'/api/posts/{post["id"]}/message/', **auth).json()
@@ -115,7 +120,7 @@ class WebJourneyTests(TestCase):
             answer = self.request(f'/api/posts/{post["id"]}/questions/', {"question": "어떤 하루였어?", "prior_dialogue": []}, token)
             self.assertEqual(answer.json()["text"], "산책 이야기예요.")
         with patch("apps.searching.services.search_history", return_value={"text": "산책한 기억", "memories": []}):
-            self.assertEqual(self.request("/api/searching/history/", {"question": "산책 이야기"}, token).json()["text"], "산책한 기억")
+            self.assertEqual(self.request("/api/searching/history/", {"question": "산책 이야기"}, token, room=room["id"]).json()["text"], "산책한 기억")
         changed = self.request("/api/accounts/me/", {"name": "새 이름"}, token, method="patch")
         self.assertEqual(changed.json()["name"], "새 이름")
         self.assertEqual(self.client.get("/api/digests/history/", **auth).status_code, 200)
