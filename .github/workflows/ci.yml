@@ -140,7 +140,22 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           working-directory: client
-          script: ./gradlew :app:connectedDebugAndroidTest --console=plain
+          # "System UI isn't responding" dialogs on the software-rendered emulator cover the app under test.
+          script: |
+            adb shell settings put global hide_error_dialogs 1
+            ./gradlew :app:connectedDebugAndroidTest --console=plain
+      - name: List failed instrumented tests
+        if: failure()
+        run: |
+          python - <<'EOF'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob("client/app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+              for case in ET.parse(path).getroot().iter("testcase"):
+                  for problem in case.findall("failure") + case.findall("error"):
+                      lines = (problem.text or problem.get("message") or "").strip().splitlines()
+                      where = next((line.strip() for line in lines if "kr.talkdock" in line), "")
+                      print(f"::error title={case.get('classname')}.{case.get('name')}::{lines[0] if lines else ''} {where}")
+          EOF
       - uses: actions/upload-artifact@v4
         if: always()
         with:
