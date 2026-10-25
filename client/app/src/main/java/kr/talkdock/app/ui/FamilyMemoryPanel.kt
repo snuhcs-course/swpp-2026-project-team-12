@@ -59,7 +59,6 @@ class FamilyMemoryPanel(
     }
     private val login = ui.button(this, "다시 로그인하기", false, if (large) 76 else 56, onLogin).apply { visibility = GONE }
     private val result = ui.column()
-    private val suggestions = ui.column()
 
     init {
         orientation = VERTICAL
@@ -67,14 +66,6 @@ class FamilyMemoryPanel(
         addView(loading, LayoutParams(-1, -2))
         addView(error, LayoutParams(-1, -2))
         addView(result, LayoutParams(-1, -2))
-        ui.gap(this, 16)
-        ui.label(suggestions, "이렇게 물어보세요", if (large) 21f else 17f, true)
-        listOf("최근 가족 여행 이야기 찾아줘", "가족이 함께 먹은 음식이 궁금해", "생일에 있었던 일 알려줘").forEach { question ->
-            ui.button(suggestions, question, false, if (large) 76 else 56) {
-                if (!pending) { input.setText(question); input.setSelection(input.length()) }
-            }
-        }
-        addView(suggestions, LayoutParams(-1, -2))
         ui.gap(this, 20)
         ui.label(this, "AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.",
             if (large) 20f else 15f, color = ui.muted)
@@ -99,7 +90,6 @@ class FamilyMemoryPanel(
         searchButton.alpha = if (searchButton.isEnabled) 1f else .45f
         searchButton.text = if (pending) "추억을 찾는 중이에요" else "추억 찾기"
         loading.visibility = if (pending) VISIBLE else GONE
-        suggestions.visibility = if (pending || answer.isNotBlank()) GONE else VISIBLE
     }
 
     private fun search() {
