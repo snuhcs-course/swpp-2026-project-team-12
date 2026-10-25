@@ -15,7 +15,12 @@ android {
         manifestPlaceholders["cleartextAllowed"] = "false"
     }
     buildTypes {
-        debug { manifestPlaceholders["cleartextAllowed"] = "true" }
+        debug {
+            manifestPlaceholders["cleartextAllowed"] = "true"
+            // JaCoCo reports: createDebugUnitTestCoverageReport and createDebugAndroidTestCoverageReport.
+            enableUnitTestCoverage = true
+            enableAndroidTestCoverage = true
+        }
         release { isMinifyEnabled = false }
     }
     buildFeatures { buildConfig = true }
@@ -30,6 +35,8 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     testImplementation("junit:junit:4.13.2")
+    // android.jar's org.json is a stub on the JVM; unit tests need the real implementation.
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

@@ -23,16 +23,16 @@ import java.net.ServerSocket
 import java.net.SocketException
 import java.util.Collections
 
-/** [room] is the request's X-Family-Room header. */
-private data class Request(val method: String, val path: String, val body: String, val room: String? = null)
-private data class Reply(val body: ByteArray, val status: Int = 200, val type: String = "application/json")
-private fun jsonReply(value: JSONObject, status: Int = 200) = Reply(value.toString().toByteArray(), status)
+/** [room] is the request's X-Family-Room header and [token] its bearer token. */
+internal data class Request(val method: String, val path: String, val body: String, val room: String? = null, val token: String? = null)
+internal data class Reply(val body: ByteArray, val status: Int = 200, val type: String = "application/json")
+internal fun jsonReply(value: JSONObject, status: Int = 200) = Reply(value.toString().toByteArray(), status)
 
 /**
  * Unless [rooms] answers `/api/families/`, the room list is derived from the test's
  * `/api/families/current/` reply: that room on 200, no rooms on 403, the same error otherwise.
  */
-private class MockApi(private val rooms: ((Request) -> Reply)? = null, private val respond: (Request) -> Reply) : AutoCloseable {
+internal class MockApi(private val rooms: ((Request) -> Reply)? = null, private val respond: (Request) -> Reply) : AutoCloseable {
     private val socket = ServerSocket(0)
     val base = "http://127.0.0.1:${socket.localPort}/api/"
     val requests = Collections.synchronizedList(mutableListOf<Request>())
@@ -61,7 +61,8 @@ private class MockApi(private val rooms: ((Request) -> Reply)? = null, private v
                         offset += count
                     }
                     val room = lines.firstOrNull { it.startsWith("X-Family-Room:", true) }?.substringAfter(":")?.trim()
-                    val request = Request(first[0], first[1], String(bytes, Charsets.UTF_8), room)
+                    val token = lines.firstOrNull { it.startsWith("Authorization:", true) }?.substringAfter("Bearer ", "")?.trim()
+                    val request = Request(first[0], first[1], String(bytes, Charsets.UTF_8), room, token)
                     requests.add(request)
                     val reply = if (request.path == "/api/families/") rooms?.invoke(request) ?: roomsFromCurrent(request) else respond(request)
                     client.getOutputStream().apply {
@@ -83,10 +84,12 @@ private class MockApi(private val rooms: ((Request) -> Reply)? = null, private v
     override fun close() { socket.close(); worker.join(1000) }
 }
 
-private fun roomSummary(id: Int, name: String) =
+internal fun roomSummary(id: Int, name: String) =
     JSONObject().put("id", id).put("name", name).put("is_owner", true).put("member_count", 1)
 
-private class UiHarness(private val api: MockApi, room: JSONObject?, large: Boolean = false) : AutoCloseable {
+/** Starts MainActivity signed in as user 999, or signed out; [others] are extra accounts saved on the phone. */
+internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boolean = false,
+                         signedIn: Boolean = true, others: List<JSONObject> = emptyList()) : AutoCloseable {
     val test = InstrumentationRegistry.getInstrumentation()
     private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
     private val savedPreferences = prefs.all.toMap()
@@ -95,7 +98,9 @@ private class UiHarness(private val api: MockApi, room: JSONObject?, large: Bool
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
-        prefs.edit().clear().putString("current",user.toString()).putString("server",api.base).commit()
+        val edit = prefs.edit().clear().putString("server",api.base)
+        if (signedIn) edit.putString("current",user.toString()).putString("accounts",JSONArray(listOf(user) + others).toString())
+        edit.commit()
         activity=test.startActivitySync(Intent(test.targetContext,MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
     }
@@ -140,11 +145,11 @@ private class UiHarness(private val api: MockApi, room: JSONObject?, large: Bool
     }
 }
 
-private fun room(id: Int, name: String) = JSONObject().put("id",id).put("name",name)
+internal fun room(id: Int, name: String) = JSONObject().put("id",id).put("name",name)
     .put("invite_code","REVIEW").put("owner_name","테스트 사용자").put("digest_time","21:00")
     .put("members",JSONArray().put(JSONObject().put("id",999).put("name","테스트 사용자")
         .put("is_owner",true).put("relationship","나")))
-private fun emptyFeed() = jsonReply(JSONObject().put("posts",JSONArray()))
+internal fun emptyFeed() = jsonReply(JSONObject().put("posts",JSONArray()))
 
 @RunWith(AndroidJUnit4::class)
 class ReviewRoomUiTest {
