@@ -347,12 +347,16 @@ class PhotoLoaderRegressionTest {
         } }
         api.use { server -> UiHarness(server, room(1, "사진 넘기기 검증")).use { ui ->
             ui.await { ui.has("사진 넘기기 검증") && ui.all().any { it is kr.talkdock.app.ui.PhotoCarousel } }
+            // The loader only fetches photos on screen; on small screens the post starts below the fold.
+            ui.test.runOnMainSync {
+                val carousel = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>().single()
+                carousel.requestRectangleOnScreen(android.graphics.Rect(0, 0, carousel.width, carousel.height), true)
+            }
             for (index in listOf(4, 2, 0)) {
                 ui.test.runOnMainSync {
                     ui.all().first { it.contentDescription == "${index + 1}번째 사진으로 이동" }.performClick()
                 }
-                // Each jump downloads and decodes a photo, which can exceed 6s on a software-rendered CI emulator.
-                ui.await(15000) {
+                ui.await {
                     val carousel = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>().single()
                     val image = ui.all(carousel).filterIsInstance<ImageView>()
                         .filter { it.scaleType == ImageView.ScaleType.FIT_CENTER }[index]
