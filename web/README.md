@@ -77,7 +77,7 @@ Accounts, family rooms, uploads, and text comments do not require AI credentials
 | Memory search and questions requiring historical context | OpenAI configuration, running Neo4j, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, and the family construction worker |
 | Automatically generating digests at the scheduled time | A separately running `run_digest_scheduler` process |
 
-Run family history construction and the digest scheduler in separate terminals with the same Python environment activated. To find the family room ID, sign in and inspect the `id` field in the `/api/families/current/` response in your browser's Network developer tools.
+Run family history construction and the digest scheduler in separate terminals with the same Python environment activated. To find a family room ID, sign in and inspect the `rooms` list in the `/api/families/` response in your browser's Network developer tools. The web app sends the room it shows as the `X-Family-Room` header and remembers the last opened room per account in `localStorage`.
 
 ```powershell
 # Replace 12 with the actual room ID. Run one worker per family room.

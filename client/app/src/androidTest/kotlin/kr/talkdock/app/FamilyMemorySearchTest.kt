@@ -66,6 +66,7 @@ class FamilyMemorySearchTest {
                         if (bytes.isEmpty()) JSONObject() else JSONObject(String(bytes, Charsets.UTF_8)))
                     requests.add(request)
                     val reply = when (request.path) {
+                        "/api/families/" -> Reply(JSONObject().put("rooms", JSONArray().put(family)).toString())
                         "/api/families/current/" -> Reply(family.toString())
                         "/api/posts/" -> Reply(JSONObject().put("posts", JSONArray()).toString())
                         else -> respond(request)
@@ -253,7 +254,7 @@ class FamilyMemorySearchTest {
 
     @Test fun familyRoomAlsoOpensSearch() {
         Server { answer("답변") }.use { server -> Screen(server).use { screen ->
-            screen.click("가족방"); screen.await { screen.has("가족 소식 보기") }
+            screen.click("가족방"); screen.await { screen.has("지금 보는 가족방") }
             screen.open()
             screen.test.runOnMainSync { assertTrue(screen.has("함께 쌓아온 추억 찾기")) }
         } }

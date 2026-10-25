@@ -1,7 +1,8 @@
 from django.http import HttpResponse
 
 from apps.api import APIError, api, body
-from apps.posts.services import current_room, post_for
+from apps.families.services import room_for
+from apps.posts.services import post_for
 
 from . import provider
 
@@ -26,7 +27,7 @@ def transcribe(request, pk):
 
 @api("POST")
 def speak(request):
-    room = current_room(request)
+    room = room_for(request)
     raw = body(request).get("text", "")
     if not isinstance(raw, str):
         raise APIError("입력한 내용을 다시 확인해 주세요.")

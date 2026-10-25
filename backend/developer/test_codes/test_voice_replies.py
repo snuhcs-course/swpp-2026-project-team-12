@@ -22,7 +22,7 @@ from integrations.speech import provider as speech_provider
 
 from .test_posts import SAMPLES_DIR, TEST_MEDIA_DIR, sample_image
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 GRANDMA_REPORT = TEST_MEDIA_DIR / "grandma_report.html"
@@ -87,7 +87,7 @@ class VoiceReplyAPITests(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def json_post(self, path, data, token=None):
         return self.client.post(

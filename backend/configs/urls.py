@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/accounts/login/", accounts.login, name="account-login"),
     path("api/accounts/logout/", accounts.logout, name="account-logout"),
     path("api/accounts/me/", accounts.me, name="account-me"),
+    path("api/families/", families.rooms, name="family-rooms"),
     path("api/families/create/", families.create, name="family-create"),
     path("api/families/lookup/", families.lookup, name="family-lookup"),
     path("api/families/join/", families.join, name="family-join"),

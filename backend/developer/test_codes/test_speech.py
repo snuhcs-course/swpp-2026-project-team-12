@@ -16,7 +16,7 @@ from integrations.speech import provider
 
 from .test_posts import sample_image
 
-from .family_fixtures import add_member, link_parent, sample_family
+from .family_fixtures import auth_headers, add_member, link_parent, sample_family
 
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[1] / "test_media"
@@ -64,7 +64,7 @@ class SpeechAPITests(TestCase):
             "/api/speech/",
             data=json.dumps({"text": text}),
             content_type="application/json",
-            HTTP_AUTHORIZATION=f"Bearer {token or self.token}",
+            **auth_headers(token or self.token),
         )
 
     @override_settings(ELEVENLABS_API_KEY="test-only", ELEVENLABS_VOICE_ID="test-voice",
@@ -123,7 +123,7 @@ class SpeechAPITests(TestCase):
                 uploaded = self.client.post(
                     "/api/posts/",
                     {"image": sample_image(image_name), "caption": caption},
-                    HTTP_AUTHORIZATION=f"Bearer {self.owner_token}",
+                    **auth_headers(self.owner_token),
                 )
                 self.assertEqual(uploaded.status_code, 200, uploaded.content)
                 post = Post.objects.get(pk=uploaded.json()["id"])
@@ -131,7 +131,7 @@ class SpeechAPITests(TestCase):
                 self.assertEqual(post.caption, caption)
                 message = self.client.get(
                     f"/api/posts/{post.pk}/message/",
-                    HTTP_AUTHORIZATION=f"Bearer {self.token}",
+                    **auth_headers(self.token),
                 )
                 self.assertEqual(message.status_code, 200)
                 self.assertEqual(message.json()["status"], "ready", message.json())
@@ -154,7 +154,7 @@ class SpeechAPITests(TestCase):
         self.assertEqual(self.speak(123).status_code, 400)
         self.assertEqual(self.client.post(
             "/api/speech/", data={"text": "안녕하세요"},
-            HTTP_AUTHORIZATION=f"Bearer {self.token}",
+            **auth_headers(self.token),
         ).status_code, 415)
         print("Speech authentication and validation test pass", flush=True)
 

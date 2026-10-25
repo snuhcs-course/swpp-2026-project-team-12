@@ -1,5 +1,7 @@
 const TOKEN_KEY = 'talkdock.web.token';
 let token = sessionStorage.getItem(TOKEN_KEY) || '';
+// The family room for room-scoped endpoints such as the feed and digests.
+let roomId = null;
 
 export class ApiError extends Error {
   constructor(message, status = 0) { super(message); this.status = status; }
@@ -12,10 +14,13 @@ export function setToken(value) {
   else sessionStorage.removeItem(TOKEN_KEY);
 }
 
-export async function api(path, { method = 'GET', data, binary = false } = {}) {
+export function setRoom(id) { roomId = id ?? null; }
+
+export async function api(path, { method = 'GET', data, binary = false, room = roomId } = {}) {
   const headers = {};
   const requestToken = token;
   if (requestToken) headers.Authorization = `Bearer ${requestToken}`;
+  if (room !== null) headers['X-Family-Room'] = String(room);
   let body;
   if (data instanceof FormData) body = data;
   else if (data !== undefined) {

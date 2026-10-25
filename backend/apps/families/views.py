@@ -1,10 +1,29 @@
+from django.db.models import Count
 from django.http import JsonResponse
 
 from apps.api import APIError, api, body
 
 from .models import Membership
-from .services import create_room, find_invitation, parse_time, required_string, room_data
+from .services import create_room, find_invitation, parse_time, required_string, room_data, room_for
 from .utils.tree import join_tree
+
+
+@api("GET")
+def rooms(request):
+    memberships = Membership.objects.select_related("room").filter(user=request.user).annotate(
+        member_count=Count("room__members")
+    ).order_by("joined_at", "pk")
+    return {
+        "rooms": [
+            {
+                "id": membership.room_id,
+                "name": membership.room.name,
+                "is_owner": membership.room.owner_id == request.user.pk,
+                "member_count": membership.member_count,
+            }
+            for membership in memberships
+        ]
+    }
 
 
 @api("POST")
@@ -42,12 +61,7 @@ def join(request):
 
 @api("GET", "PATCH")
 def current(request):
-    membership = Membership.objects.select_related("room", "room__owner").filter(
-        user=request.user
-    ).order_by("joined_at", "pk").first()
-    if membership is None:
-        raise APIError("가족 방에 먼저 들어가 주세요.", 403)
-    room = membership.room
+    room = room_for(request)
     if request.method == "PATCH":
         if room.owner_id != request.user.pk:
             raise APIError("가족 방을 만든 사람이 시간을 바꿀 수 있어요.", 403)

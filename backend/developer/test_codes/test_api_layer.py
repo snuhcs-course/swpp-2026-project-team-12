@@ -11,7 +11,7 @@ from django.test import TestCase, override_settings
 
 from apps.accounts.models import AccessToken
 from apps.families.models import FamilyRoom
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 from apps.posts.models import AdaptedMessage, Post
 from apps.replies.models import Comment, VoiceDraft
 from integrations.ai.provider import AIUnavailable
@@ -46,7 +46,7 @@ class ApiLayerFixture(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def post(self, caption="A family update", **payload):
         response = self.client.post("/api/posts/", {"caption": caption, **payload}, **self.owner_auth)

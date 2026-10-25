@@ -1,7 +1,6 @@
 import secrets
 from datetime import time
 
-from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
 
@@ -60,16 +59,20 @@ def invitation_code():
             return code
 
 
-def require_no_membership(user):
-    # Serialize room creation/joining for this account on databases with row locks.
-    get_user_model().objects.select_for_update().get(pk=user.pk)
-    if Membership.objects.filter(user=user).exists():
-        raise APIError("이미 가입한 가족 방이 있어요. 현재 가족 방을 이용해 주세요.", 409)
+def room_for(request):
+    """Return the room named by the X-Family-Room header if the user belongs to it."""
+    raw = request.headers.get("X-Family-Room", "")
+    room_id = int(raw) if raw.isascii() and raw.isdigit() and len(raw) <= 18 else None
+    membership = Membership.objects.select_related("room", "room__owner").filter(
+        user=request.user, room_id=room_id
+    ).first() if room_id else None
+    if membership is None:
+        raise APIError("가족 방을 다시 선택해 주세요.", 403)
+    return membership.room
 
 
 @transaction.atomic
 def create_room(owner, room_name, password, digest_time):
-    require_no_membership(owner)
     room = FamilyRoom.objects.create(
         name=room_name,
         invite_code=invitation_code(),

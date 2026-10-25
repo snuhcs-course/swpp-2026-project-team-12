@@ -38,8 +38,6 @@ def tree_data(room):
 
 
 def join_tree(room, user, data):
-    from ..services import require_no_membership
-
     version, additions, selected = data.get("tree_version"), data.get("additions", []), data.get("person_id")
     if type(version) is not int or version < 0:
         raise APIError("가계도를 다시 불러와 주세요.")
@@ -47,6 +45,8 @@ def join_tree(room, user, data):
         raise APIError("한 번에 추가할 수 있는 가족은 200명까지예요.")
     if not isinstance(selected, str) or not selected or len(selected) > 80:
         raise APIError("가계도에서 내 자리를 선택해 주세요.")
+    if Membership.objects.filter(room=room, user=user).exists():
+        raise APIError("이미 참여한 가족 방이에요.", 409)
     try:
         with transaction.atomic():
             # A conditional UPDATE is also a write lock on SQLite, where
@@ -54,7 +54,6 @@ def join_tree(room, user, data):
             changed = FamilyRoom.objects.filter(pk=room.pk, tree_version=version).update(tree_version=F("tree_version") + 1)
             if not changed:
                 raise APIError(CONFLICT, 409)
-            require_no_membership(user)
             people = {str(p.pk): p for p in room.people.all()}
             for addition in additions:
                 add_person(people, room, addition)

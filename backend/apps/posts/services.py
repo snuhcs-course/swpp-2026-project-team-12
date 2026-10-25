@@ -10,23 +10,15 @@ from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.api import APIError
-from apps.families.models import Membership
 from apps.families.utils import relationship
 
 from .models import Post
 
-def current_room(request):
-    membership = Membership.objects.select_related("room").filter(
-        user=request.user
-    ).order_by("joined_at", "pk").first()
-    if membership is None:
-        raise APIError("가족 방에 먼저 들어가 주세요.", 403)
-    return membership.room
-
 
 def post_for(request, pk):
+    # A post's own room decides access, so post URLs work without X-Family-Room.
     post = Post.objects.select_related("author", "room").filter(
-        pk=pk, room=current_room(request)
+        pk=pk, room__members__user=request.user
     ).first()
     if post is None:
         raise APIError("게시물을 찾을 수 없어요.", 404)

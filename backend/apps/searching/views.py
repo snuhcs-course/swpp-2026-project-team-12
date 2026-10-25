@@ -1,12 +1,12 @@
 from apps.api import APIError, api, body, required
-from apps.posts.services import current_room
+from apps.families.services import room_for
 
 from . import services
 
 
 @api("POST")
 def history(request):
-    room = current_room(request)
+    room = room_for(request)
     question = required(body(request), "question", 1000)
     try:
         return services.search_history(room.pk, question)
@@ -16,7 +16,7 @@ def history(request):
 
 @api("POST")
 def memories(request):
-    room = current_room(request)
+    room = room_for(request)
     queries = body(request).get("queries")
     if not isinstance(queries, list) or not 1 <= len(queries) <= 3:
         raise APIError("검색 질문을 1~3개 입력해 주세요.")

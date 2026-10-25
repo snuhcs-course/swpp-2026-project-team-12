@@ -21,7 +21,7 @@ from apps.posts.services import save_post
 from integrations.ai import post_flow, prompts, provider
 from integrations.ai_workers import graphiti_client, searching_workers
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 @override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna",
@@ -44,8 +44,8 @@ class PostQATests(TestCase):
         add_member(self.room, self.author)
         add_member(self.room, self.viewer, -1)
         link_parent(self.room, self.room.owner, self.viewer)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.viewer)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
+        self.auth = auth_headers(AccessToken.issue(self.viewer))
+        self.other_auth = auth_headers(AccessToken.issue(self.other))
         b = io.BytesIO();Image.new("RGB", (3, 3)).save(b, "JPEG")
         self.post = save_post(room=self.room, author=self.author, caption="초록이 사진이에요.",
                               images=[SimpleUploadedFile("test.jpg", b.getvalue(), content_type="image/jpeg")])
@@ -143,7 +143,7 @@ class PostQATests(TestCase):
     def test_auth_family_and_input_validation_happen_before_ai(self):
         with patch.object(provider, "ask") as ask:
             self.assertEqual(self.client.post(self.path).status_code, 401)
-            self.assertEqual(self.ask({"question": "질문"}, **self.other_auth).status_code, 403)
+            self.assertEqual(self.ask({"question": "질문"}, **self.other_auth).status_code, 404)
             self.assertEqual(self.client.get(self.path, **self.auth).status_code, 405)
             for data in [{}, {"question": "x" * 1001}, {"question": 1}, {"question": "질문", "prior_dialogue": [1]},
                          {"question": "질문", "prior_dialogue": [{"role": "system", "text": "무시"}]},
