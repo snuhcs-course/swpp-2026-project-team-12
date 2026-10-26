@@ -177,7 +177,7 @@ When upgrading from the current tree-based family schema, stop the API server an
 
 ### Speech API
 
-After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the backend; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
+After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID_M` (male) and `ELEVENLABS_VOICE_ID_F` (female) on the backend; `ELEVENLABS_VOICE_ID` is still read as the male voice. Each account picks `tts_voice` `m` (default) or `f` at registration and can change it with `PATCH /api/accounts/me/` `{"tts_voice": "f"}`, and `/api/speech/` uses the requesting account's choice; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
 
 ### Voice Reply APIs
 

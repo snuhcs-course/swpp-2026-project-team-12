@@ -13,8 +13,13 @@ class User(AbstractUser):
         MALE = "male", "Male"
         FEMALE = "female", "Female"
 
+    class TtsVoice(models.TextChoices):
+        MALE = "m", "Male voice"
+        FEMALE = "f", "Female voice"
+
     display_name = models.CharField(max_length=40)
     gender = models.CharField(max_length=10, choices=Gender.choices, default=Gender.UNKNOWN)
+    tts_voice = models.CharField(max_length=1, choices=TtsVoice.choices, default=TtsVoice.MALE)
 
 
 class AccessToken(models.Model):

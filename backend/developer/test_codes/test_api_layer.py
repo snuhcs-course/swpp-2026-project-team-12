@@ -201,7 +201,7 @@ class MockedProviderIntegrationTests(ApiLayerFixture):
             self.assertEqual(spoken.status_code, 200)
             self.assertEqual(spoken["Content-Type"], "audio/mpeg")
             self.assertEqual(spoken.content, b"mock-mp3")
-            synthesize.assert_called_once_with("Read this", self.room.pk)
+            synthesize.assert_called_once_with("Read this", self.room.pk, "m")
         with patch("integrations.speech.views.provider.synthesize", side_effect=SpeechUnavailable("unavailable")):
             failed_tts = self.client.post("/api/speech/", data=json.dumps({"text": "Read this"}), content_type="application/json", **self.member_auth)
         self.assertEqual(failed_tts.status_code, 503)

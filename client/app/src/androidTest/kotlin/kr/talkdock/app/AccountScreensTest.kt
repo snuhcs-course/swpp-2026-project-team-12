@@ -54,6 +54,9 @@ class AccountScreensTest {
                 val (name, current, replacement) = ui.fields()
                 assertEquals("테스트 사용자", name.text.toString())
                 name.setText("새 이름"); current.setText("Old-pass-123"); replacement.setText("short")
+                val voices = ui.all().filterIsInstance<Spinner>().single { it.contentDescription == "소식을 읽어 줄 목소리" }
+                assertEquals("Accounts without a stored voice start on the male voice", 0, voices.selectedItemPosition)
+                voices.setSelection(1)
             }
             ui.click("수정 내용 저장하기")
             ui.test.runOnMainSync { assertNotNull(ui.fields()[2].error) }
@@ -64,6 +67,7 @@ class AccountScreensTest {
             assertEquals("새 이름", sent.getString("name"))
             assertEquals("Old-pass-123", sent.getString("current_password"))
             assertEquals("Better-pass-456", sent.getString("new_password"))
+            assertEquals("f", sent.getString("tts_voice"))
             assertEquals("Later requests must use the rotated token", "rotated-token", api.requestsTo("/api/families/current/").last().token)
         } }
     }
@@ -83,7 +87,13 @@ class AccountScreensTest {
                 name.setText("새 가족"); username.setText("new-user"); password.setText("short")
             }
             ui.click("계정 만들기")  // rejected: no gender chosen yet
-            ui.test.runOnMainSync { ui.all().filterIsInstance<Spinner>().single().setSelection(2) }
+            fun spinner(label: String) = ui.all().filterIsInstance<Spinner>().single { it.contentDescription == label }
+            ui.test.runOnMainSync {
+                spinner("성별 (필수)").setSelection(2)
+                val voices = spinner("소식을 읽어 줄 목소리 (선택)")
+                assertEquals("The optional voice starts on the male voice", 0, voices.selectedItemPosition)
+                voices.setSelection(1)
+            }
             ui.click("계정 만들기")
             ui.test.runOnMainSync { assertNotNull(ui.fields()[2].error) }
             assertTrue("Blank, genderless, or short-password forms must not be sent", api.requestsTo("/api/accounts/register/").isEmpty())
@@ -110,9 +120,9 @@ class AccountScreensTest {
             ui.test.runOnMainSync { ui.fields()[2].setText("Family-pass-789") }
             ui.click("계정 만들기"); ui.await { ui.has("새 가족방 만들기") && ui.has("초대 코드로 참여하기") }
             val sent = JSONObject(api.requestsTo("/api/accounts/register/").single().body)
-            assertEquals(listOf("new-user", "Family-pass-789", "새 가족", "female"),
-                listOf(sent.getString("username"), sent.getString("password"), sent.getString("name"), sent.getString("gender")))
-            assertEquals("Only the existing registration fields are sent", setOf("username", "password", "name", "gender"),
+            assertEquals(listOf("new-user", "Family-pass-789", "새 가족", "female", "f"),
+                listOf(sent.getString("username"), sent.getString("password"), sent.getString("name"), sent.getString("gender"), sent.getString("tts_voice")))
+            assertEquals("Only the registration fields are sent", setOf("username", "password", "name", "gender", "tts_voice"),
                 sent.keys().asSequence().toSet())
             assertEquals(1, api.requestsTo("/api/accounts/register/").size)
             assertEquals("new-token", api.requestsTo("/api/families/").last().token)

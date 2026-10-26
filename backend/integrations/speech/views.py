@@ -35,7 +35,7 @@ def speak(request):
     if not text or len(text) > 4000:
         raise APIError("입력한 내용을 다시 확인해 주세요.")
     try:
-        audio = provider.synthesize(text, room.pk)
+        audio = provider.synthesize(text, room.pk, request.user.tts_voice)
     except provider.SpeechUnavailable as error:
         raise APIError("소리를 준비하지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
     return HttpResponse(audio, content_type="audio/mpeg")
