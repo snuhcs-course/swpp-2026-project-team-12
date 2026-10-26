@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.io.InterruptedIOException
 import java.io.IOException
@@ -111,6 +112,15 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray(StandardCharsets.UTF_8)) }
+            if (connection.responseCode !in 200..299) response(connection)
+            return connection.inputStream.use { it.readBytes() }
+        } catch (error: IOException) { throw networkFailure(error) }
+        finally { connection.disconnect() }
+    }
+
+    fun voiceSample(key: String): ByteArray {
+        val connection = open(baseUrl + "speech/voices/" + URLEncoder.encode(key, "UTF-8") + "/sample/", "GET")
+        try {
             if (connection.responseCode !in 200..299) response(connection)
             return connection.inputStream.use { it.readBytes() }
         } catch (error: IOException) { throw networkFailure(error) }
