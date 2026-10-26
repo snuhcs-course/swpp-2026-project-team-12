@@ -50,7 +50,7 @@ This branch uses the family tree schema from its initial migration. Before start
 
 The web interface remains in Korean. The instructions below explain the corresponding controls in English.
 
-1. **Sign in / register:** Use an existing Android account or create a new account. Choose a gender for family relationship labels. Passwords must contain a number and have at least 10 characters.
+1. **Sign in / register:** Use an existing Android account or create a new account. Choose a gender for family relationship labels. Passwords must contain a number and have at least 10 characters. Enter the same password again in the confirmation field; confirmation is checked locally and is never sent to the API.
 2. **Connect to a family room:** Create a room, or enter an invitation code and room password. When joining, select an unclaimed person directly on the family tree. The + nodes add parents, spouses, or children with the same generation layout as Android. Drag to move, use the zoom controls or arrow keys to navigate, and undo the last addition when needed. Only empty positions matching your account gender can be selected. One account can belong to one room; each person can be claimed once, and multiple children of the same gender are supported. If the tree changes during joining, reload it and select your position again.
 3. **Family feed:** Use the sidebar to view family posts. Click the new-post button to share text and photos. Drag photos into the upload area or select them through the file picker. Each post supports up to five photos, with limits of 10 MB per photo, 30 MB total, and 20 million source pixels per photo. Text-only posts are supported; captions are limited to 2,000 characters.
 4. **Post details:** Click a photo or comment button to view photos and comments side by side. Use the thumbnails to switch photos. You can comment, generate or listen to an AI summary, and ask questions about the post. AI questions are separate from family comments, and the conversation resets when the detail dialog closes.
@@ -61,7 +61,7 @@ The web interface remains in Korean. The instructions below explain the correspo
 
 Desktop layouts use persistent sidebar navigation, a wide feed with a family information panel, and a split photo/comment dialog. Narrow screens switch to a single column. The app supports larger text, keyboard navigation, and closing dialogs with Esc.
 
-Loading screens and pending actions display `assets/todak_joy.gif`, copied unchanged from `client/app/src/main/assets/todak/todak_joy.gif`. This includes startup, feed/detail loading, AI answers and summaries, memory search, daily digests, speech preparation, and other form requests. Pending actions show a floating status card that also remains visible inside an open dialog.
+Loading screens and pending actions use the same boy artwork as Android. The resized PNG artwork is embedded in `assets/styles.css`, using the existing web asset route. Pending actions show a floating status card that also remains visible inside an open dialog. Successful post publication and text/voice comments show a separate, centered confirmation with a gently animated cheerful boy for three seconds. The waiting indicator is hidden during confirmation; reduced-motion preferences disable the animation. Failed submissions keep their drafts and do not show success feedback. The old GIF remains as a legacy served asset but is no longer referenced by the UI.
 
 The login token is stored in the current tab's `sessionStorage`. It survives refreshes and is cleared when the tab session ends. Use the logout button to revoke it immediately on the server. Family photos are fetched with Bearer authentication and displayed through Blob URLs; tokens are never embedded in image URLs or sent to external image hosts.
 
@@ -116,11 +116,12 @@ web/
   assets/api.js         API, session, and authenticated photo handling
   assets/icons.js       Local SVG icons
   assets/styles.css     Desktop-first responsive styles
-  assets/favicon.svg    Talk Dock icon
-  assets/todak_joy.gif   Shared loading animation from the Android client
+  assets/favicon.svg    Shared grandmother/grandson family icon (embedded PNG)
+  assets/todak_joy.gif   Legacy animation, retained for compatibility
   run.py                Migrations and integrated server launcher
   requirements.txt      Includes backend dependencies
   test_web.py           Web serving and API journey integration tests
+  test_usability.mjs    Offline signup validation and availability regression tests
 ```
 
 Web routing is implemented in `backend/configs/web.py` and `backend/configs/urls.py`. Only the explicitly allowed web assets are served, regardless of `DEBUG`. The web asset route does not expose `.env`, Python sources, the database, or upload directories. The API contract is the same one used by Android.
@@ -133,7 +134,7 @@ python backend\manage.py test web
 # Optional syntax checks for development environments that have Node.js installed:
 node --check web\assets\app.js
 node --check web\assets\api.js
-node --test web\test_family_tree.mjs
+node --test web\test_family_tree.mjs web\test_images.mjs web\test_usability.mjs
 ```
 
 ### Troubleshooting
@@ -144,3 +145,32 @@ node --test web\test_family_tree.mjs
 - **Only AI, speech, or search fails:** Check service credentials, Neo4j, and the construction worker. Secret keys do not need to be entered in the browser.
 - **Recording fails:** Check localhost/HTTPS access, browser microphone permission, and the microphone connection.
 - **UI changes are not visible:** Restart the backend and refresh with `Ctrl+Shift+R`.
+
+### Family icon update — 2026-10-26
+
+The browser favicon and the logo on login, registration and sidebar navigation share `assets/favicon.svg`. It embeds a 256 × 256 PNG resized from the same user-selected grandmother/grandson illustration used by Android, so the existing SVG asset route continues to work without backend changes. The icon URL has a version query to avoid retaining the old favicon in browser caches.
+
+Deploy the updated `web/index.html`, `web/assets/app.js`, and `web/assets/favicon.svg` together through the project's normal server deployment. A local edit does not update the live site. Home-screen installation metadata is not configured by this change.
+
+### Usability parity with Android — 2026-10-26
+
+- Registration requires an exact, nonempty password confirmation. Whitespace is preserved, and validation runs before a registration request. Changing either password clears the stale validation indicator.
+- Registration and password settings show requirements only in light-gray placeholders. Server-side password validators remain in force; their useful error messages are preserved.
+- HTML/empty 5xx responses, network failures and timeouts display friendly availability messages with the sad boy. Existing 401 handling still expires the session. Other failures preserve the login token.
+- Initial connection failure offers a manual retry; reconnecting always requests the current account and family rooms from the server. Form errors preserve drafts. POST requests are never retried automatically.
+- Successful posts and text/voice comments show their own completion feedback. If a comment was saved but the following refresh fails, the UI reports that it was saved instead of inviting a duplicate submission.
+- Removed the three memory-search example buttons; the free-text search form remains. Existing desktop refresh and single recording/finish controls remain available.
+- Backend code, API payloads and the overall web theme are unchanged. Home-screen installation metadata is outside this change.
+
+Offline validation from the repository root:
+
+```sh
+node --check web/assets/app.js
+node --check web/assets/api.js
+node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs
+PYTHONPATH="$PWD:$PWD/backend" python backend/manage.py test web
+```
+
+Browser validation uses a loopback-only mock API, with no production account or database writes: mismatched/matching signup, startup outage and retry, search failure and draft preservation, post failure and preserved draft, separate waiting/success states, and success feedback inside the comment dialog.
+
+Loading artwork uses true-alpha PNGs on a transparent CSS background. The old scarf GIF is opaque and is no longer used by the current UI. The entry stylesheet and module URLs include a version query so a new deployment requests the updated character markup and styles instead of reusing a cached pre-update loading image.
