@@ -10,7 +10,7 @@
     </queries>
     <application android:label="토닥" android:theme="@style/Theme.TalkDock.Coral"
         android:allowBackup="false" android:fullBackupContent="false"
-        android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@drawable/ic_launcher"
+        android:dataExtractionRules="@xml/data_extraction_rules" android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="${cleartextAllowed}" android:supportsRtl="true">
         <activity android:name=".ui.PhotoPickerActivity" android:exported="false"/>
         <activity android:name=".MainActivity" android:exported="true"
