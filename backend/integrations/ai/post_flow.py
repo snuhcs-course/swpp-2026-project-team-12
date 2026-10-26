@@ -8,13 +8,7 @@ from django.conf import settings
 from openai import AsyncOpenAI
 
 from . import prompts
-
-SEARCH_TOOL = {
-    'type': 'function', 'name': 'search_family_memory',
-    'description': '현재 게시글의 추가 질문에 필요한 가족의 과거 사실을 검색한다.',
-    'parameters': {'type': 'object', 'properties': {'query': {'type': 'string', 'maxLength': 1000}},
-                   'required': ['query'], 'additionalProperties': False}, 'strict': True,
-}
+from .options import model_options
 
 
 def select_budget(results, limit=prompts.FACT_BUDGET):
@@ -56,15 +50,14 @@ async def answer(search, text, feature, *, images=(), timings=None):
             content.append({'type': 'input_image', 'detail': 'high',
                             'image_url': 'data:image/jpeg;base64,' + base64.b64encode(file.read()).decode()})
     items = [{'role': 'user', 'content': content}]
-    options = dict(model=settings.POST_AI_MODEL, service_tier=settings.POST_AI_SERVICE_TIER,
-                   reasoning={'effort': settings.POST_AI_REASONING_EFFORT}, instructions=instructions, store=False)
+    options = dict(**model_options('ANSWER' if is_qa else 'SUMMARY'), instructions=instructions, store=False)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         started = perf_counter()
         if not is_qa:
             response = await client.responses.create(**options, input=items, max_output_tokens=prompts.ANSWER_MAX_TOKENS)
             timings['answer'] = perf_counter() - started
             return {'text': checked_text(response), 'query': None, 'queries': [], 'memories': []}
-        first = await client.responses.create(**options, input=items, tools=[SEARCH_TOOL],
+        first = await client.responses.create(**options, input=items, tools=[prompts.POST_QA_SEARCH_TOOL],
                                              tool_choice='auto', parallel_tool_calls=True,
                                              max_output_tokens=prompts.DECISION_MAX_TOKENS)
         timings['decision'] = perf_counter() - started
@@ -74,7 +67,7 @@ async def answer(search, text, feature, *, images=(), timings=None):
         if not calls:
             return {'text': checked_text(first), 'query': None, 'queries': [], 'memories': []}
         # Log only protocol metadata, never private question text or model arguments.
-        if len(calls) > prompts.MAX_QUERIES or any(c.name != SEARCH_TOOL['name'] for c in calls):
+        if len(calls) > prompts.MAX_QUERIES or any(c.name != prompts.POST_QA_SEARCH_TOOL['name'] for c in calls):
             logging.getLogger(__name__).warning('Rejected post QA tools: count=%s names=%s', len(calls), [c.name for c in calls])
             raise RuntimeError('검색 요청 한도를 벗어났습니다.')
         queries = []
@@ -97,7 +90,7 @@ async def answer(search, text, feature, *, images=(), timings=None):
             items.append({'type': 'function_call_output', 'call_id': call.call_id,
                           'output': json.dumps(context(result['memories']), ensure_ascii=False)})
         started = perf_counter()
-        final = await client.responses.create(**options, input=items, tools=[SEARCH_TOOL],
+        final = await client.responses.create(**options, input=items, tools=[prompts.POST_QA_SEARCH_TOOL],
                                              tool_choice='none', max_output_tokens=prompts.ANSWER_MAX_TOKENS)
         timings['answer'] = perf_counter() - started
         memories = [m for r in results for m in r['memories']]

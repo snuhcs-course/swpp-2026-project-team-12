@@ -27,13 +27,23 @@ The Android follow-up question button/screen is not part of this backend change.
 
 ## Settings and migration
 
-Defaults, independent of legacy STT/Digest/history and Graphiti construction settings:
+Models are set per feature group. Each group has `<GROUP>_MODEL`, `<GROUP>_SERVICE_TIER` and
+`<GROUP>_REASONING_EFFORT`. An unset value uses `DEFAULT_AI_MODEL` (`gpt-6-luna`),
+`DEFAULT_AI_SERVICE_TIER` (`fast`) or `DEFAULT_AI_REASONING_EFFORT` (`none`); a blank tier or
+effort is not sent, so the API default applies.
 
-```dotenv
-POST_AI_MODEL=gpt-6-luna
-POST_AI_SERVICE_TIER=fast
-POST_AI_REASONING_EFFORT=none
-```
+| Group | Features |
+|---|---|
+| `SUMMARY_AI` | daily digest (direct, no search), graph post descriptions, feed summaries |
+| `STT_AI` | voice reply STT correction |
+| `ANSWER_AI` | family history search answers, post QA (including its search decision) |
+| `QUERY_AI` | search decision and queries for STT correction |
+| `GRAPHITI` | relation extraction and reranking: `GRAPHITI_MODEL` falls back to the default model; no tier, and a blank `GRAPHITI_REASONING_EFFORT` keeps Graphiti's own default |
+
+When `QUERY_AI` decides no search is needed, its reply is the final answer. Reasoning items from
+the search decision are passed to the answer call only when both groups use the same model.
+Changing the summary model, tier or effort, directly or through `DEFAULT_AI_*`, regenerates
+cached feed summaries.
 
 Decision output limit: 1,200 tokens; answer output limit: 700; image detail: high; `store=False`. Service tier/model overrides are explicit operator choices; there is no automatic model fallback. The shared request worker pool still uses `GRAPHITI_SEARCH_WORKERS` (default 4); experimental concurrency 3 is not a production throughput guarantee.
 
@@ -104,8 +114,8 @@ Include the runtime modules, worker/router/provider changes, settings example, p
 `run_construction_worker` generates a separate memory description before calling
 Graphiti. `feed_description.describe_post` takes the caption, author, posting time,
 and every photo from `Post.photo_files()` in order. Text-only posts use the same
-path with no image inputs. This uses `OPENAI_MODEL`; displayed post summaries and
-follow-up QA continue to use `POST_AI_MODEL` and the existing post flow.
+path with no image inputs. This uses the `SUMMARY_AI` model group, like displayed post
+summaries; follow-up QA uses the `ANSWER_AI` group.
 
 `Post.images` contains the ordered storage paths; `photo_files()` returns lazy
 storage references with the same `open()` boundary used by the AI flows. Apply

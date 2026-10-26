@@ -298,7 +298,7 @@ class PostAPITests(TestCase):
             adapt.assert_called_once()
         print("Post AI message processing test pass", flush=True)
 
-    @override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna")
+    @override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna")
     def test_ai_provider_sends_photo_and_caption_and_reads_completed_text(self):
         post_id = self.upload(caption="오늘 산책했어요").json()["id"]
         first = SimpleNamespace(status="completed", output_text="", output=[

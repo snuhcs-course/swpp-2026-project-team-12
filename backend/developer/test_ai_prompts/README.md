@@ -20,9 +20,8 @@ python3 backend/manage.py migrate
 python3 backend/manage.py run_construction_worker --family-id 1 --once
 ```
 
-The worker uses `OPENAI_MODEL` and `OPENAI_API_KEY` for memory descriptions.
-`POST_AI_MODEL` remains the separate model setting for displayed summaries and
-follow-up QA. `Post.photo_files()` provides the cover followed by ordered extra
+The worker uses the `SUMMARY_AI_*` model group and `OPENAI_API_KEY` for memory
+descriptions, the same group as displayed summaries; follow-up QA uses `ANSWER_AI_*`. `Post.photo_files()` provides the cover followed by ordered extra
 photos; text-only posts send no images. The worker prefetches attachments and
 the description adapter reads ORM relations and files outside the event loop. It caches a successful
 description on `Post.description`, then stores it in Graphiti. Failed descriptions

@@ -7,17 +7,8 @@ from asgiref.sync import sync_to_async
 from django.conf import settings
 from openai import AsyncOpenAI
 
-
-DESCRIPTION_INSTRUCTIONS = """
-가족 게시물을 장기 기억 그래프에 저장할 한국어 기록으로 작성한다.
-원문과 첨부된 모든 사진을 순서대로 함께 참고하여 작성자가 전하는 소식과 그 맥락을 구체적으로 설명한다.
-여러 사진 속 장면을 각각 원문과 다른 사진들을 참고해 설명을 작성한다.
-사진이 없으면 원문을 풀어서 설명한다. 은어와 모호한 대상은 근거 없이 뜻을 확정하지 않고 필요한 경우 원문 표현을 유지한다.
-
-원문을 기본 기록으로 삼고, 이미지에서 명확히 확인되는 정보로 원문의 내용을 구체화한다.
-다만, 이미지 내의 너무 자세한 텍스트는 굳이 기록할 필요 없다.
-이미지 내에서 저장할 만한 내용이 있으면 함께 기록해도 좋다.
-""".strip()
+from . import prompts
+from .options import model_options
 
 
 def _description_content(post):
@@ -42,7 +33,7 @@ async def describe_post(post):
     content = await sync_to_async(_description_content, thread_sensitive=True)(post)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         response = await client.responses.create(
-            model=settings.OPENAI_MODEL, instructions=DESCRIPTION_INSTRUCTIONS,
+            **model_options("SUMMARY"), instructions=prompts.POST_DESCRIPTION,
             input=[{"role": "user", "content": content}],
             max_output_tokens=2000, store=False,
         )
