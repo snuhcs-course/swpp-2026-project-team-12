@@ -121,11 +121,14 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 # chose a voice follow it, so changing it needs no migration.
 TTS_DEFAULT_VOICE = "m1"
 TTS_VOICES = {
-    "m1": {"name": "Mr.k", "voice_id": "LKOcTG4J4tYTPR9DnLeM", "description": "차분한 남자 중년 목소리"},
+    "m1": {"name": "Mr.k", "voice_id": "LKOcTG4J4tYTPR9DnLeM", "description": "차분한 남성 목소리"},
+    "m2": {"name": "Jangho", "voice_id": "UmYoqGlufKxhJ6NCx5Mv", "description": "허스키한 남성 목소리"},
+    "m3": {"name": "Jangho", "voice_id": "SWu2lWaUX4JBPKyh7h1p", "description": "친근한 남성 목소리"},
     "f1": {"name": "Jiyoung", "voice_id": "AW5wrnG1jVizOYY7R1Oo", "description": "자연스러운 여성 목소리"},
+    "f2": {"name": "Jiyoung", "voice_id": "O2KReOFLpoR65nz6C9Se", "description": "밝고 젊은 여성 목소리"},
 }
 ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2")
-ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
+ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "eleven_v4")
 
 # ============ other settings ============
 LANGUAGE_CODE = "ko-kr"

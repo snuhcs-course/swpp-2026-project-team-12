@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.conf import settings
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from apps.accounts.models import AccessToken, User
@@ -124,10 +125,36 @@ class SpeechAPITests(TestCase):
         response = self.client.get("/api/speech/voices/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"default": "m", "voices": [
-            {"key": "m", "name": "남성 목소리", "description": ""},
-            {"key": "calm", "name": "차분한 목소리", "description": "느리고 따뜻한 말투"},
+            {"key": "m", "name": "남성 목소리", "description": "", "sample": False},
+            {"key": "calm", "name": "차분한 목소리", "description": "느리고 따뜻한 말투", "sample": False},
         ]})
         self.assertEqual(self.client.post("/api/speech/voices/").status_code, 405)
+
+    @override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m", f="voice-f"))
+    def test_voice_samples_are_public_and_follow_the_voice_id(self):
+        sample_dir = self.media_root / "samples"
+        sample_dir.mkdir()
+        (sample_dir / "voice-m.mp3").write_bytes(b"sample-m")
+        with patch("integrations.speech.voices.SAMPLE_DIR", sample_dir):
+            listed = self.client.get("/api/speech/voices/").json()["voices"]
+            self.assertEqual([(voice["key"], voice["sample"]) for voice in listed], [("m", True), ("f", False)])
+            sample = self.client.get("/api/speech/voices/m/sample/")
+            self.assertEqual((sample.status_code, sample.content, sample["Content-Type"]), (200, b"sample-m", "audio/mpeg"))
+            for key in ("f", "retired"):
+                with self.subTest(key=key):
+                    self.assertEqual(self.client.get(f"/api/speech/voices/{key}/sample/").status_code, 404)
+
+    @override_settings(ELEVENLABS_API_KEY="test-only", TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m"))
+    def test_generate_voice_samples_writes_only_missing_samples(self):
+        sample_dir = self.media_root / "samples"
+        with patch("integrations.speech.voices.SAMPLE_DIR", sample_dir),                 patch("urllib.request.urlopen", return_value=AudioResponse(b"sample-mp3")) as urlopen:
+            call_command("generate_voice_samples", stdout=io.StringIO())
+            call_command("generate_voice_samples", stdout=io.StringIO())
+        self.assertEqual(urlopen.call_count, 1, "An existing sample is kept, and a voice without an ID is skipped")
+        request = urlopen.call_args.args[0]
+        self.assertIn("/text-to-speech/voice-m?", request.full_url)
+        self.assertEqual(json.loads(request.data)["text"], voices.SAMPLE_TEXT)
+        self.assertEqual((sample_dir / "voice-m.mp3").read_bytes(), b"sample-mp3")
 
     def test_default_voice_must_be_a_listed_voice(self):
         with override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m")):

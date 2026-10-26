@@ -32,6 +32,16 @@ def voice_options(request):
     return {"voices": voices.available(), "default": settings.TTS_DEFAULT_VOICE}
 
 
+@api("GET", anonymous=True)
+def voice_sample(request, key):
+    path = voices.sample_path(key)
+    if path is None:
+        raise APIError("들어볼 수 있는 목소리 예시가 없어요.", 404)
+    response = HttpResponse(path.read_bytes(), content_type="audio/mpeg")
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 @api("POST")
 def speak(request):
     room = room_for(request)

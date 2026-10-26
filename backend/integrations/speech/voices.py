@@ -1,7 +1,15 @@
 """Look up the TTS voices accounts can choose; settings.TTS_VOICES is the one list to edit."""
 
+from pathlib import Path
+
 from django.conf import settings
 from django.core import checks
+
+# Every voice reads the same line so people can compare them. Samples are generated once with
+# `manage.py generate_voice_samples` and committed; they are named by voice ID, so changing an
+# entry's voice_id simply leaves its new sample to be generated.
+SAMPLE_TEXT = "가족의 일상을 잇는 따뜻한 공간, 토닥"
+SAMPLE_DIR = Path(__file__).resolve().parent / "samples"
 
 
 def is_known(key):
@@ -17,10 +25,20 @@ def voice_id(key):
     return settings.TTS_VOICES.get(effective(key), {}).get("voice_id", "")
 
 
+def sample_path(key):
+    """The stored sample for a listed voice, or None when there is none to play."""
+    voice = settings.TTS_VOICES.get(key) if isinstance(key, str) else None
+    if not voice or not voice.get("voice_id"):
+        return None
+    path = SAMPLE_DIR / (voice["voice_id"] + ".mp3")
+    return path if path.is_file() else None
+
+
 def available():
     """Voices clients may offer; entries without a configured voice ID are hidden."""
     return [
-        {"key": key, "name": voice["name"], "description": voice.get("description", "")}
+        {"key": key, "name": voice["name"], "description": voice.get("description", ""),
+         "sample": sample_path(key) is not None}
         for key, voice in settings.TTS_VOICES.items()
         if voice.get("voice_id")
     ]

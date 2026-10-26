@@ -69,6 +69,8 @@ input::placeholder, textarea::placeholder { color: #979288; }
 input:focus, textarea:focus, select:focus { border-color: #b88d74; }
 textarea { resize: vertical; min-height: 72px; line-height: 1.85; }
 select { cursor: pointer; padding-right: 25px; }
+/* Draw the form arrow ourselves so it sits a little inside the box instead of at its edge. */
+.field select { appearance: none; padding-right: 44px; background: #fffefa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%237e7b72' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 18px center / 12px 8px; }
 .form-error { font-size: .84rem; color: #a23e31; white-space: pre-wrap; line-height: 1.65; }
 .form-error:not(:empty) { padding: 10px 0; }
 .error { padding: 20px; color: #a23e31; background: #fbede7; border-radius: 10px; margin-block: 12px; }

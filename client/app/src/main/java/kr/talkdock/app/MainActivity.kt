@@ -1244,9 +1244,14 @@ class MainActivity : ComponentActivity() {
         val note = if (registering) ui.label(box, "", 15f, color = ui.muted) else null
         val spinner = Spinner(this).apply { contentDescription = title }
         box.addView(spinner, LinearLayout.LayoutParams(-1, ui.dp(56)))
+        var keys = emptyList<String>()
+        val preview = ui.button(box, "선택한 목소리 미리 듣기", false) {
+            val key = keys.getOrNull(spinner.selectedItemPosition) ?: return@button
+            speaker.stop()
+            playVoiceSample(client, key)
+        }.apply { visibility = View.GONE }
         ui.gap(box)
         content.addView(box, LinearLayout.LayoutParams(-1, -2))
-        var keys = emptyList<String>()
         val number = pageNumber
         network.execute {
             val loaded = runCatching {
@@ -1260,13 +1265,35 @@ class MainActivity : ComponentActivity() {
                 keys = voices.map { it.getString("key") }
                 // Options show what each voice sounds like; a voice without a description shows its name.
                 val titles = voices.map { it.optString("description").ifBlank { it.getString("name") } }
+                val samples = voices.map { it.optBoolean("sample") }
                 spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, titles)
+                spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                        speaker.stop()
+                        preview.visibility = if (samples[position]) View.VISIBLE else View.GONE
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
                 spinner.setSelection(keys.indexOf(selected?.takeIf { it in keys } ?: fallback).coerceAtLeast(0))
                 note?.text = "기본값: " + (titles.getOrNull(keys.indexOf(fallback)) ?: titles.first()) + " · 내 계정 수정에서 언제든 바꿀 수 있어요."
                 box.visibility = View.VISIBLE
             }
         }
         return { keys.getOrNull(spinner.selectedItemPosition) }
+    }
+
+    /** Plays the short line every voice reads, so people can compare voices before choosing. */
+    private fun playVoiceSample(client: ApiClient, key: String) {
+        val number = pageNumber
+        network.execute {
+            val bytes = runCatching { client.voiceSample(key) }.getOrNull()
+            runOnUiThread {
+                if (isDestroyed || number != pageNumber || !foreground) return@runOnUiThread
+                if (bytes == null) { toast("목소리 예시를 재생하지 못했어요. 다시 시도해 주세요."); return@runOnUiThread }
+                val file = File.createTempFile("voice-sample-", ".mp3", cacheDir)
+                runCatching { file.writeBytes(bytes); speaker.play(file) }.onFailure { file.delete(); toast("목소리 예시를 재생하지 못했어요.") }
+            }
+        }
     }
 
     private fun familyTree() {
