@@ -115,7 +115,18 @@ class FamilyMemorySearchTest {
             while (!target.isClickable && target.parent is View) target = target.parent as View
             assertTrue(target.performClick())
         }
-        fun open() { click("가족 추억 찾기"); await { views().any { it is FamilyMemoryPanel } } }
+        fun open() {
+            var inFamilyRoom = false
+            test.runOnMainSync { inFamilyRoom = has("가족 추억 찾기") }
+            if (inFamilyRoom) click("가족 추억 찾기") else {
+                test.runOnMainSync {
+                    assertTrue(views().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().performClick())
+                }
+                await { has("가족의 지난 추억이 궁금하세요?") }
+                click("가족의 지난 추억이 궁금하세요?")
+            }
+            await { views().any { it is FamilyMemoryPanel } }
+        }
         fun ask(text: String) = test.runOnMainSync { panel().input.setText(text); panel().searchButton.performClick() }
         fun recreate() {
             val previous = activity

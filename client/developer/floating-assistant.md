@@ -59,7 +59,8 @@ Options are "이 글에 대해 궁금하세요?", "가족의 지난 추억이 �
 "오늘 가족의 하루". Post questions are disabled when no post is selected. The
 menu follows the feed's current post until an option is chosen; then the chosen
 post and API client are captured for that conversation. Questions reuse
-`PostQuestionPanel`; family history reuses `FamilyMemoryPanel`. Choosing the digest
+`PostQuestionPanel`; family history opens the existing memory screen with
+`FamilyMemoryPanel`, preserving its question and answer across recreation. Choosing the digest
 closes the balloon and opens the existing digest screen.
 
 Opening, dragging and scrolling never start AI requests. Only submitting a

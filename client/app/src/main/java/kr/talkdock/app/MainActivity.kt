@@ -365,7 +365,7 @@ class MainActivity : ComponentActivity() {
             },
             findMemories = {
                 closeAssistantMenu()
-                openAssistantConversation(null, api)
+                familyMemories()
             },
             dailyDigest = { closeAssistantMenu(); digest() })
         assistantMenu = menu
@@ -376,13 +376,13 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Capture the post and client only when an option is chosen, then keep them fixed. */
-    private fun openAssistantConversation(target: JSONObject?, client: ApiClient) {
+    private fun openAssistantConversation(target: JSONObject, client: ApiClient) {
         stopPostAudio()
         val dialog = Dialog(this)
         assistantDialog = dialog
         val box = ui.column(20).apply { background = ui.shape(ui.milk, 24) }
         val header = ui.row()
-        header.addView(ui.text(if (target == null) "가족의 지난 추억 찾기" else "이 글에 대해 질문하기",
+        header.addView(ui.text("이 글에 대해 질문하기",
             if (large) 24f else 21f, true), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(ui.iconButton("close", "도우미 닫기") { dialog.dismiss() })
         box.addView(header)
@@ -391,17 +391,10 @@ class MainActivity : ComponentActivity() {
         scroll.addView(body)
         box.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         ui.gap(body, 16)
-        if (target != null) {
-            ui.label(body, target.optString("author_name") + "님의 소식에 질문해 보세요.", if (large) 22f else 18f, true)
-            val panel = PostQuestionPanel(this, ui, target.getInt("id"), large, client, questions)
-            body.addView(panel, LinearLayout.LayoutParams(-1, -2))
-            panel.open(focus = true)
-        } else {
-            ui.label(body, "가족의 어떤 이야기가 궁금하세요?", if (large) 23f else 18f, true)
-            body.addView(FamilyMemoryPanel(this, ui, large, client, questions) {
-                dialog.dismiss(); login()
-            }, LinearLayout.LayoutParams(-1, -2))
-        }
+        ui.label(body, target.optString("author_name") + "님의 소식에 질문해 보세요.", if (large) 22f else 18f, true)
+        val panel = PostQuestionPanel(this, ui, target.getInt("id"), large, client, questions)
+        body.addView(panel, LinearLayout.LayoutParams(-1, -2))
+        panel.open(focus = true)
         dialog.setContentView(box)
         dialog.setOnDismissListener { if (assistantDialog === dialog) assistantDialog = null }
         dialog.show()

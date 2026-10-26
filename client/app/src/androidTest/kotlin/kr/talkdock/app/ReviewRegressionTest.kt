@@ -125,6 +125,14 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
             assertTrue("Clickable view for $text",view.performClick())
         }
     }
+    fun openAssistantOption(label: String) {
+        await { all().any { it is kr.talkdock.app.ui.FloatingAssistantView } }
+        test.runOnMainSync {
+            assertTrue(all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().performClick())
+        }
+        await { has(label) }
+        click(label)
+    }
     fun screenshot(name: String) {
         val image=test.uiAutomation.takeScreenshot()
         java.io.File(test.targetContext.cacheDir,name).outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
@@ -805,7 +813,7 @@ class InlinePostAudioTest {
         server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
             open(ui); tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
             tap(ui)
-            ui.click("우리 가족의 하루 요약"); ui.await { ui.has("소식 보기") }
+            ui.openAssistantOption("오늘 가족의 하루"); ui.await { ui.has("소식 보기") }
             ui.click("소식 보기"); ui.await { ui.has("따뜻한 한마디 남기기") }
             ui.test.runOnMainSync { assertFalse(ui.has("가족 소식 듣기")) }
             tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }

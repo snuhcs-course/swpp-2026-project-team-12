@@ -324,14 +324,14 @@ class FloatingAssistantTest {
     @Test @SdkSuppress(minSdkVersion = 30)
     fun bubbleOptionsOpenMemoriesAndTheDailyDigest() {
         Server().use { server -> Screen(server).use { screen ->
-            fun windows() = WindowInspector.getGlobalWindowViews().flatMap { screen.views(it) }
             screen.center(2)
             screen.test.runOnMainSync {
                 screen.button().performClick()
                 screen.views().first { it.contentDescription == "가족의 지난 추억이 궁금하세요?" }.performClick()
             }
-            screen.await { windows().any { it is FamilyMemoryPanel } }
-            screen.test.runOnMainSync { windows().first { it.contentDescription == "도우미 닫기" }.performClick() }
+            screen.await { screen.views().any { it is FamilyMemoryPanel } }
+            screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
+            screen.await { screen.views().any { it is FloatingAssistantView } }
             screen.test.runOnMainSync {
                 screen.button().performClick()
                 screen.views().first { it.contentDescription == "오늘 가족의 하루" }.performClick()
