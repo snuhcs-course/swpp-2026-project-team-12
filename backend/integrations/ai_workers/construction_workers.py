@@ -10,6 +10,8 @@ from django.conf import settings
 
 from apps.posts.models import Post
 
+from integrations.utils.family_graph import sync_family
+
 
 def run_worker(family_id, once, stdout, stderr):
     lock_dir = Path(settings.MEDIA_ROOT) / ".graphiti-workers"
@@ -45,6 +47,15 @@ def construct(family_id, once, stdout, stderr):
         try:
             runner.run(graphiti.build_indices_and_constraints())
             while True:
+                try:
+                    sync_family(graphiti, family_id, runner)
+                except Exception as error:
+                    if once:
+                        raise RuntimeError("가족 관계 저장에 실패했어요.") from error
+                    logging.getLogger(__name__).exception("Family graph sync failed")
+                    stderr.write("가족 관계 저장 실패. 5초 후 다시 시도해요.")
+                    time.sleep(5)
+                    continue
                 names = runner.run(episode_names(graphiti, family_id))
                 completed = {
                     int(name[5:]) for name in names

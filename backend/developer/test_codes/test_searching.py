@@ -35,7 +35,7 @@ class FamilyFixture:
     def setUp(self):
         self.user = User.objects.create_user(username="history", display_name="정아")
         self.room = FamilyRoom.objects.create(
-            owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed",
+            owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed", graph_synced_version=0,
         )
         add_member(self.room, self.user)
         self.auth = auth_headers(AccessToken.issue(self.user))
