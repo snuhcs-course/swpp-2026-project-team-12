@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/posts/<int:pk>/replies/prepare/", replies.prepare, name="reply-prepare"),
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),
     path("api/speech/", speech.speak, name="speech"),
+    path("api/speech/voices/", speech.voice_options, name="speech-voices"),
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),
     path("api/digests/", digests.daily, name="digest-daily"),
     path("api/digests/history/", digests.history, name="digest-history"),

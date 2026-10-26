@@ -115,6 +115,28 @@ function resetSession() {
 }
 window.addEventListener('session-expired', () => { resetSession(); renderAuth(); toast('로그인 시간이 만료되었어요. 다시 로그인해 주세요.'); });
 
+// The server owns the voice list, so adding a voice needs no web change.
+let voiceList = null;
+function loadVoices() {
+  voiceList ??= api('speech/voices/').catch(error => { voiceList = null; throw error; });
+  return voiceList;
+}
+// Without a real choice the field stays hidden and the server keeps its default.
+async function fillVoiceSelect(select, selected) {
+  let list;
+  try { list = await loadVoices(); } catch { return; }
+  if (!select?.isConnected || list.voices.length < 2) return;
+  const current = list.voices.some(voice => voice.key === selected) ? selected : list.default;
+  // Options show what each voice sounds like; a voice without a description shows its name.
+  const title = voice => voice.description || voice.name;
+  select.innerHTML = list.voices.map(voice => `<option value="${e(voice.key)}"${voice.key === current ? ' selected' : ''}>${e(title(voice))}</option>`).join('');
+  const field = select.closest('[data-voice-field]');
+  const note = field.querySelector('[data-voice-default]');
+  const fallback = list.voices.find(voice => voice.key === list.default) ?? list.voices[0];
+  if (note) note.textContent = `기본값: ${title(fallback)} · 계정 설정에서 언제든 바꿀 수 있어요.`;
+  field.hidden = false;
+}
+
 function renderAuth(register = false) {
   app.innerHTML = `<main id="main" class="auth-layout">
     <section class="auth-story">${brand()}<div class="story-copy"><p class="eyebrow">마음이 닿는 곳, 토닥</p><h1>작은 일상이 모여,<br>우리의 이야기가 돼요.</h1><p>멀리 있어도 가까이.<br>사진 한 장, 따뜻한 한마디로 안부를 나눠요.</p></div>
@@ -126,9 +148,10 @@ function renderAuth(register = false) {
         ${register ? field('이름', 'name', 'text', 'required maxlength="40" autocomplete="name" placeholder="가족에게 보여줄 이름"') : ''}
         ${field('아이디', 'username', 'text', 'required maxlength="150" autocomplete="username" placeholder="아이디를 입력해 주세요" autocapitalize="none"')}
         ${field('비밀번호', 'password', 'password', `required maxlength="128" ${register ? 'minlength="10"' : ''} autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
-        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><label class="field"><span>소식을 읽어 줄 목소리 (선택)</span><select name="tts_voice"><option value="m" selected>남성 목소리</option><option value="f">여성 목소리</option></select></label><p class="help">고르지 않으면 남성 목소리로 읽어 드려요. 계정 설정에서 언제든 바꿀 수 있어요.</p><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
+        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><div data-voice-field hidden><label class="field"><span>소식을 읽어 줄 목소리 (선택)</span><select name="tts_voice"></select></label><p class="help" data-voice-default></p></div><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
         <p class="form-error" role="alert"></p><button class="button primary full" type="submit">${register ? '계정 만들기' : '우리 가족 만나러 가기'}${icon('arrow')}</button>
       </form><p class="auth-hint">${icon('heart')}안드로이드에서 쓰던 계정으로도 로그인할 수 있어요.</p></div></section></main>`;
+  if (register) fillVoiceSelect($('form[data-form="register"] select[name="tts_voice"]'));
 }
 
 // The last opened room is remembered per account in this browser.
@@ -422,7 +445,8 @@ function renderFamily() {
   mountTree($('#page .family-tree-board'), new FamilyTreeDraft(state.room.tree));
 }
 function renderSettings() {
-  $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel"><h2>읽어 주는 목소리</h2><p class="muted">소식과 요약을 들을 때 사용할 목소리를 골라요.</p><form data-form="voice"><label class="field"><span>목소리</span><select name="tts_voice">${[['m', '남성 목소리'], ['f', '여성 목소리']].map(([value, label]) => `<option value="${value}"${(state.user.tts_voice || 'm') === value ? ' selected' : ''}>${label}</option>`).join('')}</select></label><p class="form-error" role="alert"></p><button class="button secondary" type="submit">목소리 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
+  $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel" data-voice-field hidden><h2>읽어 주는 목소리</h2><p class="muted">소식과 요약을 들을 때 사용할 목소리를 골라요.</p><form data-form="voice"><label class="field"><span>목소리</span><select name="tts_voice"></select></label><p class="form-error" role="alert"></p><button class="button secondary" type="submit">목소리 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
+  fillVoiceSelect($('form[data-form="voice"] select[name="tts_voice"]'), state.user.tts_voice);
 }
 
 function stopRecording(discard = false) {

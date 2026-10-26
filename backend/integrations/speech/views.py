@@ -1,10 +1,11 @@
+from django.conf import settings
 from django.http import HttpResponse
 
 from apps.api import APIError, api, body
 from apps.families.services import room_for
 from apps.posts.services import post_for
 
-from . import provider
+from . import provider, voices
 
 
 @api("POST")
@@ -23,6 +24,12 @@ def transcribe(request, pk):
         raise APIError("말씀을 듣지 못했거나 너무 길어요. 짧게 다시 말해 주세요.") from error
     except provider.SpeechUnavailable as error:
         raise APIError("말씀을 글로 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
+
+
+@api("GET", anonymous=True)
+def voice_options(request):
+    # Registration shows the choice too, so this list needs no login.
+    return {"voices": voices.available(), "default": settings.TTS_DEFAULT_VOICE}
 
 
 @api("POST")

@@ -505,13 +505,7 @@ class MainActivity : ComponentActivity() {
         genders.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("성별을 선택해 주세요", "남성", "여성"))
         content.addView(genders, LinearLayout.LayoutParams(-1, ui.dp(56)))
         ui.gap(content)
-        ui.label(content, "소식을 읽어 줄 목소리 (선택)", 16f, true)
-        ui.label(content, "고르지 않으면 남성 목소리로 읽어 드려요. 내 계정 수정에서 언제든 바꿀 수 있어요.", 15f, color = ui.muted)
-        val voices = Spinner(this)
-        voices.contentDescription = "소식을 읽어 줄 목소리 (선택)"
-        voices.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("남성 목소리", "여성 목소리"))
-        content.addView(voices, LinearLayout.LayoutParams(-1, ui.dp(56)))
-        ui.gap(content)
+        val voice = voicePicker(ApiClient(baseUrl = sessions.serverUrl()), "소식을 읽어 줄 목소리 (선택)", null, registering = true)
         ui.button(content, "계정 만들기") {
             if (username.text.isBlank() || password.text.isBlank() || name.text.isBlank()) {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
@@ -529,8 +523,8 @@ class MainActivity : ComponentActivity() {
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
-                "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition],
-                "tts_voice" to listOf("m", "f")[voices.selectedItemPosition])
+                "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
+            voice()?.let { data.put("tts_voice", it) }
             val client = ApiClient(baseUrl = sessions.serverUrl())
             async({ client.request("accounts/register/", "POST", data) }) {
                 saveSession(it, false); roomChoice()
@@ -1216,13 +1210,7 @@ class MainActivity : ComponentActivity() {
         ui.gap(content)
         val name = ui.input(content, "이름", "가족에게 표시할 이름", initial = account.getString("name"))
         name.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
-        ui.label(content, "소식을 읽어 줄 목소리", 18f, true)
-        val voices = Spinner(this)
-        voices.contentDescription = "소식을 읽어 줄 목소리"
-        voices.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("남성 목소리", "여성 목소리"))
-        voices.setSelection(if (account.optString("tts_voice") == "f") 1 else 0)
-        content.addView(voices, LinearLayout.LayoutParams(-1, ui.dp(56)))
-        ui.gap(content)
+        val voice = voicePicker(api, "소식을 읽어 줄 목소리", account.optString("tts_voice"))
         ui.label(content, "비밀번호를 바꿀 때만 아래 두 칸을 입력해 주세요. 변경하면 다른 기기에서는 다시 로그인해야 해요.", 17f, color = ui.muted)
         val current = ui.input(content, "현재 비밀번호", "변경할 때만 입력", password = true)
         val replacement = ui.input(content, "새 비밀번호", "숫자를 포함한 10자 이상", password = true).apply { typeface = ui.font; setHintTextColor(ui.hintGray) }
@@ -1232,7 +1220,8 @@ class MainActivity : ComponentActivity() {
             if (changingPassword && (current.text.isEmpty() || replacement.text.length !in 10..128 || replacement.text.none { it in '0'..'9' })) {
                 replacement.error = "현재 비밀번호를 입력하고, 새 비밀번호는 10자 이상·숫자 포함으로 만들어 주세요."; return@button
             }
-            val data = json("name" to name.text.toString().trim(), "tts_voice" to listOf("m", "f")[voices.selectedItemPosition])
+            val data = json("name" to name.text.toString().trim())
+            voice()?.let { data.put("tts_voice", it) }
             if (changingPassword) data.put("current_password", current.text.toString()).put("new_password", replacement.text.toString())
             val client = api; val saved = JSONObject(account.toString()); val big = large
             async({ client.request("accounts/me/", "PATCH", data) }) { updated ->
@@ -1242,6 +1231,42 @@ class MainActivity : ComponentActivity() {
                 if (room.has("id")) members() else roomChoice()
             }
         }
+    }
+
+    /**
+     * Adds a voice picker filled from the server's voice list, so new voices need no app update.
+     * It stays hidden unless there is a real choice; the returned getter then gives null and the
+     * server keeps the account's current or default voice.
+     */
+    private fun voicePicker(client: ApiClient, title: String, selected: String?, registering: Boolean = false): () -> String? {
+        val box = ui.column().apply { visibility = View.GONE }
+        ui.label(box, title, if (registering) 16f else 18f, true)
+        val note = if (registering) ui.label(box, "", 15f, color = ui.muted) else null
+        val spinner = Spinner(this).apply { contentDescription = title }
+        box.addView(spinner, LinearLayout.LayoutParams(-1, ui.dp(56)))
+        ui.gap(box)
+        content.addView(box, LinearLayout.LayoutParams(-1, -2))
+        var keys = emptyList<String>()
+        val number = pageNumber
+        network.execute {
+            val loaded = runCatching {
+                val data = client.request("speech/voices/")
+                objects(data.getJSONArray("voices")) to data.getString("default")
+            }.getOrNull()
+            runOnUiThread {
+                if (loaded == null || isDestroyed || number != pageNumber) return@runOnUiThread
+                val (voices, fallback) = loaded
+                if (voices.size < 2) return@runOnUiThread
+                keys = voices.map { it.getString("key") }
+                // Options show what each voice sounds like; a voice without a description shows its name.
+                val titles = voices.map { it.optString("description").ifBlank { it.getString("name") } }
+                spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, titles)
+                spinner.setSelection(keys.indexOf(selected?.takeIf { it in keys } ?: fallback).coerceAtLeast(0))
+                note?.text = "기본값: " + (titles.getOrNull(keys.indexOf(fallback)) ?: titles.first()) + " · 내 계정 수정에서 언제든 바꿀 수 있어요."
+                box.visibility = View.VISIBLE
+            }
+        }
+        return { keys.getOrNull(spinner.selectedItemPosition) }
     }
 
     private fun familyTree() {

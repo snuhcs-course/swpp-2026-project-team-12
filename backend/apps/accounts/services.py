@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 
 from apps.api import APIError
+from integrations.speech import voices
 
 from .models import AccessToken, User
 
@@ -14,12 +15,12 @@ def register_account(data):
     name = data.get("name")
     password = data.get("password")
     gender = data.get("gender")
-    tts_voice = data.get("tts_voice", User.TtsVoice.MALE)
+    tts_voice = data.get("tts_voice", "")
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
         raise APIError("이름을 다시 확인해 주세요.")
     if gender not in (User.Gender.MALE, User.Gender.FEMALE):
         raise APIError("성별을 선택해 주세요.")
-    if tts_voice not in User.TtsVoice.values:
+    if tts_voice != "" and not voices.is_known(tts_voice):
         raise APIError("목소리를 다시 선택해 주세요.")
     if not isinstance(password, str) or len(password) > 128:
         raise APIError("비밀번호를 다시 확인해 주세요.")
@@ -76,7 +77,7 @@ def account_data(user):
         "username": user.username,
         "name": user.display_name,
         "gender": user.gender,
-        "tts_voice": user.tts_voice,
+        "tts_voice": voices.effective(user.tts_voice),
     }
 
 
@@ -100,7 +101,7 @@ def update_account(user, data):
             raise APIError("이름은 1~40자로 입력해 주세요.")
         user.display_name = name.strip()
     if "tts_voice" in data:
-        if data["tts_voice"] not in User.TtsVoice.values:
+        if not voices.is_known(data["tts_voice"]):
             raise APIError("목소리를 다시 선택해 주세요.")
         user.tts_voice = data["tts_voice"]
     changing_password = "new_password" in data

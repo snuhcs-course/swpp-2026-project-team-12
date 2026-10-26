@@ -88,7 +88,9 @@ Android checks include `FamilyTreeLayoutTest` for large layouts and generation o
 ### 5. `test_codes\test_speech.py`
 
 - `test_speech_request_and_room_cache`: Checks the ElevenLabs request, MP3 response, and reuse of cached audio within a family room. The provider call is mocked.
-- `test_speech_uses_the_account_voice_and_caches_each_voice`: Checks that an account set to the female voice requests `ELEVENLABS_VOICE_ID_F`, that each voice gets its own cached file, and that an unconfigured female voice returns 503.
+- `test_speech_uses_the_account_voice_and_caches_each_voice`: Checks that an account set to the female voice requests that voice's `voice_id`, that each voice gets its own cached file, and that an unconfigured female voice returns 503.
+- `test_voice_list_is_public_and_hides_unconfigured_voices`: Checks that `GET /api/speech/voices/` needs no login and lists the name and description of only the `TTS_VOICES` entries with a voice ID.
+- `test_account_with_a_removed_voice_falls_back_to_the_default`: Checks that an account whose voice was removed from `TTS_VOICES` reads and speaks with the default voice.
 - `test_grandma_post_summaries_are_spoken_live`: Recreates the seven-member family and two posts from the post tests, gets 경자's summaries, and sends both to the real ElevenLabs TTS API on every run. It saves two MP3 files under `backend/developer/test_media/`. OpenAI is live by default; `MOCK_AI_TESTS=1` uses fixed text while TTS stays live.
 - `test_speech_authentication_and_input_validation`: Rejects requests without a token or family membership, and invalid text or content type.
 - `test_speech_provider_failures_do_not_cache_audio`: Returns 503 for missing voice configuration or an invalid provider response without storing audio.
@@ -144,4 +146,4 @@ python backend/manage.py test developer.test_codes.test_posts.PostAPITests.test_
 Remove-Item Env:MOCK_AI_TESTS
 ```
 
-The speech test requires `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID_M`. It calls ElevenLabs twice per run and writes `grandma_post_1_tts.mp3` and `grandma_post_2_tts.mp3` under `backend/developer/test_media/`. Its audio cache is new for each run, so repeated test runs generate fresh speech. With live AI enabled, this test also makes two OpenAI requests. Without speech credentials the live test is skipped; the other speech tests use mocked provider responses.
+The speech test requires `ELEVENLABS_API_KEY` and a `voice_id` for `TTS_VOICES['m']`. It calls ElevenLabs twice per run and writes `grandma_post_1_tts.mp3` and `grandma_post_2_tts.mp3` under `backend/developer/test_media/`. Its audio cache is new for each run, so repeated test runs generate fresh speech. With live AI enabled, this test also makes two OpenAI requests. Without speech credentials the live test is skipped; the other speech tests use mocked provider responses.

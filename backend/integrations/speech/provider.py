@@ -13,6 +13,8 @@ from pathlib import Path
 
 from django.conf import settings
 
+from . import voices
+
 
 class SpeechUnavailable(Exception):
     pass
@@ -67,8 +69,8 @@ def transcribe(audio):
         raise SpeechUnavailable("Speech recognition failed.") from error
 
 
-def synthesize(text, room_id, voice="m"):
-    voice_id = settings.ELEVENLABS_VOICE_ID_F if voice == "f" else settings.ELEVENLABS_VOICE_ID_M
+def synthesize(text, room_id, voice=None):
+    voice_id = voices.voice_id(voice)
     if not voice_id:
         raise SpeechUnavailable("A voice has not been configured.")
     key = hashlib.sha256(json.dumps([

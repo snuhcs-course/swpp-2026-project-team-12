@@ -95,9 +95,16 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-# ELEVENLABS_VOICE_ID is the older name for the male voice and is still accepted.
-ELEVENLABS_VOICE_ID_M = os.getenv("ELEVENLABS_VOICE_ID_M", os.getenv("ELEVENLABS_VOICE_ID", ""))
-ELEVENLABS_VOICE_ID_F = os.getenv("ELEVENLABS_VOICE_ID_F", "")
+# Voices an account can choose for TTS; a new voice only needs an entry here. The key is
+# stored on User.tts_voice, so keep keys stable. "name" and "description" are shown in the
+# apps, and "voice_id" is the ElevenLabs voice ID (not a secret). Entries without a
+# voice_id are not offered. TTS_DEFAULT_VOICE must be one of the keys; accounts that never
+# chose a voice follow it, so changing it needs no migration.
+TTS_DEFAULT_VOICE = "m1"
+TTS_VOICES = {
+    "m1": {"name": "Mr.k", "voice_id": "LKOcTG4J4tYTPR9DnLeM", "description": "차분한 남자 중년 목소리"},
+    "f1": {"name": "Jiyoung", "voice_id": "AW5wrnG1jVizOYY7R1Oo", "description": "자연스러운 여성 목소리"},
+}
 ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2")
 ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
 

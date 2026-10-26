@@ -2,7 +2,7 @@
 import json
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from unittest.mock import patch
 
@@ -14,6 +14,10 @@ from apps.digests.models import Digest
 from .family_fixtures import add_member
 
 
+@override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES={
+    "m": {"name": "남성 목소리", "voice_id": "voice-m", "description": ""},
+    "f": {"name": "여성 목소리", "voice_id": "voice-f", "description": ""},
+})
 class AccountProfileTests(TestCase):
     original = "Initial-River-34691!"
     replacement = "Sunset-Maple-63729!"
@@ -89,6 +93,7 @@ class AccountProfileTests(TestCase):
         self.assertEqual(register("female_voice", tts_voice="f").json()["tts_voice"], "f")
         self.assertEqual(User.objects.get(username="female_voice").tts_voice, "f")
         self.assertEqual(register("default_voice").json()["tts_voice"], "m")
+        self.assertEqual(User.objects.get(username="default_voice").tts_voice, "", "Unchosen voices follow the default")
         self.assertEqual(register("bad_voice", tts_voice="b").status_code, 400)
         self.assertFalse(User.objects.filter(username="bad_voice").exists())
 
