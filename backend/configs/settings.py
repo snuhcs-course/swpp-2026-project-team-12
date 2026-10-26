@@ -95,7 +95,9 @@ NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+# ELEVENLABS_VOICE_ID is the older name for the male voice and is still accepted.
+ELEVENLABS_VOICE_ID_M = os.getenv("ELEVENLABS_VOICE_ID_M", os.getenv("ELEVENLABS_VOICE_ID", ""))
+ELEVENLABS_VOICE_ID_F = os.getenv("ELEVENLABS_VOICE_ID_F", "")
 ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2")
 ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
 

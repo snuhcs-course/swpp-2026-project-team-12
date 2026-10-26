@@ -69,6 +69,29 @@ class AccountProfileTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.display_name, "정아")
 
+    def test_tts_voice_defaults_to_male_and_can_be_changed(self):
+        self.assertEqual(self.client.get("/api/accounts/me/", **self.auth()).json()["tts_voice"], "m")
+        result = self.update({"tts_voice": "f"})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["tts_voice"], "f")
+        self.assertNotIn("token", result.json())
+        self.user.refresh_from_db()
+        self.assertEqual((self.user.tts_voice, self.user.display_name), ("f", "정아"))
+        for voice in ("b", "", None, 1, ["m"], "male"):
+            with self.subTest(voice=voice):
+                self.assertEqual(self.update({"tts_voice": voice}).status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.tts_voice, "f")
+
+    def test_registration_stores_the_chosen_tts_voice(self):
+        def register(username, **extra):
+            return self.client.post("/api/accounts/register/", json.dumps({"username": username, "gender": "female", "name": "신규", "password": "Forest!Trail7346", **extra}), content_type="application/json")
+        self.assertEqual(register("female_voice", tts_voice="f").json()["tts_voice"], "f")
+        self.assertEqual(User.objects.get(username="female_voice").tts_voice, "f")
+        self.assertEqual(register("default_voice").json()["tts_voice"], "m")
+        self.assertEqual(register("bad_voice", tts_voice="b").status_code, 400)
+        self.assertFalse(User.objects.filter(username="bad_voice").exists())
+
     def test_relationship_related_field_is_outside_profile_edit_scope(self):
         self.assertEqual(self.update({"name": "잘못된 수정", "gender": "female"}).status_code, 400)
         self.user.refresh_from_db()

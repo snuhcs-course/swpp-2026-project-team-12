@@ -14,16 +14,19 @@ def register_account(data):
     name = data.get("name")
     password = data.get("password")
     gender = data.get("gender")
+    tts_voice = data.get("tts_voice", User.TtsVoice.MALE)
     if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
         raise APIError("이름을 다시 확인해 주세요.")
     if gender not in (User.Gender.MALE, User.Gender.FEMALE):
         raise APIError("성별을 선택해 주세요.")
+    if tts_voice not in User.TtsVoice.values:
+        raise APIError("목소리를 다시 선택해 주세요.")
     if not isinstance(password, str) or len(password) > 128:
         raise APIError("비밀번호를 다시 확인해 주세요.")
     if User.objects.filter(username__iexact=username).exists():
         raise APIError("이미 사용 중인 아이디예요.", 409)
 
-    user = User(username=username, display_name=name.strip(), gender=gender)
+    user = User(username=username, display_name=name.strip(), gender=gender, tts_voice=tts_voice)
     try:
         validate_password(password, user)
     except ValidationError as error:
@@ -73,6 +76,7 @@ def account_data(user):
         "username": user.username,
         "name": user.display_name,
         "gender": user.gender,
+        "tts_voice": user.tts_voice,
     }
 
 
@@ -82,7 +86,7 @@ def session_data(user):
 
 @transaction.atomic
 def update_account(user, data):
-    allowed = {"name", "current_password", "new_password"}
+    allowed = {"name", "tts_voice", "current_password", "new_password"}
     if not data or set(data) - allowed:
         raise APIError("수정할 계정 정보를 다시 확인해 주세요.")
     if ("current_password" in data) != ("new_password" in data):
@@ -95,6 +99,10 @@ def update_account(user, data):
         if not isinstance(name, str) or not name.strip() or len(name.strip()) > 40:
             raise APIError("이름은 1~40자로 입력해 주세요.")
         user.display_name = name.strip()
+    if "tts_voice" in data:
+        if data["tts_voice"] not in User.TtsVoice.values:
+            raise APIError("목소리를 다시 선택해 주세요.")
+        user.tts_voice = data["tts_voice"]
     changing_password = "new_password" in data
     if changing_password:
         current, replacement = data["current_password"], data["new_password"]
@@ -107,7 +115,7 @@ def update_account(user, data):
         except ValidationError as error:
             raise APIError("새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자만으로는 만들 수 없어요.") from error
         user.set_password(replacement)
-    user.save(update_fields=["display_name", "password"])
+    user.save(update_fields=["display_name", "tts_voice", "password"])
     if old_name != user.display_name:
         # Cached generated wording can contain the previous display name.
         from apps.posts.models import AdaptedMessage

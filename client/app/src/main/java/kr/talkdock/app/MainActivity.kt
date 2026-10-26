@@ -495,6 +495,13 @@ class MainActivity : ComponentActivity() {
         genders.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("성별을 선택해 주세요", "남성", "여성"))
         content.addView(genders, LinearLayout.LayoutParams(-1, ui.dp(56)))
         ui.gap(content)
+        ui.label(content, "소식을 읽어 줄 목소리 (선택)", 16f, true)
+        ui.label(content, "고르지 않으면 남성 목소리로 읽어 드려요. 내 계정 수정에서 언제든 바꿀 수 있어요.", 15f, color = ui.muted)
+        val voices = Spinner(this)
+        voices.contentDescription = "소식을 읽어 줄 목소리 (선택)"
+        voices.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("남성 목소리", "여성 목소리"))
+        content.addView(voices, LinearLayout.LayoutParams(-1, ui.dp(56)))
+        ui.gap(content)
         ui.button(content, "계정 만들기") {
             if (username.text.isBlank() || password.text.isBlank() || name.text.isBlank()) {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
@@ -505,7 +512,8 @@ class MainActivity : ComponentActivity() {
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
-                "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
+                "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition],
+                "tts_voice" to listOf("m", "f")[voices.selectedItemPosition])
             val client = ApiClient(baseUrl = sessions.serverUrl())
             async({ client.request("accounts/register/", "POST", data) }) {
                 saveSession(it, false); roomChoice()
@@ -1191,6 +1199,13 @@ class MainActivity : ComponentActivity() {
         ui.gap(content)
         val name = ui.input(content, "이름", "가족에게 표시할 이름", initial = account.getString("name"))
         name.filters = arrayOf(android.text.InputFilter.LengthFilter(40))
+        ui.label(content, "소식을 읽어 줄 목소리", 18f, true)
+        val voices = Spinner(this)
+        voices.contentDescription = "소식을 읽어 줄 목소리"
+        voices.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("남성 목소리", "여성 목소리"))
+        voices.setSelection(if (account.optString("tts_voice") == "f") 1 else 0)
+        content.addView(voices, LinearLayout.LayoutParams(-1, ui.dp(56)))
+        ui.gap(content)
         ui.label(content, "비밀번호를 바꿀 때만 아래 두 칸을 입력해 주세요. 변경하면 다른 기기에서는 다시 로그인해야 해요.", 17f, color = ui.muted)
         val current = ui.input(content, "현재 비밀번호", "변경할 때만 입력", password = true)
         ui.label(content, "새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자로만 된 값은 사용할 수 없어요. 최대 128자예요.", 16f, color = ui.muted)
@@ -1201,7 +1216,7 @@ class MainActivity : ComponentActivity() {
             if (changingPassword && (current.text.isEmpty() || replacement.text.length !in 10..128 || replacement.text.none { it in '0'..'9' })) {
                 replacement.error = "현재 비밀번호를 입력하고, 새 비밀번호는 10자 이상·숫자 포함으로 만들어 주세요."; return@button
             }
-            val data = json("name" to name.text.toString().trim())
+            val data = json("name" to name.text.toString().trim(), "tts_voice" to listOf("m", "f")[voices.selectedItemPosition])
             if (changingPassword) data.put("current_password", current.text.toString()).put("new_password", replacement.text.toString())
             val client = api; val saved = JSONObject(account.toString()); val big = large
             async({ client.request("accounts/me/", "PATCH", data) }) { updated ->
