@@ -6,7 +6,6 @@ import hashlib
 from django.conf import settings
 from django.utils import timezone
 from . import prompts
-from .options import group_setting
 
 
 class AIUnavailable(Exception):
@@ -14,7 +13,8 @@ class AIUnavailable(Exception):
 
 
 def summary_cache_version():
-    value = (prompts.POST_SUMMARY, *(group_setting("SUMMARY", name) for name in ("MODEL", "SERVICE_TIER", "REASONING_EFFORT")), "high", prompts.ANSWER_MAX_TOKENS, "ordered-post-images-v1")
+    value = (prompts.POST_SUMMARY, settings.SUMMARY_AI_MODEL, settings.SUMMARY_AI_SERVICE_TIER,
+             settings.SUMMARY_AI_REASONING_EFFORT, "high", prompts.ANSWER_MAX_TOKENS, "ordered-post-images-v1")
     return hashlib.sha256(json.dumps(value, ensure_ascii=False).encode()).hexdigest()
 
 

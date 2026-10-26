@@ -26,7 +26,6 @@ from apps.families.models import FamilyRoom, Membership
 from apps.posts.models import Post
 from apps.searching import services
 from integrations.ai import feed_description, flow, prompts, provider
-from integrations.ai.options import group_setting
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member
@@ -359,8 +358,7 @@ class MemoryFlowTests(SimpleTestCase):
                 self.assertIsNone(result["query"])
 
     @override_settings(QUERY_AI_MODEL="query-model", QUERY_AI_SERVICE_TIER="", QUERY_AI_REASONING_EFFORT="",
-                       STT_AI_MODEL="stt-model", STT_AI_SERVICE_TIER=None, STT_AI_REASONING_EFFORT="low",
-                       DEFAULT_AI_SERVICE_TIER="flex")
+                       STT_AI_MODEL="stt-model", STT_AI_SERVICE_TIER="flex", STT_AI_REASONING_EFFORT="low")
     def test_stt_search_decision_and_answer_use_their_own_model_groups(self):
         reasoning = SimpleNamespace(type="reasoning", id="rs_1")
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="0",
@@ -372,7 +370,7 @@ class MemoryFlowTests(SimpleTestCase):
             client.responses.create = AsyncMock(side_effect=[first, final])
             asyncio.run(flow.answer_with_memory(AsyncMock(return_value=[{"memories": []}]), "입력", "stt_correction"))
         decision, answer = [call.kwargs for call in client.responses.create.await_args_list]
-        # Blank QUERY options are not sent; the unset STT tier falls back to the default.
+        # Blank QUERY options are not sent.
         self.assertEqual(decision["model"], "query-model")
         self.assertNotIn("service_tier", decision)
         self.assertNotIn("reasoning", decision)
@@ -382,8 +380,7 @@ class MemoryFlowTests(SimpleTestCase):
         self.assertNotIn(reasoning, answer["input"])
         self.assertIn(call, answer["input"])
 
-    @override_settings(SUMMARY_AI_MODEL=None, SUMMARY_AI_SERVICE_TIER=None, SUMMARY_AI_REASONING_EFFORT=None,
-                       DEFAULT_AI_MODEL="default-model", DEFAULT_AI_SERVICE_TIER="fast", DEFAULT_AI_REASONING_EFFORT="none")
+    @override_settings(SUMMARY_AI_MODEL="summary-model", SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none")
     def test_digest_answers_directly_without_search(self):
         response = SimpleNamespace(status="completed", output=[], output_text="오늘의 가족 소식이에요.")
         search = AsyncMock()
@@ -396,7 +393,7 @@ class MemoryFlowTests(SimpleTestCase):
         self.assertNotIn("tools", request)
         self.assertEqual(request["instructions"], prompts.DIGEST)
         self.assertEqual((request["model"], request["service_tier"], request["reasoning"]),
-                         ("default-model", "fast", {"effort": "none"}))
+                         ("summary-model", "fast", {"effort": "none"}))
         self.assertEqual((result["text"], result["query"], result["memories"]), (response.output_text, None, []))
 
     @override_settings(ANSWER_AI_MODEL="answer-model", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
@@ -436,7 +433,7 @@ class LiveHistoryTests(FamilyFixture, TestCase):
         saved_file = report_dir / "history_search_results.json"
         previous = json.loads(saved_file.read_text(encoding="utf-8"))["results"] if saved_file.exists() else []
         previous = {row["question"]: row for row in previous}
-        report = {"family_id": demo.pk, "model": group_setting("ANSWER", "MODEL"),
+        report = {"family_id": demo.pk, "model": settings.ANSWER_AI_MODEL,
                   "run_at": timezone.localtime().isoformat(), "method": "2-way", "results": []}
         original_answer = flow.answer_with_memory
 
@@ -520,7 +517,7 @@ class LiveHistoryTests(FamilyFixture, TestCase):
             {"author": "지민", "relation": "손녀", "caption": "오늘 초록이 잎을 따서 엄마 수진이 만든 파스타에 올렸어요.",
              "history_hint": "초록이는 선희가 준 바질 화분"},
         ]
-        summary_report = {"family_id": demo.pk, "model": group_setting("SUMMARY", "MODEL"),
+        summary_report = {"family_id": demo.pk, "model": settings.SUMMARY_AI_MODEL,
                           "run_at": timezone.localtime().isoformat(), "method": "3-way", "results": []}
         for case in summary_cases:
             content = json.dumps({"작성자": case["author"], "관계": case["relation"], "원문": case["caption"]},
