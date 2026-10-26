@@ -1,4 +1,4 @@
-"""Generate ElevenLabs speech and cache it by family room and voice settings."""
+"""Generate ElevenLabs speech and cache it by family room and the account's chosen voice."""
 
 import hashlib
 import json
@@ -12,6 +12,8 @@ import uuid
 from pathlib import Path
 
 from django.conf import settings
+
+from . import voices
 
 
 class SpeechUnavailable(Exception):
@@ -67,11 +69,12 @@ def transcribe(audio):
         raise SpeechUnavailable("Speech recognition failed.") from error
 
 
-def synthesize(text, room_id):
-    if not settings.ELEVENLABS_VOICE_ID:
+def synthesize(text, room_id, voice=None):
+    voice_id = voices.voice_id(voice)
+    if not voice_id:
         raise SpeechUnavailable("A voice has not been configured.")
     key = hashlib.sha256(json.dumps([
-        room_id, settings.ELEVENLABS_TTS_MODEL, settings.ELEVENLABS_VOICE_ID, text,
+        room_id, settings.ELEVENLABS_TTS_MODEL, voice_id, text,
     ], ensure_ascii=False).encode()).hexdigest()
     folder = Path(settings.MEDIA_ROOT) / "speech"
     path = folder / (key + ".mp3")
@@ -82,7 +85,7 @@ def synthesize(text, room_id):
             raise SpeechUnavailable("Speech playback is not configured.")
         request = urllib.request.Request(
             "https://api.elevenlabs.io/v1/text-to-speech/"
-            + urllib.parse.quote(settings.ELEVENLABS_VOICE_ID, safe="")
+            + urllib.parse.quote(voice_id, safe="")
             + "?output_format=mp3_44100_128",
             data=json.dumps({
                 "text": text,

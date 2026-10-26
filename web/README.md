@@ -72,7 +72,7 @@ Accounts, family rooms, uploads, and text comments do not require AI credentials
 | Feature | Required configuration / process |
 | --- | --- |
 | Post summaries and questions; nonempty daily digests | `OPENAI_API_KEY` and the existing AI model settings |
-| Listening to summaries | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID` |
+| Listening to summaries | `ELEVENLABS_API_KEY`, plus voice IDs in `TTS_VOICES` (`backend/configs/settings.py`) |
 | Voice replies | `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, browser microphone permission |
 | Memory search and questions requiring historical context | OpenAI configuration, running Neo4j, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, and the family construction worker |
 | Automatically generating digests at the scheduled time | A separately running `run_digest_scheduler` process |

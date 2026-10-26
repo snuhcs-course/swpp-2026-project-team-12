@@ -12,7 +12,7 @@ from django.test import TestCase, override_settings
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import Post
-from integrations.speech import provider
+from integrations.speech import provider, voices
 
 from .test_posts import sample_image
 
@@ -20,6 +20,11 @@ from .family_fixtures import auth_headers, add_member, link_parent, sample_famil
 
 
 TEST_MEDIA_DIR = Path(__file__).resolve().parents[1] / "test_media"
+
+
+def voice_list(m="", f=""):
+    return {"m": {"name": "남성 목소리", "voice_id": m, "description": ""},
+            "f": {"name": "여성 목소리", "voice_id": f, "description": ""}}
 
 
 class AudioResponse(io.BytesIO):
@@ -67,7 +72,7 @@ class SpeechAPITests(TestCase):
             **auth_headers(token or self.token),
         )
 
-    @override_settings(ELEVENLABS_API_KEY="test-only", ELEVENLABS_VOICE_ID="test-voice",
+    @override_settings(ELEVENLABS_API_KEY="test-only", TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="test-voice"),
                        ELEVENLABS_TTS_MODEL="eleven_multilingual_v2")
     def test_speech_request_and_room_cache(self):
         with patch("urllib.request.urlopen", return_value=AudioResponse(b"mp3-data")) as urlopen:
@@ -97,9 +102,51 @@ class SpeechAPITests(TestCase):
         self.assertEqual(len(list((self.media_root / "speech").glob("*.mp3"))), 2)
         print("Speech generation and room cache test pass", flush=True)
 
+    @override_settings(ELEVENLABS_API_KEY="test-only", TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m", f="voice-f"))
+    def test_speech_uses_the_account_voice_and_caches_each_voice(self):
+        with patch("urllib.request.urlopen", return_value=AudioResponse(b"voice-m-mp3")) as urlopen:
+            self.assertEqual(self.speak("안녕하세요").content, b"voice-m-mp3")
+        self.assertIn("/text-to-speech/voice-m?", urlopen.call_args.args[0].full_url)
+
+        self.member.tts_voice = "f"
+        self.member.save(update_fields=["tts_voice"])
+        with patch("urllib.request.urlopen", return_value=AudioResponse(b"voice-f-mp3")) as urlopen:
+            self.assertEqual(self.speak("안녕하세요").content, b"voice-f-mp3")
+        self.assertIn("/text-to-speech/voice-f?", urlopen.call_args.args[0].full_url)
+        self.assertEqual(len(list((self.media_root / "speech").glob("*.mp3"))), 2)
+
+        with override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m")):
+            self.assertEqual(self.speak("새 문장").status_code, 503)
+
+    @override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES={**voice_list(m="voice-m"), "calm": {
+        "name": "차분한 목소리", "voice_id": "voice-calm", "description": "느리고 따뜻한 말투"}})
+    def test_voice_list_is_public_and_hides_unconfigured_voices(self):
+        response = self.client.get("/api/speech/voices/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"default": "m", "voices": [
+            {"key": "m", "name": "남성 목소리", "description": ""},
+            {"key": "calm", "name": "차분한 목소리", "description": "느리고 따뜻한 말투"},
+        ]})
+        self.assertEqual(self.client.post("/api/speech/voices/").status_code, 405)
+
+    def test_default_voice_must_be_a_listed_voice(self):
+        with override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m")):
+            self.assertEqual(voices.check_voice_list(None), [])
+        with override_settings(TTS_DEFAULT_VOICE="retired", TTS_VOICES=voice_list(m="voice-m")):
+            self.assertEqual([error.id for error in voices.check_voice_list(None)], ["speech.E001"])
+
+    @override_settings(ELEVENLABS_API_KEY="test-only", TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="voice-m"))
+    def test_account_with_a_removed_voice_falls_back_to_the_default(self):
+        self.member.tts_voice = "retired"
+        self.member.save(update_fields=["tts_voice"])
+        self.assertEqual(self.client.get("/api/accounts/me/", **auth_headers(self.token)).json()["tts_voice"], "m")
+        with patch("urllib.request.urlopen", return_value=AudioResponse(b"voice-m-mp3")) as urlopen:
+            self.assertEqual(self.speak("안녕하세요").status_code, 200)
+        self.assertIn("/text-to-speech/voice-m?", urlopen.call_args.args[0].full_url)
+
     def test_grandma_post_summaries_are_spoken_live(self):
-        if not settings.ELEVENLABS_API_KEY or not settings.ELEVENLABS_VOICE_ID:
-            self.skipTest("Set ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID for live TTS")
+        if not settings.ELEVENLABS_API_KEY or not voices.voice_id(""):
+            self.skipTest("Set ELEVENLABS_API_KEY and the default voice's voice_id in TTS_VOICES for live TTS")
         use_mock_ai = os.getenv("MOCK_AI_TESTS") == "1"
         if not use_mock_ai and not settings.OPENAI_API_KEY:
             self.skipTest("Set OPENAI_API_KEY for live summaries, or MOCK_AI_TESTS=1")
@@ -158,9 +205,9 @@ class SpeechAPITests(TestCase):
         ).status_code, 415)
         print("Speech authentication and validation test pass", flush=True)
 
-    @override_settings(ELEVENLABS_API_KEY="test-only", ELEVENLABS_VOICE_ID="test-voice")
+    @override_settings(ELEVENLABS_API_KEY="test-only", TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list(m="test-voice"))
     def test_speech_provider_failures_do_not_cache_audio(self):
-        with override_settings(ELEVENLABS_VOICE_ID=""):
+        with override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES=voice_list()):
             self.assertEqual(self.speak("안녕하세요").status_code, 503)
         with patch("urllib.request.urlopen", return_value=AudioResponse(b"not-mp3", "text/plain")):
             self.assertEqual(self.speak("안녕하세요").status_code, 503)

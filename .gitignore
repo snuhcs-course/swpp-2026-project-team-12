@@ -7,10 +7,6 @@
 __pycache__/
 .venv/
 venv/
-.pytest_cache/
-.coverage
-coverage.xml
-htmlcov/
 
 # Local database and uploaded files
 *.sqlite3
