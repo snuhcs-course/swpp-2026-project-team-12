@@ -1,6 +1,7 @@
 package kr.talkdock.app
 
 import android.content.Context
+import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -61,6 +62,7 @@ class AccountScreensTest {
                 voices.setSelection(2)
             }
             ui.await { ui.has("느리고 따뜻한 말투") }
+            ui.await { ui.all().filterIsInstance<Button>().single { it.text == "선택한 목소리 미리 듣기" }.isShown }
             ui.click("수정 내용 저장하기")
             ui.test.runOnMainSync { assertNotNull(ui.fields()[2].error) }
             assertTrue("An invalid new password must not be sent", api.requestsTo("/api/accounts/me/").isEmpty())
@@ -182,6 +184,6 @@ private fun UiHarness.spinner(label: String) = all().filterIsInstance<Spinner>()
 
 /** The server's voice list; the third voice shows the apps take whatever the server offers. */
 private fun voiceList() = JSONObject().put("default", "m").put("voices", org.json.JSONArray()
-    .put(JSONObject().put("key", "m").put("name", "남성 목소리").put("description", ""))
-    .put(JSONObject().put("key", "f").put("name", "여성 목소리").put("description", ""))
-    .put(JSONObject().put("key", "calm").put("name", "차분한 목소리").put("description", "느리고 따뜻한 말투")))
+    .put(JSONObject().put("key", "m").put("name", "남성 목소리").put("description", "").put("sample", false))
+    .put(JSONObject().put("key", "f").put("name", "여성 목소리").put("description", "").put("sample", false))
+    .put(JSONObject().put("key", "calm").put("name", "차분한 목소리").put("description", "느리고 따뜻한 말투").put("sample", true)))
