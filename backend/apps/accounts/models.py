@@ -19,7 +19,8 @@ class User(AbstractUser):
 
     display_name = models.CharField(max_length=40)
     gender = models.CharField(max_length=10, choices=Gender.choices, default=Gender.UNKNOWN)
-    tts_voice = models.CharField(max_length=1, choices=TtsVoice.choices, default=TtsVoice.MALE)
+    # db_default lets inserts that predate this field, such as older app versions, still succeed.
+    tts_voice = models.CharField(max_length=1, choices=TtsVoice.choices, default=TtsVoice.MALE, db_default=TtsVoice.MALE)
 
 
 class AccessToken(models.Model):
