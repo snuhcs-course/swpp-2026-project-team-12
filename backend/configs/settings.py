@@ -84,12 +84,31 @@ MEDIA_URL = "/media/"
 # ============ Third-party API settings ============
 # Account and family APIs can run without AI credentials. Providers validate keys when called.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
-# Adopted post prompts use a direct summary and three-way QA, independently of legacy features.
-POST_AI_MODEL = os.getenv("POST_AI_MODEL", "gpt-6-luna")
-POST_AI_SERVICE_TIER = os.getenv("POST_AI_SERVICE_TIER", "fast")
-POST_AI_REASONING_EFFORT = os.getenv("POST_AI_REASONING_EFFORT", "none")
-GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", "gpt-6-luna")
+# Model groups. An unset group value uses DEFAULT_AI_*; a blank tier or effort is not sent,
+# so the API default applies. See integrations/ai/options.py.
+DEFAULT_AI_MODEL = os.getenv("DEFAULT_AI_MODEL", "gpt-6-luna")
+DEFAULT_AI_SERVICE_TIER = os.getenv("DEFAULT_AI_SERVICE_TIER", "fast")
+DEFAULT_AI_REASONING_EFFORT = os.getenv("DEFAULT_AI_REASONING_EFFORT", "none")
+# Summaries: daily digest, graph post descriptions and feed summaries.
+SUMMARY_AI_MODEL = os.getenv("SUMMARY_AI_MODEL")
+SUMMARY_AI_SERVICE_TIER = os.getenv("SUMMARY_AI_SERVICE_TIER")
+SUMMARY_AI_REASONING_EFFORT = os.getenv("SUMMARY_AI_REASONING_EFFORT")
+# Voice reply STT correction.
+STT_AI_MODEL = os.getenv("STT_AI_MODEL")
+STT_AI_SERVICE_TIER = os.getenv("STT_AI_SERVICE_TIER")
+STT_AI_REASONING_EFFORT = os.getenv("STT_AI_REASONING_EFFORT")
+# Answers: family history search and post QA, including the QA search decision.
+ANSWER_AI_MODEL = os.getenv("ANSWER_AI_MODEL")
+ANSWER_AI_SERVICE_TIER = os.getenv("ANSWER_AI_SERVICE_TIER")
+ANSWER_AI_REASONING_EFFORT = os.getenv("ANSWER_AI_REASONING_EFFORT")
+# Search decision and queries for STT correction.
+QUERY_AI_MODEL = os.getenv("QUERY_AI_MODEL")
+QUERY_AI_SERVICE_TIER = os.getenv("QUERY_AI_SERVICE_TIER")
+QUERY_AI_REASONING_EFFORT = os.getenv("QUERY_AI_REASONING_EFFORT")
+# Graphiti entity and relation extraction and reranking. Graphiti has no service tier, and a
+# blank reasoning effort keeps Graphiti's own default rather than DEFAULT_AI_REASONING_EFFORT.
+GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL") or DEFAULT_AI_MODEL
+GRAPHITI_REASONING_EFFORT = os.getenv("GRAPHITI_REASONING_EFFORT", "")
 GRAPHITI_SEARCH_WORKERS = int(os.getenv("GRAPHITI_SEARCH_WORKERS", "4"))
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")

@@ -24,8 +24,9 @@ from integrations.ai_workers import graphiti_client, searching_workers
 from .family_fixtures import auth_headers, add_member, link_parent
 
 
-@override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna",
-                   POST_AI_SERVICE_TIER="fast", POST_AI_REASONING_EFFORT="none")
+@override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna",
+                   SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none",
+                   ANSWER_AI_MODEL="gpt-6-luna", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
 class PostQATests(TestCase):
     def setUp(self):
         pool = searching_workers.SearchPool(1)
@@ -195,7 +196,7 @@ class PostQATests(TestCase):
         path = f"/api/posts/{self.post.pk}/message/"
         with patch.object(provider, "adapt", side_effect=["처음 요약", "설정 변경 후 요약"]) as adapt:
             self.assertEqual(self.client.get(path, **self.auth).json()["text"], "처음 요약")
-            with override_settings(POST_AI_REASONING_EFFORT="low"):
+            with override_settings(SUMMARY_AI_REASONING_EFFORT="low"):
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
             self.assertEqual(adapt.call_count, 2)
