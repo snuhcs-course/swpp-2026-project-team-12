@@ -42,8 +42,7 @@ client/app/build/outputs/*
 client/app/build/outputs/apk/*
 !client/app/build/outputs/apk/debug/
 client/app/build/outputs/apk/debug/*
-!client/app/build/outputs/apk/debug/app-debug.apk
-!client/app/build/outputs/apk/debug/app.apk
+!client/app/build/outputs/apk/distribution/
 
 # Generated coverage reports
 .coverage
