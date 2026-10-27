@@ -18,6 +18,10 @@ testbed/context_retrieval/output/
 testbed/**/input/*.local.json
 *.log
 
+# Local Nginx state and maintenance switch
+/deploy/nginx/run/
+/deploy/nginx/maintenance.flag
+
 # Context documents for each developer
 documents/*
 

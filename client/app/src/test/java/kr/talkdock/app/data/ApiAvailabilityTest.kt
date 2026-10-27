@@ -61,6 +61,32 @@ class ApiAvailabilityTest {
         }
     }
 
+    @Test fun explicitProxyMaintenanceNotifiesTheScreenForRequestsAndImages() {
+        for (image in listOf(false, true)) {
+            var notifications = 0
+            Server(503, "{\"code\":\"maintenance\",\"error\":\"점검 안내\"}").use { server ->
+                val client = ApiClient(baseUrl = server.base, onMaintenance = { notifications++ })
+                val error = assertThrows(ApiException::class.java) {
+                    if (image) client.image(server.base + "photo/") else client.request("posts/")
+                }
+                assertTrue(error.isMaintenance)
+                assertEquals("점검 안내", error.message)
+                assertEquals(1, notifications)
+            }
+        }
+    }
+
+    @Test fun featureSpecific503DoesNotOpenTheMaintenanceScreen() {
+        var notifications = 0
+        Server(503, "{\"error\":\"음성을 준비하지 못했어요\"}").use { server ->
+            val client = ApiClient(baseUrl = server.base, onMaintenance = { notifications++ })
+            val error = assertThrows(ApiException::class.java) { client.request("speech/") }
+            assertFalse(error.isMaintenance)
+            assertEquals(0, notifications)
+            assertEquals("음성을 준비하지 못했어요", error.message)
+        }
+    }
+
     @Test fun malformedUnauthorizedResponseKeeps401AndLoginNotice() {
         Server(401, "Unauthorized").use { server ->
             val error = assertThrows(ApiException::class.java) { ApiClient(baseUrl = server.base).request("posts/") }

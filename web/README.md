@@ -120,6 +120,44 @@ Browser microphone access requires **localhost/127.0.0.1 or HTTPS**. Over a plai
 
 `runserver` is intended for development and demonstrations. An ongoing Internet deployment needs an HTTPS reverse proxy, a production WSGI/ASGI server, `DJANGO_DEBUG=0`, a dedicated `DJANGO_SECRET_KEY`, and an explicit allowed-host list.
 
+### Maintenance during restarts (Windows)
+
+`deploy/nginx/nginx.conf` keeps a local proxy on **127.0.0.1:8080** in front of Django on **127.0.0.1:8000**. Point the existing HTTPS tunnel/proxy at **8080**, keeping the public URL unchanged. Requests sent directly to 8000 bypass maintenance mode. Keep Nginx and the tunnel running while restarting Django.
+
+Waitress is included in `backend/requirements.txt` (also installed through `web/requirements.txt`). Nginx is a separate executable, not a pip package: download and extract the [official Windows mainline ZIP](https://nginx.org/en/download.html), then set `$nginx` below to its actual path.
+
+Start Django in its own terminal, from the repository root:
+
+```powershell
+python -m pip install -r backend/requirements.txt
+python backend/manage.py migrate
+cd backend
+waitress-serve --listen=127.0.0.1:8000 configs.wsgi:application
+```
+
+In another PowerShell terminal at the repository root, start Nginx:
+
+```powershell
+$nginx = 'C:/tools/nginx/nginx.exe' # Replace with the extracted executable's path.
+$proxyRoot = (Resolve-Path deploy/nginx).Path.Replace('\', '/') + '/'
+New-Item -ItemType Directory -Force deploy/nginx/run | Out-Null
+& $nginx -p $proxyRoot -c nginx.conf -e stderr -t
+# Continue only if the configuration test succeeds.
+Start-Process -FilePath $nginx -ArgumentList "-p `"$proxyRoot`" -c nginx.conf -e stderr" -WorkingDirectory $proxyRoot -WindowStyle Hidden
+```
+
+Open **http://127.0.0.1:8080/**. From the repository root, toggle maintenance without reloading Nginx:
+
+```powershell
+New-Item -ItemType File -Force deploy/nginx/maintenance.flag | Out-Null # ON
+# Stop/restart Django, then verify http://127.0.0.1:8000/api/test_reply/ directly.
+Remove-Item -LiteralPath deploy/nginx/maintenance.flag # OFF after verification
+```
+
+Maintenance returns HTTP 503 with the existing Android character, wording and retry button for web requests, and `{"code":"maintenance","error":"..."}` for `/api/` requests. Already open web and Android clients show that notice above the current screen when they next receive this response. Reconnecting makes a safe GET to `/api/test_reply/`; failed POSTs are never automatically replayed. The web notice at `/maintenance/`, character and font are served directly by Nginx, even while Django is stopped. Both 503 responses have `Cache-Control: no-store` and `Retry-After: 60` (a suggested retry delay, not an estimated completion time). If Django is unreachable or the proxy times out, Nginx returns the notice automatically. Django's own error responses pass through unchanged, so an AI/speech 503 remains a feature-specific error. Rebuild/reinstall Android after updating its client code. To stop Nginx itself, use `& $nginx -p $proxyRoot -c nginx.conf -e stderr -s quit`.
+
+For a maintenance timetable or extra notice, edit **`deploy/maintenance-message.txt`** as UTF-8 plain text. Line breaks are preserved in both web and Android notices; a blank file hides the extra message. Nginx serves it directly, so Django can remain stopped. Edits appear the next time the notice is opened or the page is refreshed, without restarting Nginx. Android needs a rebuild once for this feature; later message edits require no app update.
+
 ## 6. Files and Verification
 
 ```text

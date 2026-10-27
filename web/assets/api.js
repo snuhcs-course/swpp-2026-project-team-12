@@ -53,6 +53,9 @@ export async function api(path, { method = 'GET', data, binary = false, room = r
     const response = await fetch(`/api/${path}`, { method, headers, body, signal: controller.signal, cache: 'no-store', credentials: 'omit' });
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
+      if (response.status === 503 && result?.code === 'maintenance') {
+        window.dispatchEvent(new Event('server-maintenance'));
+      }
       if (response.status === 401 && requestToken && requestToken === token) {
         setToken('');
         window.dispatchEvent(new Event('session-expired'));
