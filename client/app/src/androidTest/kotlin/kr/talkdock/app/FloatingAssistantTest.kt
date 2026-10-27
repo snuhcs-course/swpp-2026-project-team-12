@@ -247,7 +247,7 @@ class FloatingAssistantTest {
             val now = SystemClock.uptimeMillis()
             for (step in 0..16) {
                 val x = at[0] + width * .25f
-                val y = at[1] + height * (.8f - .6f * step / 16f)
+                val y = at[1] + height * (.2f - .6f * step / 16f)
                 val action = if (step == 0) MotionEvent.ACTION_DOWN else if (step == 16) MotionEvent.ACTION_UP else MotionEvent.ACTION_MOVE
                 MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, x, y, 0).also { screen.test.sendPointerSync(it); it.recycle() }
                 SystemClock.sleep(12)
