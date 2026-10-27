@@ -6,6 +6,14 @@ Open `client/` in Android Studio with JDK 21 and Android SDK 36. The app uses Ko
 ./gradlew :app:assembleDebug :app:lintDebug
 ```
 
+To build both APKs together, run `./gradlew :app:assembleApks` (Windows: `.\gradlew.bat :app:assembleApks`) from `client/`.
+The files are written to `app/build/outputs/apk/distribution/`:
+
+- `talkdock_local_dev.apk`: the existing debug build, using `http://10.0.2.2:8000/api/` by default or `-PtalkDockApiUrl=...`.
+- `talkdock.apk`: a release build using `PUBLIC_ORIGIN` from the repository-root `.env`, with `/api/` appended. An exported `PUBLIC_ORIGIN` takes precedence. For example, `PUBLIC_ORIGIN=https://api.talkdock.app` connects to `https://api.talkdock.app/api/`. It requires an HTTPS origin and has no debug connection settings.
+
+Both APKs use the existing development signing certificate for direct APK sharing; configure a private release signing key before publishing to an app store. They have the same application ID, so installing one replaces the other. Local and public builds keep separate account sessions. `DJANGO_ALLOWED_HOSTS` is a backend setting and must include the public hostname (e.g. `api.talkdock.app`). Only the public origin is embedded in the release APK; backend secrets stay in `.env`.
+
 Start the Django server from the repository root with `python backend/manage.py runserver 127.0.0.1:8000`. The emulator connects through the default `http://10.0.2.2:8000/api/` address. On the first screen, create an account with a unique username, a password of at least 10 characters, and a display name, and a required gender selection. After registration, create a family room or join one using its invitation code, room password, and an unclaimed position in the family tree. Existing accounts can log in with their username and password. The app stores account tokens on the device for switching accounts; an expired token opens login again with the username filled in. **Log out** revokes the current token and removes that local account session.
 
 ## Family tree invitations
