@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -32,6 +33,12 @@ import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.CommentComposer
 import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.FamilyMemoryPanel
+import kr.talkdock.app.ui.FloatingAssistantView
+import kr.talkdock.app.ui.AssistantBubbleMenu
+import kr.talkdock.app.ui.PostFocusHighlight
+import kr.talkdock.app.ui.AssistantBounds
+import kr.talkdock.app.ui.AssistantPlacement
+import kr.talkdock.app.ui.AssistantPostRange
 import kr.talkdock.app.ui.ReplyAudioButton
 import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
@@ -69,6 +76,14 @@ class MainActivity : ComponentActivity() {
     private var activePostAudio: InlinePostAudio? = null
     private var replyPreview: ReplyAudioButton? = null
     private var memoryPanel: FamilyMemoryPanel? = null
+    private var assistant: FloatingAssistantView? = null
+    private var assistantDialog: Dialog? = null
+    private var assistantMenu: AssistantBubbleMenu? = null
+    private var assistantViewport: View? = null
+    private var assistantPost: JSONObject? = null
+    private var postFocus: PostFocusHighlight? = null
+    private var detailCard: View? = null
+    private val feedPostTargets = mutableListOf<Pair<View, JSONObject>>()
     private lateinit var imageLoader: ViewportPhotoLoader
     private var session: JSONObject? = null
     private var room = JSONObject()
@@ -121,6 +136,7 @@ class MainActivity : ComponentActivity() {
         ui = Ui(this); sessions = SessionStore(this); session = sessions.current()
         session?.optJSONObject("room")?.let { room = it }
         root = FrameLayout(this).apply { setBackgroundColor(ui.milk) }
+        postFocus = PostFocusHighlight(ui, root)
         setContentView(root)
         imageLoader = ViewportPhotoLoader(root)
         if (android.os.Build.VERSION.SDK_INT >= 30) {
@@ -136,6 +152,7 @@ class MainActivity : ComponentActivity() {
         speaker = Speaker { toast(it) }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (assistantMenu != null) { closeAssistantMenu(); return }
                 if (busy) { toast("잠시만 기다려 주세요."); return }
                 currentBack?.invoke() ?: finish()
             }
@@ -206,8 +223,10 @@ class MainActivity : ComponentActivity() {
             out.putString("treeDraft", treeDraft?.payload()?.toString())
         }
     }
-    override fun onResume() { super.onResume(); foreground = true }
+    override fun onResume() { super.onResume(); foreground = true; updateAssistantContext() }
     override fun onPause() {
+        closeAssistantMenu()
+        postFocus?.clear()
         foreground = false
         if (recorder?.active == true) {
             voiceButton?.text = "말하기 시작"
@@ -216,6 +235,9 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
+        closeAssistantMenu()
+        postFocus?.clear()
+        assistantDialog?.dismiss()
         stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
@@ -224,6 +246,10 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
+        closeAssistantMenu()
+        postFocus?.clear(); detailCard = null
+        assistantDialog?.dismiss()
+        assistant = null; assistantPost = null; assistantViewport = null; feedPostTargets.clear()
         stopPostAudio(); replyPreview?.stop(); replyPreview = null
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null
@@ -256,6 +282,125 @@ class MainActivity : ComponentActivity() {
         } else scroll
         page.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
         if (tab != null) bottomBar(tab)
+        assistantViewport = body
+        if (session != null && room.has("id") && name in setOf("home", "detail", "memories", "roomChoice", "invite", "digest", "familyTree", "members")) {
+            assistant = FloatingAssistantView(this, ui, { assistantBounds() }, { updateAssistantContext() },
+                onMoveStarted = { closeAssistantMenu() }) {
+                openAssistant()
+            }.also { root.addView(it) }
+        }
+    }
+
+    /** Coordinates in the root overlay, clipped by system bars, keyboard and page chrome. */
+    private fun assistantBounds(): Rect? {
+        val bounds = Rect()
+        if (assistantViewport?.getGlobalVisibleRect(bounds) != true) return null
+        val origin = IntArray(2); root.getLocationOnScreen(origin)
+        bounds.offset(-origin[0], -origin[1])
+        // Dock against the horizontal viewport edge; retain vertical clearance.
+        bounds.inset(0, ui.dp(8))
+        return bounds.takeIf { it.width() > 0 && it.height() > 0 }
+    }
+
+    private fun updateAssistantContext() {
+        val button = assistant ?: run { postFocus?.clear(); return }
+        button.visibility = if (busy) View.INVISIBLE else View.VISIBLE
+        assistantPost = when {
+            busy -> null
+            screen == "detail" -> selectedPost
+            screen == "home" -> {
+                val viewport = assistantBounds()
+                if (viewport == null) null else {
+                    val origin = IntArray(2); root.getLocationOnScreen(origin)
+                    val ranges = feedPostTargets.mapNotNull { (card, post) ->
+                        val bounds = Rect()
+                        if (!card.isAttachedToWindow || !card.getGlobalVisibleRect(bounds)) null
+                        else AssistantPostRange(post.getInt("id"), (bounds.top - origin[1]).toFloat(), (bounds.bottom - origin[1]).toFloat())
+                    }
+                    val id = AssistantPlacement.currentPost(ranges, AssistantBounds(viewport.left.toFloat(),
+                        viewport.top.toFloat(), viewport.right.toFloat(), viewport.bottom.toFloat()))
+                    feedPostTargets.firstOrNull { it.second.optInt("id") == id }?.second
+                }
+            }
+            else -> null
+        }
+        val target = assistantPost
+        postFocus?.show(if (foreground && !busy && assistantMenu != null && target != null) when (screen) {
+            "home" -> feedPostTargets.firstOrNull { it.second.optInt("id") == target.optInt("id") }?.first
+            "detail" -> detailCard
+            else -> null
+        } else null)
+        button.contentDescription = if (target == null) "토닥 도우미, 가족 추억 질문하기. 끌어서 위치 옮기기"
+            else "토닥 도우미, ${target.optString("author_name")}님의 소식에 질문하기. 끌어서 위치 옮기기"
+        // A post-scoped tag also makes the selected context inspectable without exposing credentials.
+        button.tag = target?.optInt("id")
+        if (busy) closeAssistantMenu()
+        else assistantMenu?.let { menu ->
+            menu.setPostAvailable(target != null)
+            assistantBounds()?.let { menu.follow(button, it) }
+        }
+    }
+
+    private fun closeAssistantMenu() {
+        postFocus?.clear()
+        assistantMenu?.let { root.removeView(it) }
+        assistantMenu = null
+        assistant?.isSelected = false
+        assistant?.let { androidx.core.view.ViewCompat.setStateDescription(it, "메뉴 닫힘") }
+    }
+
+    private fun openAssistant() {
+        if (assistantMenu != null) { closeAssistantMenu(); return }
+        if (busy || assistantDialog != null || !room.has("id")) return
+        updateAssistantContext()
+        val button = assistant ?: return
+        val menu = AssistantBubbleMenu(this, ui, large,
+            askPost = {
+                updateAssistantContext()
+                val target = assistantPost?.let { JSONObject(it.toString()) }
+                if (target != null) {
+                    closeAssistantMenu()
+                    openAssistantConversation(target, api)
+                }
+            },
+            findMemories = {
+                closeAssistantMenu()
+                familyMemories()
+            },
+            dailyDigest = { closeAssistantMenu(); digest() })
+        assistantMenu = menu
+        root.addView(menu, FrameLayout.LayoutParams(-2, -2))
+        button.bringToFront(); button.isSelected = true
+        androidx.core.view.ViewCompat.setStateDescription(button, "메뉴 열림, 다시 누르면 닫기")
+        updateAssistantContext()
+    }
+
+    /** Capture the post and client only when an option is chosen, then keep them fixed. */
+    private fun openAssistantConversation(target: JSONObject, client: ApiClient) {
+        stopPostAudio()
+        val dialog = Dialog(this)
+        assistantDialog = dialog
+        val box = ui.column(20).apply { background = ui.shape(ui.milk, 24) }
+        val header = ui.row()
+        header.addView(ui.text("이 글에 대해 질문하기",
+            if (large) 24f else 21f, true), LinearLayout.LayoutParams(0, -2, 1f))
+        header.addView(ui.iconButton("close", "도우미 닫기") { dialog.dismiss() })
+        box.addView(header)
+        val scroll = ScrollView(this).apply { isFillViewport = false }
+        val body = ui.column()
+        scroll.addView(body)
+        box.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        ui.gap(body, 16)
+        ui.label(body, target.optString("author_name") + "님의 소식에 질문해 보세요.", if (large) 22f else 18f, true)
+        val panel = PostQuestionPanel(this, ui, target.getInt("id"), large, client, questions)
+        body.addView(panel, LinearLayout.LayoutParams(-1, -2))
+        panel.open(focus = true)
+        dialog.setContentView(box)
+        dialog.setOnDismissListener { if (assistantDialog === dialog) assistantDialog = null }
+        dialog.show()
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        dialog.window?.setLayout(minOf((root.width * .94f).toInt(), ui.dp(560)), (root.height * .8f).toInt())
     }
     private fun bottomBar(selected: Int) {
         ui.line(page)
@@ -699,9 +844,8 @@ class MainActivity : ComponentActivity() {
         if (refresh == null) navigation(room.optString("name", "우리 가족"), tab = 0, name = "home")
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
+            feedPostTargets.clear()
             content.removeAllViews()
-            ui.button(content, "가족 추억 찾기", false, if (large) 76 else 56) { familyMemories() }
-            ui.gap(content, 20)
             val posts = objects(data.getJSONArray("posts")).sortedWith(
                 compareByDescending<JSONObject> {
                     runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
@@ -712,30 +856,15 @@ class MainActivity : ComponentActivity() {
                 heading("첫 소식을 기다리고 있어요", "멋진 사진이 없어도 괜찮아요.\n짧은 한마디로 하루를 전해 보세요.")
                 ui.button(content, "첫 소식 쓰기") { composer() }
                 ui.button(content, "가족 초대 코드 보기", false) { invite() }
-                ui.ghost(content, "하루 요약 보기") { digest() }
                 return@async
             }
             if (large) {
                 ui.note(content, "큰 글씨로 보고 있어요.", true); ui.gap(content, 20)
-            } else {
-                val hero = ui.card(content, ui.sky, stroke = false)
-                val row = ui.row()
-                val copy = ui.column()
-                ui.label(copy, "오늘도, 함께", 14f, color = ui.skyDeep); ui.gap(copy, 8)
-                ui.label(copy, "짧은 안부에도\n마음이 전해져요", 20f, true, ui.skyDeep)
-                ui.gap(copy, 8)
-                ui.label(copy, "오늘의 소식 쓰기  ›", 16f, true, ui.skyDeep).apply {
-                    minimumHeight = ui.dp(48); gravity = Gravity.CENTER_VERTICAL
-                    isClickable = true; isFocusable = true; setOnClickListener { composer() }
-                }
-                row.addView(copy, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(TodakArtView(this, "together", 126), LinearLayout.LayoutParams(ui.dp(126), ui.dp(115)))
-                hero.addView(row); ui.gap(content, 20)
             }
-            ui.button(content, "우리 가족의 하루 요약", false, if (large) 76 else 56) { digest() }
-            ui.gap(content, 20); ui.label(content, "가족의 소식", if (large) 24f else 20f, true); ui.gap(content, 20)
+            ui.label(content, "가족의 소식", if (large) 24f else 20f, true); ui.gap(content, 20)
             posts.forEach { post ->
                 val card = ui.card(content)
+                feedPostTargets.add(card to post)
                 author(card, post)
                 ui.label(card, post.optString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 18f)
                 ui.gap(card, 12); postPhotos(card, post)
@@ -855,6 +984,7 @@ class MainActivity : ComponentActivity() {
         async({ client.request("posts/" + post.getInt("id") + "/") }) { data ->
             selectedPost = data
             val card = ui.card(content)
+            detailCard = card
             author(card, data)
             ui.label(card, data.getString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 23f else 18f)
             ui.gap(card, 12); postPhotos(card, data)
