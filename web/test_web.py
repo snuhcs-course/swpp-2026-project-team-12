@@ -26,6 +26,9 @@ class WebServingTests(SimpleTestCase):
             for name, content_type in [("app.js", "text/javascript"), ("api.js", "text/javascript"),
                                        ("family-tree.js", "text/javascript"),
                                        ("family-tree-view.js", "text/javascript"),
+                                       ("floating-assistant.js", "text/javascript"),
+                                       ("assistant-state.js", "text/javascript"),
+                                       ("assistant_character.png", "image/png"),
                                        ("icons.js", "text/javascript"), ("styles.css", "text/css"),
                                        ("favicon.svg", "image/svg+xml"), ("todak_joy.gif", "image/gif")]:
                 with self.subTest(name=name):
