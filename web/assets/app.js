@@ -2,6 +2,7 @@ import { api, ApiError, registrationPayload, hasToken, setToken, setRoom, imageU
 import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
+import { FloatingAssistant } from './floating-assistant.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -11,6 +12,17 @@ const postingSuccessBox = document.querySelector('#posting-success');
 let postingSuccessTimer;
 const pendingOperations = new Set();
 const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
+const assistant = new FloatingAssistant({
+  root: document.querySelector('#assistant-root'),
+  context: () => ({
+    scope: state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null,
+    roomId: state.room?.id,
+    enabled: Boolean(state.user && state.room && currentRoute() === 'feed' && document.querySelector('#feed-list') && !modal.open),
+  }),
+  ask: ({ id, roomId, question, dialogue }) => api(`posts/${id}/questions/`, {
+    method: 'POST', room: roomId, data: { question, prior_dialogue: dialogue },
+  }),
+});
 const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
@@ -124,14 +136,17 @@ function cleanupModal() {
   document.body.append(toastBox, postingSuccessBox);
   updateBusyIndicator();
   document.body.classList.remove('modal-open');
+  assistant.refresh();
 }
 function openModal(content, className = '') {
+  assistant.close(false);
   if (modal.open) modal.close();
   cleanupModal();
   modal.className = className;
   modal.innerHTML = content;
   modal.showModal();
   document.body.classList.add('modal-open');
+  assistant.refresh();
 }
 function modalHeading(title, eyebrow = '') {
   return `<header class="modal-heading"><div>${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}<h2 id="modal-title">${title}</h2></div>${button('close-modal', '<span class="sr-only">닫기</span>', 'close', 'icon-button')}</header>`;
@@ -164,6 +179,7 @@ async function busy(element, task, errorTarget) {
 }
 
 function resetSession() {
+  assistant.reset();
   hidePostingSuccess();
   state.session++;
   state.pageVersion++;
@@ -265,6 +281,7 @@ async function enterApp() {
 }
 
 function useRoom(room) {
+  if (state.room?.id !== room.id) assistant.reset();
   state.room = room;
   state.posts = [];
   state.digest = state.lookup = null;
@@ -351,6 +368,7 @@ function pageHeading(eyebrow, title, text, controls = '') {
 function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings', 'rooms'].includes(route) ? route : 'feed'; }
 async function renderPage() {
   if (!state.room || !state.user) return;
+  assistant.refresh();
   const route = currentRoute();
   const version = ++state.pageVersion;
   updateBusyIndicator();
@@ -391,7 +409,7 @@ document.querySelector('.skip-link').addEventListener('click', event => {
 
 function familyRail() {
   return `<aside class="right-rail"><section class="family-rail panel"><div class="rail-icon">${icon('home')}</div><p class="eyebrow">우리만의 따뜻한 공간</p><h2>${e(state.room.name)}</h2><p class="muted">${state.room.members.length}명이 함께 이야기를 나누고 있어요.</p><div class="avatar-stack">${state.room.members.slice(0, 7).map(member => avatar(member.name, member.id)).join('')}</div><a href="#/family" class="text-link">우리 가족 보기${icon('arrow')}</a><div class="invite-row"><span>가족 초대코드</span><strong>${e(state.room.invite_code)}</strong>${button('copy-code', '<span class="sr-only">초대코드 복사</span>', 'copy', 'icon-button')}</div></section>
-    <section class="digest-rail"><span class="tag">하루를 마무리하며</span>${icon('book', 'rail-book')}<h3>오늘의 이야기를<br>한눈에 모아보세요.</h3><p>매일 ${e(state.room.digest_time)}, 가족의 소식을<br>따뜻한 요약으로 전해드려요.</p><a href="#/digest" class="text-link">하루 모아보기${icon('arrow')}</a></section><p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
+    <p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
 }
 async function renderFeed(version) {
   $('#page').innerHTML = `${pageHeading('OUR FAMILY, EVERY DAY', '우리 가족의 작은 일상', '오늘은 어떤 하루를 보내셨나요? 소소한 이야기를 들려주세요.', button('compose', '소식 남기기', 'plus', 'button primary'))}<div class="feed-layout"><section aria-label="가족 소식"><button type="button" data-action="compose" class="composer-prompt">${avatar(state.user.name, state.user.user_id)}<span>${e(state.user.name)}님, 오늘의 안부를 전해 보세요.</span>${icon('photo')}</button><div class="feed-toolbar"><h2>최근 소식 <span id="post-count"></span></h2>${button('refresh-feed', '<span class="sr-only">소식 새로고침</span>', 'refresh', 'icon-button')}</div><div class="feed-filter"><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="불러온 소식에서 글·이름 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>${familyRail()}</div>`;
@@ -402,7 +420,7 @@ async function renderFeed(version) {
 }
 function postCard(post) {
   const photos = post.images || [];
-  return `<article class="post-card"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div><span class="family-only">가족에게만</span></header>
+  return `<article class="post-card" data-post-id="${post.id}"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div><span class="family-only">가족에게만</span></header>
     ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo-url="${e(photos[0].url)}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
     <div class="post-body"><p class="post-caption">${e(post.caption)}</p></div><footer class="post-actions">${button('open-post', `댓글 <span>${post.comment_count}</span>`, 'comment', 'button quiet', `data-id="${post.id}"`)}${button('post-summary', 'AI로 소식 읽기', 'sparkle', 'button quiet ai-link', `data-id="${post.id}"`)}</footer></article>`;
 }
@@ -413,6 +431,7 @@ function updateFeed() {
   $('#post-count').textContent = `${posts.length}`;
   $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', query || author ? '일치하는 소식이 없어요' : '첫 번째 안부를 기다리고 있어요', query || author ? '검색어나 가족을 바꿔서 다시 찾아보세요.' : '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', query || author ? '' : button('compose', '첫 소식 남기기', 'plus', 'button primary'));
   hydrateImages();
+  assistant.refresh();
 }
 function hydrateImages(root = document) {
   observer ||= new IntersectionObserver(entries => {

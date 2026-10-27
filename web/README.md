@@ -61,6 +61,19 @@ The web interface remains in Korean. The instructions below explain the correspo
 
 Desktop layouts use persistent sidebar navigation, a wide feed with a family information panel, and a split photo/comment dialog. Narrow screens switch to a single column. The app supports larger text, keyboard navigation, and closing dialogs with Esc.
 
+The feed's 96px circular character has an orbiting border sparkle (static with reduced motion).
+It opens a movable, resizable post-question panel and hides while
+the panel is open. Closing the panel restores the character at its saved position. While it is open,
+the post closest to the visible feed's center stays bright and the surrounding page is shaded.
+Scrolling automatically changes both the highlighted post and its conversation. Each post keeps
+its own draft, answers, and pending request; a late answer never appears on another post.
+Drag the panel title to move it and use any edge/corner to resize.
+The character can be freely dragged anywhere inside the viewport without snapping to an edge. Arrow keys move the focused
+character/title or resize a focused edge. Geometry is remembered in `localStorage`; conversations
+stay in tab memory and are cleared on account/room changes. Small screens use a bottom panel.
+The old right-hand digest card is removed; **하루 모아보기** remains in navigation.
+See [the assistant implementation and verification notes](developer/floating-assistant.md).
+
 Loading screens and pending actions use the same boy artwork as Android. The resized PNG artwork is embedded in `assets/styles.css`, using the existing web asset route. Pending actions show a floating status card that also remains visible inside an open dialog. Successful post publication and text/voice comments show a separate, centered confirmation with a gently animated cheerful boy for three seconds. The waiting indicator is hidden during confirmation; reduced-motion preferences disable the animation. Failed submissions keep their drafts and do not show success feedback. The old GIF remains as a legacy served asset but is no longer referenced by the UI.
 
 The login token is stored in the current tab's `sessionStorage`. It survives refreshes and is cleared when the tab session ends. Use the logout button to revoke it immediately on the server. Family photos are fetched with Bearer authentication and displayed through Blob URLs; tokens are never embedded in image URLs or sent to external image hosts.

@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs web/test_maintenance.mjs
+      - run: node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs web/test_assistant.mjs web/test_maintenance.mjs
 
   android:
     name: Android unit tests and test build
@@ -137,12 +137,16 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          disable-animations: true
+          # PostingFeedbackTest verifies character motion and requires enabled animators.
+          disable-animations: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           working-directory: client
           # "System UI isn't responding" dialogs on the software-rendered emulator cover the app under test.
           script: |
             adb shell settings put global hide_error_dialogs 1
+            adb shell settings put global window_animation_scale 1
+            adb shell settings put global transition_animation_scale 1
+            adb shell settings put global animator_duration_scale 1
             ./gradlew :app:connectedDebugAndroidTest --console=plain
       - name: List failed instrumented tests
         if: failure()
