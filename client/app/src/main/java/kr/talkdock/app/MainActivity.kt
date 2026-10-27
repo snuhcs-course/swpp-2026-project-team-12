@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
     private var screen = "welcome"
     private var pageNumber = 0
     private var busy = false
+    private var maintenanceDialog: Dialog? = null
     private var foreground = false
     private var selectedPost: JSONObject? = null
     private var photo: File? = null
@@ -94,8 +95,10 @@ class MainActivity : ComponentActivity() {
     private var digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     private var currentBack: (() -> Unit)? = null
     private val large get() = session?.optBoolean("large", false) ?: false
-    private val api get() = ApiClient(session?.optString("token", "") ?: "", sessions.serverUrl(),
+    private val api get() = apiClient(session?.optString("token", "") ?: "", sessions.serverUrl(),
         room.optInt("id").takeIf { room.has("id") })
+    private fun apiClient(token: String = "", baseUrl: String = sessions.serverUrl(), roomId: Int? = null) =
+        ApiClient(token, baseUrl, roomId) { runOnUiThread { showMaintenance() } }
     private val cameraCode = 10
     private val microphoneCode = 12
     private val photoPicker = registerForActivityResult(
@@ -175,7 +178,10 @@ class MainActivity : ComponentActivity() {
             }
         }
         val savedAccount = session
-        if (savedAccount == null) welcome()
+        if (savedAccount == null) {
+            welcome()
+            network.execute { runCatching { apiClient().request("test_reply/", readTimeoutMillis = 10_000) } }
+        }
         else {
             val previousRoom = room.optInt("id", -1)
             val big = large
@@ -216,6 +222,7 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
+        maintenanceDialog?.dismiss(); maintenanceDialog = null
         stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
@@ -284,6 +291,54 @@ class MainActivity : ComponentActivity() {
         ui.label(content, text, if (large) 30f else 26f, true); ui.gap(content, 12)
         if (sub != null) { ui.label(content, sub, if (large) 21f else 17f, color = ui.muted); ui.gap(content, 24) }
     }
+    private fun showMaintenance() {
+        if (isDestroyed || isFinishing || maintenanceDialog?.isShowing == true) return
+        stopPostAudio(); replyPreview?.stop(); speaker.stop()
+        val notice = ui.column(24).apply { setBackgroundColor(ui.milk) }
+        ui.art(notice, "grandchild_sad", 180); ui.gap(notice, 20)
+        ui.label(notice, "잠시 이용이 어려워요", if (large) 30f else 26f, true)
+        ui.gap(notice, 12)
+        ui.label(notice, ApiFailureMessages.UNAVAILABLE, if (large) 21f else 17f, color = ui.muted)
+        val extra = ui.label(notice, "", if (large) 21f else 17f, color = ui.muted).apply {
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        ui.gap(notice, 24)
+        val dialog = Dialog(this).apply {
+            setCancelable(false)
+            setContentView(ScrollView(this@MainActivity).apply { addView(notice) })
+        }
+        val retry = ui.button(notice, "다시 연결하기") { }
+        retry.setOnClickListener {
+            retry.isEnabled = false
+            // Check connectivity with a safe GET; never resubmit a failed POST.
+            network.execute {
+                val ready = runCatching {
+                    ApiClient(baseUrl = sessions.serverUrl()).request("test_reply/", readTimeoutMillis = 10_000)
+                }.isSuccess
+                runOnUiThread {
+                    if (isDestroyed) return@runOnUiThread
+                    retry.isEnabled = true
+                    if (ready) {
+                        dialog.dismiss(); maintenanceDialog = null
+                        if (session != null) recreate()
+                    }
+                }
+            }
+        }
+        maintenanceDialog = dialog
+        dialog.show()
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(ui.milk))
+        dialog.window?.setLayout(-1, -1)
+        network.execute {
+            val message = runCatching { ApiClient(baseUrl = sessions.serverUrl()).maintenanceMessage() }.getOrDefault("")
+            runOnUiThread {
+                if (!isDestroyed && dialog.isShowing && message.isNotBlank()) {
+                    extra.text = "\n$message"; extra.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
     private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, complete: (T) -> Unit) {
         if (busy) { refresh?.isRefreshing = false; return }
         busy = true
@@ -299,6 +354,7 @@ class MainActivity : ComponentActivity() {
                 refresh?.isRefreshing = false
                 if (isDestroyed || number != pageNumber) return@runOnUiThread
                 result.fold({ complete(it) }, { error ->
+                    if (error is ApiException && error.isMaintenance) { showMaintenance(); return@runOnUiThread }
                     if (failure?.invoke(error) == true) return@runOnUiThread
                     if (error is ApiException && error.status == 401 && screen !in listOf("login", "register")) {
                         val username = session?.optString("username").orEmpty()
@@ -408,11 +464,11 @@ class MainActivity : ComponentActivity() {
      */
     private fun loadRoom(account: JSONObject): JSONObject {
         val token = account.getString("token")
-        val rooms = objects(ApiClient(token, sessions.serverUrl()).request("families/").getJSONArray("rooms"))
+        val rooms = objects(apiClient(token).request("families/").getJSONArray("rooms"))
         val saved = account.optJSONObject("room")?.optInt("id", -1)
         val chosen = rooms.firstOrNull { it.getInt("id") == saved } ?: rooms.singleOrNull()
         val currentRoom = chosen?.let {
-            try { ApiClient(token, sessions.serverUrl(), it.getInt("id")).request("families/current/") }
+            try { apiClient(token, roomId = it.getInt("id")).request("families/current/") }
             catch (error: ApiException) { if (error.status == 403) null else throw error }
         }
         account.remove("room")
@@ -505,7 +561,7 @@ class MainActivity : ComponentActivity() {
         genders.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("성별을 선택해 주세요", "남성", "여성"))
         content.addView(genders, LinearLayout.LayoutParams(-1, ui.dp(56)))
         ui.gap(content)
-        val voice = voicePicker(ApiClient(baseUrl = sessions.serverUrl()), "소식을 읽어 줄 목소리 (선택)", null, registering = true)
+        val voice = voicePicker(apiClient(), "소식을 읽어 줄 목소리 (선택)", null, registering = true)
         ui.button(content, "계정 만들기") {
             if (username.text.isBlank() || password.text.isBlank() || name.text.isBlank()) {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
@@ -525,7 +581,7 @@ class MainActivity : ComponentActivity() {
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString(),
                 "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
             voice()?.let { data.put("tts_voice", it) }
-            val client = ApiClient(baseUrl = sessions.serverUrl())
+            val client = apiClient()
             async({ client.request("accounts/register/", "POST", data) }) {
                 saveSession(it, false); roomChoice()
             }
@@ -542,7 +598,7 @@ class MainActivity : ComponentActivity() {
                 toast("아이디와 비밀번호를 입력해 주세요."); return@button
             }
             val data = json("username" to username.text.toString().trim(), "password" to password.text.toString())
-            val client = ApiClient(baseUrl = sessions.serverUrl())
+            val client = apiClient()
             async({
                 val account = client.request("accounts/login/", "POST", data)
                 loadRoom(account)
@@ -607,7 +663,7 @@ class MainActivity : ComponentActivity() {
         ui.button(content, "가족 방 확인하기") {
             if (code.text.isBlank() || password.text.isBlank()) { toast("초대코드와 비밀번호를 입력해 주세요."); return@button }
             invitation = json("invite_code" to code.text.toString().trim().uppercase(), "password" to password.text.toString())
-            async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
+            async({ apiClient().request("families/lookup/", "POST", invitation) }) {
                 val userId = session?.optInt("user_id")
                 if (objects(it.getJSONArray("members")).any { member -> member.optInt("id") == userId }) {
                     toast("이미 참여한 가족방이에요."); return@async
@@ -683,7 +739,7 @@ class MainActivity : ComponentActivity() {
                         .setCancelable(false).setPositiveButton("다시 시작") { _, _ ->
                             treeDraft = null
                             join()
-                            async({ ApiClient(baseUrl = sessions.serverUrl()).request("families/lookup/", "POST", invitation) }) {
+                            async({ apiClient().request("families/lookup/", "POST", invitation) }) {
                                 joinRoom = it; treeDraft = FamilyTreeDraft(it.getJSONObject("tree")); tree()
                             }
                         }.show()

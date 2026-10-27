@@ -12,7 +12,8 @@ import java.io.IOException
 import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 
-class ApiException(message: String, val status: Int = 0, cause: Throwable? = null) : Exception(message, cause)
+class ApiException(message: String, val status: Int = 0, cause: Throwable? = null,
+                   val isMaintenance: Boolean = false) : Exception(message, cause)
 
 /** A single request's connection, so leaving a slow AI screen also releases its worker. */
 class RequestCancellation {
@@ -36,7 +37,8 @@ class RequestCancellation {
 }
 
 /** [roomId] picks the family room for room-scoped endpoints such as the feed and digests. */
-class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL, val roomId: Int? = null) {
+class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL, val roomId: Int? = null,
+                private val onMaintenance: (() -> Unit)? = null) {
     fun request(path: String, method: String = "GET", data: JSONObject? = null,
                 readTimeoutMillis: Int = 80_000, cancellation: RequestCancellation? = null): JSONObject {
         val connection = open(baseUrl + path, method)
@@ -118,6 +120,17 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         finally { connection.disconnect() }
     }
 
+    fun maintenanceMessage(): String {
+        val connection = open(URL(URL(baseUrl), "/maintenance/message.txt").toString(), "GET")
+        connection.useCaches = false
+        connection.readTimeout = 10_000
+        try {
+            if (connection.responseCode != 200) return ""
+            return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                .removePrefix("\uFEFF").trim()
+        } finally { connection.disconnect() }
+    }
+
     fun voiceSample(key: String): ByteArray {
         val connection = open(baseUrl + "speech/voices/" + URLEncoder.encode(key, "UTF-8") + "/sample/", "GET")
         try {
@@ -131,6 +144,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         val connection = open(url, "GET")
         try {
             val status = connection.responseCode
+            if (status == 503) response(connection)
             if (status != 200) throw ApiException(
                 if (status in 500..599) ApiFailureMessages.UNAVAILABLE else "사진을 불러오지 못했어요.", status)
             return connection.inputStream.use { it.readBytes() }
@@ -157,7 +171,9 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             // Keep application-specific JSON errors (validation, AI availability, etc.).
             // Maintenance proxies often return HTML or an empty body instead of JSON.
             val message = json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
-            throw ApiException(message ?: ApiFailureMessages.http(code), code)
+            val maintenance = code == 503 && json?.optString("code") == "maintenance"
+            if (maintenance) onMaintenance?.invoke()
+            throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance)
         }
         return json ?: throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
     }

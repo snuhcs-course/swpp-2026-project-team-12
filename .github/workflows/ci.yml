@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test web/test_family_tree.mjs web/test_images.mjs
+      - run: node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs web/test_maintenance.mjs
 
   android:
     name: Android unit tests and test build

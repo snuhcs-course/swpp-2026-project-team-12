@@ -14,6 +14,34 @@ const state = { user: null, room: null, rooms: [], posts: [], detail: null, dial
 const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
+let maintenanceNotice, reconnecting = false;
+
+window.addEventListener('server-maintenance', () => {
+  if (!maintenanceNotice) {
+    maintenanceNotice = document.createElement('dialog');
+    maintenanceNotice.className = 'maintenance-notice';
+    maintenanceNotice.setAttribute('aria-label', '잠시 이용이 어려워요');
+    maintenanceNotice.innerHTML = '<iframe src="/maintenance/" title="서비스 점검 안내"></iframe>';
+    maintenanceNotice.addEventListener('cancel', event => event.preventDefault());
+    document.body.append(maintenanceNotice);
+  }
+  stopAudio();
+  if (!maintenanceNotice.open) maintenanceNotice.showModal();
+});
+window.addEventListener('message', async event => {
+  if (!maintenanceNotice?.open || reconnecting || event.origin !== window.location.origin ||
+      event.source !== maintenanceNotice.querySelector('iframe').contentWindow ||
+      event.data !== 'talkdock-maintenance-retry') return;
+  reconnecting = true;
+  try {
+    await api('test_reply/', { room: null });
+    maintenanceNotice.close();
+    if (document.querySelector('#main.boot')) {
+      if (hasToken()) await connectSession(); else renderAuth();
+    }
+  } catch { /* Keep the notice visible until the server is reachable. */ }
+  finally { reconnecting = false; }
+});
 
 const e = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const $ = (selector, root = document) => root.querySelector(selector);
