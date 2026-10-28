@@ -34,7 +34,7 @@ class PostQATests(TestCase):
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+                          return_value=SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         folder = tempfile.TemporaryDirectory(); self.addCleanup(folder.cleanup)
         media = override_settings(MEDIA_ROOT=folder.name);media.enable();self.addCleanup(media.disable)
@@ -64,10 +64,10 @@ class PostQATests(TestCase):
         async def search(**kw):
             n = int(kw["query"][-1])
             ids = [0] + [n + rank * 5 for rank in range(1, 5)]
-            return [SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
+            return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids]
-        graph = SimpleNamespace(search=AsyncMock(side_effect=search), driver=SimpleNamespace(
+                                     episodes=[f"e{i}"]) for i in ids], episodes=[])
+        graph = SimpleNamespace(search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
@@ -81,8 +81,8 @@ class PostQATests(TestCase):
             close.assert_not_awaited()
         self.assertEqual(result.status_code, 200);self.assertEqual(result.json(), {"text": final.output_text})
         self.assertEqual(result["Cache-Control"], "no-store")
-        self.assertEqual(graph.search.await_count, 5)
-        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["num_results"] == 5 for c in graph.search.await_args_list))
+        self.assertEqual(graph.search_.await_count, 5)
+        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["config"].limit == 5 for c in graph.search_.await_args_list))
         requests = client.responses.create.await_args_list
         self.assertEqual(len(requests), 2)
         initial, last = requests[0].kwargs, requests[1].kwargs
@@ -128,7 +128,7 @@ class PostQATests(TestCase):
 
     def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
-        graph = SimpleNamespace(search=AsyncMock(side_effect=RuntimeError("offline")))
+        graph = SimpleNamespace(search_=AsyncMock(side_effect=RuntimeError("offline")))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \

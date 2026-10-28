@@ -38,7 +38,7 @@ class PostAPITests(TestCase):
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+                          return_value=SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         media_settings = override_settings(MEDIA_ROOT=TEST_MEDIA_DIR)
         media_settings.enable()
@@ -306,7 +306,7 @@ class PostAPITests(TestCase):
                             arguments=json.dumps({"query": "정아의 가족 관계"})),
         ])
         final = SimpleNamespace(status="completed", output_text="정아가 오늘 산책했어요.")
-        graph = SimpleNamespace(search=AsyncMock(return_value=[]))
+        graph = SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))
         with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
              patch.object(post_flow, "AsyncOpenAI") as sdk:
@@ -314,7 +314,7 @@ class PostAPITests(TestCase):
             client.responses.create = AsyncMock(return_value=final)
             result = self.client.get(f"/api/posts/{post_id}/message/", **self.auth(self.relative_token))
         self.assertEqual(result.json(), {"text": "정아가 오늘 산책했어요.", "status": "ready"})
-        graph.search.assert_not_awaited()
+        graph.search_.assert_not_awaited()
         close.assert_not_awaited()
         client.responses.create.assert_awaited_once()
         payload = client.responses.create.await_args_list[0].kwargs
