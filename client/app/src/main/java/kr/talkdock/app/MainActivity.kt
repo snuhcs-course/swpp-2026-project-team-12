@@ -31,6 +31,7 @@ import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.DigestPostRow
 import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.FamilyMemoryPanel
 import kr.talkdock.app.ui.FloatingAssistantView
@@ -44,6 +45,7 @@ import kr.talkdock.app.ui.InlinePostAudio
 import kr.talkdock.app.ui.Ui
 import kr.talkdock.app.ui.FamilyTreeView
 import kr.talkdock.app.ui.PhotoPickerActivity
+import kr.talkdock.app.ui.PhotoAttachmentSheet
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.ViewportPhotoLoader
 import kr.talkdock.app.ui.DraftPhotoStrip
@@ -96,6 +98,7 @@ class MainActivity : ComponentActivity() {
     private var photo: File? = null
     private val extraPhotos = mutableListOf<File>()
     private var pendingPhoto: File? = null
+    private var photoAttachmentSheet: PhotoAttachmentSheet? = null
     private var caption = ""
     private var captionInput: EditText? = null
     private var draftPhotoIndex = 0
@@ -122,11 +125,15 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         val uris = result.data?.getStringArrayListExtra(PhotoPickerActivity.RESULT_URIS)
             .orEmpty().map { Uri.parse(it) }.distinct()
-        if (uris.isEmpty()) return@registerForActivityResult
+        acceptPickedPhotos(uris)
+    }
+
+    private fun acceptPickedPhotos(uris: List<Uri>) {
+        if (uris.isEmpty()) return
         // Preserve the gallery's tap order all the way through multipart upload.
         if (uris.size > 5) {
             toast("사진은 한 번에 5장까지 선택해 주세요.")
-            return@registerForActivityResult
+            return
         }
         async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.") { files ->
             selectedPhotos().forEach { it.delete() }
@@ -241,6 +248,7 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
+        photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
         postFocus?.clear()
@@ -253,6 +261,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
+        photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         closeAssistantMenu()
         postFocus?.clear(); detailCard = null
         assistantDialog?.dismiss()
@@ -926,7 +935,7 @@ class MainActivity : ComponentActivity() {
                 ui.gap(card, 12); postPhotos(card, post)
                 val audio = postAudio(post)
                 if (large) {
-                    card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2))
+                    card.addView(audio.toggle, LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
                     ui.button(card, "글로 댓글 쓰기", false, 76) { detail(post, focusComment = true) }
                     ui.button(card, "AI 요약", false, 76) { audio.showSummary() }
                 } else {
@@ -936,7 +945,6 @@ class MainActivity : ComponentActivity() {
                     actions.addView(audio.toggle, LinearLayout.LayoutParams(0, -2, 1f))
                 }
                 card.addView(audio, LinearLayout.LayoutParams(-1, -2))
-                ui.button(card, "궁금한 점을 물어보세요", false, if (large) 76 else 48) { detail(post, focusQuestion = true) }
                 ui.gap(content, 20)
             }
         }
@@ -1096,6 +1104,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun launchPhotoChooser() {
+        if (photoAttachmentSheet?.isShowing == true) return
+        caption = captionInput?.text?.toString() ?: caption
+        (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
+        val sheet = PhotoAttachmentSheet(ui, large, selectedPhotos().isNotEmpty(),
+            takePhoto = { launchCamera() }, openGallery = { launchGallery() }, choosePhotos = { acceptPickedPhotos(it) })
+        photoAttachmentSheet = sheet
+        sheet.setOnDismissListener { if (photoAttachmentSheet === sheet) photoAttachmentSheet = null }
+        sheet.show()
+    }
     private fun launchGallery() {
         // Snapshot the draft before opening the gallery, including on rotation.
         caption = captionInput?.text?.toString() ?: caption
@@ -1192,13 +1210,10 @@ class MainActivity : ComponentActivity() {
                 val remaining = selectedPhotos().filter { it != file }
                 file.delete(); photo = remaining.firstOrNull(); extraPhotos.clear(); extraPhotos.addAll(remaining.drop(1))
                 draftPhotoIndex = index.coerceAtMost(remaining.lastIndex.coerceAtLeast(0)); composer()
-            }, choose = { caption = text.text.toString(); launchGallery() }), LinearLayout.LayoutParams(-1, -2))
+            }, choose = { caption = text.text.toString(); launchPhotoChooser() }), LinearLayout.LayoutParams(-1, -2))
         if (hasInvalidPhoto) ui.label(content, "읽을 수 없는 사진이 있어요. 빼거나 다시 선택해 주세요.", 18f)
         ui.gap(content, 16)
         ui.label(content, "사진 ${files.size} / 5장 · 한 장당 10MB · 전체 30MB", 14f, color = ui.muted)
-        ui.ghost(content, if (files.isEmpty()) "사진 촬영하기" else "새로 촬영하기 · 사진 한 장으로 바꾸기") {
-            caption = text.text.toString(); launchCamera()
-        }
         ui.gap(content, 12)
         ui.button(content, "가족에게 전하기", height = if (large) 76 else 56) {
             caption = text.text.toString().trim()
@@ -1372,13 +1387,14 @@ class MainActivity : ComponentActivity() {
                 "ready" -> {
                     ui.note(content, data.getString("text"), large); ui.gap(content, 20)
                     listen(content, data.getString("text"), "하루 요약 듣기", if (large) 76 else 64)
-                    ui.gap(content, 24); ui.label(content, "요약에 함께한 소식", 20f, true); ui.gap(content)
-                    objects(data.getJSONArray("posts")).forEach { p ->
-                        postPhotos(content, p)
-                        ui.label(content, p.getString("author_name"), 16f, true)
-                        if (p.optString("caption").isNotBlank()) ui.label(content, p.getString("caption"), if (large) 23f else 18f)
-                        ui.button(content, "소식 보기", false) { detail(p) }
-                        ui.gap(content, 20)
+                    ui.gap(content, 24)
+                    val posts = objects(data.getJSONArray("posts"))
+                    val list = ui.card(content, padding = 16, stroke = false)
+                    ui.label(list, "이날의 소식 ${posts.size}개", if (large) 24f else 20f, true)
+                    ui.gap(list, 8)
+                    posts.forEachIndexed { index, post ->
+                        if (index > 0) ui.line(list)
+                        list.addView(DigestPostRow(ui, post, large) { detail(post) }, LinearLayout.LayoutParams(-1, -2))
                     }
                 }
                 "pending" -> ui.note(content, "오늘 " + data.getString("digest_time") + "에\n하루 요약이 도착해요.", large)
