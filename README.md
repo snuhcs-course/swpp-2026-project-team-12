@@ -89,6 +89,12 @@ Graphiti, processes up to 100 author/caption records in creation order, then wai
 5 seconds before checking again. Uploads do not enqueue work directly.
 Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
 
+The worker embeds each post episode's author and detailed description with the shared
+Graphiti embedder and stores it as `Episodic.content_embedding`. On each pass, it also
+fills missing embeddings on existing post episodes in batches of 100, without
+regenerating descriptions or extracting facts again. Restart the worker for each
+family after upgrading to make existing posts available to vector search.
+
 Before posts, the worker syncs confirmed family members and their relationships.
 Creation, joining, and name edits leave a pending tree version; failures retry on
 the next pass. `FamilyPerson.graphiti_uuid` keeps each member's node identity.
@@ -101,6 +107,13 @@ UUIDs and `family_registry_<room>_v<version>` source episodes, without creating 
 Search and AI requests submit work to a shared thread pool inside the Django
 process and wait for the result. Threads are reused across families, while each
 request searches only its own family's records. No separate search command is needed.
+
+Search combines Graphiti's fact retrieval and episode full-text search with cosine
+similarity over stored post-description embeddings. Episode ranks are merged with
+RRF and limited to five results, so posts without extracted fact edges can still
+provide evidence. Query embeddings are reused for facts and episodes. Episode
+vectors are scored within the family in Neo4j, using the existing similarity
+threshold (0.6); no additional vector index or Graphiti fork is required.
 
 Family history uses `search -> LLM`. Basic post summaries use only the current
 post and photos. Additional questions use `LLM -> search -> LLM`, skipping

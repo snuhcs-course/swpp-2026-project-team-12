@@ -49,14 +49,14 @@ def construct(family_id, once, stdout, stderr):
             while True:
                 try:
                     sync_family(graphiti, family_id, runner)
+                    names = runner.run(episode_names(graphiti, family_id))
                 except Exception as error:
                     if once:
-                        raise RuntimeError("가족 관계 저장에 실패했어요.") from error
-                    logging.getLogger(__name__).exception("Family graph sync failed")
-                    stderr.write("가족 관계 저장 실패. 5초 후 다시 시도해요.")
+                        raise RuntimeError("가족 기록 동기화에 실패했어요.") from error
+                    logging.getLogger(__name__).exception("Family graph sync or episode embedding failed")
+                    stderr.write("가족 기록 동기화 실패. 5초 후 다시 시도해요.")
                     time.sleep(5)
                     continue
-                names = runner.run(episode_names(graphiti, family_id))
                 completed = {
                     int(name[5:]) for name in names
                     if name.startswith("post_") and name[5:].isdigit()
