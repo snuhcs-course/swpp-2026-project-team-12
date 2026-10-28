@@ -2,6 +2,9 @@ package kr.talkdock.app
 
 import android.Manifest
 import android.content.ContentValues
+import android.app.Activity
+import android.app.Instrumentation
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Rect
@@ -124,7 +127,7 @@ class PostComposerTest {
             }
             ui.attach(listOf(first, rotated)); ui.await { ui.has("사진 2 / 5장 · 한 장당 10MB · 전체 30MB") }
             ui.test.runOnMainSync {
-                assertTrue(ui.has("다시 선택"))
+                assertTrue(ui.has("사진 다시 선택"))
                 val preview = ui.all().first { it.contentDescription?.toString() == "첨부 사진 2" } as ImageView
                 val bitmap = (preview.drawable as BitmapDrawable).bitmap
                 assertTrue("EXIF orientation 6 must be shown upright", bitmap.height > bitmap.width)
@@ -179,6 +182,85 @@ class PostComposerTest {
         } }
     }
 
+    @Test fun recentPhotoSheetUsesThreeThumbnailsAndKeepsSelectionOrderAndCaption() {
+        val test = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        val resolver = test.targetContext.contentResolver
+        test.uiAutomation.grantRuntimePermission(test.targetContext.packageName,
+            if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_IMAGES else Manifest.permission.READ_EXTERNAL_STORAGE)
+        val collection = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val inserted = (0 until 4).map { index ->
+            val values = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "talkdock-recent-$index.jpg")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/TalkDockTest")
+            }
+            resolver.insert(collection, values)!!.also { uri ->
+                resolver.openOutputStream(uri)!!.use { it.write(jpeg(Color.rgb(80 + index * 35, 160 - index * 20, 180))) }
+            }
+        }
+        try {
+            for (large in listOf(false, true)) feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족"), large).use { ui ->
+                ui.openComposer()
+                ui.test.waitForIdleSync(); android.os.SystemClock.sleep(300)
+                ui.screenshot(if (large) "composer-photo-button-large.png" else "composer-photo-button.png")
+                ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("가족에게 보내는 사진이에요") }
+                ui.clickDescription("사진 추가하기")
+                fun recent() = windowViews().filter { it.contentDescription?.toString()?.startsWith("talkdock-recent-") == true }
+                ui.await {
+                    recent().size == 3 && recent().all { tile ->
+                        (tile as ViewGroup).getChildAt(0).let { it is ImageView && it.drawable is BitmapDrawable }
+                    }
+                }
+                ui.test.runOnMainSync {
+                    assertTrue(windowViews().any { it.contentDescription == "사진 촬영하기" })
+                    assertNotNull(windowText("갤러리에서 더 보기"))
+                    val header = windowText("최근 사진")!!.parent as ViewGroup
+                    assertFalse((0 until header.childCount).map { header.getChildAt(it) }.filterIsInstance<Button>().single().isEnabled)
+                    assertTrue(recent().none { it.contentDescription.toString().startsWith("talkdock-recent-0.jpg") })
+                    assertTrue(recent()[2].performClick()); assertTrue(recent()[0].performClick())
+                    assertTrue(recent()[2].contentDescription.toString().contains("1번째 선택됨"))
+                    assertTrue(recent()[0].contentDescription.toString().contains("2번째 선택됨"))
+                }
+                test.waitForIdleSync(); android.os.SystemClock.sleep(400)
+                ui.screenshot(if (large) "photo-sheet-large.png" else "photo-sheet.png")
+                ui.tapText("사진 추가 (2)")
+                ui.await { ui.has("사진 2 / 5장 · 한 장당 10MB · 전체 30MB") }
+                ui.test.runOnMainSync { assertEquals("가족에게 보내는 사진이에요", ui.all().filterIsInstance<EditText>().single().text.toString()) }
+                @Suppress("UNCHECKED_CAST")
+                val drafts = listOf(MainActivity::class.java.getDeclaredField("photo").apply { isAccessible = true }.get(ui.activity) as File) +
+                    (MainActivity::class.java.getDeclaredField("extraPhotos").apply { isAccessible = true }.get(ui.activity) as List<File>)
+                assertEquals(listOf(inserted[1], inserted[3]).map { uri -> resolver.openInputStream(uri)!!.use { it.readBytes().toList() } },
+                    drafts.map { it.readBytes().toList() })
+                assertTrue("Choosing recent photos must not submit a post", api.uploads().isEmpty())
+                drafts.forEach { it.delete() }
+            } }
+        } finally { inserted.forEach { resolver.delete(it, null, null) } }
+    }
+
+    @Test fun dismissingPhotoSheetOrCancellingCameraKeepsExistingDraft() {
+        feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족")).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }
+            val file = ui.draftFile("sheet-existing-draft.jpg", jpeg(Color.YELLOW))
+            try {
+                ui.attach(listOf(file))
+                ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("아직 쓰고 있는 이야기") }
+                ui.clickDescription("첨부 사진 다시 선택하기"); ui.tapText("닫기")
+                ui.test.runOnMainSync {
+                    assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString())
+                    assertTrue(ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB"))
+                }
+                val monitor = ui.test.addMonitor(IntentFilter(MediaStore.ACTION_IMAGE_CAPTURE), Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
+                try {
+                    ui.clickDescription("첨부 사진 다시 선택하기"); ui.awaitText("최근 사진")
+                    ui.test.runOnMainSync { assertTrue(windowViews().first { it.contentDescription == "사진 촬영하기" }.performClick()) }
+                    ui.await { monitor.hits == 1 && windowText("최근 사진") == null && ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB") }
+                    ui.test.runOnMainSync { assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString()) }
+                    assertTrue(file.exists()); assertTrue(api.uploads().isEmpty())
+                } finally { ui.test.removeMonitor(monitor) }
+            } finally { file.delete() }
+        } }
+    }
+
     @Test fun galleryPickerReturnsUpToFivePhotosInTapOrder() {
         val test = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
         val resolver = test.targetContext.contentResolver
@@ -200,6 +282,7 @@ class PostComposerTest {
                 ui.openComposer()
                 val monitor = test.addMonitor(PhotoPickerActivity::class.java.name, null, false)
                 ui.clickDescription("사진 추가하기")
+                ui.tapText("갤러리에서 더 보기")
                 val picker = test.waitForMonitorWithTimeout(monitor, 10000) as PhotoPickerActivity
                 test.removeMonitor(monitor)
                 fun views(view: View = picker.window.decorView): List<View> = listOf(view) +

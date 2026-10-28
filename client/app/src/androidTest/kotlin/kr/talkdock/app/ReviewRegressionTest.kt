@@ -556,7 +556,14 @@ class InlinePostAudioTest {
     @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
         for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
             open(ui)
-            ui.test.runOnMainSync { assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기")) }
+            ui.test.runOnMainSync {
+                assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기"))
+                assertFalse(ui.has("궁금한 점을 물어보세요"))
+                val card = panels(ui)[0].toggle.parent as View
+                card.requestRectangleOnScreen(android.graphics.Rect(0, 0, card.width, card.height), true)
+            }
+            ui.test.waitForIdleSync(); SystemClock.sleep(400)
+            ui.screenshot(if (large) "feed-actions-large.png" else "feed-actions-default.png")
             readSummary(ui)
             ui.await { ui.has("사진과 글을 설명한 AI 요약") }
             ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
@@ -813,8 +820,8 @@ class InlinePostAudioTest {
         server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
             open(ui); tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
             tap(ui)
-            ui.openAssistantOption("오늘 가족의 하루"); ui.await { ui.has("소식 보기") }
-            ui.click("소식 보기"); ui.await { ui.has("따뜻한 한마디 남기기") }
+            ui.openAssistantOption("오늘 가족의 하루"); ui.await { ui.has("이날의 소식 1개") }
+            ui.click("오늘의 소식 1"); ui.await { ui.has("따뜻한 한마디 남기기") }
             ui.test.runOnMainSync { assertFalse(ui.has("가족 소식 듣기")) }
             tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
         } }
@@ -970,8 +977,13 @@ class PostQuestionUiTest {
         ui.await { ui.has("질문 테스트 소식 $id") }
         ui.test.runOnMainSync {
             val caption = ui.all().filterIsInstance<TextView>().first { it.text.toString() == "질문 테스트 소식 $id" }
-            ui.all(caption.parent as View).filterIsInstance<Button>().single { it.text.toString() == "궁금한 점을 물어보세요" }.performClick()
+            val cardViews = ui.all(caption.parent as View)
+            val entry = cardViews.firstOrNull { it.contentDescription?.toString() == "댓글 0" }
+                ?: cardViews.filterIsInstance<Button>().single { it.text.toString() == "글로 댓글 쓰기" }
+            assertTrue(entry.performClick())
         }
+        ui.await { ui.has("따뜻한 한마디 남기기") }
+        ui.click("궁금한 점을 물어보세요")
         ui.await { ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().singleOrNull()?.composer?.isShown == true }
     }
     private fun ask(ui: UiHarness, text: String) = ui.test.runOnMainSync {

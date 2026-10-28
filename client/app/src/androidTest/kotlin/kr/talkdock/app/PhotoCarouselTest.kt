@@ -1,10 +1,16 @@
 package kr.talkdock.app
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
 import android.graphics.RectF
 import android.view.View
 import android.widget.HorizontalScrollView
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kr.talkdock.app.ui.PhotoCarousel
@@ -92,6 +98,40 @@ class PhotoCarouselTest {
             image.setImageDrawable(null)
             layout(carousel);assertEquals(540,carousel.getChildAt(0).height)
             bitmap.recycle()
+        }
+    }
+
+    @Test fun tallPhotoBottomAndCounterStaySeparateInsideAScrollingPost() {
+        val test = InstrumentationRegistry.getInstrumentation()
+        test.runOnMainSync {
+            for (large in listOf(false, true)) {
+                val source = Bitmap.createBitmap(200, 600, Bitmap.Config.ARGB_8888).apply {
+                    eraseColor(Color.WHITE)
+                    Canvas(this).drawRect(0f, 560f, 200f, 600f, Paint().apply { color = Color.GREEN })
+                }
+                val images = mutableListOf<ImageView>()
+                val carousel = PhotoCarousel(test.targetContext, 2, large,
+                    load = { view, _ -> view.setImageBitmap(source); images.add(view) })
+                val post = LinearLayout(test.targetContext).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(carousel, LinearLayout.LayoutParams(-1, -2))
+                }
+                val scroll = ScrollView(test.targetContext).apply { isFillViewport = true; addView(post) }
+                scroll.measure(View.MeasureSpec.makeMeasureSpec(360, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(480, View.MeasureSpec.EXACTLY))
+                scroll.layout(0, 0, 360, 480)
+                val pager = carousel.getChildAt(0)
+                val counter = carousel.getChildAt(1) as TextView
+                assertEquals(1080, pager.height)
+                assertFillsWithoutCropping(images[0], 1080)
+                assertTrue("Counter must start below the complete photo", counter.top >= pager.bottom)
+                assertTrue("The scrolling post must reserve space for the counter and thumbnails", carousel.height > pager.height)
+                val rendered = Bitmap.createBitmap(carousel.width, carousel.height, Bitmap.Config.ARGB_8888)
+                carousel.draw(Canvas(rendered))
+                assertEquals("The source photo's bottom edge must remain visible above the counter", Color.GREEN,
+                    rendered.getPixel(180, pager.bottom - 4))
+                rendered.recycle(); source.recycle()
+            }
         }
     }
 

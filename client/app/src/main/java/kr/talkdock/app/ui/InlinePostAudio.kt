@@ -30,7 +30,7 @@ class InlinePostAudio(
         gravity = Gravity.CENTER
         minimumHeight = ui.dp(if (large) 76 else 60)
         isClickable = true; isFocusable = true
-        background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.paper), null)
+        background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(if (large) ui.sky else ui.paper), null)
         setOnClickListener {
             if (needsLogin) login()
             else if (active) stop()
@@ -74,9 +74,9 @@ class InlinePostAudio(
         toggle.contentDescription = label
         toggle.isSelected = active
         toggle.removeAllViews()
-        toggle.addView(IconView(activity, if (active) "stop" else "listen", ui.skyDeep),
-            LayoutParams(ui.dp(if (large) 28 else 22), ui.dp(if (large) 28 else 22)))
-        ui.label(toggle, label, if (large) 22f else 14f, color = ui.skyDeep).gravity = Gravity.CENTER
+        if (!large) toggle.addView(IconView(activity, if (active) "stop" else "listen", ui.skyDeep),
+            LayoutParams(ui.dp(22), ui.dp(22)))
+        ui.label(toggle, label, if (large) 22f else 14f, bold = large, color = ui.skyDeep).gravity = Gravity.CENTER
     }
 
     private fun render() {
