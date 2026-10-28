@@ -19,7 +19,7 @@ from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
 from apps.posts.services import save_post
 from integrations.ai import post_flow, prompts, provider
-from integrations.ai_workers import graphiti_client, searching_workers
+from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member, link_parent
 
@@ -29,12 +29,15 @@ from .family_fixtures import auth_headers, add_member, link_parent
                    ANSWER_AI_MODEL="gpt-6-luna", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
 class PostQATests(TestCase):
     def setUp(self):
+        self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
+                          return_value=SimpleNamespace(
+                              embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                              search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         folder = tempfile.TemporaryDirectory(); self.addCleanup(folder.cleanup)
         media = override_settings(MEDIA_ROOT=folder.name);media.enable();self.addCleanup(media.disable)
@@ -67,7 +70,8 @@ class PostQATests(TestCase):
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
                                      episodes=[f"e{i}"]) for i in ids], episodes=[])
-        graph = SimpleNamespace(search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
@@ -128,7 +132,8 @@ class PostQATests(TestCase):
 
     def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
-        graph = SimpleNamespace(search_=AsyncMock(side_effect=RuntimeError("offline")))
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(side_effect=RuntimeError("offline")))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \

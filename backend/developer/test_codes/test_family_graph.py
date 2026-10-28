@@ -32,7 +32,7 @@ class FamilyGraphTests(TestCase):
 
         async def query(query, **params):
             if "e:Episodic" in query:
-                records = [{"name": e.name} for e in self.episodes.values()]
+                records = [{"name": e.name, "content": None} for e in self.episodes.values()]
             elif "MATCH (n:Entity" in query:
                 records = [{"uuid": n.uuid} for n in self.nodes.values()
                            if n.group_id == params["group"] and (
