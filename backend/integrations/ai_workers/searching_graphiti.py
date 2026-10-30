@@ -9,7 +9,9 @@ from graphiti_core.search.search_config import (
     EpisodeSearchMethod,
     SearchConfig,
 )
+from graphiti_core.search.search_utils import rrf
 
+from .episode_embeddings import search_episodes
 from .graphiti_client import family_group
 
 
@@ -20,6 +22,26 @@ SEARCH_CONFIG = SearchConfig(
     episode_config=EpisodeSearchConfig(search_methods=[EpisodeSearchMethod.bm25]),
     limit=5,
 )
+
+
+async def _search(graphiti, group_id, query):
+    # Share one query embedding between fact and episode retrieval.
+    vector = await graphiti.embedder.create(input_data=[query.replace("\n", " ")])
+    async with asyncio.TaskGroup() as group:
+        graph = group.create_task(graphiti.search_(
+            query=query, group_ids=[group_id], config=SEARCH_CONFIG, query_vector=vector,
+        ))
+        semantic = group.create_task(search_episodes(
+            graphiti, group_id, vector, limit=2 * SEARCH_CONFIG.limit,
+            min_score=SEARCH_CONFIG.episode_config.sim_min_score,
+        ))
+    result = graph.result()
+    ranked_lists = [[episode for episode in episodes if episode.group_id == group_id]
+                    for episodes in [result.episodes, semantic.result()]]
+    episodes = {episode.uuid: episode for ranked in ranked_lists for episode in ranked}
+    ids, _ = rrf([[episode.uuid for episode in ranked] for ranked in ranked_lists])
+    result.episodes = [episodes[uuid] for uuid in ids[:SEARCH_CONFIG.limit]]
+    return result
 
 
 async def search_many(graphiti, family_id, queries, *, max_queries=3):
@@ -34,9 +56,7 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3):
     group_id = family_group(family_id)
     # Cancel sibling searches before their shared client is closed on failure.
     async with asyncio.TaskGroup() as group:
-        tasks = [group.create_task(graphiti.search_(
-            query=query, group_ids=[group_id], config=SEARCH_CONFIG,
-        )) for query in queries]
+        tasks = [group.create_task(_search(graphiti, group_id, query)) for query in queries]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]
                          for task in tasks]

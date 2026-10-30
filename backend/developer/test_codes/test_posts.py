@@ -18,7 +18,7 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
 from integrations.ai import flow, provider, post_flow
-from integrations.ai_workers import graphiti_client, searching_workers
+from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member, link_parent, sample_family
 
@@ -33,12 +33,15 @@ def sample_image(name="sample_img_1.png"):
 
 class PostAPITests(TestCase):
     def setUp(self):
+        self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
+                          return_value=SimpleNamespace(
+                              embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                              search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         media_settings = override_settings(MEDIA_ROOT=TEST_MEDIA_DIR)
         media_settings.enable()
@@ -306,7 +309,8 @@ class PostAPITests(TestCase):
                             arguments=json.dumps({"query": "정아의 가족 관계"})),
         ])
         final = SimpleNamespace(status="completed", output_text="정아가 오늘 산책했어요.")
-        graph = SimpleNamespace(search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))
         with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
              patch.object(post_flow, "AsyncOpenAI") as sdk:
