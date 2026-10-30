@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity() {
     private enum class PostAudioAction { LISTEN, SUMMARY }
     private var replyPreview: ReplyAudioButton? = null
     private var memoryPanel: FamilyMemoryPanel? = null
+    private var memoryReturn: Bundle? = null
     private var assistant: FloatingAssistantView? = null
     private var assistantDialog: Dialog? = null
     private var assistantMenu: AssistantBubbleMenu? = null
@@ -182,6 +183,10 @@ class MainActivity : ComponentActivity() {
         feedPostId = state?.getInt("feedPostId", -1)?.takeIf { it > 0 }
         digestDate = state?.getString("digestDate") ?: digestDate
         val restoredScreen = state?.getString("screen")
+        val restoredMemoryReturn = state?.getBundle("memoryReturn")?.takeIf {
+            it.getInt("userId", -1) == session?.optInt("user_id") &&
+                it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
+        }
         if (restoredScreen in listOf("tree", "profile") && state?.getString("joinRoom") != null) {
             joinRoom = JSONObject(state.getString("joinRoom")!!)
             invitation = JSONObject(state.getString("invitation")!!)
@@ -204,8 +209,8 @@ class MainActivity : ComponentActivity() {
             restoredScreen == "members" -> members()
             restoredScreen == "familyTree" -> familyTree()
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
-            restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
-            restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!)
+            restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!, returnToMemories = restoredMemoryReturn)
+            restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!, returnToMemories = restoredMemoryReturn)
             session != null && session?.optJSONObject("room") != null -> home()
             session != null -> roomChoice()
             else -> welcome()
@@ -243,6 +248,10 @@ class MainActivity : ComponentActivity() {
             putInt("userId", session?.optInt("user_id") ?: -1)
             putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
         })
+        memoryReturn?.let { saved -> out.putBundle("memoryReturn", Bundle(saved).apply {
+            putInt("userId", session?.optInt("user_id") ?: -1)
+            putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
+        }) }
         if (screen in listOf("tree", "profile")) {
             out.putString("joinRoom", joinRoom.toString()); out.putString("invitation", invitation.toString())
             out.putString("treeDraft", treeDraft?.payload()?.toString())
@@ -282,6 +291,7 @@ class MainActivity : ComponentActivity() {
         recording?.delete(); recording = null
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
         imageLoader.clearViews(); root.removeAllViews(); memoryPanel = null
+        if (name !in setOf("detail", "voice", "review")) memoryReturn = null
         page = ui.column(); root.addView(page, FrameLayout.LayoutParams(-1, -1))
         val header = ui.row().apply { setPadding(ui.dp(20), ui.dp(8), ui.dp(16), ui.dp(4)); minimumHeight = ui.dp(64) }
         val mainPage = name == "home" || name == "digest"
@@ -977,9 +987,11 @@ class MainActivity : ComponentActivity() {
                 release = { imageLoader.release(it) }, open = { detail(it) }, reply = { voice(it) },
                 changed = { post ->
                     feedPostId = post.getInt("id"); closeAssistantMenu(); stopPostAudio()
+                    feedDeck?.currentCard?.tag = "feed-post:${post.getInt("id")}"
                     updateAssistantContext(); assistant?.refreshPosition()
                 })
             feedDeck = deck; feedPostId = deck.currentPost.getInt("id")
+            deck.currentCard.tag = "feed-post:${deck.currentPost.getInt("id")}"
             content.addView(deck, LinearLayout.LayoutParams(-1, -2))
             feedPostTargets.add(deck.currentCard to deck.currentPost)
             deck.post { updateAssistantContext(); assistant?.refreshPosition() }
@@ -990,7 +1002,19 @@ class MainActivity : ComponentActivity() {
         if (!room.has("id")) { roomChoice(); return }
         navigation("가족 추억 찾기", { home() }, tab = 0, name = "memories")
         heading("함께 쌓아온 추억 찾기", "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.")
-        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved) {
+        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved,
+            renderPost = { parent, post ->
+                val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
+                    load = { image, source, url -> remotePhoto(image, source, url, thumbnail = true) },
+                    release = { imageLoader.release(it) },
+                    open = { source -> detail(source, returnToMemories = memoryPanel?.snapshot()) },
+                    reply = { source ->
+                        memoryReturn = memoryPanel?.snapshot()
+                        voice(source, fromDetail = true)
+                    }, changed = {}, showPagination = false)
+                deck.currentCard.tag = "feed-post:${post.getInt("id")}"
+                parent.addView(deck, LinearLayout.LayoutParams(-1, -2))
+            }) {
             val username = session?.optString("username").orEmpty()
             val userId = session?.optInt("user_id")
             val big = large
@@ -1068,9 +1092,12 @@ class MainActivity : ComponentActivity() {
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); parent.addView(row); ui.gap(parent, 14)
     }
     private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false,
-                       audioAction: PostAudioAction? = null) {
+                       audioAction: PostAudioAction? = null, returnToMemories: Bundle? = memoryReturn) {
         selectedPost = post
-        navigation("가족의 소식", { home() }, name = "detail")
+        navigation("가족의 소식", {
+            if (returnToMemories != null) familyMemories(returnToMemories) else home()
+        }, name = "detail")
+        memoryReturn = returnToMemories
         val client = api
         async({ client.request("posts/" + post.getInt("id") + "/") }) { data ->
             selectedPost = data
