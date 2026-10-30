@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="Theme.TalkDock.Coral.Base" parent="Theme.TalkDock">
-        <item name="android:colorAccent">#A64E44</item>
-        <item name="android:windowBackground">#FFFDF7</item>
-        <item name="android:statusBarColor">#FFFDF7</item>
-        <item name="android:navigationBarColor">#FFFDF7</item>
+        <item name="android:colorAccent">@color/todak_accent</item>
+        <item name="android:windowBackground">@color/todak_background</item>
+        <item name="android:statusBarColor">@color/todak_background</item>
+        <item name="android:navigationBarColor">@color/todak_background</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
 

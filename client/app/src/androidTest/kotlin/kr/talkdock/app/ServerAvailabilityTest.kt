@@ -47,7 +47,7 @@ class ServerAvailabilityTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api, room(1, "점검 안내 테스트")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.openAssistantOption("가족의 지난 추억이 궁금하세요?")
+            ui.openAssistantOption("가족 추억 찾기")
             val draft = "  가족 여행은 어디로 갔었지?  "
             fun panel() = ui.all().filterIsInstance<FamilyMemoryPanel>().single()
             ui.test.runOnMainSync { panel().input.setText(draft); panel().searchButton.performClick() }

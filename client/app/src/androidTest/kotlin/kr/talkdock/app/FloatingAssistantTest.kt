@@ -84,7 +84,7 @@ class FloatingAssistantTest {
     private inner class Screen(server: Server) : AutoCloseable {
         val test = InstrumentationRegistry.getInstrumentation()
         private val sessionPrefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
-        private val positionPrefs = test.targetContext.getSharedPreferences("talkdock-assistant", Context.MODE_PRIVATE)
+        private val positionPrefs = test.targetContext.getSharedPreferences("talkdock-assistant-letter", Context.MODE_PRIVATE)
         private val savedSession = sessionPrefs.all.toMap()
         private val savedPosition = positionPrefs.all.toMap()
         var activity: MainActivity
@@ -95,10 +95,17 @@ class FloatingAssistantTest {
             positionPrefs.edit().clear().commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-            await { views().filterIsInstance<TextView>().any { it.text.startsWith("소식 1\n") && (it.parent as View).height > 0 } }
+            await { views().any { it is kr.talkdock.app.ui.PhotoLetterDeck && it.height > 0 } }
         }
-        fun views(view: View = activity.window.decorView): List<View> = listOf(view) +
-            if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
+        fun views(view: View = activity.window.decorView): List<View> {
+            fun walk(root: View): List<View> = listOf(root) + if (root is ViewGroup) (0 until root.childCount).flatMap { walk(root.getChildAt(it)) } else emptyList()
+            val result = walk(view).toMutableList()
+            if (view === activity.window.decorView) {
+                val field = activity.javaClass.getDeclaredField("assistantDialog").apply { isAccessible = true }
+                (field.get(activity) as? android.app.Dialog)?.takeIf { it.isShowing }?.window?.decorView?.let { result.addAll(walk(it)) }
+            }
+            return result
+        }
         fun button() = views().filterIsInstance<FloatingAssistantView>().single()
         fun character() = button().getChildAt(0) as ImageView
         fun card(id: Int) = views().filterIsInstance<TextView>().first { it.text.startsWith("소식 $id\n") }.parent as View
@@ -124,11 +131,8 @@ class FloatingAssistantTest {
         }
         fun center(id: Int) {
             test.runOnMainSync {
-                val card = views().filterIsInstance<TextView>().first { it.text.startsWith("소식 $id\n") }.parent as View
-                val scroll = views().filterIsInstance<ScrollView>().first()
-                val cardAt = IntArray(2); val scrollAt = IntArray(2)
-                card.getLocationOnScreen(cardAt); scroll.getLocationOnScreen(scrollAt)
-                scroll.scrollTo(0, scroll.scrollY + cardAt[1] + card.height / 2 - scrollAt[1] - scroll.height / 2)
+                val deck = views().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
+                for (index in 0 until deck.letterCount) { deck.show(index); if (deck.currentPost.optInt("id") == id) break }
             }
             await { button().tag == id }
         }
@@ -150,7 +154,7 @@ class FloatingAssistantTest {
                 if (next != null) activity = next
                 next != null && views().any { it is FloatingAssistantView }
             }
-            await { views().filterIsInstance<TextView>().any { it.text.startsWith("소식 1\n") } }
+            await { views().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
         }
         private fun restore(prefs: android.content.SharedPreferences, values: Map<String, *>) {
             val editor = prefs.edit().clear()
@@ -170,207 +174,107 @@ class FloatingAssistantTest {
         }
     }
 
-    @Test fun scrollingChangesTheCenteredPostWhileDraggingOnlyMovesTheCharacter() {
+    @Test fun pagingChangesThePostWhileDraggingOnlyMovesTheCharacter() {
         Server().use { server -> Screen(server).use { screen ->
             screen.center(2)
-            var oldY = 0f
+            screen.drag(-1500f, -120f)
+            var x = 0f; var y = 0f
             screen.test.runOnMainSync {
-                oldY = screen.button().y
-                assertTrue(screen.button().x > screen.activity.resources.displayMetrics.widthPixels / 2)
-                assertEquals(-1f, screen.character().scaleX, 0f)
-                assertFalse(screen.card(2).isActivated)
-                val density = screen.activity.resources.displayMetrics.density
-                assertEquals(91.2f * density, screen.button().width.toFloat(), 1.5f)
-                assertEquals(105.6f * density, screen.button().height.toFloat(), 1.5f)
-                assertTrue(screen.views().none { it.tag == "post-focus-shade" })
-                assertEquals((screen.button().parent as View).width.toFloat(), screen.button().x + screen.button().width, 1f)
-                val bodyCut = floatArrayOf(screen.character().drawable.intrinsicWidth * 50f / 1151f, 0f)
-                screen.character().imageMatrix.mapPoints(bodyCut)
-                assertEquals(0f, bodyCut[0], .01f)
-            }
-            screen.center(1)
-            screen.test.runOnMainSync {
-                assertEquals(oldY, screen.button().y, 1f)
-                assertFalse(screen.card(1).isActivated)
-                assertFalse(screen.card(2).isActivated)
-            }
-            screen.drag(-2000f, -150f)
-            screen.await { screen.button().x < screen.activity.resources.displayMetrics.widthPixels / 2 }
-            screen.test.runOnMainSync {
-                assertEquals(1, screen.button().tag)
+                assertEquals(2, screen.button().tag); x = screen.button().x; y = screen.button().y
                 assertEquals(1f, screen.character().scaleX, 0f)
-                assertEquals(0f, screen.button().x, 1f)
             }
-            assertTrue(server.questionPaths.isEmpty())
             screen.recreate()
-            screen.await { screen.button().x < screen.activity.resources.displayMetrics.widthPixels / 2 }
+            screen.test.runOnMainSync { assertEquals(2, screen.button().tag); assertEquals(x, screen.button().x, 2f); assertEquals(y, screen.button().y, 2f) }
             screen.center(3)
-            screen.test.runOnMainSync {
-                assertEquals(3, screen.button().tag)
-                assertEquals(1f, screen.character().scaleX, 0f)
-            }
+            assertTrue(server.questionPaths.isEmpty())
         } }
     }
-
     @Test fun dragCancelAndAccessibleMovesDoNotOpenAQuestionOrChangeItsPost() {
         Server().use { server -> Screen(server).use { screen ->
             screen.center(2)
-            var initialX = 0f
-            screen.test.runOnMainSync { initialX = screen.button().x }
+            var initial = 0f
+            screen.test.runOnMainSync { initial = screen.button().x }
             screen.drag(-1500f, 500f, cancel = true)
             screen.test.runOnMainSync {
-                assertEquals(initialX, screen.button().x, 1f)
-                assertEquals(-1f, screen.character().scaleX, 0f)
+                assertEquals(initial, screen.button().x, 2f)
                 assertTrue(screen.button().performAccessibilityAction(FloatingAssistantView.ACTION_LEFT, null))
                 assertTrue(screen.button().performAccessibilityAction(FloatingAssistantView.ACTION_UP, null))
-                assertEquals(2, screen.button().tag)
-                assertEquals(1f, screen.character().scaleX, 0f)
+                assertEquals(2, screen.button().tag); assertEquals(1f, screen.character().scaleX, 0f)
                 assertTrue(screen.button().performAccessibilityAction(FloatingAssistantView.ACTION_RIGHT, null))
                 assertEquals(-1f, screen.character().scaleX, 0f)
             }
             assertTrue(server.questionPaths.isEmpty())
         } }
     }
-
-    @Test @SdkSuppress(minSdkVersion = 30)
-    fun focusShadeDoesNotBlockFeedSwipesOrHeaderButtons() {
+    @Test fun outsideTapAndPagingDismissThePopoverWithoutStartingAi() {
         Server().use { server -> Screen(server).use { screen ->
-            screen.center(2)
-            screen.tapCharacter()
-            val at = IntArray(2); var width = 0; var height = 0
-            screen.test.runOnMainSync {
-                val shade = screen.views().single { it.tag == "post-focus-shade" }
-                assertFalse(shade.isClickable); assertFalse(shade.isFocusable)
-                val scroll = screen.views().filterIsInstance<ScrollView>().first()
-                scroll.getLocationOnScreen(at); width = scroll.width; height = scroll.height
-            }
-            val now = SystemClock.uptimeMillis()
-            for (step in 0..16) {
-                val x = at[0] + width * .25f
-                val y = at[1] + height * (.2f - .6f * step / 16f)
-                val action = if (step == 0) MotionEvent.ACTION_DOWN else if (step == 16) MotionEvent.ACTION_UP else MotionEvent.ACTION_MOVE
-                MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, x, y, 0).also { screen.test.sendPointerSync(it); it.recycle() }
-                SystemClock.sleep(12)
-            }
-            screen.await { screen.button().tag == 1 }
-            val old = screen.card(1)
-            screen.tap(screen.views().first { it.contentDescription == "가족 소식 새로고침" })
-            screen.await {
-                !old.isAttachedToWindow && screen.views().filterIsInstance<TextView>().any { it.text.startsWith("소식 1\n") } && screen.button().tag != null
-            }
-            screen.test.runOnMainSync { assertTrue(screen.views().none { it.tag == "post-focus-shade" }) }
-            assertTrue(server.questionPaths.isEmpty())
-        } }
-    }
-
-    @Test @SdkSuppress(minSdkVersion = 30)
-    fun characterTogglesAnAnchoredBubbleWithoutBlockingTheFeed() {
-        Server().use { server -> Screen(server).use { screen ->
-            screen.center(2)
-            screen.tapCharacter()
-            screen.await { screen.views().any { it is AssistantBubbleMenu && it.width > 0 } }
-            screen.test.runOnMainSync {
-                val menu = screen.menu(); val button = screen.button()
-                assertTrue(screen.card(2).isActivated)
-                assertTrue(screen.views().any { it.tag == "post-focus-shade" })
-                assertTrue(menu.x + menu.width < button.x + button.width / 4f)
-                assertEquals(button.bubbleAttachmentX(), menu.x + menu.width, 1f)
-                assertTrue(menu.width < (button.parent as View).width)
-                assertTrue(menu.width <= (224 * screen.activity.resources.displayMetrics.density).toInt())
-                assertTrue(menu.height < (button.parent as View).height / 2)
-                val labels = screen.views(menu).filterIsInstance<TextView>()
-                assertEquals(3, labels.size)
-                assertTrue(labels.all { it.gravity and android.view.Gravity.HORIZONTAL_GRAVITY_MASK == android.view.Gravity.RIGHT })
-                assertEquals(3, labels.map { it.background }.toSet().size)
-                assertTrue(screen.views().filterIsInstance<TextView>().any { it.text.toString() == "가족의 지난 추억이 궁금하세요?" })
-            }
-            screen.test.waitForIdleSync(); SystemClock.sleep(250)
-            screen.test.uiAutomation.takeScreenshot().also { bitmap ->
-                java.io.File(screen.test.targetContext.cacheDir, "assistant-bubble-preview.png").outputStream().use {
-                    bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
-                }; bitmap.recycle()
-            }
-            screen.tapCharacter()
+            screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu } }
+            screen.test.runOnMainSync { screen.views().single { it.tag == "assistant-menu-shade" }.performClick() }
             screen.await { screen.views().none { it is AssistantBubbleMenu } }
-            screen.test.runOnMainSync {
-                assertFalse(screen.card(2).isActivated)
-                assertTrue(screen.views().none { it.tag == "post-focus-shade" })
-            }
-            screen.tapCharacter()
-            screen.await { screen.views().any { it is AssistantBubbleMenu } }
-            screen.drag(-2000f, 80f)
-            screen.await { screen.views().none { it is AssistantBubbleMenu } }
-            screen.test.runOnMainSync {
-                assertFalse(screen.button().isSelected); assertEquals(2, screen.button().tag)
-                assertTrue(screen.views().none { it.tag == "post-focus-shade" })
-            }
-            screen.tapCharacter()
-            screen.await { screen.views().any { it is AssistantBubbleMenu } }
-            screen.await { screen.menu().x >= screen.button().x + screen.button().width * .75f }
-            screen.test.runOnMainSync { screen.button().performAccessibilityAction(FloatingAssistantView.ACTION_RIGHT, null) }
-            screen.await { screen.views().none { it is AssistantBubbleMenu } }
-            screen.tapCharacter()
-            screen.await { screen.views().any { it is AssistantBubbleMenu } }
+            screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu } }
             screen.center(1)
-            screen.test.runOnMainSync {
-                assertEquals(1, screen.button().tag)
-                screen.activity.onBackPressedDispatcher.onBackPressed()
-            }
             screen.await { screen.views().none { it is AssistantBubbleMenu } }
             assertTrue(server.questionPaths.isEmpty())
         } }
     }
-
-    @Test @SdkSuppress(minSdkVersion = 30)
-    fun bubbleOptionsOpenMemoriesAndTheDailyDigest() {
+    @Test fun twoActionPopoverFitsBothDockingEdgesAndRetainsAccessibleTargets() {
         Server().use { server -> Screen(server).use { screen ->
-            screen.center(2)
-            screen.test.runOnMainSync {
-                screen.button().performClick()
-                screen.views().first { it.contentDescription == "가족의 지난 추억이 궁금하세요?" }.performClick()
+            for (edge in listOf(FloatingAssistantView.ACTION_RIGHT, FloatingAssistantView.ACTION_LEFT)) {
+                screen.test.runOnMainSync { screen.button().performAccessibilityAction(edge, null) }
+                screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu && it.width > 0 } }
+                screen.test.runOnMainSync {
+                    val menu = screen.menu(); val root = menu.parent as View
+                    assertTrue(menu.x >= 0); assertTrue(menu.x + menu.width <= root.width + 1)
+                    assertTrue(menu.y >= 0); assertTrue(menu.y + menu.height <= root.height + 1)
+                    for (label in listOf("이 소식 물어보기", "가족 추억 찾기")) {
+                        val row = screen.views(menu).single { it.contentDescription == label }
+                        assertTrue(row.isClickable && row.isFocusable); assertTrue(row.height >= screen.activity.resources.displayMetrics.density * 48)
+                    }
+                    assertFalse(screen.views(menu).filterIsInstance<TextView>().any { it.text.toString() == "오늘 가족의 하루" })
+                    screen.button().performClick()
+                }
             }
+        } }
+    }
+    @Test fun memoryOptionAndDailyTabUseSeparateRoutes() {
+        Server().use { server -> Screen(server).use { screen ->
+            screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu } }
+            screen.test.runOnMainSync { screen.views().single { it.contentDescription == "가족 추억 찾기" }.performClick() }
             screen.await { screen.views().any { it is FamilyMemoryPanel } }
             screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
-            screen.await { screen.views().any { it is FloatingAssistantView } }
+            screen.await { screen.views().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
             screen.test.runOnMainSync {
-                screen.button().performClick()
-                screen.views().first { it.contentDescription == "오늘 가족의 하루" }.performClick()
+                val label = screen.views().filterIsInstance<TextView>().single { it.text.toString() == "하루" }
+                (label.parent as View).performClick()
             }
-            screen.await { screen.views().filterIsInstance<TextView>().any { it.text.toString().contains("하루 요약이 도착해요.") } }
-            screen.test.runOnMainSync { assertTrue(screen.views().none { it is AssistantBubbleMenu }) }
+            screen.await { screen.views().filterIsInstance<TextView>().any { it.text.toString().contains("21:00") } }
             assertTrue(server.questionPaths.isEmpty())
         } }
     }
-
-    @Test @SdkSuppress(minSdkVersion = 30)
-    fun thePopupFreezesTheSelectedPostUntilItCloses() {
+    @Test fun questionKeepsChosenPostAndASecondQuestionUsesTheNewLetter() {
         Server().use { server -> Screen(server).use { screen ->
-            fun windows() = WindowInspector.getGlobalWindowViews().flatMap { screen.views(it) }
-            screen.center(2)
-            screen.test.runOnMainSync { screen.button().performClick() }
-            screen.await { screen.views().filterIsInstance<TextView>().any { it.text.toString() == "이 글에 대해 궁금하세요?" } }
-            screen.test.runOnMainSync {
-                screen.views().filterIsInstance<TextView>().first { it.text.toString() == "이 글에 대해 궁금하세요?" }.performClick()
+            fun openQuestion(id: Int) {
+                screen.center(id); screen.tapCharacter()
+                screen.await { screen.views().any { it is AssistantBubbleMenu } }
+                screen.test.runOnMainSync { screen.views().single { it.contentDescription == "이 소식 물어보기" }.performClick() }
+                screen.await { screen.views().any { it is PostQuestionPanel } }
             }
-            screen.await { windows().any { it is PostQuestionPanel } }
-            screen.center(1) // The open popup keeps the original post if the underlying feed changes.
+            openQuestion(2)
+            screen.center(3)
             screen.test.runOnMainSync {
-                val panel = windows().filterIsInstance<PostQuestionPanel>().single()
-                panel.composer.input.setText("무슨 소식이야?")
-                panel.composer.sendButton.performClick()
+                val panel = screen.views().filterIsInstance<PostQuestionPanel>().single()
+                panel.composer.input.setText("어떤 이야기예요?"); panel.composer.sendButton.performClick()
             }
-            screen.await { server.questionPaths.isNotEmpty() }
-            assertEquals(listOf("/api/posts/2/questions/"), server.questionPaths.toList())
+            screen.await { server.questionPaths.contains("/api/posts/2/questions/") }
+            screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
+            screen.await { screen.views().none { it is PostQuestionPanel } }
+            openQuestion(1)
             screen.test.runOnMainSync {
-                windows().first { it.contentDescription?.toString() == "도우미 닫기" }.performClick()
+                val panel = screen.views().filterIsInstance<PostQuestionPanel>().single()
+                assertFalse(screen.views(panel).filterIsInstance<TextView>().any { it.text.toString() == "테스트 답변" })
+                panel.composer.input.setText("이건요?"); panel.composer.sendButton.performClick()
             }
-            screen.await { screen.activity.window.decorView.rootWindowInsets?.isVisible(WindowInsets.Type.ime()) != true }
-            screen.center(1)
-            screen.test.runOnMainSync { screen.button().performClick() }
-            screen.test.runOnMainSync {
-                screen.views().filterIsInstance<TextView>().first { it.text.toString() == "이 글에 대해 궁금하세요?" }.performClick()
-            }
-            screen.await { windows().filterIsInstance<TextView>().any { it.text.toString() == "작성자1님의 소식에 질문해 보세요." } }
+            screen.await { server.questionPaths.contains("/api/posts/1/questions/") }
         } }
     }
 }

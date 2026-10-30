@@ -15,21 +15,26 @@ import android.widget.*
 import kr.talkdock.app.R
 
 class Ui(val context: Context) {
-    // Figma: SBbeuXJ4M8ObKV8BHmqUxY. Keep the old aliases for existing screens.
-    val coral = Color.rgb(248, 222, 217)
-    val coralDeep = Color.rgb(166, 78, 68)
-    val sky = Color.rgb(229, 242, 247)
-    val skyDeep = Color.rgb(70, 107, 123)
-    val milk = Color.rgb(255, 253, 247)
-    val blush = Color.rgb(255, 240, 235)
-    val paper = Color.WHITE
+    // White backgrounds with the original warm coral, peach and beige palette.
+    // Keep legacy aliases so every screen follows the shared resource palette.
+    val coral = context.getColor(R.color.todak_accent_soft)
+    val coralDeep = context.getColor(R.color.todak_accent)
+    val sky = context.getColor(R.color.todak_surface_muted)
+    val skyDeep = context.getColor(R.color.todak_text_supporting)
+    val milk = context.getColor(R.color.todak_background)
+    val blush = context.getColor(R.color.todak_blush)
+    val paper = context.getColor(R.color.todak_surface)
     val green = coralDeep
-    val ink = Color.rgb(68, 60, 56)
-    val muted = Color.rgb(121, 112, 106)
-    val hintGray = Color.rgb(158, 154, 145)
+    val ink = context.getColor(R.color.todak_text)
+    val muted = context.getColor(R.color.todak_text_secondary)
+    val hintGray = context.getColor(R.color.todak_text_hint)
     val sage = sky
-    val border = Color.rgb(233, 224, 215)
-    val font: Typeface = context.resources.getFont(R.font.noto_kr)
+    val border = context.getColor(R.color.todak_border)
+    val sheet = context.getColor(R.color.todak_sheet)
+    val photoScrim = context.getColor(R.color.todak_photo_scrim)
+    val overlayScrim = context.getColor(R.color.todak_overlay_scrim)
+    val font: Typeface = context.resources.getFont(R.font.pretendard_medium)
+    val titleFont: Typeface = context.resources.getFont(R.font.dunggeunmiso_regular)
     fun dp(n: Int) = (n * context.resources.displayMetrics.density).toInt()
     fun shape(color: Int = sage, radius: Int = 16, stroke: Boolean = false) = GradientDrawable().apply {
         setColor(color); cornerRadius = dp(radius).toFloat()
@@ -42,7 +47,6 @@ class Ui(val context: Context) {
     fun row() = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
     fun text(value: String, size: Float = 18f, bold: Boolean = false, color: Int = ink) = TextView(context).apply {
         text = value; textSize = size; setTextColor(color); typeface = Typeface.create(font, if (bold) Typeface.BOLD else Typeface.NORMAL)
-        fontVariationSettings = if (bold) "'wght' 700" else "'wght' 400"
         includeFontPadding = false
         setLineSpacing(dp(3).toFloat(), 1.15f)
     }
@@ -54,20 +58,32 @@ class Ui(val context: Context) {
     fun button(parent: LinearLayout, title: String, primary: Boolean = true, height: Int = 56, action: () -> Unit): Button {
         return Button(context).apply {
             text = title; isAllCaps = false; textSize = if (height >= 76) 22f else 18f; typeface = Typeface.create(font, Typeface.BOLD)
-            fontVariationSettings = "'wght' 700"
             elevation = 0f; stateListAnimator = null
             setTextColor(if (primary) ink else skyDeep)
             background = RippleDrawable(ColorStateList.valueOf(Color.argb(35, 0, 0, 0)),
-                shape(if (primary) coral else sky), null)
+                shape(if (primary) coral else sky, 28), null)
             setPadding(dp(12), 0, dp(12), 0); minHeight = dp(height)
             setOnClickListener { action() }
             parent.addView(this, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         }
     }
+    fun action(parent: LinearLayout, title: String, symbol: String, large: Boolean = false, action: () -> Unit): View {
+        val row = row().apply {
+            gravity = Gravity.CENTER; minimumHeight = dp(if (large) 76 else 64)
+            background = RippleDrawable(ColorStateList.valueOf(coral), shape(coralDeep, 36), null)
+            isClickable = true; isFocusable = true; contentDescription = title
+            setPadding(dp(20), dp(12), dp(20), dp(12)); setOnClickListener { action() }
+        }
+        row.addView(IconView(context, symbol, Color.WHITE), LinearLayout.LayoutParams(dp(28), dp(28)))
+        row.addView(text(title, if (large) 23f else 20f, true, Color.WHITE),
+            LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(10) })
+        parent.addView(row, LinearLayout.LayoutParams(-1, -2))
+        return row
+    }
     fun ghost(parent: LinearLayout, title: String, height: Int = 56, action: () -> Unit): Button =
         button(parent, title, false, height, action).apply {
             setTextColor(ink)
-            background = RippleDrawable(ColorStateList.valueOf(border), shape(milk), null)
+            background = RippleDrawable(ColorStateList.valueOf(border), shape(paper, 28, stroke = true), null)
         }
     fun card(parent: LinearLayout, color: Int = paper, padding: Int = 16, stroke: Boolean = true): LinearLayout =
         column(padding).apply {
@@ -82,7 +98,6 @@ class Ui(val context: Context) {
         label(parent, title, 16f, true); gap(parent, 8)
         val input = EditText(context).apply {
             hint = hintText; textSize = 18f; typeface = font
-            fontVariationSettings = "'wght' 400"
             setTextColor(ink); setHintTextColor(muted)
             inputType = when {
                 password -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
@@ -144,6 +159,7 @@ class Ui(val context: Context) {
 class IconView(context: Context, private val symbol: String, private val color: Int, private val buttonInset: Boolean = false) : View(context) {
     constructor(context: Context) : this(context, "feed", Color.rgb(166, 78, 68))
     private val artwork = FigmaIcons.picture(context, symbol, color)
+    private val tint = Paint().apply { colorFilter = android.graphics.PorterDuffColorFilter(this@IconView.color, android.graphics.PorterDuff.Mode.SRC_IN) }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = this@IconView.color; style = Paint.Style.STROKE; strokeWidth = 1.8f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND }
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -152,7 +168,9 @@ class IconView(context: Context, private val symbol: String, private val color: 
             val scale = minOf(side / picture.width.coerceAtLeast(1), side / picture.height.coerceAtLeast(1))
             canvas.save()
             canvas.translate((width - picture.width * scale) / 2, (height - picture.height * scale) / 2)
-            canvas.scale(scale, scale); canvas.drawPicture(picture); canvas.restore()
+            canvas.scale(scale, scale)
+            val layer = canvas.saveLayer(0f, 0f, picture.width.toFloat(), picture.height.toFloat(), tint)
+            canvas.drawPicture(picture); canvas.restoreToCount(layer); canvas.restore()
             return
         }
         val size = Math.min(width, height) * .48f
@@ -166,6 +184,8 @@ class IconView(context: Context, private val symbol: String, private val color: 
                 line(3f, 21f, 5f, 17f); line(14f, 8f, 18f, 12f)
                 line(3f, 4f, 10f, 4f)
             }
+            "more" -> { p.style = Paint.Style.FILL; for (y in listOf(5f, 12f, 19f)) canvas.drawCircle(12f, y, 1.7f, p); p.style = Paint.Style.STROKE }
+            "play" -> { p.style = Paint.Style.FILL; canvas.drawPath(android.graphics.Path().apply { moveTo(7f, 3f); lineTo(21f, 12f); lineTo(7f, 21f); close() }, p); p.style = Paint.Style.STROKE }
             "back" -> { line(15f, 4f, 7f, 12f); line(7f, 12f, 15f, 20f) }
             "up" -> { line(12f, 20f, 12f, 4f); line(5f, 11f, 12f, 4f); line(12f, 4f, 19f, 11f) }
             "down" -> { line(12f, 4f, 12f, 20f); line(5f, 13f, 12f, 20f); line(12f, 20f, 19f, 13f) }

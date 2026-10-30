@@ -14,8 +14,6 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import kr.talkdock.app.R
 import kotlin.math.abs
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 /** One viewport overlay, independent of the scrolling post cards. Never starts an AI request. */
 class FloatingAssistantView(
@@ -24,9 +22,10 @@ class FloatingAssistantView(
     private val viewport: () -> Rect?,
     private val onPositionChanged: (Float) -> Unit,
     private val onMoveStarted: () -> Unit = {},
+    private val preferredDock: () -> Rect? = { null },
     onOpen: () -> Unit,
 ) : FrameLayout(context) {
-    private val preferences = context.getSharedPreferences("talkdock-assistant", Context.MODE_PRIVATE)
+    private val preferences = context.getSharedPreferences("talkdock-assistant-letter", Context.MODE_PRIVATE)
     private var anchor = AssistantAnchor(
         if (preferences.getBoolean("left", false)) AssistantEdge.LEFT else AssistantEdge.RIGHT,
         preferences.getFloat("height", .62f).takeIf { it.isFinite() } ?: .62f,
@@ -49,31 +48,29 @@ class FloatingAssistantView(
     }
 
     init {
-        layoutParams = LayoutParams((ui.dp(76) * 1.2f).roundToInt(), (ui.dp(88) * 1.2f).roundToInt(), Gravity.TOP or Gravity.LEFT)
+        layoutParams = LayoutParams(ui.dp(60), ui.dp(72), Gravity.TOP or Gravity.LEFT)
         isClickable = true; isFocusable = true
         contentDescription = "토닥 도우미. 누르면 질문하기, 끌어서 위치 옮기기"
         addView(characterImage, LayoutParams(-1, -1))
         characterImage.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
-                alignCharacterBody()
-            }
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) fitCharacterToEdge()
         }
         setOnClickListener { onOpen() }
     }
 
-    private fun alignCharacterBody() {
+    private fun fitCharacterToEdge() {
         val drawable = characterImage.drawable ?: return
-        val sourceWidth = drawable.intrinsicWidth.toFloat()
-        val sourceHeight = drawable.intrinsicHeight.toFloat()
-        if (sourceWidth <= 0 || sourceHeight <= 0) return
-        // The supplied PNG's straight torso cut is at x=50 on a 1151px canvas.
-        // Align that cut, rather than transparent padding, to the docking edge.
-        // Mirroring the ImageView then aligns the same cut with the right edge.
-        val bodyLeft = sourceWidth * CHARACTER_BODY_LEFT_FRACTION
-        val scale = min(characterImage.width / (sourceWidth - bodyLeft), characterImage.height / sourceHeight)
+        // Visible bounds of assistant_character.png; ignore transparent padding only.
+        // Fit the whole mascot, then mirror its image view for right-edge docking.
+        val left = drawable.intrinsicWidth * (30f / 1151f)
+        val top = drawable.intrinsicHeight * (23f / 1367f)
+        val visibleWidth = drawable.intrinsicWidth * (1092f / 1151f)
+        val visibleHeight = drawable.intrinsicHeight * (1304f / 1367f)
+        if (visibleWidth <= 0 || visibleHeight <= 0) return
+        val scale = minOf(characterImage.width / visibleWidth, characterImage.height / visibleHeight)
         characterImage.imageMatrix = Matrix().apply {
             setScale(scale, scale)
-            postTranslate(-bodyLeft * scale, (characterImage.height - sourceHeight * scale) / 2f)
+            postTranslate(-left * scale, (characterImage.height - visibleHeight * scale) / 2f - top * scale)
         }
     }
 
@@ -96,6 +93,9 @@ class FloatingAssistantView(
         if (!touching) {
             val point = AssistantPlacement.position(anchor, area, width.toFloat(), height.toFloat())
             x = point.x; y = point.y
+            if (!preferences.contains("height")) preferredDock()?.let { pocket ->
+                y = (pocket.exactCenterY() - height / 2f).coerceIn(area.top, maxOf(area.top, area.bottom - height))
+            }
         }
         updateCharacterFacing(area)
         reportPosition()
@@ -197,7 +197,6 @@ class FloatingAssistantView(
     }
 
     companion object {
-        internal const val CHARACTER_BODY_LEFT_FRACTION = 50f / 1151f
         const val ACTION_LEFT = 0x01030001
         const val ACTION_RIGHT = 0x01030002
         const val ACTION_UP = 0x01030003

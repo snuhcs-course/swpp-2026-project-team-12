@@ -122,8 +122,8 @@ class FamilyMemorySearchTest {
                 test.runOnMainSync {
                     assertTrue(views().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().performClick())
                 }
-                await { has("가족의 지난 추억이 궁금하세요?") }
-                click("가족의 지난 추억이 궁금하세요?")
+                await { has("가족 추억 찾기") }
+                click("가족 추억 찾기")
             }
             await { views().any { it is FamilyMemoryPanel } }
         }
@@ -263,7 +263,19 @@ class FamilyMemorySearchTest {
 
     @Test fun familyRoomAlsoOpensSearch() {
         Server { answer("답변") }.use { server -> Screen(server).use { screen ->
-            screen.click("가족방"); screen.await { screen.has("지금 보는 가족방") }
+            screen.test.runOnMainSync { screen.views().first { it.contentDescription == "프로필 메뉴" }.performClick() }
+            screen.await {
+                val f = screen.activity.javaClass.getDeclaredField("profileMenuDialog").apply { isAccessible = true }
+                (f.get(screen.activity) as? android.app.Dialog)?.isShowing == true
+            }
+            screen.test.runOnMainSync {
+                val f = screen.activity.javaClass.getDeclaredField("profileMenuDialog").apply { isAccessible = true }
+                val dialog = f.get(screen.activity) as android.app.Dialog
+                var view: View = screen.views(dialog.window!!.decorView).filterIsInstance<TextView>().first { it.text.toString() == "가족방 바꾸기" }
+                while (!view.isClickable && view.parent is View) view = view.parent as View
+                view.performClick()
+            }
+            screen.await { screen.has("지금 보는 가족방") }
             screen.open()
             screen.test.runOnMainSync { assertTrue(screen.has("함께 쌓아온 추억 찾기")) }
         } }

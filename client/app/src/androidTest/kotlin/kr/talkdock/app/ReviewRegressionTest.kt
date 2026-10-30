@@ -104,8 +104,49 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         activity=test.startActivitySync(Intent(test.targetContext,MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
     }
-    fun all(view: View = activity.window.decorView): List<View> = listOf(view) +
-        if(view is ViewGroup) (0 until view.childCount).flatMap { all(view.getChildAt(it)) } else emptyList()
+    fun all(view: View = activity.window.decorView): List<View> {
+        fun children(root: View): List<View> = listOf(root) + if (root is ViewGroup)
+            (0 until root.childCount).flatMap { children(root.getChildAt(it)) } else emptyList()
+        val result = children(view).toMutableList()
+        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog")) {
+            val field = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }
+            val dialog = field.get(activity) as? android.app.Dialog
+            if (dialog?.isShowing == true) dialog.window?.decorView?.let { result.addAll(children(it)) }
+        }
+        return result
+    }
+    fun openProfile() {
+        if (all().none { it.contentDescription == "프로필 메뉴" }) {
+            test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+            await { all().any { it.contentDescription == "프로필 메뉴" } && all().none { it is kr.talkdock.app.ui.TodakWaitingView } }
+        }
+        test.runOnMainSync { all().first { it.contentDescription == "프로필 메뉴" }.performClick() }
+        await { has("가족방 바꾸기") }
+    }
+    fun openSettings() { openProfile(); click("설정") }
+    fun openRooms() { openProfile(); click("가족방 바꾸기") }
+    fun openDaily() {
+        if (!has("하루")) { test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }; await { has("하루") && all().none { it is kr.talkdock.app.ui.TodakWaitingView } } }
+        click("하루")
+    }
+    fun openCurrentPost() {
+        if (has("댓글은 이 가족방에만 보여요.")) return
+        await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+        test.runOnMainSync {
+            val deck = all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
+            all(deck.currentCard).first { it.contentDescription == "소식과 댓글 자세히 보기" }.performClick()
+        }
+        await { has("댓글은 이 가족방에만 보여요.") }
+    }
+    fun selectLetter(id: Int) {
+        await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+        test.runOnMainSync {
+            val deck = all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
+            for (index in 0 until deck.letterCount) { deck.show(index); if (deck.currentPost.optInt("id") == id) break }
+            assertEquals(id, deck.currentPost.optInt("id"))
+        }
+    }
+    fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }
     fun await(timeout: Long=6000, condition: () -> Boolean) {
         val end=SystemClock.uptimeMillis()+timeout
@@ -134,6 +175,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         click(label)
     }
     fun screenshot(name: String) {
+        test.waitForIdleSync(); Thread.sleep(250)
         val image=test.uiAutomation.takeScreenshot()
         java.io.File(test.targetContext.cacheDir,name).outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
         image.recycle()
@@ -164,7 +206,7 @@ class ReviewRoomUiTest {
     @Test fun existingMemberCanStillCreateOrJoinAnotherRoom() {
         MockApi { request -> if(request.path=="/api/families/current/") jsonReply(room(1,"검증 가족 A")) else emptyFeed() }.use { api -> UiHarness(api,room(1,"검증 가족 A")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("가족방")
+            ui.openRooms()
             ui.await { ui.has("지금 보는 가족방") && ui.has("검증 가족 A") }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("새 가족방 만들기")); assertTrue(ui.has("초대 코드로 참여하기"))
@@ -206,7 +248,7 @@ class ReviewRoomUiTest {
                 val fields=ui.all().filterIsInstance<EditText>()
                 fields[0].setText("review-user"); fields[1].setText("Valid-Review-12345")
             }
-            ui.click("로그인"); ui.await { ui.has("서버 가족 A") && ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("로그인"); ui.await { ui.hasRoom("서버 가족 A") && ui.has("첫 소식을 기다리고 있어요") }
             assertTrue(api.paths().contains("/api/families/current/"))
             ui.screenshot("review-login-canonical-room.png")
         } }
@@ -218,7 +260,7 @@ class ReviewRoomUiTest {
                 ui.screenshot("review-stale-room.png")
                 println("REVIEW_STARTUP_REQUESTS="+api.paths())
                 assertTrue("Restart must resolve families/current before trusting cached room B",api.paths().contains("/api/families/current/"))
-                ui.test.runOnMainSync { assertTrue(ui.has("서버 가족 A")); assertFalse(ui.has("기기에 저장된 가족 B")) }
+                ui.test.runOnMainSync { assertTrue(ui.hasRoom("서버 가족 A")); assertFalse(ui.hasRoom("기기에 저장된 가족 B")) }
             } }
     }
     @Test fun createResponseIsCheckedAgainstCanonicalRoom() {
@@ -233,7 +275,7 @@ class ReviewRoomUiTest {
                 val fields=ui.all().filterIsInstance<EditText>()
                 fields[0].setText("생성 응답 가족 B"); fields[1].setText("Review-Room-12345")
             }
-            ui.click("가족 방 만들기"); ui.await { ui.has("서버 가족 A") && ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("가족 방 만들기"); ui.await { ui.hasRoom("서버 가족 A") && ui.has("첫 소식을 기다리고 있어요") }
             ui.screenshot("review-created-room-mismatch.png")
             val paths=api.paths(); println("REVIEW_CREATE_REQUESTS="+paths)
             val created=paths.indexOf("/api/families/create/")
@@ -266,12 +308,12 @@ class ReviewRoomUiTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api,room(1,"가족 A")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("가족방"); ui.await { ui.has("새 가족방 만들기") }; ui.click("새 가족방 만들기")
+            ui.openRooms(); ui.await { ui.has("새 가족방 만들기") }; ui.click("새 가족방 만들기")
             ui.test.runOnMainSync {
                 val fields=ui.all().filterIsInstance<EditText>()
                 fields[0].setText("새 가족 B"); fields[1].setText("Review-Room-12345")
             }
-            ui.click("가족 방 만들기"); ui.await { ui.has("가족 방이 준비됐어요.") && ui.has("새 가족 B") }
+            ui.click("가족 방 만들기"); ui.await { ui.has("가족 방이 준비됐어요.") && ui.hasRoom("새 가족 B") }
             ui.click("가족 소식으로 가기"); ui.await { ui.has("첫 소식을 기다리고 있어요") }
             val feeds = synchronized(api.requests) { api.requests.filter { it.path == "/api/posts/" }.map { it.room } }
             assertEquals("The feed after creation must be requested for the new room", "2", feeds.last())
@@ -343,7 +385,7 @@ class ReviewPhotoMemoryTest {
                     val drawable=view.drawable as? android.graphics.drawable.BitmapDrawable ?: continue
                     assertTrue("Thumbnails must be decoded near their display size",drawable.bitmap.width <= view.width*2)
                 }
-                ui.all().filterIsInstance<android.widget.ScrollView>().first().fullScroll(View.FOCUS_DOWN)
+                ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single().show(29)
             }
             ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/1/") } }
             Thread.sleep(1200)
@@ -382,16 +424,18 @@ class PhotoLoaderRegressionTest {
             ByteArrayOutputStream().also { source.compress(Bitmap.CompressFormat.JPEG, 90, it); source.recycle() }.toByteArray()
         }
         lateinit var api: MockApi
+        fun sourcePost() = JSONObject().put("id", 1).put("author_name", "검증 사용자").put("relationship", "나")
+            .put("caption", "사진 넘기기 검증").put("created_at", "2026-10-19T09:00:00+09:00").put("comment_count", 0)
+            .put("comments", JSONArray()).put("images", JSONArray().apply { repeat(5) { put(JSONObject().put("url", api.base + "photo/$it/")) } })
         api = MockApi { request -> when {
             request.path == "/api/families/current/" -> jsonReply(room(1, "사진 넘기기 검증"))
             request.path.startsWith("/api/photo/") -> Reply(photos[request.path.trimEnd('/').substringAfterLast('/').toInt()], type = "image/jpeg")
-            else -> jsonReply(JSONObject().put("posts", JSONArray().put(JSONObject().put("id", 1)
-                .put("author_name", "검증 사용자").put("relationship", "나").put("caption", "사진 넘기기 검증")
-                .put("created_at", "2026-10-19T09:00:00+09:00").put("comment_count", 0)
-                .put("images", JSONArray().apply { repeat(5) { put(JSONObject().put("url", api.base + "photo/$it/")) } })) ))
+            request.path == "/api/posts/1/" -> jsonReply(sourcePost())
+            else -> jsonReply(JSONObject().put("posts", JSONArray().put(sourcePost())))
         } }
         api.use { server -> UiHarness(server, room(1, "사진 넘기기 검증")).use { ui ->
-            ui.await { ui.has("사진 넘기기 검증") && ui.all().any { it is kr.talkdock.app.ui.PhotoCarousel } }
+            ui.await { ui.has("사진 넘기기 검증") }; ui.openCurrentPost()
+            ui.await { ui.all().any { it is kr.talkdock.app.ui.PhotoCarousel } }
             // The loader only fetches photos on screen; on small screens the post starts below the fold.
             ui.test.runOnMainSync {
                 val carousel = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>().single()
@@ -543,16 +587,15 @@ class InlinePostAudioTest {
         val player = speaker.javaClass.getDeclaredField("player").apply { isAccessible = true }.get(speaker) as? android.media.MediaPlayer
         return player?.isPlaying == true
     }
-    private fun open(ui: UiHarness) = ui.await { ui.has("오늘의 소식 2") }
+    private fun open(ui: UiHarness) { ui.await { ui.has("오늘의 소식 2") }; ui.openCurrentPost() }
 
-    private fun readSummary(ui: UiHarness, index: Int = 0) = ui.test.runOnMainSync {
-        val card = panels(ui)[index].parent as View
-        val label = ui.all(card).filterIsInstance<TextView>().single { it.text.toString() == "AI 요약" }
-        var action: View = label
-        while (!action.isClickable && action.parent is View) action = action.parent as View
-        assertTrue(action.performClick())
+    private fun readSummary(ui: UiHarness, index: Int = 0) {
+        if (index == 1) {
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.selectLetter(1); ui.openCurrentPost()
+        }
+        ui.test.runOnMainSync { panels(ui).single().showSummary() }
     }
-
     @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
         for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
             open(ui)
@@ -574,8 +617,8 @@ class InlinePostAudioTest {
             assertEquals(1, api.paths().count { it.endsWith("/message/") })
             assertEquals("사진과 글을 설명한 AI 요약", JSONObject(api.requests.single { it.path == "/api/speech/" }.body).getString("text"))
             tap(ui)
-            ui.click(if (large) "글로 댓글 쓰기" else "댓글 0")
-            ui.await { ui.has("따뜻한 한마디 남기기") }
+            ui.openCurrentPost()
+            ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
             readSummary(ui); ui.await { ui.has("사진과 글을 설명한 AI 요약") }
             assertEquals(1, api.paths().count { it == "/api/speech/" })
             ui.screenshot("post-readable-summary.png")
@@ -607,35 +650,35 @@ class InlinePostAudioTest {
         } }
     }
 
-    @Test fun readingAnotherPostDoesNotStopCurrentAudio() {
+    @Test fun openingAnotherLetterStopsPreviousAudioAndCanReadItsSummary() {
         server().use { api -> UiHarness(api, room(1, "재생")).use { ui ->
             open(ui); tap(ui); ui.await { playing(ui) }
             readSummary(ui, 1)
-            ui.await { panels(ui)[1].visibility == View.VISIBLE && ui.all(panels(ui)[1]).filterIsInstance<TextView>().any { it.text.toString() == "사진과 글을 설명한 AI 요약" } }
-            ui.test.runOnMainSync { assertTrue(playing(ui)); assertTrue(panels(ui)[0].toggle.isSelected); assertFalse(panels(ui)[1].toggle.isSelected) }
+            ui.await { ui.has("사진과 글을 설명한 AI 요약") }
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui).single().toggle.isSelected) }
             assertEquals(1, api.paths().count { it == "/api/speech/" })
         } }
     }
-
     @Test fun leavingPendingTextSummaryDoesNotRenderOnAnotherPage() {
         server { request -> if (request.path.endsWith("/message/")) { Thread.sleep(500); ready() } else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); readSummary(ui); ui.await { api.paths().any { it.endsWith("/message/") } }
-                ui.click("댓글 0"); ui.await { ui.has("따뜻한 한마디 남기기") }
+                ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+                ui.await { ui.all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
                 Thread.sleep(700)
                 ui.test.runOnMainSync { assertFalse(ui.has("사진과 글을 설명한 AI 요약")); assertFalse(playing(ui)) }
                 assertFalse(api.paths().contains("/api/speech/"))
             } }
     }
 
-    @Test fun feedAutoPlaysWithoutNavigationAndSecondTapStops() {
+    @Test fun detailAutoPlaysWithoutNavigationAndSecondTapStops() {
         server().use { api -> UiHarness(api, room(1, "재생" )).use { ui ->
             open(ui)
             assertFalse(api.paths().any { it.endsWith("/message/") })
             tap(ui)
             ui.await { ui.has("사진과 글을 설명한 AI 요약") && playing(ui) }
             ui.test.runOnMainSync {
-                assertTrue(ui.has("재생 검증 가족")); assertFalse(ui.has("가족 소식 듣기"))
+                assertTrue(ui.has("가족의 소식")); assertFalse(ui.has("가족 소식 듣기"))
                 assertTrue(panels(ui)[0].toggle.isSelected)
                 assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
                 assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
@@ -685,16 +728,15 @@ class InlinePostAudioTest {
     }
     @Test fun switchingPostsDuringSpeechRequestDoesNotPlayOldPost() {
         server { request -> when {
-            request.path == "/api/posts/1/message/" -> ready("첫 글 요약")
-            request.path == "/api/posts/2/message/" -> ready("둘째 글 요약")
+            request.path == "/api/posts/2/message/" -> ready("첫 글 요약")
+            request.path == "/api/posts/1/message/" -> ready("둘째 글 요약")
             request.path == "/api/speech/" && request.body.contains("첫 글 요약") -> { Thread.sleep(500); audio() }
             else -> null
         } }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
-            open(ui); tap(ui)
-            ui.await { api.paths().contains("/api/speech/") }
-            tap(ui, 1)
-            ui.await { playing(ui) && panels(ui)[1].toggle.isSelected }
-            ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+            open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.selectLetter(1); ui.openCurrentPost(); tap(ui)
+            ui.await { playing(ui) && panels(ui).single().toggle.isSelected }
             assertEquals(2, api.paths().count { it == "/api/speech/" })
             val files = java.io.File(ui.activity.cacheDir, ".").listFiles().orEmpty().filter { it.name.startsWith("post-listen-") }
             assertEquals("Stale response audio must be deleted", 1, files.size)
@@ -748,15 +790,14 @@ class InlinePostAudioTest {
                 ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
             } }
     }
-    @Test fun commentNavigationCancelsPendingSpeechAndVoiceCancelReturnsToPost() {
+    @Test fun voiceNavigationCancelsPendingSpeechAndVoiceCancelReturnsToPost() {
         server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
-                ui.click("댓글 0"); ui.await { ui.has("따뜻한 한마디 남기기") }
-                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(ui.has("가족 소식 듣기")) }
-                ui.click("목소리로 댓글 남기기"); ui.await { ui.has("음성 댓글") }
-                ui.click("취소하기"); ui.await { ui.has("따뜻한 한마디 남기기") }
-                tap(ui); ui.await { playing(ui) && ui.has("따뜻한 한마디 남기기") }
+                ui.test.runOnMainSync { ui.all().first { it.contentDescription == "말로 댓글 쓰기" }.performClick() }
+                ui.await { ui.has("말로 답장") }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); ui.activity.onBackPressedDispatcher.onBackPressed() }
+                ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
             } }
     }
     @Test fun backgroundingCancelsLateSpeech() {
@@ -791,7 +832,7 @@ class InlinePostAudioTest {
             ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick(); assertFalse(playing(ui)) }
             ui.screenshot("reply-review-icons.png")
             assertEquals("오늘 저녁을 맛있게 먹었어요.", JSONObject(api.requests.last { it.path == "/api/speech/" }.body).getString("text"))
-            ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+            ui.click("다시 말하기"); ui.await { ui.has("말로 답장") }
         } }
     }
     @Test fun replyPreviewIgnoresLateSpeechAfterStopOrNavigation() {
@@ -805,7 +846,7 @@ class InlinePostAudioTest {
                 ui.test.runOnMainSync { assertFalse(playing(ui)) }
                 ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
                 ui.await { api.paths().count { it == "/api/speech/" } == 2 }
-                ui.click("다시 말하기"); ui.await { ui.has("음성 댓글") }
+                ui.click("다시 말하기"); ui.await { ui.has("말로 답장") }
                 Thread.sleep(750)
                 ui.test.runOnMainSync { assertFalse(playing(ui)) }
                 review(ui)
@@ -820,8 +861,8 @@ class InlinePostAudioTest {
         server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
             open(ui); tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
             tap(ui)
-            ui.openAssistantOption("오늘 가족의 하루"); ui.await { ui.has("이날의 소식 1개") }
-            ui.click("오늘의 소식 1"); ui.await { ui.has("따뜻한 한마디 남기기") }
+            ui.openDaily(); ui.await { ui.has("이날의 소식 1개") }
+            ui.test.runOnMainSync { ui.all().first { it.contentDescription == "가족 1의 소식 보기" }.performClick() }; ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
             ui.test.runOnMainSync { assertFalse(ui.has("가족 소식 듣기")) }
             tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
         } }
@@ -845,8 +886,8 @@ class CommentComposerTest {
         .single { it.input.contentDescription == "댓글 입력" }
     private fun open(ui: UiHarness, large: Boolean = false) {
         ui.await { ui.has("댓글 테스트 소식") }
-        ui.click(if (large) "글로 댓글 쓰기" else "댓글 0")
-        ui.await { ui.has("따뜻한 한마디 남기기") }
+        ui.click("댓글 테스트 소식")
+        ui.await { ui.all().any { it is kr.talkdock.app.ui.CommentComposer } }
     }
 
     @Test fun sendIsInsideBottomRightAndBlankInputIsDisabledInBothSizes() {
@@ -855,16 +896,20 @@ class CommentComposerTest {
             ui.test.runOnMainSync {
                 val c = composer(ui)
                 assertFalse(ui.has("글로 댓글 보내기"))
-                assertTrue(ui.has("목소리로 댓글 남기기"))
+                assertTrue(ui.all().any { it.contentDescription == "말로 댓글 쓰기" })
                 assertEquals("댓글 보내기", c.sendButton.contentDescription)
                 assertFalse(c.sendButton.isEnabled)
                 c.input.setText("  \n  "); assertFalse(c.sendButton.isEnabled)
                 c.input.setText("첫 줄\n둘째 줄"); assertTrue(c.sendButton.isEnabled)
                 assertTrue(c.input.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0)
+            }
+            ui.await { composer(ui).sendButton.width > 0 && composer(ui).sendButton.left > 0 }
+            ui.test.runOnMainSync {
+                val c = composer(ui)
                 val field = c.sendButton.parent as View
                 assertTrue("Button stays inside the input container", c.sendButton.right < field.width && c.sendButton.bottom < field.height)
                 assertTrue("Button is on the right half", c.sendButton.left > field.width / 2)
-                assertTrue("Editor reserves space above the button", c.input.bottom <= c.sendButton.top)
+                assertTrue("Editor reserves space beside the button", c.input.right <= c.sendButton.left)
                 assertTrue("Accessible touch target", c.sendButton.width >= (48 * c.resources.displayMetrics.density).toInt())
             }
         } }
@@ -875,6 +920,7 @@ class CommentComposerTest {
             open(ui, large)
             ui.test.runOnMainSync {
                 val c = composer(ui)
+                c.input.setText("키보드 위에서도 보낼 수 있어요.")
                 c.input.requestFocus()
                 (ui.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
                     .showSoftInput(c.input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
@@ -974,16 +1020,11 @@ class PostQuestionUiTest {
     }
     private fun panel(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().single()
     private fun open(ui: UiHarness, id: Int = 2) {
-        ui.await { ui.has("질문 테스트 소식 $id") }
-        ui.test.runOnMainSync {
-            val caption = ui.all().filterIsInstance<TextView>().first { it.text.toString() == "질문 테스트 소식 $id" }
-            val cardViews = ui.all(caption.parent as View)
-            val entry = cardViews.firstOrNull { it.contentDescription?.toString() == "댓글 0" }
-                ?: cardViews.filterIsInstance<Button>().single { it.text.toString() == "글로 댓글 쓰기" }
-            assertTrue(entry.performClick())
+        if (ui.all().any { it is kr.talkdock.app.ui.PostQuestionPanel }) {
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.await { ui.all().none { it is kr.talkdock.app.ui.PostQuestionPanel } }
         }
-        ui.await { ui.has("따뜻한 한마디 남기기") }
-        ui.click("궁금한 점을 물어보세요")
+        ui.selectLetter(id); ui.openAssistantOption("이 소식 물어보기")
         ui.await { ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().singleOrNull()?.composer?.isShown == true }
     }
     private fun ask(ui: UiHarness, text: String) = ui.test.runOnMainSync {
@@ -997,10 +1038,11 @@ class PostQuestionUiTest {
                 .put(post(3, "2026-10-19T10:30:00+09:00")).put(post(2, "2026-10-19T11:00:00+09:00"))
             jsonReply(JSONObject().put("posts", items))
         } else null }.use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
-            ui.await { ui.has("질문 테스트 소식 100") }
+            ui.await { ui.all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
             ui.test.runOnMainSync {
-                val captions = ui.all().filterIsInstance<TextView>().map { it.text.toString() }.filter { it.startsWith("질문 테스트 소식 ") }
-                assertEquals(listOf(2, 1, 3, 100, 999).map { "질문 테스트 소식 $it" }, captions)
+                val deck = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
+                val ids = (0 until deck.letterCount).map { index -> deck.show(index); deck.currentPost.getInt("id") }
+                assertEquals(listOf(2, 1, 3, 100, 999), ids)
             }
         } }
     }
@@ -1013,9 +1055,9 @@ class PostQuestionUiTest {
             ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
             ui.test.runOnMainSync {
                 assertEquals("", panel(ui).composer.input.text.toString())
-                assertTrue(ui.has("닫기")); assertFalse(ui.has("추가 질문 닫기"))
-                assertTrue(ui.has("모모는 누구예요?")); assertTrue(ui.has("AI 답변"))
-                assertTrue(ui.has("목소리로 댓글 남기기"))
+                assertTrue(ui.all().any { it.contentDescription == "도우미 닫기" }); assertFalse(ui.has("추가 질문 닫기"))
+                assertTrue(ui.has("모모는 누구예요?")); assertTrue(ui.has("가족 기록으로 확인한 답변이에요."))
+                assertTrue(ui.has("말로 답장하기"))
                 assertEquals(1000, panel(ui).composer.input.filters.filterIsInstance<android.text.InputFilter.LengthFilter>().single().max)
                 panel(ui).requestRectangleOnScreen(android.graphics.Rect(0, 0, panel(ui).width, panel(ui).height), true)
             }
@@ -1066,8 +1108,7 @@ class PostQuestionUiTest {
             ui.test.runOnMainSync {
                 assertFalse(panel(ui).composer.sendButton.isEnabled)
                 assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
-                val comment = ui.all().filterIsInstance<kr.talkdock.app.ui.CommentComposer>().single { it !== panel(ui).composer }
-                assertTrue("AI requests must not disable comment input", comment.input.isEnabled)
+                assertTrue("AI requests must not add a page-wide wait overlay", ui.all().none { it is kr.talkdock.app.ui.TodakWaitingView })
                 panel(ui).composer.sendButton.performClick()
             }
             ui.await { ui.has("질문 테스트 오류") }
@@ -1086,7 +1127,7 @@ class PostQuestionUiTest {
             open(ui); ask(ui, "누구예요?")
             ui.await { api.paths().contains("/api/posts/2/questions/") }
             ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
-            ui.await { ui.has("질문 검증 가족") && ui.has("질문 테스트 소식 1") }
+            ui.await { ui.all().none { it is kr.talkdock.app.ui.PostQuestionPanel } }
             open(ui, 1)
             ui.test.runOnMainSync { assertFalse(ui.has("이전 글에만 해당하는 답변")) }
             ask(ui, "여기는 어디예요?"); ui.await { ui.has("가족 기록으로 확인한 답변이에요.") }
