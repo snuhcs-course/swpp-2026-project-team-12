@@ -67,7 +67,7 @@ class FamilyMemoryPanel(
         addView(error, LayoutParams(-1, -2))
         addView(result, LayoutParams(-1, -2))
         ui.gap(this, 20)
-        ui.label(this, "AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.",
+        ui.label(this, "AI 답변은 틀릴 수 있고,\n정리 중인 소식은 검색에서 빠질 수 있어요.",
             if (large) 20f else 15f, color = ui.muted)
         input.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -139,9 +139,6 @@ class FamilyMemoryPanel(
             setTextIsSelectable(true)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        ui.gap(result, 12)
-        ui.label(result, "가족 기록을 참고한 AI 답변이에요. 중요한 내용은 가족에게 확인해 주세요.",
-            if (large) 20f else 15f, color = ui.muted)
     }
 
     override fun onDetachedFromWindow() {

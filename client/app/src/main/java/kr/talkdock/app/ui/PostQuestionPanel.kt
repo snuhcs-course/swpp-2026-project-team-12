@@ -21,7 +21,8 @@ class PostQuestionPanel(
     private val postId: Int,
     private val large: Boolean,
     private val client: ApiClient,
-    private val executor: ExecutorService
+    private val executor: ExecutorService,
+    private val embedded: Boolean = false
 ) : LinearLayout(activity) {
     private val turns = mutableListOf<Pair<String, String>>()
     private var generation = 0
@@ -29,12 +30,9 @@ class PostQuestionPanel(
     private var task: Future<*>? = null
     private val body = ui.column().apply { visibility = GONE }
     private val dialogue = ui.column()
-    private val status = ui.text("답변을 준비하고 있어요.", if (large) 20f else 16f, color = ui.skyDeep).apply {
-        visibility = GONE
-        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-    }
     val composer = CommentComposer(activity, ui, large,
-        title = "AI에게 질문하기", hintText = "이 소식에서 궁금한 점을 물어보세요",
+        title = if (embedded) "" else "AI에게 질문하기", hintText = "궁금한 걸 물어보세요",
+        compact = embedded,
         inputLabel = "추가 질문 입력", sendLabel = "질문 보내기", pendingLabel = "답변 준비 중",
         onSend = { ask(it) }
     )
@@ -51,10 +49,9 @@ class PostQuestionPanel(
         orientation = VERTICAL
         composer.input.filters = arrayOf(InputFilter.LengthFilter(1000))
         ui.gap(body, 12)
-        ui.label(body, "질문과 답변은 가족 댓글로 등록되지 않아요.", if (large) 18f else 14f, color = ui.muted)
+        if (!embedded) ui.label(body, "질문과 답변은 가족 댓글로 등록되지 않아요.", if (large) 18f else 14f, color = ui.muted)
         ui.gap(body, 12)
         body.addView(dialogue, LayoutParams(-1, -2))
-        body.addView(status, LayoutParams(-1, -2))
         body.addView(composer, LayoutParams(-1, -2))
         addView(body, LayoutParams(-1, -2))
     }
@@ -73,6 +70,7 @@ class PostQuestionPanel(
     }
 
     private fun updateToggle() {
+        if (embedded) toggle.visibility = GONE
         toggle.text = if (body.visibility == VISIBLE) "닫기" else "궁금한 점을 물어보세요"
     }
 
@@ -80,7 +78,6 @@ class PostQuestionPanel(
         if (pending || question.isBlank()) return
         pending = true
         composer.setSending(true)
-        status.visibility = VISIBLE
         val request = ++generation
         // The API accepts at most ten prior messages, each at most 1,000 characters.
         val prior = JSONArray()
@@ -98,14 +95,24 @@ class PostQuestionPanel(
             activity.runOnUiThread {
                 if (request != generation || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
                 task = null; pending = false
-                status.visibility = GONE
                 result.fold({ answer ->
                     turns.add(question to answer)
                     if (turns.size > 1) ui.gap(dialogue, 16)
-                    ui.label(dialogue, "나의 질문", if (large) 20f else 16f, true)
-                    ui.note(dialogue, question, large)
-                    val answerHeading = ui.label(dialogue, "AI 답변", if (large) 20f else 16f, true, ui.skyDeep)
-                    ui.note(dialogue, answer, large).accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+                    val answerHeading = if (embedded) {
+                        val questionBubble = ui.column(14).apply { background = ui.shape(ui.blush, 22) }
+                        ui.label(questionBubble, question, if (large) 23f else 18f)
+                        dialogue.addView(questionBubble, LayoutParams(-1, -2).apply { marginStart = ui.dp(36) })
+                        ui.gap(dialogue, 18)
+                        ui.label(dialogue, answer, if (large) 23f else 18f).apply {
+                            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+                        }
+                    } else {
+                        ui.label(dialogue, "나의 질문", if (large) 20f else 16f, true)
+                        ui.note(dialogue, question, large)
+                        ui.label(dialogue, "AI 답변", if (large) 20f else 16f, true, ui.skyDeep).also {
+                            ui.note(dialogue, answer, large).accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+                        }
+                    }
                     ui.gap(dialogue, 16)
                     composer.input.setText("")
                     composer.setSending(false)

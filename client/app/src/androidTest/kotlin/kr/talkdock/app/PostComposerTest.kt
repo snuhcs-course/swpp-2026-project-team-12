@@ -322,16 +322,18 @@ class PostComposerTest {
     @Test fun fullScreenViewerPagesThroughPhotosAndCloses() {
         val photos = listOf(Color.RED, Color.GREEN, Color.BLUE).map { jpeg(it, 400, 300) }
         lateinit var api: MockApi
+        fun sourcePost() = JSONObject().put("id", 1).put("author_name", "사진 가족").put("relationship", "나")
+            .put("caption", "사진 세 장").put("created_at", "2026-10-19T09:00:00+09:00").put("comment_count", 0)
+            .put("comments", JSONArray()).put("images", JSONArray().apply { repeat(3) { put(JSONObject().put("url", api.base + "photo/$it/")) } })
         api = MockApi { request -> when {
             request.path == "/api/families/current/" -> jsonReply(room(1, "사진 보기 가족"))
             request.path.startsWith("/api/photo/") -> Reply(photos[request.path.trimEnd('/').substringAfterLast('/').toInt()], type = "image/jpeg")
-            else -> jsonReply(JSONObject().put("posts", JSONArray().put(JSONObject().put("id", 1)
-                .put("author_name", "사진 가족").put("relationship", "나").put("caption", "사진 세 장")
-                .put("created_at", "2026-10-19T09:00:00+09:00").put("comment_count", 0)
-                .put("images", JSONArray().apply { repeat(3) { put(JSONObject().put("url", api.base + "photo/$it/")) } }))))
+            request.path == "/api/posts/1/" -> jsonReply(sourcePost())
+            else -> jsonReply(JSONObject().put("posts", JSONArray().put(sourcePost())))
         } }
         api.use { server -> UiHarness(server, room(1, "사진 보기 가족")).use { ui ->
-            ui.await { ui.has("사진 세 장") && ui.all().any { it is PhotoCarousel } }
+            ui.await { ui.has("사진 세 장") }; ui.openCurrentPost()
+            ui.await { ui.all().any { it is PhotoCarousel } }
             ui.test.runOnMainSync {
                 val carousel = ui.all().filterIsInstance<PhotoCarousel>().single()
                 carousel.requestRectangleOnScreen(Rect(0, 0, carousel.width, carousel.height), true)

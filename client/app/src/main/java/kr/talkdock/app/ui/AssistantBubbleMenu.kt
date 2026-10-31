@@ -2,145 +2,84 @@ package kr.talkdock.app.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.Paint
-import android.graphics.Path
-import android.graphics.PixelFormat
 import android.graphics.Rect
-import android.graphics.RectF
-import android.graphics.drawable.Drawable
 import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
-import kotlin.math.abs
 import kotlin.math.min
 
-/** Three compact, individually sized balloons next to the character. */
+/** Post questions, listening and summaries share one contextual popover. */
 class AssistantBubbleMenu(
-    context: Context,
-    private val ui: Ui,
-    private val large: Boolean,
-    askPost: () -> Unit,
-    findMemories: () -> Unit,
-    dailyDigest: () -> Unit,
+    context: Context, private val ui: Ui, private val large: Boolean,
+    askPost: () -> Unit, findMemories: () -> Unit,
+    listenPost: (() -> Unit)? = null, summarizePost: (() -> Unit)? = null,
 ) : FrameLayout(context) {
-    private val content = ui.column()
-    private val options = mutableListOf<Option>()
+    private val content = ui.column(12)
     private val postOption: View
-    private var tailOnLeft = false
-    private class Option(val text: android.widget.TextView, val balloon: BalloonDrawable)
-
+    private var listenOption: View? = null
+    private var listenText: android.widget.TextView? = null
+    private var summaryOption: View? = null
     init {
-        tag = "assistant-bubble-menu"
-        contentDescription = "토닥 도우미 메뉴"
-        addView(ScrollView(context).apply {
-            isFillViewport = false; isVerticalScrollBarEnabled = false
-            addView(content, LinearLayout.LayoutParams(-1, -2))
-        }, LayoutParams(-1, -2))
-        fun option(label: String, action: () -> Unit): View {
-            val balloon = BalloonDrawable(ui)
-            val row = FrameLayout(context).apply {
-                minimumHeight = ui.dp(if (large) 56 else 48)
-                contentDescription = label
-                isClickable = true; isFocusable = true; setOnClickListener { action() }
-            }
-            val text = ui.text(label, if (large) 16f else 13f, color = ui.skyDeep).apply {
-                gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
-                fontVariationSettings = "'wght' 500"
-                minHeight = ui.dp(if (large) 40 else 32)
-                setPadding(ui.dp(12), ui.dp(7), ui.dp(18), ui.dp(7))
-                background = RippleDrawable(ColorStateList.valueOf(ui.border), balloon, null)
-                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        tag = "assistant-bubble-menu"; contentDescription = "토닥 도우미 메뉴"
+        background = ui.shape(ui.paper, 26); elevation = ui.dp(8).toFloat()
+        addView(android.widget.ScrollView(context).apply { addView(content) }, LayoutParams(-1, -2))
+        ui.label(content, "무엇을 도와드릴까요?", if (large) 21f else 18f, true).apply {
+            setPadding(ui.dp(8), ui.dp(8), ui.dp(8), ui.dp(12))
+        }
+        fun option(label: String, symbol: String, action: () -> Unit): View {
+            val row = ui.row().apply {
+                minimumHeight = ui.dp(if (large) 64 else 56)
+                setPadding(ui.dp(8), ui.dp(8), ui.dp(4), ui.dp(8))
+                isClickable = true; isFocusable = true; contentDescription = label
+                background = RippleDrawable(ColorStateList.valueOf(ui.coral), ui.shape(ui.paper, 14), null)
                 setOnClickListener { action() }
             }
-            row.addView(text, LayoutParams(-2, -2, Gravity.RIGHT or Gravity.CENTER_VERTICAL))
-            content.addView(row, LinearLayout.LayoutParams(-1, -2))
-            options.add(Option(text, balloon))
+            row.addView(IconView(context, symbol, ui.ink), LinearLayout.LayoutParams(ui.dp(24), ui.dp(24)))
+            val text = ui.text(label, if (large) 20f else 17f).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO }
+            row.addView(text,
+                LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(10) })
+            row.addView(IconView(context, "next", ui.muted), LinearLayout.LayoutParams(ui.dp(20), ui.dp(20)))
+            content.addView(row)
             return row
         }
-        postOption = option("이 글에 대해 궁금하세요?", askPost)
-        ui.gap(content, 2)
-        option("가족의 지난 추억이 궁금하세요?", findMemories)
-        ui.gap(content, 2)
-        option("오늘 가족의 하루", dailyDigest)
+        postOption = option("이 소식 물어보기", "comment", askPost)
+        if (listenPost != null) {
+            ui.line(content)
+            listenOption = option("음성으로 듣기", "listen", listenPost)
+            listenText = (listenOption as LinearLayout).getChildAt(1) as android.widget.TextView
+        }
+        if (summarizePost != null) {
+            ui.line(content)
+            summaryOption = option("AI 요약 보기", "digest", summarizePost)
+        }
+        ui.line(content)
+        option("가족 추억 찾기", "family", findMemories)
     }
-
     fun setPostAvailable(available: Boolean) {
-        postOption.isEnabled = available
-        options.first().text.isEnabled = available
-        postOption.alpha = if (available) 1f else .4f
-        postOption.contentDescription = if (available) "이 글에 대해 궁금하세요?" else "이 글에 대해 궁금하세요? 현재 선택된 글이 없어요"
+        postOption.isEnabled = available; postOption.alpha = if (available) 1f else .4f
+        postOption.contentDescription = if (available) "이 소식 물어보기" else "이 소식 물어보기, 현재 선택된 소식이 없어요"
+        listOfNotNull(listenOption, summaryOption).forEach { it.isEnabled = available; it.alpha = if (available) 1f else .4f }
     }
-
-    /** Anchor in root coordinates, including while dragging or resizing for the keyboard. */
+    fun setAudioActive(active: Boolean) {
+        val label = if (active) "듣기 중지" else "음성으로 듣기"
+        listenText?.text = label
+        listenOption?.contentDescription = label
+    }
     fun follow(character: FloatingAssistantView, viewport: Rect) {
         val toRight = character.x + character.width / 2f < viewport.exactCenterX()
-        val attachment = character.bubbleAttachmentX()
-        val available = (if (toRight) viewport.right - attachment else attachment - viewport.left).toInt()
-        if (available <= 0 || viewport.height() <= 0) { visibility = INVISIBLE; return }
-        visibility = VISIBLE
-        if (tailOnLeft != toRight) {
-            tailOnLeft = toRight
-            options.forEach {
-                it.text.setPadding(ui.dp(if (toRight) 18 else 12), ui.dp(7), ui.dp(if (toRight) 12 else 18), ui.dp(7))
-                val params = it.text.layoutParams as LayoutParams
-                params.gravity = (if (toRight) Gravity.LEFT else Gravity.RIGHT) or Gravity.CENTER_VERTICAL
-                it.text.layoutParams = params
-            }
-        }
-        val menuWidth = min(ui.dp(if (large) 260 else 224), available)
+        val menuWidth = min(ui.dp(if (large) 300 else 260), viewport.width() - ui.dp(16)).coerceAtLeast(1)
         measure(MeasureSpec.makeMeasureSpec(menuWidth, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(viewport.height(), MeasureSpec.AT_MOST))
         val menuHeight = measuredHeight.coerceAtLeast(1)
-        val params = layoutParams
-        if (params.width != menuWidth || params.height != menuHeight) {
-            params.width = menuWidth; params.height = menuHeight; layoutParams = params
-        }
-        val desiredX = if (toRight) attachment else attachment - menuWidth
-        val desiredY = (character.y + character.height / 2f - menuHeight / 2f)
-            .coerceIn(viewport.top.toFloat(), maxOf(viewport.top.toFloat(), viewport.bottom - menuHeight.toFloat()))
-        if (abs(x - desiredX) > .1f) x = desiredX
-        if (abs(y - desiredY) > .1f) y = desiredY
-        options.forEach { it.balloon.pointAt(toRight) }
+        if (layoutParams.width != menuWidth || layoutParams.height != menuHeight)
+            layoutParams = layoutParams.apply { width = menuWidth; height = menuHeight }
+        val desiredX = if (toRight) character.x + ui.dp(12) else character.x + character.width - menuWidth - ui.dp(12)
+        x = desiredX.coerceIn(viewport.left.toFloat(), maxOf(viewport.left.toFloat(), (viewport.right - menuWidth).toFloat()))
+        val above = character.y - menuHeight - ui.dp(8)
+        val desiredY = if (above >= viewport.top) above else character.y + character.height + ui.dp(8)
+        y = desiredY.coerceIn(viewport.top.toFloat(), maxOf(viewport.top.toFloat(), (viewport.bottom - menuHeight).toFloat()))
     }
-
-    private class BalloonDrawable(private val ui: Ui) : Drawable() {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-        private var onLeft = false
-        fun pointAt(left: Boolean) {
-            if (onLeft != left) { onLeft = left; invalidateSelf() }
-        }
-        override fun draw(canvas: Canvas) {
-            val stroke = ui.dp(1).toFloat().coerceAtLeast(1f)
-            val tailWidth = ui.dp(6).toFloat()
-            val round = ui.dp(14).toFloat().coerceAtMost(bounds.height() / 2f)
-            val rect = RectF(if (onLeft) tailWidth else stroke / 2f, stroke / 2f,
-                bounds.width() - if (onLeft) stroke / 2f else tailWidth, bounds.height() - stroke / 2f)
-            val center = bounds.height() / 2f
-            val shape = Path().apply { addRoundRect(rect, round, round, Path.Direction.CW) }
-            val tail = Path().apply {
-                val edge = if (onLeft) rect.left + stroke else rect.right - stroke
-                moveTo(edge, center - ui.dp(4))
-                lineTo(if (onLeft) stroke / 2f else bounds.width() - stroke / 2f, center + ui.dp(4))
-                lineTo(edge, center + ui.dp(5)); close()
-            }
-            shape.op(tail, Path.Op.UNION)
-            paint.style = Paint.Style.FILL; paint.color = BODY_COLOR; canvas.drawPath(shape, paint)
-            paint.style = Paint.Style.STROKE; paint.strokeWidth = stroke; paint.strokeJoin = Paint.Join.ROUND
-            paint.color = Color.argb(65, 70, 107, 123); canvas.drawPath(shape, paint)
-        }
-        override fun setAlpha(alpha: Int) { paint.alpha = alpha; invalidateSelf() }
-        override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter; invalidateSelf() }
-        @Deprecated("Deprecated in Android") override fun getOpacity() = PixelFormat.TRANSLUCENT
-    }
-
-    companion object {
-        // Sampled from the blue torso in the bundled character PNG.
-        internal val BODY_COLOR = Color.rgb(193, 232, 251)
-    }
+    companion object { internal const val BODY_COLOR = 0xFFFFFFFF.toInt() }
 }

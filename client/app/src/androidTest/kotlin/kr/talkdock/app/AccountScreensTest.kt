@@ -26,7 +26,7 @@ class AccountScreensTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api, room(1, "설정 가족")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("설정"); ui.await { ui.has("가족을 초대해 보세요") }
+            ui.openSettings(); ui.await { ui.has("가족을 초대해 보세요") }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("테스트 사용자님")); assertTrue(ui.has("초대 코드  REVIEW"))
                 assertTrue("The owner can change the digest time", ui.has("하루 요약 시간  ·  21:00"))
@@ -49,7 +49,7 @@ class AccountScreensTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api, room(1, "수정 가족")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("설정"); ui.await { ui.has("내 계정 수정") }
+            ui.openSettings(); ui.await { ui.has("내 계정 수정") }
             ui.click("내 계정 수정"); ui.await { ui.has("수정 내용 저장하기") && ui.spinner("소식을 읽어 줄 목소리").isShown }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("아이디: review-user · 변경할 수 없어요."))
@@ -85,7 +85,7 @@ class AccountScreensTest {
             else -> emptyFeed()
         } }.use { api -> UiHarness(api, room(1, "수정 가족")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("설정"); ui.await { ui.has("내 계정 수정") }
+            ui.openSettings(); ui.await { ui.has("내 계정 수정") }
             ui.click("내 계정 수정"); ui.await { ui.has("수정 내용 저장하기") && api.requestsTo("/api/speech/voices/").isNotEmpty() }
             ui.test.waitForIdleSync()
             ui.test.runOnMainSync {
@@ -167,13 +167,13 @@ class AccountScreensTest {
             }
         }.use { api -> UiHarness(api, room(1, "가족 A"), others = listOf(other)).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.click("설정"); ui.await { ui.has("이 휴대폰의 다른 계정으로 보기") }
+            ui.openSettings(); ui.await { ui.has("이 휴대폰의 다른 계정으로 보기") }
             ui.click("이 휴대폰의 다른 계정으로 보기"); ui.await { ui.has("누구의 화면을 볼까요?") }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("테스트 사용자 (review-user) · 가족 A"))
                 assertTrue(ui.has("다른 계정으로 로그인")); assertTrue(ui.has("새 계정 만들기"))
             }
-            ui.click("다른 가족 (other-user) · 가족 B"); ui.await { ui.has("가족 B") && ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("다른 가족 (other-user) · 가족 B"); ui.await { ui.hasRoom("가족 B") && ui.has("첫 소식을 기다리고 있어요") }
             val feed = api.requestsTo("/api/posts/").last()
             assertEquals(listOf("other-token", "2"), listOf(feed.token, feed.room))
         } }

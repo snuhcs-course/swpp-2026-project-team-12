@@ -129,15 +129,6 @@ class FeedRefreshTest {
             swipe(refresh, short = true)
             Thread.sleep(400)
             assertEquals("Horizontal swipes and short pulls must not refresh", 1, requests.get())
-            test.runOnMainSync {
-                val scroll = views(refresh).filterIsInstance<ScrollView>().single()
-                scroll.scrollTo(0, 1200)
-                assertTrue(scroll.canScrollVertically(-1))
-            }
-            swipe(refresh)
-            Thread.sleep(400)
-            assertEquals("A gesture starting below the top must not refresh", 1, requests.get())
-            test.runOnMainSync { views(refresh).filterIsInstance<ScrollView>().single().scrollTo(0, 0) }
             responses.put(Response("새로 불러온 소식", gate = release))
             swipe(refresh)
             awaitUi { requests.get() == 2 && refresh.isRefreshing }

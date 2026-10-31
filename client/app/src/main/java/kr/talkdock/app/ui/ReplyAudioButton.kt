@@ -23,7 +23,10 @@ class ReplyAudioButton(
     private val client: ApiClient,
     private val speaker: Speaker,
     private val executor: ExecutorService,
-    large: Boolean
+    large: Boolean,
+    private val playLabel: String = "댓글 소리로 확인하기",
+    private val stopLabel: String = "댓글 듣기 중지",
+    private val primary: Boolean = false
 ) : FrameLayout(activity) {
     private var request = 0
     private var active = false
@@ -32,7 +35,7 @@ class ReplyAudioButton(
     init {
         val size = ui.dp(if (large) 64 else 48)
         layoutParams = android.widget.LinearLayout.LayoutParams(size, size)
-        background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.sky, 16), null)
+        background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(if (primary) ui.coralDeep else ui.sky, if (primary) 36 else 16), null)
         isClickable = true; isFocusable = true
         setOnClickListener { if (active) stop() else play() }
         render()
@@ -40,11 +43,11 @@ class ReplyAudioButton(
 
     private fun render(loading: Boolean = false) {
         isSelected = active
-        contentDescription = if (active) "댓글 듣기 중지" else "댓글 소리로 확인하기"
+        contentDescription = if (active) stopLabel else playLabel
         removeAllViews()
         val glyph: View = if (loading) ProgressBar(activity).apply {
-            indeterminateTintList = ColorStateList.valueOf(ui.skyDeep)
-        } else IconView(activity, if (active) "stop" else "listen", ui.skyDeep)
+            indeterminateTintList = ColorStateList.valueOf(if (primary) android.graphics.Color.WHITE else ui.skyDeep)
+        } else IconView(activity, if (active) "stop" else if (primary) "play" else "listen", if (primary) android.graphics.Color.WHITE else ui.skyDeep)
         glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         val side = if (loading) ui.dp(26) else LayoutParams.MATCH_PARENT
         addView(glyph, LayoutParams(side, side, Gravity.CENTER))
