@@ -178,6 +178,10 @@ class IconView(context: Context, private val symbol: String, private val color: 
         val p = paint
         fun line(x: Float, y: Float, x2: Float, y2: Float) = canvas.drawLine(x, y, x2, y2, p)
         when (symbol) {
+            "chat" -> {
+                canvas.drawRoundRect(3f, 3f, 21f, 17f, 5f, 5f, p)
+                line(7f, 17f, 6f, 22f); line(6f, 22f, 13f, 17f)
+            }
             "write" -> {
                 line(5f, 17f, 17f, 5f); line(17f, 5f, 21f, 9f)
                 line(21f, 9f, 9f, 21f); line(9f, 21f, 3f, 21f)
