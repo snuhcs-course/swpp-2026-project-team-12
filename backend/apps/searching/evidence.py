@@ -30,7 +30,7 @@ def evidence_posts(result, room, request):
             if match and int(match[1]) not in ordered:
                 ordered.append(int(match[1]))
         ids = ordered
-    posts = {post.pk: post for post in Post.objects.filter(room=room, pk__in=ids)
+    posts = {post.pk: post for post in Post.objects.filter(room=room, kind="news", pk__in=ids)
              .select_related("author", "room").annotate(comment_count=Count("comments"))}
     return {"evidence_posts": [serialize(posts[pk], request) for pk in ids if pk in posts],
             "evidence_kind": "cited" if selected is not None else "retrieved"}

@@ -74,7 +74,7 @@ class MemoryDemoLiveTest {
         waitFor {
             views().filterIsInstance<PhotoLetterDeck>().any { letter ->
                 views(letter).filterIsInstance<android.widget.ImageView>().any {
-                    it.drawable is android.graphics.drawable.BitmapDrawable
+                    it.isShown && it.drawable is android.graphics.drawable.BitmapDrawable
                 }
             }
         }
@@ -83,6 +83,7 @@ class MemoryDemoLiveTest {
             activity.window.decorView.postOnAnimation { frames.countDown() }
         } }
         assertTrue(frames.await(3, TimeUnit.SECONDS))
+        test.waitForIdleSync()
         test.uiAutomation.takeScreenshot().let { bitmap ->
             File(test.targetContext.cacheDir, "memory-demo-live.png").outputStream().use {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)

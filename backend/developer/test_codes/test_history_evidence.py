@@ -1,5 +1,6 @@
 import asyncio
 import json
+from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -73,6 +74,27 @@ class HistoryEvidenceAPITests(FamilyFixture, TestCase):
             data = self.search(self.result(sources, ["episode"]))
             self.assertEqual(data["evidence_posts"], [])
             self.assertEqual(data["text"], "여행은 부산으로 다녀왔어요.")
+
+    @patch("apps.posts.daily_questions.timezone.localdate", return_value=date(2026, 10, 31))
+    def test_daily_question_and_answer_stay_separate_from_memory_evidence(self, _clock):
+        from apps.posts.daily_questions import ensure_today
+
+        question = ensure_today(self.room)
+        auth = {**self.auth, "HTTP_X_FAMILY_ROOM": str(self.room.pk)}
+        feed = self.client.get("/api/posts/", **auth).json()
+        self.assertEqual(feed["daily_question"]["id"], question.pk)
+        self.assertNotIn(question.post_id, [post["id"] for post in feed["posts"]])
+        choice = question.options[0]
+        answer = self.client.put(f"/api/daily-questions/{question.pk}/answer/",
+                                 json.dumps({"choice": choice, "text": "가족과 함께해요."}),
+                                 content_type="application/json", **auth)
+        self.assertEqual(answer.status_code, 200)
+        sources = [self.source(f"post_{question.post_id}", "question"),
+                   self.source(f"post_{self.first.pk}", "news")]
+        result = self.search(self.result(sources, ["question", "news"]))
+        self.assertEqual([post["id"] for post in result["evidence_posts"]], [self.first.pk])
+        self.assertEqual(self.client.get(f"/api/daily-questions/{question.pk}/", **auth)
+                         .json()["answers"][0]["text"], "가족과 함께해요.")
 
 
 class HistoryCitationTests(SimpleTestCase):

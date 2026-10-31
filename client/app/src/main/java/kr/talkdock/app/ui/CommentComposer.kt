@@ -23,6 +23,7 @@ class CommentComposer(
     title: String = "따뜻한 한마디 남기기", hintText: String = "가족에게 하고 싶은 말",
     inputLabel: String = "댓글 입력", sendLabel: String = "댓글 보내기", pendingLabel: String = "댓글 전송 중",
     private val compact: Boolean = false, onVoice: (() -> Unit)? = null,
+    compactFieldHeight: Int? = null,
     onSend: (String) -> Unit
 ) : LinearLayout(context) {
     val input = EditText(context).apply {
@@ -56,17 +57,23 @@ class CommentComposer(
         orientation = VERTICAL
         if (title.isNotBlank()) { ui.label(this, title, if (large) 20f else 16f, true); ui.gap(this, 8) }
         val size = if (large) 64 else 48
-        val field = FrameLayout(context).apply { background = ui.shape(if (compact) ui.blush else ui.paper, if (compact) 28 else 20, stroke = !compact) }
-        addView(field, LayoutParams(-1, ui.dp(if (compact) { if (large) 112 else 88 } else { if (large) 224 else 184 })))
+        val fieldHeight = if (compact) compactFieldHeight ?: (if (large) 112 else 88) else if (large) 224 else 184
+        val controlInset = minOf(8, ((fieldHeight - size) / 2).coerceAtLeast(0))
+        val field = FrameLayout(context).apply {
+            background = ui.shape(if (compact) ui.blush else ui.paper, if (compact) 28 else 20, stroke = !compact)
+            clipToOutline = true
+        }
+        if (compact) voice?.background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.paper, size / 2), null)
+        addView(field, LayoutParams(-1, ui.dp(fieldHeight)))
         field.addView(input, FrameLayout.LayoutParams(-1, -1).apply { bottomMargin = ui.dp(if (compact) 4 else size + 16); marginEnd = ui.dp(if (compact) size + 16 else 0) })
         field.addView(sendButton, FrameLayout.LayoutParams(ui.dp(size), ui.dp(size), Gravity.BOTTOM or Gravity.END).apply {
-            bottomMargin = ui.dp(8); marginEnd = ui.dp(8)
+            bottomMargin = ui.dp(controlInset); marginEnd = ui.dp(controlInset)
         })
         voice?.let { field.addView(it, FrameLayout.LayoutParams(ui.dp(size), ui.dp(size), Gravity.BOTTOM or Gravity.END).apply {
-            bottomMargin = ui.dp(8); marginEnd = ui.dp(8)
+            bottomMargin = ui.dp(controlInset); marginEnd = ui.dp(controlInset)
         }) }
         field.addView(progress, FrameLayout.LayoutParams(ui.dp(24), ui.dp(24), Gravity.BOTTOM or Gravity.END).apply {
-            bottomMargin = ui.dp(8 + (size - 24) / 2); marginEnd = ui.dp(size + 24)
+            bottomMargin = ui.dp(controlInset + (size - 24) / 2); marginEnd = ui.dp(size + 24)
         })
         addView(error, LayoutParams(-1, -2).apply { topMargin = ui.dp(8) })
         input.addTextChangedListener(object : TextWatcher {

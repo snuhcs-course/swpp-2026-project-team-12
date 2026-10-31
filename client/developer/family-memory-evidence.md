@@ -119,3 +119,28 @@ failures and authentication errors. The normal web module CI job includes it.
 `MemoryDemoLiveTest` is separately opt-in (`-e liveMemoryDemo true`). It requires
 the demo-only package, local server and seeded family; it checks the real
 Graphiti/OpenAI answer, original v2 letters, photos and return from detail.
+
+## Alignment with daily questions (PR #51)
+
+The integration includes PR #51 at `d24bfc8`. `PhotoLetterDeck` retains both
+`reservedHeaderHeight` for the feed's daily-question preview and `showPagination`
+for memory evidence cards. Both web modules/styles and both JavaScript suites
+are registered together. Daily question posts (`kind="question"`) remain
+separate from ordinary feed posts, memory evidence, digests and Graphiti post
+construction. Distribution APKs are rebuilt from the combined source.
+
+`DailyQuestionTest.dailyAnswersAndMemoryEvidenceCoexistAcrossFeedNavigation`
+checks saving a daily answer, returning to the feed, searching memories through
+the character, displaying a full evidence card without pagination, and returning
+to the saved daily answer. The backend integration test also verifies that a
+daily question cannot become a normal memory evidence card.
+
+Local alignment validation: backend 214 passed / 4 opt-in tests skipped; web
+52 passed; Android JVM 39 passed; Android UI 32 passed, including the combined
+navigation test; opt-in live memory demo 1 passed. The UI selection excludes
+`cancellingVoiceAnswerRestoresUnsentChoiceAndText`, which explicitly changes a
+microphone permission; no local permission changes were made. Regular/debug test
+builds, both distribution APK builds and the missing-migration check passed.
+
+The draft-reopening and SQLite concurrent-publication findings submitted on
+PR #51 remain tracked there; this integration preserves that PR's behavior.

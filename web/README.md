@@ -61,6 +61,32 @@ The web interface remains in Korean. The instructions below explain the correspo
 
 Desktop layouts use persistent sidebar navigation, a wide feed with a family information panel, and a split photo/comment dialog. Narrow screens switch to a single column. The app supports larger text, keyboard navigation, and closing dialogs with Esc.
 
+**Daily conversation questions:** A compact, sticky **오늘의 질문** preview above
+the feed shows the current question and an unread dot for new family activity.
+It stays separate from posts and filters. Opening it leaves the feed and its
+scroll position in place; the desktop dialog places the question and answer
+editor beside family responses and shared comments. Narrow screens stack these
+sections, and the existing **큰 글씨** setting also applies.
+
+The web uses the same daily-question APIs, JSON catalog, reservations, answers,
+and comments as Android. It supports choice, short text, mood weather, and
+S/A/B/C tier answers. Choice/weather keep all options visible after submission;
+**수정** enables editing, and **기타** reveals a required inline custom field.
+Answers are emphasized in colored bold chips; discussion uses shared comments.
+**지난 질문** includes pagination and lets members answer or edit older questions.
+Answer and comment drafts survive closing/reopening the dialog within the tab,
+are separated by question, and are cleared on account/room changes. Failed
+submissions keep drafts. Microphone controls transcribe into an editable field
+and require an explicit send; they never automatically publish or rewrite a
+daily answer. Microphone input uses the existing HTTPS/localhost and speech
+service requirements.
+
+Run `node --test web/test_daily_questions.mjs` for offline payload, validation,
+escaping, persistent-choice markup, and history checks. The existing
+`python backend/manage.py test web developer.test_codes.test_daily_questions`
+also checks asset serving and the shared backend contract. Apply the daily
+question database migrations before updating an older backend.
+
 The feed's 96px circular character has an orbiting border sparkle (static with reduced motion).
 It opens a movable, resizable post-question panel and hides while
 the panel is open. Closing the panel restores the character at its saved position. While it is open,

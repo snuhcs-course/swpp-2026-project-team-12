@@ -48,6 +48,71 @@ python backend/manage.py run_construction_worker --family-id 12
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
 
+## Daily conversation questions
+
+The Android home has a fixed **오늘의 질문** preview bar below the header, showing
+the actual question with a speech icon and a small unread dot. Its height is
+reserved from the photo cover so captions and the reply action keep their space.
+Opening it preserves the selected family letter and scroll position.
+Question posts are excluded from the normal feed, its pagination,
+daily digests and Graphiti post construction.
+
+Run `python backend/manage.py migrate` after pulling this change. Each room gets
+one question per Korean calendar day on its first feed/question request. A curated
+rotation in `backend/apps/posts/data/daily_questions.json` works without AI
+credentials or a separate scheduler. Members
+can read others' answers before participating, save or edit one answer per
+question, and continue discussing in existing text/voice comments. Answer voice
+input is transcribed into an editable draft and is never sent automatically.
+Choice, short text, mood weather and tap-to-select S/A/B/C tiers share this flow.
+Past questions remain accessible and editable from **지난 질문**.
+
+Add or edit default questions in that UTF-8 JSON array, then restart the backend.
+Each entry has `kind`, `title`, and `options`, for example:
+
+```json
+{"kind": "choice", "title": "가족과 함께하고 싶은 일은?", "options": ["산책", "영화 보기"]}
+```
+
+Supported kinds are `choice`, `text`, `weather`, and `tier`. Use `[]` for text
+questions; other kinds require 2–6 distinct options of up to 100 characters each.
+Titles must be 1–2,000 characters. **기타** is added automatically for choice/weather
+questions. The file is loaded and validated once per server process; invalid or
+empty files prevent startup with a configuration error. Array order determines
+the daily rotation, starting on 2026-10-31 and wrapping at the end. Changing the
+array length or order can change future selections; published questions and
+answers stay unchanged in the database. No database migration or APK rebuild is
+needed for edits to this file.
+
+To replace a future day's default question for all rooms, register an editorial
+template (published definitions are frozen to preserve existing answers):
+
+```powershell
+python backend/manage.py publish_daily_question --date 2026-11-01 --kind choice --title "가족과 함께하고 싶은 일은?" --options "산책" "영화 보기"
+python backend/manage.py publish_daily_question --date 2026-11-02 --kind text --title "최근 고마웠던 일은?"
+```
+
+The API is `GET /api/daily-questions/today/`, `GET /api/daily-questions/history/`
+(30 rows with `next_before` pagination), `GET /api/daily-questions/<id>/`, and
+`PUT /api/daily-questions/<id>/answer/`. The detail includes `post_id` for the
+existing comment/transcription APIs. Feed metadata contains a separate
+`daily_question` change token; opening a question clears its local unread dot,
+without requiring participation. Own answers/comments do not create new unread activity.
+
+Offline regression coverage is in `developer.test_codes.test_daily_questions`
+and Android `kr.talkdock.app.DailyQuestionTest` (both text sizes, feed restoration,
+failed-submit drafts, answer editing, persistent choices, shared comments, history and tiers).
+
+Question detail keeps all choices visible after submission, with the saved choice
+marked until **수정** opens the editor. Compact family cards emphasize each selected
+answer in a bold coral chip above its reason. Discussion uses the shared comment
+field; there are no per-answer discussion or quote controls.
+
+Choice and mood-weather questions include **기타**. Selecting it reveals an inline
+input beside the option; its required content (up to 100 characters) is stored in
+`other_text`, separately from the optional reason. Existing answers and published
+question options are preserved. Apply the new migration before deploying the API.
+
 ## Family tree data and invitation API
 
 `FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
