@@ -22,6 +22,8 @@ import java.io.ByteArrayOutputStream
 import java.net.ServerSocket
 import java.net.SocketException
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** [room] is the request's X-Family-Room header and [token] its bearer token. */
 internal data class Request(val method: String, val path: String, val body: String, val room: String? = null, val token: String? = null)
@@ -130,14 +132,15 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         click("하루")
     }
     fun openCurrentPost() {
-        if (has("댓글은 이 가족방에만 보여요.")) return
+        if (hasPostDetail()) return
         await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
         test.runOnMainSync {
             val deck = all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
             all(deck.currentCard).first { it.contentDescription == "소식과 댓글 자세히 보기" }.performClick()
         }
-        await { has("댓글은 이 가족방에만 보여요.") }
+        await { hasPostDetail() }
     }
+    fun hasPostDetail() = has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
     fun selectLetter(id: Int) {
         await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
         test.runOnMainSync {
@@ -581,7 +584,11 @@ class InlinePostAudioTest {
         }
     }
     private fun panels(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.InlinePostAudio>()
-    private fun tap(ui: UiHarness, index: Int = 0) = ui.test.runOnMainSync { panels(ui)[index].toggle.performClick() }
+    private fun tap(ui: UiHarness) {
+        var active = false
+        ui.test.runOnMainSync { active = panels(ui).single().isPlaying }
+        ui.openAssistantOption(if (active) "듣기 중지" else "음성으로 듣기")
+    }
     private fun playing(ui: UiHarness): Boolean {
         val speaker = MainActivity::class.java.getDeclaredField("speaker").apply { isAccessible = true }.get(ui.activity)
         val player = speaker.javaClass.getDeclaredField("player").apply { isAccessible = true }.get(speaker) as? android.media.MediaPlayer
@@ -594,7 +601,59 @@ class InlinePostAudioTest {
             ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
             ui.selectLetter(1); ui.openCurrentPost()
         }
-        ui.test.runOnMainSync { panels(ui).single().showSummary() }
+        ui.openAssistantOption("AI 요약 보기")
+    }
+    @Test fun feedBotActionsOpenTheSelectedPostAndSummaryDoesNotStartSpeech() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+            ui.selectLetter(1)
+            ui.openAssistantOption("AI 요약 보기")
+            ui.await { ui.hasPostDetail() && ui.has("사진과 글을 설명한 AI 요약") }
+            assertTrue(api.paths().contains("/api/posts/1/message/"))
+            assertFalse(api.paths().contains("/api/speech/"))
+            ui.test.runOnMainSync { assertTrue(ui.has("오늘의 소식 1")); assertFalse(playing(ui)) }
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.selectLetter(2)
+            ui.openAssistantOption("음성으로 듣기")
+            ui.await { ui.hasPostDetail() && playing(ui) }
+            assertTrue(api.paths().contains("/api/posts/2/message/"))
+            ui.test.runOnMainSync { assertTrue(ui.has("오늘의 소식 2")) }
+            tap(ui); ui.await { !playing(ui) && !panels(ui).single().isPlaying }
+        } }
+    }
+    @Test fun summaryAndSpeechShowTheirOwnPreparationUntilReadyInBothSizes() {
+        for (large in listOf(false, true)) {
+            val releaseSummary = CountDownLatch(1)
+            val releaseSpeech = CountDownLatch(1)
+            try {
+                server { request -> when {
+                    request.path.endsWith("/message/") -> { releaseSummary.await(15, TimeUnit.SECONDS); ready() }
+                    request.path == "/api/speech/" -> { releaseSpeech.await(15, TimeUnit.SECONDS); audio() }
+                    else -> null
+                } }.use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+                    open(ui); readSummary(ui)
+                    ui.await { ui.has("가족 소식 준비중") }
+                    ui.test.runOnMainSync {
+                        assertTrue(ui.all().single { it.tag == "summary-loading" }.isShown)
+                        assertFalse(ui.has("목소리 생성중")); assertFalse(playing(ui))
+                    }
+                    assertFalse(api.paths().contains("/api/speech/"))
+                    releaseSummary.countDown()
+                    ui.await { ui.has("사진과 글을 설명한 AI 요약") && !ui.has("가족 소식 준비중") }
+                    tap(ui)
+                    ui.await { ui.has("목소리 생성중") }
+                    ui.test.runOnMainSync {
+                        assertTrue(ui.all().single { it.tag == "speech-loading" }.isShown)
+                        assertTrue(ui.has("사진과 글을 설명한 AI 요약"))
+                        assertFalse(ui.has("가족 소식 준비중")); assertFalse(playing(ui))
+                    }
+                    releaseSpeech.countDown()
+                    ui.await { playing(ui) && !ui.has("목소리 생성중") }
+                    assertEquals(1, api.paths().count { it.endsWith("/message/") })
+                    assertEquals(1, api.paths().count { it == "/api/speech/" })
+                    tap(ui)
+                } }
+            } finally { releaseSummary.countDown(); releaseSpeech.countDown() }
+        }
     }
     @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
         for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
@@ -602,14 +661,14 @@ class InlinePostAudioTest {
             ui.test.runOnMainSync {
                 assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기"))
                 assertFalse(ui.has("궁금한 점을 물어보세요"))
-                val card = panels(ui)[0].toggle.parent as View
-                card.requestRectangleOnScreen(android.graphics.Rect(0, 0, card.width, card.height), true)
+                assertFalse(ui.has("음성으로 듣기")); assertFalse(ui.has("AI 요약 보기"))
+                assertFalse(ui.has("댓글은 이 가족방에만 보여요."))
             }
             ui.test.waitForIdleSync(); SystemClock.sleep(400)
-            ui.screenshot(if (large) "feed-actions-large.png" else "feed-actions-default.png")
+            ui.screenshot(if (large) "post-actions-large.png" else "post-actions-default.png")
             readSummary(ui)
             ui.await { ui.has("사진과 글을 설명한 AI 요약") }
-            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
             assertFalse(api.paths().contains("/api/speech/"))
             readSummary(ui)
             assertEquals(1, api.paths().count { it.endsWith("/message/") })
@@ -618,7 +677,7 @@ class InlinePostAudioTest {
             assertEquals("사진과 글을 설명한 AI 요약", JSONObject(api.requests.single { it.path == "/api/speech/" }.body).getString("text"))
             tap(ui)
             ui.openCurrentPost()
-            ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
+            ui.await { ui.hasPostDetail() }
             readSummary(ui); ui.await { ui.has("사진과 글을 설명한 AI 요약") }
             assertEquals(1, api.paths().count { it == "/api/speech/" })
             ui.screenshot("post-readable-summary.png")
@@ -646,7 +705,7 @@ class InlinePostAudioTest {
             ui.click("설명 다시 준비하기"); ui.await { ui.has("사진과 글을 설명한 AI 요약") }
             assertEquals(listOf("GET", "POST"), api.requests.filter { it.path.endsWith("/message/") }.map { it.method })
             assertFalse(api.paths().contains("/api/speech/"))
-            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
         } }
     }
 
@@ -655,7 +714,7 @@ class InlinePostAudioTest {
             open(ui); tap(ui); ui.await { playing(ui) }
             readSummary(ui, 1)
             ui.await { ui.has("사진과 글을 설명한 AI 요약") }
-            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui).single().toggle.isSelected) }
+            ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui).single().isPlaying) }
             assertEquals(1, api.paths().count { it == "/api/speech/" })
         } }
     }
@@ -679,7 +738,7 @@ class InlinePostAudioTest {
             ui.await { ui.has("사진과 글을 설명한 AI 요약") && playing(ui) }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("가족의 소식")); assertFalse(ui.has("가족 소식 듣기"))
-                assertTrue(panels(ui)[0].toggle.isSelected)
+                assertTrue(panels(ui)[0].isPlaying)
                 assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
                 assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
             }
@@ -689,7 +748,7 @@ class InlinePostAudioTest {
             }
             ui.screenshot("inline-post-audio.png")
             tap(ui)
-            ui.await { !playing(ui) && !panels(ui)[0].toggle.isSelected }
+            ui.await { !playing(ui) && !panels(ui)[0].isPlaying }
             assertEquals(1, api.paths().count { it == "/api/speech/" })
             tap(ui)
             ui.await { playing(ui) }
@@ -703,7 +762,7 @@ class InlinePostAudioTest {
                 ui.await { api.paths().any { it.endsWith("/message/") } }
                 tap(ui)
                 Thread.sleep(800)
-                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
                 assertFalse(api.paths().contains("/api/speech/"))
             } }
     }
@@ -712,7 +771,7 @@ class InlinePostAudioTest {
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
                 tap(ui); Thread.sleep(800)
-                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
                 assertTrue(java.io.File(ui.activity.cacheDir, ".").listFiles().orEmpty().none { it.name.startsWith("post-listen-") })
             } }
     }
@@ -722,7 +781,7 @@ class InlinePostAudioTest {
             Reply("invalid audio".toByteArray(), type = "audio/mpeg") else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui); ui.await { ui.has("음성 다시 준비하기") }
-                ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(panels(ui)[0].isPlaying) }
                 ui.click("음성 다시 준비하기"); ui.await { playing(ui) }
             } }
     }
@@ -736,7 +795,7 @@ class InlinePostAudioTest {
             open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
             ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
             ui.selectLetter(1); ui.openCurrentPost(); tap(ui)
-            ui.await { playing(ui) && panels(ui).single().toggle.isSelected }
+            ui.await { playing(ui) && panels(ui).single().isPlaying }
             assertEquals(2, api.paths().count { it == "/api/speech/" })
             val files = java.io.File(ui.activity.cacheDir, ".").listFiles().orEmpty().filter { it.name.startsWith("post-listen-") }
             assertEquals("Stale response audio must be deleted", 1, files.size)
@@ -774,20 +833,23 @@ class InlinePostAudioTest {
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui); ui.await { ui.has("다시 로그인") }
                 assertFalse(api.paths().contains("/api/speech/"))
-                ui.test.runOnMainSync { assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(panels(ui)[0].isPlaying) }
             } }
     }
-    @Test fun completionRestoresSpeakerButton() {
+    @Test fun completionRestoresListeningMenuAction() {
         server { request -> if (request.path == "/api/speech/") audio(400) else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui)
-                ui.await { api.paths().contains("/api/speech/") && !panels(ui)[0].toggle.isSelected }
+                ui.await { api.paths().contains("/api/speech/") && !panels(ui)[0].isPlaying }
                 ui.test.runOnMainSync {
                     assertFalse(ui.has("재생을 마쳤어요."))
                     assertFalse(ui.has("소식을 재생하고 있어요. 다시 누르면 중지돼요."))
                     assertTrue(ui.has("사진과 글을 설명한 AI 요약"))
                 }
-                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
+                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().performClick() }
+                ui.await { ui.has("음성으로 듣기") }
+                ui.test.runOnMainSync { assertFalse(ui.has("듣기 중지")) }
             } }
     }
     @Test fun voiceNavigationCancelsPendingSpeechAndVoiceCancelReturnsToPost() {
@@ -797,7 +859,7 @@ class InlinePostAudioTest {
                 ui.test.runOnMainSync { ui.all().first { it.contentDescription == "말로 댓글 쓰기" }.performClick() }
                 ui.await { ui.has("말로 답장") }
                 ui.test.runOnMainSync { assertFalse(playing(ui)); ui.activity.onBackPressedDispatcher.onBackPressed() }
-                ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
+                ui.await { ui.hasPostDetail() }
             } }
     }
     @Test fun backgroundingCancelsLateSpeech() {
@@ -806,7 +868,7 @@ class InlinePostAudioTest {
                 open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
                 ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                 Thread.sleep(900)
-                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].toggle.isSelected) }
+                ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
             } }
     }
     private fun review(ui: UiHarness) {
@@ -859,12 +921,12 @@ class InlinePostAudioTest {
     }
     @Test fun largeTextModeAndDigestOpenPostWithoutListeningScreen() {
         server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
-            open(ui); tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
+            open(ui); tap(ui); ui.await { playing(ui) && panels(ui).single().isPlaying }
             tap(ui)
             ui.openDaily(); ui.await { ui.has("이날의 소식 1개") }
-            ui.test.runOnMainSync { ui.all().first { it.contentDescription == "가족 1의 소식 보기" }.performClick() }; ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
+            ui.test.runOnMainSync { ui.all().first { it.contentDescription == "가족 1의 소식 보기" }.performClick() }; ui.await { ui.hasPostDetail() }
             ui.test.runOnMainSync { assertFalse(ui.has("가족 소식 듣기")) }
-            tap(ui); ui.await { playing(ui) && ui.has("듣기 중지") }
+            tap(ui); ui.await { playing(ui) && panels(ui).single().isPlaying }
         } }
     }
 }

@@ -217,7 +217,7 @@ class FloatingAssistantTest {
             assertTrue(server.questionPaths.isEmpty())
         } }
     }
-    @Test fun twoActionPopoverFitsBothDockingEdgesAndRetainsAccessibleTargets() {
+    @Test fun fourActionPopoverFitsBothDockingEdgesAndRetainsAccessibleTargets() {
         Server().use { server -> Screen(server).use { screen ->
             for (edge in listOf(FloatingAssistantView.ACTION_RIGHT, FloatingAssistantView.ACTION_LEFT)) {
                 screen.test.runOnMainSync { screen.button().performAccessibilityAction(edge, null) }
@@ -226,7 +226,7 @@ class FloatingAssistantTest {
                     val menu = screen.menu(); val root = menu.parent as View
                     assertTrue(menu.x >= 0); assertTrue(menu.x + menu.width <= root.width + 1)
                     assertTrue(menu.y >= 0); assertTrue(menu.y + menu.height <= root.height + 1)
-                    for (label in listOf("이 소식 물어보기", "가족 추억 찾기")) {
+                    for (label in listOf("이 소식 물어보기", "음성으로 듣기", "AI 요약 보기", "가족 추억 찾기")) {
                         val row = screen.views(menu).single { it.contentDescription == label }
                         assertTrue(row.isClickable && row.isFocusable); assertTrue(row.height >= screen.activity.resources.displayMetrics.density * 48)
                     }

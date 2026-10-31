@@ -35,7 +35,7 @@ class DigestPostListTest {
                 val label = names[id - 1] + "의 소식 보기"
                 if (id <= 3) ui.test.runOnMainSync { ui.all().first { it.contentDescription == label }.performClick() }
                 else ui.click(label)
-                ui.await { ui.has("댓글은 이 가족방에만 보여요.") }
+                ui.await { ui.hasPostDetail() }
                 val request = synchronized(api.requests) { api.requests.last { it.path.matches(Regex("/api/posts/[1234]/")) } }
                 assertEquals("/api/posts/$id/", request.path); assertEquals("77", request.room)
                 ui.test.runOnMainSync { assertTrue(ui.has(post(id).getString("caption"))) }
