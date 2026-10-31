@@ -144,11 +144,8 @@ class FamilyMemoryPanel(
         result.removeAllViews()
         ui.gap(result, 16)
         val card = ui.card(result, ui.sky, stroke = false)
-        ui.label(card, "토닥이 찾은 이야기", if (large) 24f else 20f, true, ui.skyDeep)
-        ui.gap(card, 12)
-        ui.label(card, answeredQuestion, if (large) 22f else 18f, true, ui.skyDeep)
-        ui.gap(card, 16)
         ui.label(card, answer, if (large) 23f else 18f, color = ui.skyDeep).apply {
+            tag = "memory-answer"
             setTextIsSelectable(true)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
@@ -164,9 +161,6 @@ class FamilyMemoryPanel(
         if (found == null || found.posts.isEmpty()) {
             ui.label(result, "연결된 원문 게시글이 없어요.", if (large) 20f else 16f, color = ui.muted)
         } else {
-            ui.label(result, if (found.cited) "답변의 근거가 된 소식이에요." else "답변을 만들 때 검색한 소식이에요.",
-                if (large) 20f else 15f, color = ui.muted)
-            ui.gap(result, 16)
             found.posts.forEach { post -> renderPost(result, post); ui.gap(result, 20) }
         }
     }

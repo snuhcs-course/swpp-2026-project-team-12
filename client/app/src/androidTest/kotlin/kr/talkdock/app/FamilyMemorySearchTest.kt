@@ -274,7 +274,7 @@ class FamilyMemorySearchTest {
             screen.await { screen.views().filterIsInstance<TextView>().any { it.isShown && it.text.contains("다시 시도해 주세요") } }
             screen.test.runOnMainSync {
                 assertEquals("기록을 찾아줘", screen.panel().input.text.toString())
-                assertTrue(screen.panel().searchButton.isEnabled); assertFalse(screen.has("토닥이 찾은 이야기"))
+                assertTrue(screen.panel().searchButton.isEnabled); assertFalse(screen.views().any { it.tag == "memory-answer" })
             }
         } }
     }
@@ -286,7 +286,8 @@ class FamilyMemorySearchTest {
             screen.test.runOnMainSync { screen.panel().input.setText("다음에 물을 질문") }
             screen.recreate()
             screen.test.runOnMainSync {
-                assertTrue(screen.has("회전해도 남아 있는 답변")); assertTrue(screen.has("가족 여행"))
+                assertTrue(screen.has("회전해도 남아 있는 답변"))
+                assertEquals("가족 여행", screen.panel().snapshot().getString("question"))
                 assertEquals("다음에 물을 질문", screen.panel().input.text.toString())
             }
             assertEquals(1, server.searches().size)
@@ -323,7 +324,7 @@ class FamilyMemorySearchTest {
             screen.recreate()
             screen.test.runOnMainSync {
                 assertFalse(screen.has("이전 계정의 가족 답변"))
-                assertFalse(screen.has("토닥이 찾은 이야기"))
+                assertFalse(screen.views().any { it.tag == "memory-answer" })
                 assertEquals("", screen.panel().input.text.toString())
             }
             assertEquals(1, server.searches().size)
@@ -383,7 +384,7 @@ class FamilyMemorySearchTest {
                 screen.await { screen.views(card).filterIsInstance<android.widget.ImageView>().firstOrNull()
                     ?.drawable is android.graphics.drawable.BitmapDrawable }
                 if (!large) {
-                    screen.scrollTo(screen.views().filterIsInstance<TextView>().first { it.text.toString() == "토닥이 찾은 이야기" })
+                    screen.scrollTo(screen.views().first { it.tag == "memory-answer" })
                     screen.screenshot("memory-evidence-answer.png")
                     screen.scrollTo(card)
                 }
@@ -451,7 +452,7 @@ class FamilyMemorySearchTest {
             screen.test.runOnMainSync {
                 assertEquals(1, screen.views().count { it.tag == "feed-post:12" })
                 assertFalse(screen.views().any { it.tag == "feed-post:9" })
-                assertTrue(screen.has("답변을 만들 때 검색한 소식이에요."))
+                assertFalse(screen.has("답변을 만들 때 검색한 소식이에요."))
             }
             val fetched = server.requests.filter { it.path.matches(Regex("/api/posts/[0-9]+/")) }
             assertEquals(2, fetched.size)

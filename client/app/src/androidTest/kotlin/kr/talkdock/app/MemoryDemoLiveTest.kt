@@ -65,7 +65,7 @@ class MemoryDemoLiveTest {
             assertTrue(letters.isNotEmpty())
             assertTrue(letters.any { it.currentPost.optString("caption").contains("부산") })
             assertTrue(views().filterIsInstance<TextView>().any { it.text.contains("돼지국밥") })
-            val heading = views().filterIsInstance<TextView>().first { it.text.toString() == "토닥이 찾은 이야기" }
+            val heading = views().first { it.tag == "memory-answer" }
             val scroll = views().filterIsInstance<ScrollView>().first()
             val titlePosition = IntArray(2); val viewportPosition = IntArray(2)
             heading.getLocationOnScreen(titlePosition); scroll.getLocationOnScreen(viewportPosition)
