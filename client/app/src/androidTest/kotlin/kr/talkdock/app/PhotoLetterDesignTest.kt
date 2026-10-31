@@ -75,11 +75,21 @@ class PhotoLetterDesignTest {
             lateinit var deck: PhotoLetterDeck
             ui.test.runOnMainSync { deck = ui.all().filterIsInstance<PhotoLetterDeck>().single() }
             ui.await { ui.all(deck.currentCard).filterIsInstance<ImageView>().any { it.drawable != null } }
+            lateinit var primary: View
+            ui.test.runOnMainSync {
+                primary = ui.all(deck).first { it.contentDescription == "말로 답장하기" }
+                // Compact screens scroll the letter; reveal the action before checking its touch target.
+                primary.requestRectangleOnScreen(Rect(0, 0, primary.width, primary.height), true)
+            }
+            ui.await {
+                val visible = Rect()
+                primary.getGlobalVisibleRect(visible) && visible.height() == primary.height
+            }
             ui.test.runOnMainSync {
                 assertEquals(1, deck.currentPost.getInt("id"))
-                val primary = ui.all(deck).first { it.contentDescription == "말로 답장하기" }
                 val visible = Rect(); assertTrue(primary.getGlobalVisibleRect(visible)); assertEquals(primary.height, visible.height())
                 assertFalse(ui.has("AI 요약")); assertFalse(ui.has("댓글 1")); assertFalse(ui.has("가족방")); assertFalse(ui.has("설정"))
+                ui.all().filterIsInstance<android.widget.ScrollView>().first { ui.all(it).contains(deck) }.scrollTo(0, 0)
             }
             Thread.sleep(500); ui.screenshot("photo-letter-home.png")
             swipeLeft(ui, deck)

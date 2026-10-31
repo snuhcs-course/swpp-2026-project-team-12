@@ -18,6 +18,7 @@ import androidx.test.runner.lifecycle.Stage
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
@@ -566,6 +567,10 @@ class PhotoLoaderRegressionTest {
 /** These tests use local JSON and generated audio; no paid AI/TTS calls. */
 @RunWith(AndroidJUnit4::class)
 class InlinePostAudioTest {
+    @Before fun allowMicrophoneForVoiceNavigation() {
+        val test = InstrumentationRegistry.getInstrumentation()
+        test.uiAutomation.grantRuntimePermission(test.targetContext.packageName, android.Manifest.permission.RECORD_AUDIO)
+    }
     private fun post(id: Int) = JSONObject().put("id", id).put("author_name", "가족 $id")
         .put("relationship", "자녀").put("caption", "오늘의 소식 $id").put("created_at", "2026-10-19T10:00:00+09:00")
         .put("comment_count", 0).put("images", JSONArray()).put("comments", JSONArray())
