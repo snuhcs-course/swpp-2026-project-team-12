@@ -90,6 +90,16 @@ character and **가족 추억 찾기**. Try:
 Each successful answer shows its cited original letters below it. Tap a letter
 to view all photos/comments; Back preserves the answer and scroll position.
 
+The same demo is available on the web at `http://127.0.0.1:8001/#/search` with
+the credentials above. Search answers appear directly, followed by the exact
+`postCard` renderer used by the web feed (including its width, photos, author,
+caption and comment/AI actions). Opening and closing the original post keeps
+the search result in place. Older API responses resolve exact `post_<id>`
+episode names through authenticated, explicitly room-scoped detail requests;
+an explicit empty evidence list never falls back to uncited posts. Missing or
+inaccessible posts are omitted; temporary source-fetch failures retain the
+answer and any available posts.
+
 ## Checks
 
 Offline pytest covers citation validation, citation ordering, deduplication,
@@ -101,6 +111,10 @@ the deployed response, authorization and family room headers. Instrumented
 detail/back/recreation, scroll and draft retention, re-search, empty evidence and
 legacy server responses. These tests use synthetic family records, not a real
 family account or paid AI calls.
+
+`node --test web/test_memory_search.mjs` checks current/legacy web responses,
+ordered citations, deduplication, empty sources, inaccessible posts, partial
+failures and authentication errors. The normal web module CI job includes it.
 
 `MemoryDemoLiveTest` is separately opt-in (`-e liveMemoryDemo true`). It requires
 the demo-only package, local server and seeded family; it checks the real

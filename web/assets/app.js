@@ -3,6 +3,7 @@ import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
 import { FloatingAssistant } from './floating-assistant.js';
+import { memoryEvidence } from './memory-search.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -690,6 +691,8 @@ const formHandlers = {
       renderComments();
       const post = state.posts.find(item => item.id === postId);
       if (post) { post.comment_count = result.comments.length; if ($('#feed-list')) updateFeed(); }
+      const evidenceCount = $(`#search-result [data-post-id="${postId}"] .post-actions [data-action="open-post"] span`);
+      if (evidenceCount) evidenceCount.textContent = result.comments.length;
     } catch { toast('댓글은 등록됐어요. 최신 댓글은 소식을 다시 열어 확인해 주세요.'); }
     if (version === state.modalVersion) return { postingMessage: '댓글을 달았어요!' };
   },
@@ -703,12 +706,18 @@ const formHandlers = {
   },
   async search(data) {
     const version = state.pageVersion;
+    const session = state.session;
+    const room = state.room.id;
+    const current = () => version === state.pageVersion && session === state.session && room === state.room?.id;
     $('#search-result').innerHTML = loading('가족의 추억을 찾고 있어요');
     try {
-      const result = await api('searching/history/', { method: 'POST', data });
-      if (version !== state.pageVersion) return;
-      $('#search-result').innerHTML = `<section class="panel search-answer"><p class="eyebrow">${icon('sparkle')}토닥이 찾은 이야기</p><h2>${e(data.question)}</h2><p class="answer-text">${e(result.text)}</p><p class="help">가족 기록을 참고한 AI 답변이에요. 중요한 내용은 가족에게 확인해 주세요.</p></section>`;
-    } catch (error) { if (version === state.pageVersion) $('#search-result').innerHTML = ''; throw error; }
+      const result = await api('searching/history/', { method: 'POST', data, room });
+      if (!current()) return;
+      const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
+      if (!current()) return;
+      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p></section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(postCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      hydrateImages($('#search-result'));
+    } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
   async 'digest-time'(data) {
     state.room = await api('families/current/', { method: 'PATCH', data });
