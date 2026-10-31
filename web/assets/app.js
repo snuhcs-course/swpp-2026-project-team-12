@@ -3,6 +3,7 @@ import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
 import { FloatingAssistant } from './floating-assistant.js';
+import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -27,6 +28,8 @@ const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
 let maintenanceNotice, reconnecting = false;
+let dailyStatus = null, dailyQuestion = null, dailyDraft = null, dailyRequest = 0, dailyHistoryRows = [];
+const dailyDrafts = new Map();
 
 window.addEventListener('server-maintenance', () => {
   if (!maintenanceNotice) {
@@ -125,6 +128,7 @@ function updateBusyIndicator() {
   busyIndicator.hidden = !active || !postingSuccessBox.hidden;
 }
 function cleanupModal() {
+  captureDailyDraft(); dailyQuestion = null; dailyDraft = null; dailyRequest++;
   state.modalVersion++;
   state.detail = null;
   state.dialogue = [];
@@ -191,6 +195,7 @@ function resetSession() {
   clearImages();
   stopAudio();
   if (modal.open) modal.close();
+  dailyDrafts.clear(); dailyStatus = null;
   observer?.disconnect();
   updateBusyIndicator();
 }
@@ -281,7 +286,7 @@ async function enterApp() {
 }
 
 function useRoom(room) {
-  if (state.room?.id !== room.id) assistant.reset();
+  if (state.room?.id !== room.id) { assistant.reset(); dailyDrafts.clear(); dailyStatus = null; }
   state.room = room;
   state.posts = [];
   state.digest = state.lookup = null;
@@ -413,10 +418,94 @@ function familyRail() {
 }
 async function renderFeed(version) {
   $('#page').innerHTML = `${pageHeading('OUR FAMILY, EVERY DAY', '우리 가족의 작은 일상', '오늘은 어떤 하루를 보내셨나요? 소소한 이야기를 들려주세요.', button('compose', '소식 남기기', 'plus', 'button primary'))}<div class="feed-layout"><section aria-label="가족 소식"><button type="button" data-action="compose" class="composer-prompt">${avatar(state.user.name, state.user.user_id)}<span>${e(state.user.name)}님, 오늘의 안부를 전해 보세요.</span>${icon('photo')}</button><div class="feed-toolbar"><h2>최근 소식 <span id="post-count"></span></h2>${button('refresh-feed', '<span class="sr-only">소식 새로고침</span>', 'refresh', 'icon-button')}</div><div class="feed-filter"><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="불러온 소식에서 글·이름 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>${familyRail()}</div>`;
+  const entry = document.createElement('div');
+  entry.id = 'daily-entry'; entry.innerHTML = questionEntry(dailyStatus);
+  $('.feed-layout').before(entry);
   const result = await api('posts/');
   if (version !== state.pageVersion) return;
   state.posts = result.posts;
+  dailyStatus = result.daily_question || null;
+  updateDailyEntry();
+  if (!dailyStatus?.title) api('daily-questions/today/').then(question => {
+    if (version === state.pageVersion) { dailyStatus = question; updateDailyEntry(); }
+  }).catch(() => { /* The entry remains available for an explicit retry. */ });
   updateFeed();
+}
+
+function dailySeenKey() { return `talkdock.web.dailySeen:${state.user?.user_id}:${state.room?.id}`; }
+function updateDailyEntry() {
+  const target = $('#daily-entry');
+  if (!target) return;
+  const question = dailyStatus?.date === today() ? dailyStatus : null;
+  let seen;
+  try { seen = localStorage.getItem(dailySeenKey()); } catch { /* Reading remains available without storage. */ }
+  target.innerHTML = questionEntry(question, question ? seen !== questionVersion(question) : false);
+}
+function markDailySeen(question) {
+  if (question.date !== today()) return;
+  dailyStatus = question;
+  try { localStorage.setItem(dailySeenKey(), questionVersion(question)); } catch { /* Optional unread state. */ }
+  updateDailyEntry();
+}
+function dailyDraftKey() { return `${state.user?.user_id}:${state.room?.id}:${dailyQuestion?.id}`; }
+function captureDailyDraft() {
+  if (!dailyQuestion || !dailyDraft) return;
+  const form = $('[data-form="daily-answer"]', modal);
+  if (form) {
+    const values = Object.fromEntries(new FormData(form));
+    dailyDraft.choice = values.choice || '';
+    // Keep the custom draft when another option temporarily hides its field.
+    dailyDraft.other_text = form.elements.namedItem('other_text')?.value || '';
+    dailyDraft.text = values.text || '';
+    dailyDraft.tiers = Object.fromEntries(dailyQuestion.options.map((option, index) => [option, values[`tier-${index}`] || '']));
+  }
+  const comment = $('[data-form="daily-comment"] textarea', modal);
+  if (comment) dailyDraft.comment = comment.value;
+  dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+}
+function renderDailyQuestion() {
+  const target = $('#daily-content', modal);
+  if (target && dailyQuestion) target.innerHTML = questionMarkup(dailyQuestion, state.user.user_id, {
+    editing: dailyDraft.editing, draft: dailyDraft, comment: dailyDraft.comment,
+  });
+}
+async function openDailyQuestion() {
+  openModal(`${modalHeading('오늘의 질문', 'A LITTLE CONVERSATION')}<div id="daily-content"></div>`, 'daily-dialog');
+  await loadDailyQuestion();
+}
+async function loadDailyQuestion(id) {
+  captureDailyDraft();
+  const version = ++dailyRequest;
+  dailyQuestion = null; dailyDraft = null;
+  $('#daily-content', modal).innerHTML = loading('가족과 나눌 질문을 가져오고 있어요');
+  try {
+    const question = await api(`daily-questions/${id ? `${id}/` : 'today/'}`);
+    if (version !== dailyRequest || !modal.open) return;
+    dailyQuestion = question;
+    const mine = question.answers.find(answer => answer.author_id === state.user.user_id);
+    dailyDraft = dailyDrafts.get(dailyDraftKey()) || { ...mine, editing: !mine, comment: '' };
+    renderDailyQuestion(); markDailySeen(question);
+  } catch (error) {
+    if (version === dailyRequest && modal.open) $('#daily-content', modal).innerHTML = failureBlock(error,
+      button(id ? 'daily-detail' : 'daily-today', '다시 불러오기', 'refresh', 'button secondary', id ? `data-id="${Number(id)}"` : ''));
+  }
+}
+async function loadDailyHistory(before = null) {
+  captureDailyDraft();
+  const version = ++dailyRequest;
+  dailyQuestion = null; dailyDraft = null;
+  const target = $('#daily-content', modal);
+  if (!before) { dailyHistoryRows = []; target.innerHTML = loading('지난 질문을 가져오고 있어요'); }
+  try {
+    const result = await api(`daily-questions/history/${before ? `?before=${encodeURIComponent(before)}` : ''}`);
+    if (version !== dailyRequest || !modal.open) return;
+    dailyHistoryRows.push(...result.questions);
+    target.innerHTML = questionHistory(dailyHistoryRows, result.next_before);
+  } catch (error) {
+    if (version !== dailyRequest || !modal.open) return;
+    if (before) throw error;
+    target.innerHTML = failureBlock(error, button('daily-history', '다시 불러오기', 'refresh'));
+  }
 }
 function postCard(post) {
   const photos = post.images || [];
@@ -567,15 +656,17 @@ function stopRecording(discard = false) {
   recordingStream = null;
   recorder = null;
 }
-async function startRecording() {
+async function startRecording({ postId = state.detail?.id, purpose = null } = {}) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new ApiError('음성 답장은 localhost 또는 HTTPS에서 지원되는 브라우저로 이용해 주세요.');
   if (recorder) return;
   const version = state.modalVersion;
-  const postId = state.detail.id;
+  const questionRequest = dailyRequest;
+  const valid = () => version === state.modalVersion && (!purpose || questionRequest === dailyRequest);
+  const retryAction = purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); }
-  if (version !== state.modalVersion) { stream.getTracks().forEach(track => track.stop()); return; }
+  if (!valid()) { stream.getTracks().forEach(track => track.stop()); return; }
   const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
   if (!mimeType) { stream.getTracks().forEach(track => track.stop()); throw new ApiError('이 브라우저의 녹음 형식을 지원하지 않아요. 최신 Chrome 또는 Edge로 이용해 주세요.'); }
   let current;
@@ -586,10 +677,10 @@ async function startRecording() {
   const chunks = [];
   let bytes = 0;
   current.ondataavailable = event => { chunks.push(event.data); bytes += event.data.size; if (bytes > 4.5 * 1024 * 1024) stopRecording(); };
-  current.onerror = () => { stopRecording(true); if (version === state.modalVersion) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
+  current.onerror = () => { stopRecording(true); if (valid()) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
   current.onstop = async () => {
     stream.getTracks().forEach(track => track.stop());
-    if (version !== state.modalVersion) return;
+    if (!valid()) return;
     const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size || blob.size > 5 * 1024 * 1024) { $('#voice-panel').innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.'); return; }
     $('#voice-panel').innerHTML = loading('말씀을 글로 옮기고 있어요');
@@ -598,9 +689,17 @@ async function startRecording() {
       const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
       data.append('audio', blob, `reply.${extension}`);
       const result = await api(`posts/${postId}/replies/transcribe/`, { method: 'POST', data });
-      if (version !== state.modalVersion) return;
+      if (!valid()) return;
+      if (purpose) {
+        const field = $(`[data-form="daily-${purpose}"] textarea`, modal);
+        if (field) { field.value = result.recognized; field.focus(); }
+        if (purpose === 'answer') dailyDraft.source = 'voice';
+        captureDailyDraft();
+        $('#voice-panel').innerHTML = '<p class="help">글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.</p>';
+        return;
+      }
       $('#voice-panel').innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
-    } catch (error) { if (version === state.modalVersion) $('#voice-panel').innerHTML = failureBlock(error, button('record', '다시 녹음하기', 'mic')); }
+    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, '다시 녹음하기', 'mic')); }
   };
   current.start(1000);
   recordingTimer = setTimeout(() => { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }, 120000);
@@ -608,6 +707,40 @@ async function startRecording() {
 }
 
 const formHandlers = {
+  async 'daily-answer'() {
+    captureDailyDraft();
+    const question = dailyQuestion, version = dailyRequest;
+    const payload = questionPayload(question, dailyDraft);
+    const updated = await api(`daily-questions/${question.id}/answer/`, { method: 'PUT', data: payload });
+    if (version !== dailyRequest || !modal.open) return;
+    dailyQuestion = updated;
+    const mine = updated.answers.find(answer => answer.author_id === state.user.user_id);
+    dailyDraft = { ...mine, editing: false, comment: dailyDraft.comment };
+    dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+    renderDailyQuestion(); markDailySeen(updated);
+    return { postingMessage: '답변을 남겼어요!' };
+  },
+  async 'daily-comment'(data) {
+    if (!data.text.trim() || data.text.trim().length > 2000) throw new ApiError('댓글은 1~2,000자로 적어 주세요.');
+    captureDailyDraft();
+    const question = dailyQuestion, version = dailyRequest;
+    const result = await api(`posts/${question.post_id}/comments/`, { method: 'POST', data: { text: data.text.trim() } });
+    if (version !== dailyRequest || !modal.open) return;
+    // Publication succeeded. Clear the draft even when the following read fails.
+    dailyDraft.comment = '';
+    dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+    try {
+      const updated = await api(`daily-questions/${question.id}/`);
+      if (version !== dailyRequest || !modal.open) return;
+      dailyQuestion = updated; markDailySeen(updated);
+    } catch {
+      if (version !== dailyRequest || !modal.open) return;
+      question.comments.push({ id: result.id, author_id: state.user.user_id, author_name: state.user.name, text: data.text.trim() });
+      toast('댓글은 등록됐어요. 최신 목록은 질문을 다시 열어 확인해 주세요.');
+    }
+    renderDailyQuestion();
+    return { postingMessage: '댓글을 달았어요!' };
+  },
   async login(data) {
     const result = await api('accounts/login/', { method: 'POST', data });
     setToken(result.token);
@@ -774,6 +907,19 @@ document.addEventListener('click', async event => {
   if (action === 'auth-login') return renderAuth(false);
   if (action === 'auth-register') return renderAuth(true);
   if (action === 'close-modal') return modal.close();
+  if (action === 'daily-open') return openDailyQuestion();
+  if (action === 'daily-today' || action === 'daily-detail') { stopRecording(true); return loadDailyQuestion(target.dataset.id); }
+  if (action === 'daily-history') { stopRecording(true); return loadDailyHistory(); }
+  if (action === 'daily-more') return busy(target, () => loadDailyHistory(target.dataset.before));
+  if (action === 'daily-edit' && dailyDraft) {
+    captureDailyDraft(); dailyDraft.editing = true; renderDailyQuestion();
+    captureDailyDraft(); $('[data-form="daily-answer"] input, [data-form="daily-answer"] select, [data-form="daily-answer"] textarea', modal)?.focus();
+    return;
+  }
+  if (action === 'daily-record-answer' || action === 'daily-record-comment') {
+    if (!dailyQuestion) return;
+    return busy(target, () => startRecording({ postId: dailyQuestion.post_id, purpose: action.endsWith('answer') ? 'answer' : 'comment' }));
+  }
   if (action === 'text-size') {
     const large = document.documentElement.classList.toggle('large-text');
     localStorage.setItem('talkdock.web.largeText', String(large));
@@ -850,6 +996,7 @@ document.addEventListener('click', async event => {
   });
 });
 document.addEventListener('input', event => {
+  if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
   if (event.target.closest('[data-form="register"]') && ['password', 'confirm_password'].includes(event.target.name)) {
     const form = event.target.form;
     form.querySelectorAll('[aria-invalid]').forEach(input => input.removeAttribute('aria-invalid'));
@@ -860,6 +1007,17 @@ document.addEventListener('input', event => {
   if (event.target.closest('[data-form="lookup-room"]')) { state.lookup = null; $('#join-panel').innerHTML = ''; }
 });
 document.addEventListener('change', event => {
+  if (event.target.matches('[data-form="daily-answer"] input[type="radio"]')) {
+    const form = event.target.form;
+    const other = form.elements.namedItem('other_text');
+    if (other) {
+      other.hidden = other.disabled = event.target.value !== '기타';
+      other.required = !other.hidden;
+      if (!other.hidden) other.focus();
+    }
+    form.querySelectorAll('.daily-option').forEach(row => row.classList.toggle('selected', row.querySelector('input[type="radio"]').checked));
+  }
+  if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
   if (event.target.id === 'author-filter') updateFeed();
   if (event.target.id === 'photo-input') { addFiles([...event.target.files]); event.target.value = ''; }
   if (event.target.id === 'digest-date' && event.target.validity.valid) {
