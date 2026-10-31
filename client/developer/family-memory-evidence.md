@@ -1,8 +1,10 @@
 # Family history evidence posts
 
 Family history answers now show original posts below “이 이야기가 담긴 소식”.
-`MainActivity.feedPost` renders both the home feed and evidence: author, date,
-unabridged caption, ordered photo carousel, comments, summary and audio actions.
+`PhotoLetterDeck` renders both the home feed and evidence using frontend v2:
+photo-letter styling, caption, author, date, photo count and voice reply. Evidence
+letters are stacked vertically with deck pagination hidden for each single post.
+Opening a letter uses the existing full detail view and its photo carousel.
 Tapping a post or its comments opens the existing detail screen. Back returns to
 the saved answer, draft, evidence list and vertical scroll position. This also
 works after activity recreation on the detail screen. Saved results are scoped
@@ -34,11 +36,59 @@ The history endpoint preserves `text`, `query` and `memories`, and adds
 
 ## APK baseline
 
-Based on the latest fetched `iteration-3-demo` at `cdbe2d1` (PR #49).
-The application's font, theme and resources come from that commit. No font or
-UI settings are taken from the user-provided APK. The public APK uses the
-existing local debug certificate to update the Galaxy without uninstalling it.
-The public API remains `https://talkdock.app/api/`.
+Based on `iteration-3-demo` at `72014d5`, which includes frontend-v2 PR #50.
+The application's font, palette, theme and normal feed retain that source design.
+No resources are extracted from a supplied APK. The public API stays unchanged.
+
+## Try it on an emulator
+
+The `talkDockDemo` Gradle option creates a separate `kr.talkdock.app.memorydemo`
+application labelled **토닥 데모**, preserving the ordinary app and its sessions.
+The demo calls the real local Django/Graphiti/OpenAI pipeline, not fixture answers.
+Its SQLite DB, media and generated Neo4j credentials live in ignored
+`.local/memory-demo/`. Neo4j uses its own `talkdock-memory-demo` Docker container
+and volume, with loopback ports 7688/7475. Only the synthetic family 961031 is
+seeded/ingested; existing family data and production are not changed.
+
+Prerequisites: Docker running, the repository virtualenv, and a working
+`OPENAI_API_KEY` in the repository `.env`. Ingestion and searches make real API
+calls using fictional posts. Six posts cover a Busan trip, a postcard souvenir,
+a birthday cake, dog feeding times, a hike and a book. Images are demo artwork.
+Seeding is idempotent; it does not duplicate or replace previously seeded posts.
+
+From the repository root, first-time setup:
+
+```sh
+.venv/bin/python backend/developer/memory_demo.py setup
+.venv/bin/python backend/developer/memory_demo.py ingest
+.venv/bin/python backend/developer/memory_demo.py serve
+```
+
+On later runs, start the container with `setup`, then run `serve`. Use `ingest`
+again only when adding more demo history. The server listens on 127.0.0.1:8001;
+the emulator uses `http://10.0.2.2:8001/api/`.
+
+Build/install the separate demo APK, with the Android SDK and Java configured:
+
+```sh
+cd client
+./gradlew -PtalkDockDemo=true -PtalkDockApiUrl=http://10.0.2.2:8001/api/ :app:assembleDebug
+adb -e install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Open **토닥 데모**, sign in with **01000001031 / MemoryDemo1031!**, then tap the
+character and **가족 추억 찾기**. Try:
+
+| Question | Seeded answer |
+|---|---|
+| 지난 가족 여행은 어디로 갔고 뭘 먹었어? | 부산 해운대, 돼지국밥 |
+| 부산 여행에서 지민이가 고른 기념품은 뭐야? | 바다 그림 엽서 |
+| 보리 밥은 누가 몇 시에 줘? | 지민, 오전 8시·오후 6시 |
+| 엄마 생일에 지민이가 준비한 건 뭐야? | 딸기 케이크 |
+| 아빠가 요즘 읽는 책 제목이 뭐였지? | 어린 왕자 |
+
+Each successful answer shows its cited original letters below it. Tap a letter
+to view all photos/comments; Back preserves the answer and scroll position.
 
 ## Checks
 
@@ -51,3 +101,7 @@ the deployed response, authorization and family room headers. Instrumented
 detail/back/recreation, scroll and draft retention, re-search, empty evidence and
 legacy server responses. These tests use synthetic family records, not a real
 family account or paid AI calls.
+
+`MemoryDemoLiveTest` is separately opt-in (`-e liveMemoryDemo true`). It requires
+the demo-only package, local server and seeded family; it checks the real
+Graphiti/OpenAI answer, original v2 letters, photos and return from detail.

@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.ScrollView
 import kr.talkdock.app.ui.PhotoCarousel
+import kr.talkdock.app.ui.PhotoLetterDeck
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -111,7 +112,7 @@ class FamilyMemorySearchTest {
             prefs.edit().clear().putString("current", user.toString()).putString("server", server.base).commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-            await { has("첫 소식을 기다리고 있어요") || has("가족의 소식") }
+            await { has("첫 소식을 기다리고 있어요") || views().any { it is PhotoLetterDeck } }
         }
         fun views(view: View = activity.window.decorView): List<View> = listOf(view) +
             if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
@@ -372,9 +373,10 @@ class FamilyMemorySearchTest {
                         .filter { it !is android.widget.EditText }.map { it.text.toString() }
                     assertEquals(feedTexts, evidenceTexts)
                     assertEquals(1, screen.views().count { it.tag == "feed-post:9" })
-                    assertEquals(1, screen.views(card).filterIsInstance<PhotoCarousel>().size)
+                    assertEquals(0, screen.views(card).filterIsInstance<PhotoCarousel>().size)
+                    assertTrue(screen.views().any { it is PhotoLetterDeck })
                     assertTrue(screen.has("이 이야기가 담긴 소식"))
-                    assertTrue(screen.has("AI 요약"))
+                    assertTrue(screen.views().any { it.contentDescription == "말로 답장하기" })
                 }
                 val card = screen.views().single { it.tag == "feed-post:12" }
                 screen.scrollTo(card)
@@ -387,10 +389,9 @@ class FamilyMemorySearchTest {
                 }
                 screen.screenshot(if (large) "memory-evidence-large.png" else "memory-evidence-post.png")
                 screen.test.runOnMainSync {
-                    val thumbnail = screen.views(card).first { it.contentDescription == "2번째 사진으로 이동" }
-                    thumbnail.performClick()
+                    val open = screen.views(card).first { it.contentDescription == "소식과 댓글 자세히 보기" }
+                    assertTrue(open.isClickable)
                 }
-                screen.await { screen.views(card).filterIsInstance<PhotoCarousel>().single().currentIndex == 1 }
             } }
         }
     }
@@ -412,7 +413,11 @@ class FamilyMemorySearchTest {
                 scrollY = screen.views().filterIsInstance<ScrollView>().first().scrollY
                 assertTrue(scrollY > 0)
             }
-            screen.click("댓글 2"); screen.await { screen.has("댓글 0") }
+            screen.test.runOnMainSync {
+                val open = screen.views(card).first { it.contentDescription == "소식과 댓글 자세히 보기" }
+                open.performClick()
+            }
+            screen.await { screen.has("댓글 0") }
             screen.recreate(memory = false)
             screen.await { screen.has("댓글 0") }
             screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
