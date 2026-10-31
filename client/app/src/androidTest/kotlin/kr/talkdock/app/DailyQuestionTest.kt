@@ -165,10 +165,11 @@ class DailyQuestionTest {
     @Test fun headerEntrySurvivesNewPostsAndReturnsToSameLetterAndScroll() = withApp { activity, server ->
         lateinit var scroll: ScrollView
         var position = 0
-        // Guarantee a scrollable viewport on tall emulator profiles too.
+        // Keep the fixture scrollable even with the reserved preview height
+        // and compact, single-line captions on CI emulator profiles.
         test.runOnMainSync {
             val surface = activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
-            surface.layoutParams = surface.layoutParams.apply { height = (640 * activity.resources.displayMetrics.density).toInt() }
+            surface.layoutParams = surface.layoutParams.apply { height = (480 * activity.resources.displayMetrics.density).toInt() }
         }
         test.waitForIdleSync()
         test.runOnMainSync {
