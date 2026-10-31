@@ -47,7 +47,8 @@
 .daily-answers { margin-top: 13px; }
 .daily-answer { display: flex; align-items: start; gap: 11px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fffaf4; }
 .daily-answer > div { flex: 1; min-width: 0; }
-.daily-answer > div > strong:first-child { display: block; font-size: .85rem; margin-bottom: 6px; overflow-wrap: anywhere; }
+.daily-answer-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.daily-answer-name { min-width: 0; font-size: .85rem; overflow-wrap: anywhere; }
 .daily-comments { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); }
 .daily-comments .comment { padding-inline: 0; }
 .daily-comments textarea { background: #fffaf4; font-size: .88rem; margin-top: 12px; }
