@@ -33,7 +33,7 @@ class PhotoLetterDesignTest {
 
     private fun server(): MockApi {
         val test = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-        val photo = test.context.assets.open("photo-letter-fixture.png").use { it.readBytes() }
+        val photo = test.targetContext.resources.openRawResource(R.drawable.family).use { it.readBytes() }
         val api = MockApi { request -> when {
             request.path == "/api/families/current/" -> jsonReply(room(77, "우리 가족"))
             request.path == "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray((1..3).map { post(it) })))

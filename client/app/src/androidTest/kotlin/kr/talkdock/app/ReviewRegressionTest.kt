@@ -13,6 +13,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -176,6 +178,12 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         }
         await { has(label) }
         click(label)
+    }
+    fun background() {
+        test.runOnMainSync {
+            activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        await { ActivityLifecycleMonitorRegistry.getInstance().getLifecycleStageOf(activity) in listOf(Stage.PAUSED, Stage.STOPPED) }
     }
     fun screenshot(name: String) {
         test.waitForIdleSync(); Thread.sleep(250)
@@ -866,7 +874,7 @@ class InlinePostAudioTest {
         server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); tap(ui); ui.await { api.paths().contains("/api/speech/") }
-                ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                ui.background()
                 Thread.sleep(900)
                 ui.test.runOnMainSync { assertFalse(playing(ui)); assertFalse(panels(ui)[0].isPlaying) }
             } }
@@ -898,26 +906,35 @@ class InlinePostAudioTest {
         } }
     }
     @Test fun replyPreviewIgnoresLateSpeechAfterStopOrNavigation() {
-        server { request -> if (request.path == "/api/speech/") { Thread.sleep(500); audio() } else null }
-            .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
-                open(ui); review(ui)
-                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
-                ui.await { api.paths().contains("/api/speech/") }
-                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
-                Thread.sleep(750)
-                ui.test.runOnMainSync { assertFalse(playing(ui)) }
-                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
-                ui.await { api.paths().count { it == "/api/speech/" } == 2 }
-                ui.click("다시 말하기"); ui.await { ui.has("말로 답장") }
-                Thread.sleep(750)
-                ui.test.runOnMainSync { assertFalse(playing(ui)) }
-                review(ui)
-                ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
-                ui.await { api.paths().count { it == "/api/speech/" } == 3 }
-                ui.test.runOnMainSync { ui.activity.startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                Thread.sleep(750)
-                ui.test.runOnMainSync { assertFalse(playing(ui)) }
-            } }
+        val releaseSpeech = List(3) { CountDownLatch(1) }
+        var speechRequests = 0
+        try {
+            server { request -> if (request.path == "/api/speech/") {
+                releaseSpeech[speechRequests++].await(15, TimeUnit.SECONDS)
+                audio()
+            } else null }.use { api -> UiHarness(api, room(1, "재생")).use { ui ->
+                    open(ui); review(ui)
+                    ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                    ui.await { api.paths().contains("/api/speech/") }
+                    ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                    releaseSpeech[0].countDown()
+                    Thread.sleep(750)
+                    ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                    ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                    ui.await { api.paths().count { it == "/api/speech/" } == 2 }
+                    ui.click("다시 말하기"); ui.await { ui.has("말로 답장") }
+                    releaseSpeech[1].countDown()
+                    Thread.sleep(750)
+                    ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                    review(ui)
+                    ui.test.runOnMainSync { ui.all().filterIsInstance<kr.talkdock.app.ui.ReplyAudioButton>().single().performClick() }
+                    ui.await { api.paths().count { it == "/api/speech/" } == 3 }
+                    ui.background()
+                    releaseSpeech[2].countDown()
+                    Thread.sleep(750)
+                    ui.test.runOnMainSync { assertFalse(playing(ui)) }
+                } }
+        } finally { releaseSpeech.forEach { it.countDown() } }
     }
     @Test fun largeTextModeAndDigestOpenPostWithoutListeningScreen() {
         server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
