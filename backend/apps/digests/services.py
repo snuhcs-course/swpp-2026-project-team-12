@@ -53,7 +53,7 @@ def generate_digest(room, date, retry=False):
     start = obj.window_start or (previous.window_end if previous else cutoff(room, date - timedelta(days=1)))
     end = end if extend_empty else obj.window_end or end
     posts = list(
-        room.posts.filter(created_at__gte=start, created_at__lt=end)
+        room.posts.filter(kind="news", created_at__gte=start, created_at__lt=end)
         .select_related("author")
         .order_by("created_at")
     )

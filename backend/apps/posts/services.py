@@ -38,8 +38,9 @@ def serialize(post, request):
     return {
         "id": post.pk,
         "author_id": post.author_id,
-        "author_name": post.author.display_name,
-        "relationship": relationship(request.user, post.author, post.room),
+        "author_name": post.author.display_name if post.kind == "news" else "토닥",
+        "relationship": relationship(request.user, post.author, post.room) if post.kind == "news" else "오늘의 질문",
+        "kind": post.kind,
         "created_at": timezone.localtime(post.created_at).isoformat(),
         "image_url": url(image_path) if images else "",
         "images": images,
