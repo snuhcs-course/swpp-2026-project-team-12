@@ -49,6 +49,8 @@ import kr.talkdock.app.ui.DraftPhotoStrip
 import kr.talkdock.app.ui.TodakArtView
 import kr.talkdock.app.ui.TodakWaitingView
 import kr.talkdock.app.ui.TodakSuccessView
+import kr.talkdock.app.ui.DailyQuestionPanel
+import kr.talkdock.app.ui.DailyQuestionEntryView
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -77,6 +79,7 @@ class MainActivity : ComponentActivity() {
     private enum class PostAudioAction { LISTEN, SUMMARY }
     private var replyPreview: ReplyAudioButton? = null
     private var memoryPanel: FamilyMemoryPanel? = null
+    private var memoryReturn: Bundle? = null
     private var assistant: FloatingAssistantView? = null
     private var assistantDialog: Dialog? = null
     private var assistantMenu: AssistantBubbleMenu? = null
@@ -94,6 +97,14 @@ class MainActivity : ComponentActivity() {
     private var foreground = false
     private var feedDeck: PhotoLetterDeck? = null
     private var feedPostId: Int? = null
+    private var feedScrollY = 0
+    private var restoreFeedScroll = false
+    private var pageScroll: ScrollView? = null
+    private var dailyPanel: DailyQuestionPanel? = null
+    private var dailyQuestionState: Bundle? = null
+    private var dailyVoicePurpose: String? = null
+    private var dailyEntry: DailyQuestionEntryView? = null
+    private var dailyStatus: JSONObject? = null
     private var profileMenuDialog: Dialog? = null
     private var assistantShade: View? = null
     private var voiceControlLabel: TextView? = null
@@ -180,8 +191,19 @@ class MainActivity : ComponentActivity() {
         draftPhotoIndex = state?.getInt("draftPhotoIndex") ?: 0
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
         feedPostId = state?.getInt("feedPostId", -1)?.takeIf { it > 0 }
+        feedScrollY = state?.getInt("feedScrollY") ?: 0
+        restoreFeedScroll = state?.getBoolean("restoreFeedScroll", false) ?: false
+        dailyQuestionState = state?.getBundle("dailyQuestion")?.takeIf {
+            it.getInt("userId", -1) == session?.optInt("user_id") && it.getInt("roomId", -1) == room.optInt("id", -1) &&
+                it.getString("server") == sessions.serverUrl()
+        }
+        dailyVoicePurpose = state?.getString("dailyVoicePurpose")
         digestDate = state?.getString("digestDate") ?: digestDate
         val restoredScreen = state?.getString("screen")
+        val restoredMemoryReturn = state?.getBundle("memoryReturn")?.takeIf {
+            it.getInt("userId", -1) == session?.optInt("user_id") &&
+                it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
+        }
         if (restoredScreen in listOf("tree", "profile") && state?.getString("joinRoom") != null) {
             joinRoom = JSONObject(state.getString("joinRoom")!!)
             invitation = JSONObject(state.getString("invitation")!!)
@@ -196,6 +218,9 @@ class MainActivity : ComponentActivity() {
             }
             if (!room.has("id")) { clearPhotoDraft(); selectedPost = null; roomChoice(); return }
             when {
+            restoredScreen == "dailyQuestion" || (restoredScreen == "voice" && dailyVoicePurpose != null) -> {
+                dailyVoicePurpose = null; dailyQuestions(dailyQuestionState)
+            }
             restoredScreen == "memories" -> familyMemories(state?.getBundle("memories")?.takeIf {
                 it.getInt("userId", -1) == session?.optInt("user_id") &&
                     it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
@@ -204,8 +229,8 @@ class MainActivity : ComponentActivity() {
             restoredScreen == "members" -> members()
             restoredScreen == "familyTree" -> familyTree()
             restoredScreen == "post" || restoredScreen == "camera" -> composer()
-            restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!)
-            restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!)
+            restoredScreen == "detail" && selectedPost != null -> detail(selectedPost!!, returnToMemories = restoredMemoryReturn)
+            restoredScreen == "senior" && selectedPost != null -> detail(selectedPost!!, returnToMemories = restoredMemoryReturn)
             session != null && session?.optJSONObject("room") != null -> home()
             session != null -> roomChoice()
             else -> welcome()
@@ -238,11 +263,22 @@ class MainActivity : ComponentActivity() {
         out.putInt("draftPhotoIndex", draftPhotoIndex)
         out.putString("post", selectedPost?.toString())
         out.putInt("feedPostId", feedPostId ?: -1)
+        out.putInt("feedScrollY", if (screen == "home") pageScroll?.scrollY ?: 0 else feedScrollY)
+        out.putBoolean("restoreFeedScroll", restoreFeedScroll || screen == "home")
+        val dailyState = dailyPanel?.snapshot() ?: dailyQuestionState
+        out.putBundle("dailyQuestion", dailyState?.apply {
+            putInt("userId", session?.optInt("user_id") ?: -1); putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
+        })
+        out.putString("dailyVoicePurpose", dailyVoicePurpose)
         out.putString("digestDate", digestDate)
         if (screen == "memories") out.putBundle("memories", memoryPanel?.snapshot()?.apply {
             putInt("userId", session?.optInt("user_id") ?: -1)
             putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
         })
+        memoryReturn?.let { saved -> out.putBundle("memoryReturn", Bundle(saved).apply {
+            putInt("userId", session?.optInt("user_id") ?: -1)
+            putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
+        }) }
         if (screen in listOf("tree", "profile")) {
             out.putString("joinRoom", joinRoom.toString()); out.putString("invitation", invitation.toString())
             out.putString("treeDraft", treeDraft?.payload()?.toString())
@@ -271,6 +307,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
+        dailyPanel?.let { dailyQuestionState = it.snapshot() }; dailyPanel = null; dailyEntry = null
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         closeAssistantMenu(); detailCard = null; detailPostAudio = null
         assistantDialog?.dismiss(); profileMenuDialog?.dismiss()
@@ -282,8 +319,12 @@ class MainActivity : ComponentActivity() {
         recording?.delete(); recording = null
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
         imageLoader.clearViews(); root.removeAllViews(); memoryPanel = null
+        if (name !in setOf("detail", "voice", "review")) memoryReturn = null
         page = ui.column(); root.addView(page, FrameLayout.LayoutParams(-1, -1))
         val header = ui.row().apply { setPadding(ui.dp(20), ui.dp(8), ui.dp(16), ui.dp(4)); minimumHeight = ui.dp(64) }
+        if (name == "dailyQuestion" && !large) {
+            header.setPadding(ui.dp(16), ui.dp(4), ui.dp(16), ui.dp(4)); header.minimumHeight = ui.dp(56)
+        }
         val mainPage = name == "home" || name == "digest"
         if (mainPage) {
             header.addView(ui.text("토닥", 28f, true).apply { typeface = ui.titleFont }, LinearLayout.LayoutParams(0, -2, 1f))
@@ -300,10 +341,19 @@ class MainActivity : ComponentActivity() {
             header.addView(profile, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
         } else {
             if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() })
-            header.addView(ui.text(title, 21f, true), LinearLayout.LayoutParams(0, -2, 1f))
+            header.addView(ui.text(title, if (name == "dailyQuestion" && !large) 18f else 21f, true).apply {
+                if (name == "dailyQuestion") gravity = Gravity.CENTER
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            if (name == "dailyQuestion") header.addView(View(this), LinearLayout.LayoutParams(ui.dp(48), 1))
         }
         if (name != "welcome") page.addView(header)
+        if (name == "home") {
+            page.addView(questionEntry(), LinearLayout.LayoutParams(-1, -2).apply {
+                marginStart = ui.dp(16); marginEnd = ui.dp(16); bottomMargin = ui.dp(4)
+            })
+        }
         val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
+        pageScroll = scroll
         content = ui.column().apply {
             setPadding(ui.dp(if (mainPage) 16 else 20), ui.dp(8), ui.dp(if (mainPage) 16 else 20), ui.dp(24))
             clipChildren = false; clipToPadding = false
@@ -323,6 +373,56 @@ class MainActivity : ComponentActivity() {
                 onMoveStarted = { closeAssistantMenu() }, preferredDock = { assistantDock() }) { openAssistant() }
                 .also { root.addView(it) }
         }
+    }
+
+    private fun questionEntry() = DailyQuestionEntryView(this, ui, large) { if (!busy) dailyQuestions() }.apply {
+        dailyEntry = this
+        addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+            feedDeck?.reserveHeaderSpace(view.height + ui.dp(4))
+        }
+        post { updateDailyEntry() }
+    }
+
+    private fun dailySeenKey() = "${sessions.serverUrl()}:${session?.optInt("user_id")}:${room.optInt("id")}"
+
+    private fun updateDailyEntry() {
+        val entry = dailyEntry ?: return
+        val today = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
+        val status = dailyStatus?.takeIf { it.optString("date") == today }
+        val prefs = getSharedPreferences("talkdock-daily-questions", MODE_PRIVATE)
+        val seen = prefs.getString(dailySeenKey(), "")
+        val unread = if (status == null) !seen.orEmpty().startsWith("$today|") else seen != "$today|${status.optString("version")}"
+        entry.bind(status?.optString("title").orEmpty(), unread)
+    }
+
+    private fun loadDailyPreview(client: ApiClient) {
+        val number = pageNumber
+        questions.execute {
+            val result = runCatching { client.request("daily-questions/today/", readTimeoutMillis = 10_000) }
+            runOnUiThread {
+                if (!isDestroyed && screen == "home" && pageNumber == number) result.getOrNull()?.let {
+                    dailyStatus = it; updateDailyEntry()
+                }
+            }
+        }
+    }
+
+    private fun dailyQuestions(saved: Bundle? = null) {
+        if (screen == "home") { feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true }
+        navigation("오늘의 질문", { home() }, name = "dailyQuestion")
+        dailyQuestionState = saved
+        dailyPanel = DailyQuestionPanel(this, ui, large, api, questions, session!!.getInt("user_id"), saved,
+            onSeen = { data ->
+                if (data.optString("date") == LocalDate.now(ZoneId.of("Asia/Seoul")).toString()) {
+                    dailyStatus = data
+                    getSharedPreferences("talkdock-daily-questions", MODE_PRIVATE).edit()
+                        .putString(dailySeenKey(), "${data.optString("date")}|${data.optString("version")}").apply()
+                }
+            }, onVoice = { postId, purpose ->
+                dailyQuestionState = dailyPanel?.snapshot(); dailyVoicePurpose = purpose
+                voice(json("id" to postId, "caption" to (dailyQuestionState?.getString("title") ?: "가족에게 들려줄 이야기를 편하게 말씀해 주세요."),
+                    "author_name" to "토닥", "relationship" to "오늘의 질문", "images" to JSONArray()), true)
+            }).also { content.addView(it, LinearLayout.LayoutParams(-1, -2)) }
     }
 
     private fun openProfileMenu() {
@@ -660,6 +760,8 @@ class MainActivity : ComponentActivity() {
     /** Drafts, the open post and the digest date belong to one room, so drop them when switching. */
     private fun resetRoomState() {
         clearPhotoDraft(); selectedPost = null
+        dailyStatus = null; dailyQuestionState = null; dailyVoicePurpose = null; dailyPanel = null
+        feedPostId = null; feedScrollY = 0; restoreFeedScroll = false
         digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     }
     /**
@@ -959,6 +1061,8 @@ class MainActivity : ComponentActivity() {
         if (refresh == null) navigation("토닥", tab = 0, name = "home")
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
+            dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
+            if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
             feedPostTargets.clear(); content.removeAllViews(); feedDeck = null
             val posts = objects(data.getJSONArray("posts")).sortedWith(
                 compareByDescending<JSONObject> {
@@ -977,12 +1081,18 @@ class MainActivity : ComponentActivity() {
                 release = { imageLoader.release(it) }, open = { detail(it) }, reply = { voice(it) },
                 changed = { post ->
                     feedPostId = post.getInt("id"); closeAssistantMenu(); stopPostAudio()
+                    feedDeck?.currentCard?.tag = "feed-post:${post.getInt("id")}"
                     updateAssistantContext(); assistant?.refreshPosition()
-                })
+                }, reservedHeaderHeight = (dailyEntry?.height?.takeIf { it > 0 } ?: ui.dp(if (large) 76 else 56)) + ui.dp(4))
             feedDeck = deck; feedPostId = deck.currentPost.getInt("id")
+            deck.currentCard.tag = "feed-post:${deck.currentPost.getInt("id")}"
             content.addView(deck, LinearLayout.LayoutParams(-1, -2))
             feedPostTargets.add(deck.currentCard to deck.currentPost)
             deck.post { updateAssistantContext(); assistant?.refreshPosition() }
+            if (restoreFeedScroll) {
+                restoreFeedScroll = false
+                deck.post { pageScroll?.scrollTo(0, feedScrollY) }
+            }
         }
     }
 
@@ -990,7 +1100,19 @@ class MainActivity : ComponentActivity() {
         if (!room.has("id")) { roomChoice(); return }
         navigation("가족 추억 찾기", { home() }, tab = 0, name = "memories")
         heading("함께 쌓아온 추억 찾기", "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.")
-        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved) {
+        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved,
+            renderPost = { parent, post ->
+                val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
+                    load = { image, source, url -> remotePhoto(image, source, url, thumbnail = true) },
+                    release = { imageLoader.release(it) },
+                    open = { source -> detail(source, returnToMemories = memoryPanel?.snapshot()) },
+                    reply = { source ->
+                        memoryReturn = memoryPanel?.snapshot()
+                        voice(source, fromDetail = true)
+                    }, changed = {}, showPagination = false)
+                deck.currentCard.tag = "feed-post:${post.getInt("id")}"
+                parent.addView(deck, LinearLayout.LayoutParams(-1, -2))
+            }) {
             val username = session?.optString("username").orEmpty()
             val userId = session?.optInt("user_id")
             val big = large
@@ -1068,9 +1190,12 @@ class MainActivity : ComponentActivity() {
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); parent.addView(row); ui.gap(parent, 14)
     }
     private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false,
-                       audioAction: PostAudioAction? = null) {
+                       audioAction: PostAudioAction? = null, returnToMemories: Bundle? = memoryReturn) {
         selectedPost = post
-        navigation("가족의 소식", { home() }, name = "detail")
+        navigation("가족의 소식", {
+            if (returnToMemories != null) familyMemories(returnToMemories) else home()
+        }, name = "detail")
+        memoryReturn = returnToMemories
         val client = api
         async({ client.request("posts/" + post.getInt("id") + "/") }) { data ->
             selectedPost = data
@@ -1362,6 +1487,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun leaveVoice(post: JSONObject) {
+        if (dailyVoicePurpose != null) { dailyVoicePurpose = null; dailyQuestions(dailyQuestionState); return }
         if (voiceFromDetail) detail(post) else home()
     }
     private fun finishRecording() {
@@ -1393,6 +1519,15 @@ class MainActivity : ComponentActivity() {
     }
     private fun prepareVoice(post: JSONObject) {
         recorder?.cancel()
+        dailyVoicePurpose?.let { purpose ->
+            dailyQuestionState = (dailyQuestionState ?: Bundle()).apply {
+                putString(if (purpose == "answer") "draftText" else "commentDraft", recognized)
+                if (purpose == "answer") { putString("source", "voice"); putBoolean("editing", true) }
+            }
+            dailyVoicePurpose = null; dailyQuestions(dailyQuestionState)
+            toast("글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.")
+            return
+        }
         val client = api; val data = json("recognized" to recognized)
         async({ client.request("posts/" + post.getInt("id") + "/replies/prepare/", "POST", data) }, "가족에게 전할 댓글을 정리하고 있어요.") { review(post, it) }
     }

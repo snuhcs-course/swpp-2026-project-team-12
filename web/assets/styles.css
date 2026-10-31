@@ -356,7 +356,9 @@ a.room-label:hover > span:first-of-type { color: var(--accent); }
 .memory-search .form-error { grid-column: 1 / -1; text-align: left; }
 .memory-search input { background: #faf8f2; }
 .search-answer { margin-top: 25px; padding: 32px; }
-.search-answer .eyebrow .icon { width: 16px; height: 16px; margin-right: 6px; }
+.memory-results > div { min-width: 0; }
+.search-answer .answer-text { margin: 0; }
+.memory-evidence { margin-top: 24px; }
 .answer-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 2; margin: 23px 0; font-size: .95rem; }
 .page-note { display: flex; align-items: center; gap: 10px; justify-content: center; font-size: .75rem; color: #a49782; margin-top: 28px; }
 .page-note .icon { width: 16px; height: 16px; }

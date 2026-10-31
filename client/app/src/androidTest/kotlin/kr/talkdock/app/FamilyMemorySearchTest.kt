@@ -3,10 +3,17 @@ package kr.talkdock.app
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
 import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.ScrollView
+import kr.talkdock.app.ui.PhotoCarousel
+import kr.talkdock.app.ui.PhotoLetterDeck
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -27,13 +34,13 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class FamilyMemorySearchTest {
-    private data class Request(val path: String, val method: String, val auth: String, val body: JSONObject)
-    private data class Reply(val text: String, val status: Int = 200)
+    private data class Request(val path: String, val method: String, val auth: String, val body: JSONObject, val room: String)
+    private data class Reply(val text: String, val status: Int = 200, val image: ByteArray? = null)
     private val family = JSONObject().put("id", 1).put("name", "추억 테스트 가족")
         .put("members", JSONArray()).put("invite_code", "MEMORY")
     private fun answer(text: String) = Reply(JSONObject().put("text", text).toString())
 
-    private inner class Server(val respond: (Request) -> Reply) : AutoCloseable {
+    private inner class Server(val posts: JSONArray = JSONArray(), val respond: (Request) -> Reply) : AutoCloseable {
         private val socket = ServerSocket(0)
         private val workers = Executors.newCachedThreadPool()
         val requests = Collections.synchronizedList(mutableListOf<Request>())
@@ -63,17 +70,28 @@ class FamilyMemorySearchTest {
                         offset += count
                     }
                     val request = Request(first[1], first[0], field("Authorization"),
-                        if (bytes.isEmpty()) JSONObject() else JSONObject(String(bytes, Charsets.UTF_8)))
+                        if (bytes.isEmpty()) JSONObject() else JSONObject(String(bytes, Charsets.UTF_8)), field("X-Family-Room"))
                     requests.add(request)
                     val reply = when (request.path) {
                         "/api/families/" -> Reply(JSONObject().put("rooms", JSONArray().put(family)).toString())
                         "/api/families/current/" -> Reply(family.toString())
-                        "/api/posts/" -> Reply(JSONObject().put("posts", JSONArray()).toString())
+                        "/api/posts/" -> Reply(JSONObject().put("posts", posts).toString())
                         else -> respond(request)
                     }
-                    val response = reply.text.toByteArray(Charsets.UTF_8)
+                    fun absolutePhotoUrls(value: Any?) {
+                        when (value) {
+                            is JSONObject -> value.keys().asSequence().toList().forEach { key ->
+                                if (key == "url" && value.optString(key) == "test-photo/") value.put(key, base + "test-photo/")
+                                else absolutePhotoUrls(value.opt(key))
+                            }
+                            is JSONArray -> (0 until value.length()).forEach { absolutePhotoUrls(value.opt(it)) }
+                        }
+                    }
+                    val json = runCatching { JSONObject(reply.text).also { absolutePhotoUrls(it) }.toString() }.getOrDefault(reply.text)
+                    val response = reply.image ?: json.toByteArray(Charsets.UTF_8)
+                    val type = if (reply.image != null) "image/png" else "application/json"
                     client.getOutputStream().apply {
-                        write("HTTP/1.1 ${reply.status} Test\r\nContent-Type: application/json\r\nContent-Length: ${response.size}\r\nConnection: close\r\n\r\n".toByteArray())
+                        write("HTTP/1.1 ${reply.status} Test\r\nContent-Type: $type\r\nContent-Length: ${response.size}\r\nConnection: close\r\n\r\n".toByteArray())
                         write(response); flush()
                     }
                 } } }
@@ -94,7 +112,7 @@ class FamilyMemorySearchTest {
             prefs.edit().clear().putString("current", user.toString()).putString("server", server.base).commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-            await { has("첫 소식을 기다리고 있어요") }
+            await { has("첫 소식을 기다리고 있어요") || views().any { it is PhotoLetterDeck } }
         }
         fun views(view: View = activity.window.decorView): List<View> = listOf(view) +
             if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
@@ -128,17 +146,31 @@ class FamilyMemorySearchTest {
             await { views().any { it is FamilyMemoryPanel } }
         }
         fun ask(text: String) = test.runOnMainSync { panel().input.setText(text); panel().searchButton.performClick() }
-        fun recreate() {
+        fun recreate(memory: Boolean = true) {
             val previous = activity
             test.runOnMainSync { previous.recreate() }
             await {
                 val next = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
                     .filterIsInstance<MainActivity>().firstOrNull { it !== previous }
                 if (next != null) activity = next
-                next != null && views().any { it is FamilyMemoryPanel }
+                next != null && (if (memory) views().any { it is FamilyMemoryPanel } else has("가족의 소식"))
             }
         }
+        fun scrollTo(view: View) = test.runOnMainSync {
+            val scroll = views().filterIsInstance<ScrollView>().first()
+            val rect = Rect(); view.getDrawingRect(rect)
+            scroll.offsetDescendantRectToMyCoords(view, rect)
+            scroll.scrollTo(0, rect.top)
+        }
         fun screenshot(name: String) {
+            test.waitForIdleSync()
+            val frames = CountDownLatch(1)
+            test.runOnMainSync {
+                activity.window.decorView.postOnAnimation {
+                    activity.window.decorView.postOnAnimation { frames.countDown() }
+                }
+            }
+            assertTrue(frames.await(3, TimeUnit.SECONDS))
             test.waitForIdleSync()
             val bitmap = test.uiAutomation.takeScreenshot()
             File(test.targetContext.cacheDir, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
@@ -242,7 +274,7 @@ class FamilyMemorySearchTest {
             screen.await { screen.views().filterIsInstance<TextView>().any { it.isShown && it.text.contains("다시 시도해 주세요") } }
             screen.test.runOnMainSync {
                 assertEquals("기록을 찾아줘", screen.panel().input.text.toString())
-                assertTrue(screen.panel().searchButton.isEnabled); assertFalse(screen.has("토닥이 찾은 이야기"))
+                assertTrue(screen.panel().searchButton.isEnabled); assertFalse(screen.views().any { it.tag == "memory-answer" })
             }
         } }
     }
@@ -254,7 +286,8 @@ class FamilyMemorySearchTest {
             screen.test.runOnMainSync { screen.panel().input.setText("다음에 물을 질문") }
             screen.recreate()
             screen.test.runOnMainSync {
-                assertTrue(screen.has("회전해도 남아 있는 답변")); assertTrue(screen.has("가족 여행"))
+                assertTrue(screen.has("회전해도 남아 있는 답변"))
+                assertEquals("가족 여행", screen.panel().snapshot().getString("question"))
                 assertEquals("다음에 물을 질문", screen.panel().input.text.toString())
             }
             assertEquals(1, server.searches().size)
@@ -291,10 +324,155 @@ class FamilyMemorySearchTest {
             screen.recreate()
             screen.test.runOnMainSync {
                 assertFalse(screen.has("이전 계정의 가족 답변"))
-                assertFalse(screen.has("토닥이 찾은 이야기"))
+                assertFalse(screen.views().any { it.tag == "memory-answer" })
                 assertEquals("", screen.panel().input.text.toString())
             }
             assertEquals(1, server.searches().size)
         } }
     }
+
+    private fun evidencePost(id: Int, photos: Int = 0) = JSONObject().put("id", id).put("author_id", 999)
+        .put("author_name", "추억 테스트 가족").put("relationship", "가족")
+        .put("created_at", "2026-10-01T09:00:00+09:00").put("caption", "가족과 부산 여행을 다녀왔어요. 소중한 하루였어요.")
+        .put("comment_count", 2).put("images", JSONArray().apply {
+            repeat(photos) { put(JSONObject().put("id", it).put("url", "test-photo/")) }
+        }).put("image_count", photos).put("comments", JSONArray())
+
+    private fun evidenceReply(posts: JSONArray, text: String = "부산으로 가족 여행을 다녀왔어요.") =
+        Reply(JSONObject().put("text", text).put("evidence_posts", posts).put("evidence_kind", "cited").toString())
+
+    private fun photoReply(): Reply {
+        val bitmap = Bitmap.createBitmap(640, 420, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap); canvas.drawColor(Color.rgb(217, 237, 246))
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(126, 173, 181) }
+        canvas.drawRect(0f, 270f, 640f, 420f, paint)
+        paint.color = Color.rgb(255, 219, 132); canvas.drawCircle(500f, 90f, 45f, paint)
+        paint.color = Color.rgb(83, 109, 121); paint.textSize = 40f
+        canvas.drawText("Family trip", 205f, 230f, paint)
+        val stream = ByteArrayOutputStream(); bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream); bitmap.recycle()
+        return Reply("", image = stream.toByteArray())
+    }
+
+    @Test fun evidenceUsesTheSameFullPostAsFeedInBothFontSizes() {
+        for (large in listOf(false, true)) {
+            val post = evidencePost(12, 2)
+            Server(JSONArray().put(post)) { request ->
+                if (request.path.endsWith("test-photo/")) photoReply()
+                else evidenceReply(JSONArray().put(post).put(post).put(evidencePost(9)))
+            }.use { server -> Screen(server, large).use { screen ->
+                var feedTexts = emptyList<String>()
+                screen.test.runOnMainSync {
+                    val card = screen.views().single { it.tag == "feed-post:12" }
+                    feedTexts = screen.views(card).filterIsInstance<TextView>()
+                        .filter { it !is android.widget.EditText }.map { it.text.toString() }
+                }
+                screen.open(); screen.ask("지난 가족 여행은?")
+                screen.await { screen.has("부산으로 가족 여행을 다녀왔어요.") && screen.views().any { it.tag == "feed-post:12" } }
+                screen.test.runOnMainSync {
+                    val card = screen.views().single { it.tag == "feed-post:12" }
+                    val evidenceTexts = screen.views(card).filterIsInstance<TextView>()
+                        .filter { it !is android.widget.EditText }.map { it.text.toString() }
+                    assertEquals(feedTexts, evidenceTexts)
+                    assertEquals(1, screen.views().count { it.tag == "feed-post:9" })
+                    assertEquals(0, screen.views(card).filterIsInstance<PhotoCarousel>().size)
+                    assertTrue(screen.views().any { it is PhotoLetterDeck })
+                    assertTrue(screen.has("이 이야기가 담긴 소식"))
+                    assertTrue(screen.views().any { it.contentDescription == "말로 답장하기" })
+                }
+                val card = screen.views().single { it.tag == "feed-post:12" }
+                screen.scrollTo(card)
+                screen.await { screen.views(card).filterIsInstance<android.widget.ImageView>().firstOrNull()
+                    ?.drawable is android.graphics.drawable.BitmapDrawable }
+                if (!large) {
+                    screen.scrollTo(screen.views().first { it.tag == "memory-answer" })
+                    screen.screenshot("memory-evidence-answer.png")
+                    screen.scrollTo(card)
+                }
+                screen.screenshot(if (large) "memory-evidence-large.png" else "memory-evidence-post.png")
+                screen.test.runOnMainSync {
+                    val open = screen.views(card).first { it.contentDescription == "소식과 댓글 자세히 보기" }
+                    assertTrue(open.isClickable)
+                }
+            } }
+        }
+    }
+
+    @Test fun evidenceDetailBackAndRecreationKeepAnswerDraftPostsAndScrollWithoutNewSearch() {
+        val post = evidencePost(12, 2)
+        Server { request -> when (request.path) {
+            "/api/posts/12/" -> Reply(post.toString())
+            "/api/test-photo/" -> photoReply()
+            else -> evidenceReply(JSONArray().put(post).put(evidencePost(9)))
+        } }.use { server -> Screen(server).use { screen ->
+            screen.open(); screen.ask("가족 여행")
+            screen.await { screen.has("부산으로 가족 여행을 다녀왔어요.") }
+            val card = screen.views().single { it.tag == "feed-post:12" }
+            screen.scrollTo(card)
+            var scrollY = 0
+            screen.test.runOnMainSync {
+                screen.panel().input.setText("다음에 물을 질문")
+                scrollY = screen.views().filterIsInstance<ScrollView>().first().scrollY
+                assertTrue(scrollY > 0)
+            }
+            screen.test.runOnMainSync {
+                val open = screen.views(card).first { it.contentDescription == "소식과 댓글 자세히 보기" }
+                open.performClick()
+            }
+            screen.await { screen.has("댓글 0") }
+            screen.recreate(memory = false)
+            screen.await { screen.has("댓글 0") }
+            screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
+            screen.await { screen.views().any { it is FamilyMemoryPanel } }
+            screen.await { screen.views().filterIsInstance<ScrollView>().first().scrollY > 0 }
+            screen.test.runOnMainSync {
+                assertEquals("다음에 물을 질문", screen.panel().input.text.toString())
+                assertTrue(screen.has("부산으로 가족 여행을 다녀왔어요."))
+                assertEquals(scrollY, screen.views().filterIsInstance<ScrollView>().first().scrollY)
+            }
+            screen.recreate()
+            screen.await { screen.views().filterIsInstance<ScrollView>().first().scrollY > 0 }
+            screen.test.runOnMainSync {
+                assertEquals("다음에 물을 질문", screen.panel().input.text.toString())
+                assertEquals(2, screen.views().count { it.tag?.toString()?.startsWith("feed-post:") == true })
+            }
+            assertEquals(1, server.searches().size)
+        } }
+    }
+
+    @Test fun deployedServerSourcesOpenAuthenticatedOriginalPostsAndSkipDeletedOnes() {
+        Server { request -> when (request.path) {
+            "/api/posts/12/" -> Reply(evidencePost(12).toString())
+            "/api/posts/9/" -> Reply("{}", 404)
+            else -> Reply("""{"text":"운영 서버 형식의 답변","memories":[{"sources":[
+                {"id":"first","name":"post_12"},{"id":"duplicate","name":"post_12"},
+                {"id":"deleted","name":"post_9"},{"id":"family","name":"family_1"}]}]}""")
+        } }.use { server -> Screen(server).use { screen ->
+            screen.open(); screen.ask("옛 여행")
+            screen.await { screen.has("운영 서버 형식의 답변") }
+            screen.test.runOnMainSync {
+                assertEquals(1, screen.views().count { it.tag == "feed-post:12" })
+                assertFalse(screen.views().any { it.tag == "feed-post:9" })
+                assertFalse(screen.has("답변을 만들 때 검색한 소식이에요."))
+            }
+            val fetched = server.requests.filter { it.path.matches(Regex("/api/posts/[0-9]+/")) }
+            assertEquals(2, fetched.size)
+            assertTrue(fetched.all { it.auth == "Bearer memory-test-token" && it.room == "1" })
+        } }
+    }
+
+    @Test fun newSearchClearsOldEvidenceAndNoSourcesShowsEmptyState() {
+        Server { request -> if (request.body.optString("question") == "첫 질문") evidenceReply(JSONArray().put(evidencePost(12)))
+            else evidenceReply(JSONArray(), "관련 기록을 찾지 못했어요.")
+        }.use { server -> Screen(server).use { screen ->
+            screen.open(); screen.ask("첫 질문")
+            screen.await { screen.views().any { it.tag == "feed-post:12" } }
+            screen.ask("다음 질문")
+            screen.await { screen.has("관련 기록을 찾지 못했어요.") }
+            screen.test.runOnMainSync {
+                assertTrue(screen.has("연결된 원문 게시글이 없어요."))
+                assertFalse(screen.views().any { it.tag == "feed-post:12" })
+            }
+        } }
+    }
+
 }

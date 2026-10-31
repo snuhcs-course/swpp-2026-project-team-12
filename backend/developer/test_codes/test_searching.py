@@ -25,7 +25,7 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
 from apps.posts.models import Post
 from apps.searching import services
-from integrations.ai import feed_description, flow, prompts, provider
+from integrations.ai import feed_description, flow, prompts, provider, history_evidence
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member
@@ -50,7 +50,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         with patch.object(services, "search_history", return_value=result) as search:
             response = self.post("/api/searching/history/", {"question": " 준하의 부모 ", "family_id": 999})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), result)
+        self.assertEqual(response.json(), {**result, "evidence_posts": [], "evidence_kind": "retrieved"})
         self.assertEqual(response["Cache-Control"], "no-store")
         search.assert_called_once_with(self.room.pk, "준하의 부모")
 
@@ -251,7 +251,7 @@ class MemoryFlowTests(SimpleTestCase):
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
                                 search_=AsyncMock(return_value=SimpleNamespace(edges=[edge, other_edge], episodes=[])),
                                 driver=SimpleNamespace(execute_query=AsyncMock(return_value=([source], None, None))))
-        response = SimpleNamespace(status="completed", output_text="엄마는 수진, 아빠는 도윤이에요.")
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "엄마는 수진, 아빠는 도윤이에요.", "source_episode_ids": ["episode"]}))
         with patch.object(flow, "AsyncOpenAI") as sdk:
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=response)
@@ -265,7 +265,9 @@ class MemoryFlowTests(SimpleTestCase):
         self.assertEqual(graph.driver.execute_query.call_args.kwargs["group_id"], "family_1")
         client.responses.create.assert_awaited_once()
         self.assertNotIn("tools", client.responses.create.call_args.kwargs)
-        self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.HISTORY_INSTRUCTIONS)
+        self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.HISTORY_INSTRUCTIONS + history_evidence.INSTRUCTIONS)
+        self.assertEqual(result["source_episode_ids"], ["episode"])
+        self.assertEqual(client.responses.create.call_args.kwargs["text"], history_evidence.ANSWER_FORMAT)
 
     def test_no_evidence_does_not_invent_an_answer(self):
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
@@ -286,14 +288,14 @@ class MemoryFlowTests(SimpleTestCase):
             search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[episode])),
             driver=SimpleNamespace(execute_query=AsyncMock()),
         )
-        response = SimpleNamespace(status="completed", output_text="장하의 운동 기록을 찾았어요.")
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "장하의 운동 기록을 찾았어요.", "source_episode_ids": ["episode"]}))
         with patch.object(flow, "AsyncOpenAI") as sdk:
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=response)
             result = asyncio.run(flow.answer_with_memory(
                 partial(searching_graphiti.search_many, graph, 1), "장하 운동", "family_history",
             ))
-        self.assertEqual(result["text"], response.output_text)
+        self.assertEqual(result["text"], json.loads(response.output_text)["text"])
         memory, = result["memories"]
         self.assertEqual(memory["fact"], episode.content)
         self.assertIsNone(memory["valid_at"])
@@ -460,7 +462,7 @@ class MemoryFlowTests(SimpleTestCase):
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
                                 search_=AsyncMock(return_value=SimpleNamespace(edges=[edge], episodes=[])),
                                 driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))))
-        response = SimpleNamespace(status="completed", output_text="수진과 도윤이에요.")
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "수진과 도윤이에요.", "source_episode_ids": ["episode"]}))
         with patch.object(flow, "AsyncOpenAI") as sdk:
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=response)

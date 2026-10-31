@@ -4,6 +4,7 @@ from django.urls import path
 from apps.accounts import views as accounts
 from apps.families import views as families
 from apps.posts import views as posts
+from apps.posts import daily_questions
 from apps.replies import views as replies
 from apps.digests import views as digests
 from apps.searching import views as searching
@@ -28,6 +29,10 @@ urlpatterns = [
     path("api/families/join/", families.join, name="family-join"),
     path("api/families/current/", families.current, name="family-current"),
     path("api/posts/", posts.feed, name="post-feed"),
+    path("api/daily-questions/today/", daily_questions.today, name="daily-question-today"),
+    path("api/daily-questions/history/", daily_questions.history, name="daily-question-history"),
+    path("api/daily-questions/<int:pk>/", daily_questions.detail, name="daily-question-detail"),
+    path("api/daily-questions/<int:pk>/answer/", daily_questions.answer, name="daily-question-answer"),
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
     path("api/posts/<int:pk>/images/<int:image_index>/", posts.photo, name="post-indexed-image"),

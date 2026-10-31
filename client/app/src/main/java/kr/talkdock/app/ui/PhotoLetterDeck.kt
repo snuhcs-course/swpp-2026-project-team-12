@@ -23,6 +23,8 @@ class PhotoLetterDeck(
     selectedId: Int?, private val load: (ImageView, JSONObject, String) -> Unit,
     private val release: (ImageView) -> Unit, private val open: (JSONObject) -> Unit,
     private val reply: (JSONObject) -> Unit, private val changed: (JSONObject) -> Unit,
+    private val showPagination: Boolean = true,
+    private var reservedHeaderHeight: Int = 0,
 ) : LinearLayout(context) {
     var currentIndex = posts.indexOfFirst { it.optInt("id") == selectedId }.coerceAtLeast(0)
         private set
@@ -64,8 +66,14 @@ class PhotoLetterDeck(
     private var startY = 0f
     private var horizontal = false
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
-    private val photoHeight: Int get() = ui.dp((resources.displayMetrics.heightPixels /
-        resources.displayMetrics.density - if (large) 570 else 490).toInt().coerceIn(210, 430))
+    private val photoHeight: Int get() = (ui.dp((resources.displayMetrics.heightPixels /
+        resources.displayMetrics.density - if (large) 570 else 490).toInt().coerceIn(210, 430)) - reservedHeaderHeight).coerceAtLeast(ui.dp(150))
+
+    fun reserveHeaderSpace(height: Int) {
+        if (reservedHeaderHeight == height) return
+        reservedHeaderHeight = height
+        render()
+    }
 
     init {
         require(posts.isNotEmpty())
@@ -75,7 +83,7 @@ class PhotoLetterDeck(
         currentCard.clipToOutline = true; currentCard.elevation = ui.dp(2).toFloat()
         stack.addView(currentCard, FrameLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(4) })
         addView(stack, LayoutParams(-1, -2))
-        val pagination = ui.row()
+        val pagination = ui.row().apply { visibility = if (showPagination) View.VISIBLE else View.GONE }
         pagination.addView(previous, LayoutParams(ui.dp(48), ui.dp(48)))
         pagination.addView(count, LayoutParams(0, -2, 1f))
         pagination.addView(next, LayoutParams(ui.dp(48), ui.dp(48)))
@@ -149,8 +157,8 @@ class PhotoLetterDeck(
         })
         val words = ui.column().apply { setPadding(ui.dp(22), ui.dp(18), ui.dp(18), 0) }
         body.addView(words, LayoutParams(-1, -2))
-        ui.label(words, post.optString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 28f else 25f, true).apply {
-            maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END
+        ui.label(words, post.optString("caption").ifBlank { "사진으로 남긴 오늘의 하루" }, if (large) 28f else 16f, true).apply {
+            maxLines = if (large) 3 else 1; ellipsize = android.text.TextUtils.TruncateAt.END
             isClickable = true; isFocusable = true; contentDescription = "소식과 댓글 자세히 보기"
             setOnClickListener { open(post) }
         }

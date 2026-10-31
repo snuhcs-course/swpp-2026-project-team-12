@@ -55,11 +55,30 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         finally { cancellation?.release(connection); connection.disconnect() }
     }
 
-    fun searchHistory(question: String, cancellation: RequestCancellation): String {
-        val text = request("searching/history/", "POST", JSONObject().put("question", question.trim()),
-            readTimeoutMillis = 150_000, cancellation = cancellation).getString("text")
-        if (text.isBlank()) throw ApiException("추억을 찾지 못했어요. 잠시 후 다시 시도해 주세요.")
-        return text
+    fun searchHistory(question: String, cancellation: RequestCancellation): MemorySearchResult {
+        val response = request("searching/history/", "POST", JSONObject().put("question", question.trim()),
+            readTimeoutMillis = 150_000, cancellation = cancellation)
+        val result = MemorySearchResult.fromJson(response)
+        if (response.has("evidence_posts")) return result
+        // Older servers already return source episode names. Use only those IDs,
+        // never URLs/text invented by the answer. Every fetch is authenticated.
+        val posts = mutableListOf<JSONObject>()
+        var unavailable = false
+        val started = System.nanoTime()
+        for (id in MemorySearchResult.legacyPostIds(response)) {
+            if ((System.nanoTime() - started) / 1_000_000_000 >= 30) { unavailable = true; break }
+            try {
+                val post = request("posts/$id/", readTimeoutMillis = 10_000, cancellation = cancellation)
+                if (post.optInt("id") == id) posts.add(post) else unavailable = true
+            } catch (error: Exception) {
+                if (error is InterruptedIOException && error !is SocketTimeoutException) throw error
+                if (error is ApiException && error.status == 401) throw error
+                if (error !is ApiException || error.status !in listOf(403, 404)) unavailable = true
+            }
+        }
+        val normalized = MemorySearchResult.fromJson(result.copy(posts = posts,
+            cited = response.has("source_episode_ids"), unavailable = unavailable).toJson())
+        return normalized.copy(unavailable = unavailable || normalized.posts.size != posts.size)
     }
 
     fun upload(photo: File, caption: String): JSONObject {
