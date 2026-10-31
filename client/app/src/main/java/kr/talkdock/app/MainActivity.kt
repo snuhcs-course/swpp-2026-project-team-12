@@ -260,10 +260,7 @@ class MainActivity : ComponentActivity() {
         out.putInt("feedPostId", feedPostId ?: -1)
         out.putInt("feedScrollY", if (screen == "home") pageScroll?.scrollY ?: 0 else feedScrollY)
         out.putBoolean("restoreFeedScroll", restoreFeedScroll || screen == "home")
-        val dailyState = dailyPanel?.snapshot() ?: dailyQuestionState
-        out.putBundle("dailyQuestion", dailyState?.apply {
-            putInt("userId", session?.optInt("user_id") ?: -1); putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
-        })
+        out.putBundle("dailyQuestion", dailyPanel?.snapshot() ?: dailyQuestionState)
         out.putString("dailyVoicePurpose", dailyVoicePurpose)
         out.putString("digestDate", digestDate)
         if (screen == "memories") out.putBundle("memories", memoryPanel?.snapshot()?.apply {
@@ -365,7 +362,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun questionEntry() = DailyQuestionEntryView(this, ui, large) { if (!busy) dailyQuestions() }.apply {
+    private fun questionEntry() = DailyQuestionEntryView(this, ui, large) { if (!busy) dailyQuestions(openToday = true) }.apply {
         dailyEntry = this
         addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
             feedDeck?.reserveHeaderSpace(view.height + ui.dp(4))
@@ -397,11 +394,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun dailyQuestions(saved: Bundle? = null) {
+    private fun dailyQuestions(saved: Bundle? = dailyQuestionState, openToday: Boolean = false) {
+        val restored = saved?.takeIf {
+            it.getInt("userId", -1) == session?.optInt("user_id") && it.getInt("roomId", -1) == room.optInt("id", -1) &&
+                it.getString("server") == sessions.serverUrl()
+        }?.let { Bundle(it) }
         if (screen == "home") { feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true }
         navigation("오늘의 질문", { home() }, name = "dailyQuestion")
-        dailyQuestionState = saved
-        dailyPanel = DailyQuestionPanel(this, ui, large, api, questions, session!!.getInt("user_id"), saved,
+        dailyQuestionState = restored
+        dailyPanel = DailyQuestionPanel(this, ui, large, api, questions, session!!.getInt("user_id"), room.getInt("id"),
+            sessions.serverUrl(), restored, openToday,
             onSeen = { data ->
                 if (data.optString("date") == LocalDate.now(ZoneId.of("Asia/Seoul")).toString()) {
                     dailyStatus = data

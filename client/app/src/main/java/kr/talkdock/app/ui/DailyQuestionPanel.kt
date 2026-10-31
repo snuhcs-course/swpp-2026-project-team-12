@@ -19,7 +19,8 @@ import java.util.concurrent.ExecutorService
 class DailyQuestionPanel(
     context: Context, private val ui: Ui, private val large: Boolean,
     private val api: ApiClient, private val executor: ExecutorService, private val userId: Int,
-    private val restored: Bundle? = null, private val onSeen: (JSONObject) -> Unit,
+    private val roomId: Int, private val serverUrl: String,
+    private val restored: Bundle? = null, openToday: Boolean = false, private val onSeen: (JSONObject) -> Unit,
     private val onVoice: (Int, String) -> Unit,
 ) : LinearLayout(context) {
     private var question: JSONObject? = null
@@ -41,7 +42,9 @@ class DailyQuestionPanel(
 
     init {
         orientation = VERTICAL
-        post { load(restored?.getInt("questionId", 0)?.takeIf { it > 0 }) }
+        // A feed preview always resolves today's question first, including after
+        // midnight. Historic/voice navigation can explicitly restore its question.
+        post { load(if (openToday) null else restored?.getInt("questionId", 0)?.takeIf { it > 0 }) }
     }
 
     private fun objects(data: JSONObject, key: String): List<JSONObject> {
@@ -52,6 +55,7 @@ class DailyQuestionPanel(
     fun snapshot(): Bundle {
         capture()
         return Bundle().apply {
+            putInt("userId", userId); putInt("roomId", roomId); putString("server", serverUrl)
             putInt("questionId", question?.optInt("id") ?: restored?.getInt("questionId", 0) ?: 0)
             putString("title", question?.optString("title").orEmpty())
             putBoolean("editing", editing); putString("choice", choice); putString("tiers", tiers.toString())
@@ -101,12 +105,15 @@ class DailyQuestionPanel(
         request({ api.request(if (id == null) "daily-questions/today/" else "daily-questions/$id/") }, { data ->
             question = data
             val mine = objects(data, "answers").firstOrNull { it.optInt("author_id") == userId }
-            if (!restoredApplied && restored != null) restoredApplied = true else {
+            val restoreDraft = !restoredApplied && restored?.getInt("questionId", 0) == data.getInt("id")
+            if (!restoreDraft) {
                 editing = mine == null; choice = mine?.optString("choice").orEmpty()
                 otherText = mine?.optString("other_text").orEmpty()
                 draftText = mine?.optString("text").orEmpty(); tiers = mine?.optJSONObject("tiers") ?: JSONObject()
                 source = mine?.optString("source") ?: "text"
+                commentDraft = ""
             }
+            restoredApplied = true
             onSeen(data); render()
         })
     }
