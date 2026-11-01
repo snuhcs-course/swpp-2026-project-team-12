@@ -318,24 +318,29 @@ class MainActivity : ComponentActivity() {
         }
         val mainPage = name == "home" || name == "digest"
         if (mainPage) {
-            // Equal-weight sides keep the family name centered on screen, not between logo and buttons.
+            // Symmetric insets plus a logo slot as wide as the buttons keep the family name centered on
+            // screen; the logo sits slightly inset so the gap beside the name does not look lopsided.
+            // The roomier bottom clears the daily question card.
+            header.setPadding(ui.dp(16), ui.dp(8), ui.dp(16), ui.dp(12))
+            val actionsWidth = ui.dp(48 + 8 + 48)
             val brand = ui.row()
             brand.addView(ImageView(this).apply {
                 setImageResource(R.drawable.todak_logo); adjustViewBounds = true; contentDescription = "토닥"
-            }, LinearLayout.LayoutParams(-2, ui.dp(52)))
-            header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
+            }, LinearLayout.LayoutParams(-2, ui.dp(52)).apply { marginStart = ui.dp(20) })
+            header.addView(brand, LinearLayout.LayoutParams(actionsWidth, -2))
+            val center = FrameLayout(this)
+            header.addView(center, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8); marginEnd = ui.dp(8) })
             room.optString("name").takeIf { it.isNotBlank() }?.let { name ->
-                header.addView(ui.text(name, if (large) 18f else 15f, true, ui.coralDeep).apply {
+                center.addView(ui.text(name, if (large) 20f else 17f, true, ui.coralDeep).apply {
                     gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
-                    maxWidth = ui.dp(if (large) 180 else 150)
-                    background = ui.shape(ui.blush, 18); setPadding(ui.dp(14), ui.dp(6), ui.dp(14), ui.dp(6))
+                    background = ui.shape(ui.blush, 22); setPadding(ui.dp(18), ui.dp(9), ui.dp(18), ui.dp(9))
                     contentDescription = "현재 가족방 $name, 가족방 바꾸기"
                     isClickable = true; isFocusable = true
                     setOnClickListener { if (!busy) roomChoice() }
-                }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = ui.dp(8); marginEnd = ui.dp(8) })
+                }, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
             }
-            val actions = ui.row().apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
-            header.addView(actions, LinearLayout.LayoutParams(0, -2, 1f))
+            val actions = ui.row()
+            header.addView(actions, LinearLayout.LayoutParams(actionsWidth, -2))
             actions.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
                 background = ui.shape(ui.sky, 28)
             })
