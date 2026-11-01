@@ -29,7 +29,7 @@ class DailyQuestionEntryView(context: Context, ui: Ui, large: Boolean, onOpen: (
         setOnClickListener { onOpen() }
         addView(IconView(context, "chat", ui.coralDeep), LayoutParams(ui.dp(26), ui.dp(26)))
         val words = ui.column()
-        ui.label(words, "오늘의 질문", if (large) 16f else 12f, true, ui.coralDeep).importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        ui.label(words, "오늘의 질문", if (large) 22f else 16f, true, ui.coralDeep).importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         ui.gap(words, 2); words.addView(preview)
         addView(words, LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(10); marginEnd = ui.dp(8) })
         addView(unreadDot, LayoutParams(ui.dp(7), ui.dp(7)).apply { marginEnd = ui.dp(8) })

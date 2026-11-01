@@ -32,6 +32,7 @@ import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.PhotoLetterDeck
 import kr.talkdock.app.ui.VoiceRecordingView
 import kr.talkdock.app.ui.IconView
+import kr.talkdock.app.ui.FeedCalendarSheet
 import kr.talkdock.app.ui.CommentComposer
 import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.FamilyMemoryPanel
@@ -81,6 +82,7 @@ class MainActivity : ComponentActivity() {
     private var memoryPanel: FamilyMemoryPanel? = null
     private var memoryTabState: Bundle? = null
     private var memoryReturn: Bundle? = null
+    private var calendarDialog: Dialog? = null
     private var assistant: FloatingAssistantView? = null
     private var assistantDialog: Dialog? = null
     private var assistantMenu: AssistantBubbleMenu? = null
@@ -285,7 +287,7 @@ class MainActivity : ComponentActivity() {
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
-        assistantDialog?.dismiss(); profileMenuDialog?.dismiss()
+        assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss()
         stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
@@ -311,6 +313,7 @@ class MainActivity : ComponentActivity() {
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
         imageLoader.clearViews(); root.removeAllViews(); memoryPanel = null
         if (name !in setOf("detail", "voice", "review")) memoryReturn = null
+        calendarDialog?.dismiss()
         page = ui.column(); root.addView(page, FrameLayout.LayoutParams(-1, -1))
         val header = ui.row().apply { setPadding(ui.dp(20), ui.dp(8), ui.dp(16), ui.dp(4)); minimumHeight = ui.dp(64) }
         if (name == "dailyQuestion" && !large) {
@@ -318,16 +321,18 @@ class MainActivity : ComponentActivity() {
         }
         val mainPage = name == "home" || name == "digest"
         if (mainPage) {
-            // Symmetric insets plus a logo slot as wide as the buttons keep the family name centered on
-            // screen; the logo sits slightly inset so the gap beside the name does not look lopsided.
-            // The roomier bottom clears the daily question card.
+            // Equal-width side slots (logo + write, calendar + profile) keep the family name centered on
+            // screen. The roomier bottom clears the daily question card.
             header.setPadding(ui.dp(16), ui.dp(8), ui.dp(16), ui.dp(12))
-            val actionsWidth = ui.dp(48 + 8 + 48)
+            val slotWidth = ui.dp(108)
             val brand = ui.row()
             brand.addView(ImageView(this).apply {
                 setImageResource(R.drawable.todak_logo); adjustViewBounds = true; contentDescription = "토닥"
-            }, LinearLayout.LayoutParams(-2, ui.dp(52)).apply { marginStart = ui.dp(20) })
-            header.addView(brand, LinearLayout.LayoutParams(actionsWidth, -2))
+            }, LinearLayout.LayoutParams(-2, ui.dp(52)))
+            brand.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
+                background = ui.shape(ui.sky, 28)
+            }, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(4) })
+            header.addView(brand, LinearLayout.LayoutParams(slotWidth, -2))
             val center = FrameLayout(this)
             header.addView(center, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8); marginEnd = ui.dp(8) })
             room.optString("name").takeIf { it.isNotBlank() }?.let { name ->
@@ -339,9 +344,9 @@ class MainActivity : ComponentActivity() {
                     setOnClickListener { if (!busy) roomChoice() }
                 }, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
             }
-            val actions = ui.row()
-            header.addView(actions, LinearLayout.LayoutParams(actionsWidth, -2))
-            actions.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
+            val actions = ui.row().apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
+            header.addView(actions, LinearLayout.LayoutParams(slotWidth, -2))
+            actions.addView(ui.iconButton("calendar", "날짜별 소식 보기") { if (!busy) pickFeedDate() }.apply {
                 background = ui.shape(ui.sky, 28)
             })
             val profile = ui.text(session?.optString("name").orEmpty().take(1).ifBlank { "나" }, 16f, true).apply {
@@ -488,7 +493,7 @@ class MainActivity : ComponentActivity() {
 
     private fun updateAssistantContext() {
         val button = assistant ?: return
-        button.visibility = if (busy || assistantDialog != null || profileMenuDialog != null) View.INVISIBLE else View.VISIBLE
+        button.visibility = if (busy || assistantDialog != null || profileMenuDialog != null || calendarDialog != null) View.INVISIBLE else View.VISIBLE
         assistantPost = when {
             busy -> null
             screen == "detail" -> selectedPost
@@ -1577,25 +1582,45 @@ class MainActivity : ComponentActivity() {
         }
         ui.button(content, "다시 말하기", false, 76) { voice(post, voiceFromDetail) }
     }
+    /** Calendar shortcut from the main header: any past or current day opens that day's collected posts. */
+    private fun pickFeedDate() {
+        val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
+        val selected = runCatching { LocalDate.parse(digestDate) }.getOrDefault(today).let { if (it.isAfter(today)) today else it }
+        if (calendarDialog != null) return
+        closeAssistantMenu()
+        val dialog = Dialog(this)
+        calendarDialog = dialog
+        dialog.setContentView(FeedCalendarSheet(this, ui, large, selected, today) { day ->
+            dialog.dismiss(); digest(day.toString())
+        })
+        dialog.setOnDismissListener { if (calendarDialog === dialog) calendarDialog = null; updateAssistantContext() }
+        dialog.show()
+        dialog.window?.apply {
+            setBackgroundDrawableResource(android.R.color.transparent)
+            setGravity(Gravity.BOTTOM); setLayout(-1, -2); setDimAmount(.25f)
+        }
+        updateAssistantContext()
+    }
+
     private fun digest(date: String = digestDate, retry: Boolean = false) {
         digestDate = date
         navigation("하루", { home() }, name = "digest")
         val client = api
         val letter = ui.card(content, ui.paper, padding = if (large) 20 else 22, stroke = false)
         val formattedDate = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("M월 d일 EEEE", java.util.Locale.KOREAN)) }.getOrDefault(date)
-        val datePicker = ui.text(formattedDate + "  ⌄", if (large) 20f else 16f, color = ui.muted).apply {
+        val datePicker = ui.row().apply {
             gravity = Gravity.CENTER; minimumHeight = ui.dp(48); isClickable = true; isFocusable = true
-            contentDescription = "하루 요약 날짜 선택"
-            setOnClickListener {
-                async({ client.request("digests/history/") }) { data ->
-                    val dates = data.getJSONArray("dates")
-                    val options = (0 until dates.length()).map { dates.getString(it) }.toTypedArray()
-                    if (options.isEmpty()) toast("아직 지난 하루 요약이 없어요.")
-                    else AlertDialog.Builder(this@MainActivity).setTitle("지난 하루 요약").setItems(options) { _, index -> digest(options[index]) }.show()
-                }
-            }
+            contentDescription = "하루 요약 날짜 선택, $formattedDate"
+            // Same calendar sheet as the header button, opened on the day being shown.
+            setOnClickListener { if (!busy) pickFeedDate() }
         }
-        letter.addView(datePicker); ui.gap(letter, 12)
+        datePicker.addView(ui.text(formattedDate, if (large) 20f else 16f, color = ui.muted).apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        })
+        val arrowSize = ui.dp(if (large) 20 else 16)
+        datePicker.addView(IconView(this, "next", ui.muted).apply { importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO },
+            LinearLayout.LayoutParams(arrowSize, arrowSize).apply { marginStart = ui.dp(6) })
+        letter.addView(datePicker, LinearLayout.LayoutParams(-1, -2)); ui.gap(letter, 12)
         ui.label(letter, "오늘도, 함께", if (large) 36f else 32f, true).gravity = Gravity.CENTER
         ui.gap(letter, 24)
         async({ if (retry) client.request("digests/", "POST", json("date" to date)) else client.request("digests/?date=" + date) }) { data ->

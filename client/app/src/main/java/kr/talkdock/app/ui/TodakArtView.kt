@@ -39,7 +39,7 @@ object FigmaIcons {
         val variant = if (color == android.graphics.Color.rgb(166, 78, 68)) "active" else "idle"
         val filename = when (symbol) {
             "feed", "home", "family", "settings" -> "td_icon_${if (symbol == "feed") "home" else symbol}_$variant"
-            "write", "back", "listen", "mic", "photo", "comment", "next", "close" -> "td_icon_$symbol"
+            "write", "back", "listen", "mic", "photo", "comment", "next", "close", "calendar" -> "td_icon_$symbol"
             else -> return null // Existing app-specific controls retain their native icons.
         }
         return pictures.getOrPut(filename) {
