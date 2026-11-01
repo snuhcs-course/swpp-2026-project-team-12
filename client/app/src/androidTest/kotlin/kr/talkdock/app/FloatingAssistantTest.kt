@@ -81,7 +81,7 @@ class FloatingAssistantTest {
         override fun close() { socket.close(); executor.shutdownNow(); thread.join(1000) }
     }
 
-    private inner class Screen(server: Server) : AutoCloseable {
+    private inner class Screen(server: Server, large: Boolean = false) : AutoCloseable {
         val test = InstrumentationRegistry.getInstrumentation()
         private val sessionPrefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
         private val positionPrefs = test.targetContext.getSharedPreferences("talkdock-assistant-letter", Context.MODE_PRIVATE)
@@ -90,7 +90,7 @@ class FloatingAssistantTest {
         var activity: MainActivity
         init {
             val user = JSONObject().put("user_id", 999).put("username", "assistant-test")
-                .put("token", "local-test-token").put("room", family).put("large", false)
+                .put("token", "local-test-token").put("room", family).put("large", large)
             sessionPrefs.edit().clear().putString("server", server.base).putString("current", user.toString()).commit()
             positionPrefs.edit().clear().commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
@@ -172,6 +172,61 @@ class FloatingAssistantTest {
             test.runOnMainSync { activity.finish() }; test.waitForIdleSync()
             restore(sessionPrefs, savedSession); restore(positionPrefs, savedPosition)
         }
+    }
+
+    @Test fun characterMovesKeepProfileAuthorDateAndCaptionInPlace() {
+        for (large in listOf(false, true)) Server().use { server -> Screen(server, large).use { screen ->
+            fun settle() = screen.await {
+                val deck = screen.views().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
+                !deck.isLayoutRequested && deck.currentCard.translationX == 0f && deck.currentCard.alpha == 1f
+            }
+            fun textBounds(id: Int): Map<String, android.graphics.Rect> {
+                var result = emptyMap<String, android.graphics.Rect>()
+                screen.test.runOnMainSync {
+                    val texts = screen.views().filterIsInstance<TextView>()
+                    val targets = linkedMapOf(
+                        "caption" to texts.first { it.text.startsWith("소식 $id\n") },
+                        "profile" to texts.single { it.contentDescription == "작성자$id 프로필" },
+                        "author" to texts.single { it.text.toString() == "작성자$id" },
+                        "date" to texts.single { it.text.toString().contains("10월 26일") },
+                    )
+                    result = targets.mapValues { (_, view) ->
+                        val point = IntArray(2); view.getLocationOnScreen(point)
+                        android.graphics.Rect(point[0], point[1], point[0] + view.width, point[1] + view.height)
+                    }
+                }
+                return result
+            }
+            screen.center(2); settle()
+            val original = textBounds(2)
+            var right = 0f
+            screen.test.runOnMainSync { right = screen.button().x }
+            screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu } }
+            screen.drag(-1500f, 0f); settle()
+            assertEquals("Dragging left must not move or resize text (large=$large)", original, textBounds(2))
+            screen.test.runOnMainSync {
+                assertTrue(screen.button().x < right)
+                assertEquals(1f, screen.character().scaleX, 0f)
+                assertEquals(2, screen.button().tag)
+                assertTrue(screen.views().none { it is AssistantBubbleMenu })
+            }
+            screen.drag(1500f, 0f); settle()
+            assertEquals("Dragging right must not move or resize text (large=$large)", original, textBounds(2))
+            screen.test.runOnMainSync {
+                assertEquals(right, screen.button().x, 2f)
+                assertEquals(-1f, screen.character().scaleX, 0f)
+            }
+            screen.recreate(); settle()
+            assertEquals("Reopening must retain the text layout", original, textBounds(2))
+            screen.center(3); settle()
+            val next = textBounds(3)
+            for (edge in listOf(FloatingAssistantView.ACTION_LEFT, FloatingAssistantView.ACTION_RIGHT)) {
+                screen.test.runOnMainSync { screen.button().performAccessibilityAction(edge, null) }
+                settle()
+                assertEquals("Accessible moves on another post must keep text fixed", next, textBounds(3))
+            }
+            assertTrue(server.questionPaths.isEmpty())
+        } }
     }
 
     @Test fun pagingChangesThePostWhileDraggingOnlyMovesTheCharacter() {

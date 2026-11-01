@@ -32,8 +32,6 @@ class PhotoLetterDeck(
     val currentPost get() = posts[currentIndex]
     val currentCard = FrameLayout(context)
     val botPocket = FrameLayout(context)
-    private var assistantOnLeft = false
-    private var metadata: LinearLayout? = null
     private val stack = object : FrameLayout(context) {
         private val paperPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
         private val edgePaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -100,16 +98,6 @@ class PhotoLetterDeck(
         return listOfNotNull(post.optString("image_url").takeIf { it.isNotBlank() && it != "null" })
     }
 
-    fun setAssistantOnLeft(onLeft: Boolean) {
-        if (assistantOnLeft == onLeft) return
-        assistantOnLeft = onLeft
-        metadata?.layoutParams = metadataLayoutParams()
-    }
-
-    private fun metadataLayoutParams() = FrameLayout.LayoutParams(-1, -1).apply {
-        if (assistantOnLeft) marginStart = ui.dp(54) else marginEnd = ui.dp(54)
-    }
-
     fun show(index: Int) {
         val safe = index.coerceIn(0, posts.lastIndex)
         if (safe == currentIndex) return
@@ -162,7 +150,7 @@ class PhotoLetterDeck(
             isClickable = true; isFocusable = true; contentDescription = "소식과 댓글 자세히 보기"
             setOnClickListener { open(post) }
         }
-        // Keep author and date together, reserving space on the bot's current edge.
+        // Keep author and date fixed while the assistant moves independently.
         (botPocket.parent as? android.view.ViewGroup)?.removeView(botPocket)
         botPocket.removeAllViews()
         val time = runCatching { OffsetDateTime.parse(post.optString("created_at"))
@@ -180,8 +168,7 @@ class PhotoLetterDeck(
         authorRow.addView(ui.text(time, if (large) 14f else 13f, color = ui.muted).apply {
             gravity = Gravity.END or Gravity.CENTER_VERTICAL; maxLines = 2
         }, LayoutParams(ui.dp(if (large) 120 else 112), -2).apply { marginStart = ui.dp(10) })
-        metadata = authorRow
-        botPocket.addView(authorRow, metadataLayoutParams())
+        botPocket.addView(authorRow, FrameLayout.LayoutParams(-1, -1).apply { marginEnd = ui.dp(54) })
         words.addView(botPocket, LayoutParams(-1, ui.dp(76)))
         previous.isEnabled = currentIndex > 0; next.isEnabled = currentIndex < posts.lastIndex
         previous.alpha = if (previous.isEnabled) .7f else .18f
