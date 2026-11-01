@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
     private enum class PostAudioAction { LISTEN, SUMMARY }
     private var replyPreview: ReplyAudioButton? = null
     private var memoryPanel: FamilyMemoryPanel? = null
+    private var memoryTabState: Bundle? = null
     private var memoryReturn: Bundle? = null
     private var assistant: FloatingAssistantView? = null
     private var assistantDialog: Dialog? = null
@@ -200,10 +201,8 @@ class MainActivity : ComponentActivity() {
         dailyVoicePurpose = state?.getString("dailyVoicePurpose")
         digestDate = state?.getString("digestDate") ?: digestDate
         val restoredScreen = state?.getString("screen")
-        val restoredMemoryReturn = state?.getBundle("memoryReturn")?.takeIf {
-            it.getInt("userId", -1) == session?.optInt("user_id") &&
-                it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
-        }
+        memoryTabState = matchingMemoryState(state?.getBundle("memories"))
+        val restoredMemoryReturn = matchingMemoryState(state?.getBundle("memoryReturn"))
         if (restoredScreen in listOf("tree", "profile") && state?.getString("joinRoom") != null) {
             joinRoom = JSONObject(state.getString("joinRoom")!!)
             invitation = JSONObject(state.getString("invitation")!!)
@@ -221,10 +220,7 @@ class MainActivity : ComponentActivity() {
             restoredScreen == "dailyQuestion" || (restoredScreen == "voice" && dailyVoicePurpose != null) -> {
                 dailyVoicePurpose = null; dailyQuestions(dailyQuestionState)
             }
-            restoredScreen == "memories" -> familyMemories(state?.getBundle("memories")?.takeIf {
-                it.getInt("userId", -1) == session?.optInt("user_id") &&
-                    it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
-            })
+            restoredScreen == "memories" -> familyMemories()
             restoredScreen == "digest" -> digest()
             restoredScreen == "members" -> members()
             restoredScreen == "familyTree" -> familyTree()
@@ -268,14 +264,8 @@ class MainActivity : ComponentActivity() {
         out.putBundle("dailyQuestion", dailyPanel?.snapshot() ?: dailyQuestionState)
         out.putString("dailyVoicePurpose", dailyVoicePurpose)
         out.putString("digestDate", digestDate)
-        if (screen == "memories") out.putBundle("memories", memoryPanel?.snapshot()?.apply {
-            putInt("userId", session?.optInt("user_id") ?: -1)
-            putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
-        })
-        memoryReturn?.let { saved -> out.putBundle("memoryReturn", Bundle(saved).apply {
-            putInt("userId", session?.optInt("user_id") ?: -1)
-            putInt("roomId", room.optInt("id", -1)); putString("server", sessions.serverUrl())
-        }) }
+        rememberMemories()?.let { out.putBundle("memories", it) }
+        matchingMemoryState(memoryReturn)?.let { out.putBundle("memoryReturn", it) }
         if (screen in listOf("tree", "profile")) {
             out.putString("joinRoom", joinRoom.toString()); out.putString("invitation", invitation.toString())
             out.putString("treeDraft", treeDraft?.payload()?.toString())
@@ -303,7 +293,11 @@ class MainActivity : ComponentActivity() {
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
-    private fun navigation(title: String, back: (() -> Unit)? = null, tab: Int? = null, name: String) {
+    private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
+        rememberMemories()
+        if (screen == "home" && name != "home") {
+            feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
+        }
         dailyPanel?.let { dailyQuestionState = it.snapshot() }; dailyPanel = null; dailyEntry = null
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         closeAssistantMenu(); detailCard = null; detailPostAudio = null
@@ -380,7 +374,7 @@ class MainActivity : ComponentActivity() {
             setOnRefreshListener { home(this) }
         } else scroll
         page.addView(body, LinearLayout.LayoutParams(-1, 0, 1f))
-        if (mainPage) bottomBar(if (name == "digest") 1 else 0)
+        if (name in setOf("home", "digest", "memories")) bottomBar(name)
         assistantViewport = body
         if (session != null && room.has("id") && name in setOf("home", "detail")) {
             assistant = FloatingAssistantView(this, ui, { assistantBounds() }, { updateAssistantContext() },
@@ -501,7 +495,6 @@ class MainActivity : ComponentActivity() {
             else "토닥 도우미, ${target.optString("author_name")}님의 소식에 질문하기. 끌어서 위치 옮기기"
         // A post-scoped tag also makes the selected context inspectable without exposing credentials.
         button.tag = target?.optInt("id")
-        feedDeck?.setAssistantOnLeft(button.x + button.width / 2f < root.width / 2f)
         if (busy) closeAssistantMenu()
         else assistantMenu?.let { menu ->
             menu.setPostAvailable(target != null)
@@ -602,19 +595,31 @@ class MainActivity : ComponentActivity() {
         updateAssistantContext()
     }
 
-    private fun bottomBar(selected: Int) {
-        val row = ui.row().apply { setPadding(ui.dp(48), ui.dp(6), ui.dp(48), ui.dp(8)) }
-        listOf("소식", "하루").forEachIndexed { index, title ->
+    private fun bottomBar(selected: String) {
+        val row = ui.row().apply {
+            tag = "main-bottom-navigation"
+            setPadding(ui.dp(16), ui.dp(6), ui.dp(16), ui.dp(8))
+        }
+        listOf("소식" to "home", "하루" to "digest", "추억" to "memories").forEach { (title, destination) ->
+            val active = selected == destination
             val item = ui.column(6).apply {
                 gravity = Gravity.CENTER; minimumHeight = ui.dp(if (large) 70 else 56)
-                isClickable = true; isFocusable = true; isSelected = selected == index; contentDescription = title
-                setOnClickListener { if (!busy) { if (index == 0) home() else digest() } }
+                tag = "main-tab:$destination"
+                isClickable = true; isFocusable = true; isSelected = active
+                contentDescription = if (destination == "memories") "가족 추억 찾기" else title
+                setOnClickListener {
+                    if (!busy && screen != destination) when (destination) {
+                        "home" -> home()
+                        "digest" -> digest()
+                        "memories" -> familyMemories()
+                    }
+                }
             }
-            item.addView(ui.text(title, if (large) 22f else 18f, selected == index, if (selected == index) ui.ink else ui.muted).apply {
+            item.addView(ui.text(title, if (large) 22f else 18f, active, if (active) ui.ink else ui.muted).apply {
                 gravity = Gravity.CENTER
             })
             ui.gap(item, 5)
-            item.addView(View(this).apply { background = ui.shape(if (selected == index) ui.coralDeep else Color.TRANSPARENT, 4) },
+            item.addView(View(this).apply { background = ui.shape(if (active) ui.coralDeep else Color.TRANSPARENT, 4) },
                 LinearLayout.LayoutParams(ui.dp(6), ui.dp(6)))
             row.addView(item, LinearLayout.LayoutParams(0, -2, 1f))
         }
@@ -759,6 +764,7 @@ class MainActivity : ComponentActivity() {
     private fun resetRoomState() {
         clearPhotoDraft(); selectedPost = null
         dailyStatus = null; dailyQuestionState = null; dailyVoicePurpose = null; dailyPanel = null
+        memoryTabState = null; memoryPanel = null; memoryReturn = null
         feedPostId = null; feedScrollY = 0; restoreFeedScroll = false
         digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     }
@@ -781,7 +787,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun roomChoice() {
         val inRoom = room.has("id")
-        navigation("우리 가족방", if (inRoom) ({ home() }) else ({ welcome() }), tab = if (inRoom) 1 else null, name = "roomChoice")
+        navigation("우리 가족방", if (inRoom) ({ home() }) else ({ welcome() }), name = "roomChoice")
         val client = api
         async({ objects(client.request("families/").getJSONArray("rooms")) }, "가족방을 불러오고 있어요.", failure = {
             ui.ghost(content, "가족방 다시 불러오기") { roomChoice() }; false
@@ -1053,7 +1059,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun home(refresh: SwipeRefreshLayout? = null) {
-        if (refresh == null) navigation("토닥", tab = 0, name = "home")
+        if (refresh == null) navigation("토닥", name = "home")
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
             dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
@@ -1091,18 +1097,38 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun matchingMemoryState(saved: Bundle?): Bundle? = saved?.takeIf {
+        session != null && room.has("id") &&
+            it.getInt("userId", -1) == session?.optInt("user_id") &&
+            it.getInt("roomId", -1) == room.optInt("id", -1) && it.getString("server") == sessions.serverUrl()
+    }?.let { Bundle(it) }
+
+    private fun rememberMemories(): Bundle? {
+        // Retain the panel's original owner when saving, including during an account change.
+        memoryTabState?.let { owner ->
+            memoryPanel?.let { panel -> memoryTabState = Bundle(owner).apply { putAll(panel.snapshot()) } }
+        }
+        memoryTabState = matchingMemoryState(memoryTabState)
+        return memoryTabState?.let { Bundle(it) }
+    }
+
     private fun familyMemories(saved: Bundle? = null) {
         if (!room.has("id")) { roomChoice(); return }
-        navigation("가족 추억 찾기", { home() }, tab = 0, name = "memories")
+        val restored = matchingMemoryState(saved) ?: rememberMemories()
+        navigation("가족 추억 찾기", { home() }, name = "memories")
+        memoryTabState = restored ?: Bundle().apply {
+            putInt("userId", session!!.getInt("user_id")); putInt("roomId", room.getInt("id"))
+            putString("server", sessions.serverUrl())
+        }
         heading("함께 쌓아온 추억 찾기", "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.")
-        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, saved,
+        memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, restored,
             renderPost = { parent, post ->
                 val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
                     load = { image, source, url -> remotePhoto(image, source, url, thumbnail = true) },
                     release = { imageLoader.release(it) },
-                    open = { source -> detail(source, returnToMemories = memoryPanel?.snapshot()) },
+                    open = { source -> detail(source, returnToMemories = rememberMemories()) },
                     reply = { source ->
-                        memoryReturn = memoryPanel?.snapshot()
+                        memoryReturn = rememberMemories()
                         voice(source, fromDetail = true)
                     }, changed = {}, showPagination = false)
                 deck.currentCard.tag = "feed-post:${post.getInt("id")}"
@@ -1548,7 +1574,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun digest(date: String = digestDate, retry: Boolean = false) {
         digestDate = date
-        navigation("하루", { home() }, tab = 1, name = "digest")
+        navigation("하루", { home() }, name = "digest")
         val client = api
         val letter = ui.card(content, ui.paper, padding = if (large) 20 else 22, stroke = false)
         val formattedDate = runCatching { LocalDate.parse(date).format(DateTimeFormatter.ofPattern("M월 d일 EEEE", java.util.Locale.KOREAN)) }.getOrDefault(date)
