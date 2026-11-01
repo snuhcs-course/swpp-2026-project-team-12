@@ -134,6 +134,11 @@ class FamilyMemorySearchTest {
             assertTrue(target.performClick())
         }
         fun open() {
+            if (views().any { it.tag == "main-tab:memories" }) {
+                tab("memories")
+                await { views().any { it is FamilyMemoryPanel } }
+                return
+            }
             var inFamilyRoom = false
             test.runOnMainSync { inFamilyRoom = has("가족 추억 찾기") }
             if (inFamilyRoom) click("가족 추억 찾기") else {
@@ -146,14 +151,21 @@ class FamilyMemorySearchTest {
             await { views().any { it is FamilyMemoryPanel } }
         }
         fun ask(text: String) = test.runOnMainSync { panel().input.setText(text); panel().searchButton.performClick() }
-        fun recreate(memory: Boolean = true) {
+        fun tab(destination: String) = test.runOnMainSync {
+            assertTrue(views().single { it.tag == "main-tab:$destination" }.performClick())
+        }
+        fun recreate(expected: String = "memories") {
             val previous = activity
             test.runOnMainSync { previous.recreate() }
             await {
                 val next = ActivityLifecycleMonitorRegistry.getInstance().getActivitiesInStage(Stage.RESUMED)
                     .filterIsInstance<MainActivity>().firstOrNull { it !== previous }
                 if (next != null) activity = next
-                next != null && (if (memory) views().any { it is FamilyMemoryPanel } else has("가족의 소식"))
+                next != null && when (expected) {
+                    "memories" -> views().any { it is FamilyMemoryPanel }
+                    "home" -> has("첫 소식을 기다리고 있어요") || views().any { it is PhotoLetterDeck }
+                    else -> has("가족의 소식")
+                }
             }
         }
         fun scrollTo(view: View) = test.runOnMainSync {
@@ -294,6 +306,132 @@ class FamilyMemorySearchTest {
         } }
     }
 
+    @Test fun bottomTabsPreserveSearchDraftAnswerEvidenceAndSelectedPostInBothFontSizes() {
+        for (large in listOf(false, true)) {
+            val post = evidencePost(12, 1)
+            Server(JSONArray().put(post).put(evidencePost(13, 1))) { request ->
+                when {
+                    request.path.endsWith("test-photo/") -> photoReply()
+                    request.path.startsWith("/api/digests/") -> Reply("{\"status\":\"pending\",\"digest_time\":\"21:00\"}")
+                    else -> evidenceReply(JSONArray().put(post), "지난 가족 여행은 부산으로 다녀왔어요.")
+                }
+            }.use { server -> Screen(server, large).use { screen ->
+                screen.test.runOnMainSync {
+                    val deck = screen.views().filterIsInstance<PhotoLetterDeck>().single()
+                    deck.show(1)
+                    assertEquals(12, deck.currentPost.getInt("id"))
+                    val tabs = screen.views().filter { it.tag?.toString()?.startsWith("main-tab:") == true }
+                    assertEquals(3, tabs.size)
+                    assertEquals(1, tabs.count { it.isSelected })
+                    assertTrue(tabs.single { it.tag == "main-tab:home" }.isSelected)
+                    assertTrue(tabs.all { kotlin.math.abs(it.width - tabs.first().width) <= 1 && it.height >= 48 * screen.activity.resources.displayMetrics.density })
+                }
+                screen.await {
+                    val deck = screen.views().filterIsInstance<PhotoLetterDeck>().single()
+                    deck.currentCard.translationX == 0f && screen.views(deck).filterIsInstance<android.widget.ImageView>()
+                        .any { it.drawable is android.graphics.drawable.BitmapDrawable }
+                }
+                screen.screenshot(if (large) "memory-tab-home-large.png" else "memory-tab-home.png")
+                screen.tab("memories"); screen.await { screen.views().any { it is FamilyMemoryPanel } }
+                val originalPanel = screen.panel()
+                screen.tab("memories")
+                screen.test.runOnMainSync {
+                    assertSame(originalPanel, screen.panel())
+                    assertTrue(screen.views().single { it.tag == "main-tab:memories" }.isSelected)
+                }
+                assertTrue(server.searches().isEmpty())
+                screen.screenshot(if (large) "memory-tab-search-large.png" else "memory-tab-search.png")
+                screen.ask("지난 가족 여행은 어디였어?")
+                screen.await { screen.has("지난 가족 여행은 부산으로 다녀왔어요.") && screen.views().any { it.tag == "feed-post:12" } }
+                screen.test.runOnMainSync { screen.panel().input.setText("그때 무엇을 먹었어?") }
+                screen.scrollTo(screen.views().single { it.tag == "feed-post:12" })
+                var savedScroll = 0
+                screen.test.runOnMainSync { savedScroll = screen.panel().snapshot().getInt("scrollY") }
+                assertTrue(savedScroll > 0)
+                screen.tab("digest")
+                screen.await { screen.views().filterIsInstance<TextView>().any { it.text.contains("21:00") } }
+                screen.test.runOnMainSync { assertTrue(screen.views().single { it.tag == "main-tab:digest" }.isSelected) }
+                screen.tab("home")
+                screen.await { screen.views().filterIsInstance<PhotoLetterDeck>().singleOrNull()?.currentPost?.optInt("id") == 12 }
+                screen.recreate("home")
+                screen.tab("memories")
+                screen.await {
+                    screen.has("지난 가족 여행은 부산으로 다녀왔어요.") && screen.views().filterIsInstance<ScrollView>().first().scrollY == savedScroll
+                }
+                screen.test.runOnMainSync {
+                    assertEquals("그때 무엇을 먹었어?", screen.panel().input.text.toString())
+                    assertEquals("지난 가족 여행은 어디였어?", screen.panel().snapshot().getString("question"))
+                    assertTrue(screen.views().any { it.tag == "feed-post:12" })
+                }
+                val restoredPanel = screen.panel()
+                screen.tab("memories")
+                screen.test.runOnMainSync { assertSame(restoredPanel, screen.panel()) }
+                assertEquals(1, server.searches().size)
+                screen.screenshot(if (large) "memory-tab-result-large.png" else "memory-tab-result.png")
+            } }
+        }
+    }
+
+    @Test fun bottomTabsRestoreTheFeedScrollPosition() {
+        Server(JSONArray().put(evidencePost(12))) { answer("답변") }.use { server -> Screen(server).use { screen ->
+            screen.test.runOnMainSync {
+                val surface = screen.activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
+                surface.layoutParams = surface.layoutParams.apply { height = (480 * screen.activity.resources.displayMetrics.density).toInt() }
+            }
+            screen.await { screen.views().filterIsInstance<PhotoLetterDeck>().single().height > screen.views().filterIsInstance<ScrollView>().first().height }
+            var savedScroll = 0
+            screen.test.runOnMainSync {
+                val scroll = screen.views().filterIsInstance<ScrollView>().first()
+                scroll.scrollTo(0, 80); savedScroll = scroll.scrollY
+                assertTrue(savedScroll > 0)
+            }
+            screen.tab("memories"); screen.await { screen.views().any { it is FamilyMemoryPanel } }
+            screen.tab("home")
+            screen.await {
+                screen.views().filterIsInstance<PhotoLetterDeck>().singleOrNull()?.currentPost?.optInt("id") == 12 &&
+                    screen.views().filterIsInstance<ScrollView>().first().scrollY == savedScroll
+            }
+            assertTrue(server.searches().isEmpty())
+        } }
+    }
+
+    @Test fun cachedMemoryTabIsClearedWhenAccountOrVerifiedFamilyChanges() {
+        for (change in listOf("account", "family")) Server { answer("이전 가족의 답변") }.use { server -> Screen(server).use { screen ->
+            screen.open(); screen.ask("이전 가족의 질문")
+            screen.await { screen.has("이전 가족의 답변") }
+            screen.tab("home"); screen.await { screen.has("첫 소식을 기다리고 있어요") }
+            if (change == "account") {
+                val prefs = screen.test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
+                val changed = JSONObject(prefs.getString("current", "{}")!!).put("user_id", 1000)
+                prefs.edit().putString("current", changed.toString()).commit()
+            } else family.put("id", family.getInt("id") + 1)
+            screen.recreate("home"); screen.open()
+            screen.test.runOnMainSync {
+                assertEquals("", screen.panel().input.text.toString())
+                assertFalse(screen.has("이전 가족의 답변"))
+            }
+            assertEquals(1, server.searches().size)
+        } }
+    }
+
+    @Test fun cachedMemoryTabIsClearedWhenServerChanges() {
+        Server { answer("이전 서버의 답변") }.use { previous -> Server { answer("새 서버의 답변") }.use { next ->
+            Screen(previous).use { screen ->
+                screen.open(); screen.ask("이전 서버의 질문"); screen.await { screen.has("이전 서버의 답변") }
+                screen.tab("home"); screen.await { screen.has("첫 소식을 기다리고 있어요") }
+                screen.test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
+                    .edit().putString("server", next.base).commit()
+                screen.recreate("home"); screen.open()
+                screen.test.runOnMainSync {
+                    assertEquals("", screen.panel().input.text.toString())
+                    assertFalse(screen.has("이전 서버의 답변"))
+                }
+                assertEquals(1, previous.searches().size)
+                assertTrue(next.searches().isEmpty())
+            }
+        } }
+    }
+
     @Test fun familyRoomAlsoOpensSearch() {
         Server { answer("답변") }.use { server -> Screen(server).use { screen ->
             screen.test.runOnMainSync { screen.views().first { it.contentDescription == "프로필 메뉴" }.performClick() }
@@ -419,7 +557,7 @@ class FamilyMemorySearchTest {
                 open.performClick()
             }
             screen.await { screen.has("댓글 0") }
-            screen.recreate(memory = false)
+            screen.recreate("detail")
             screen.await { screen.has("댓글 0") }
             screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
             screen.await { screen.views().any { it is FamilyMemoryPanel } }

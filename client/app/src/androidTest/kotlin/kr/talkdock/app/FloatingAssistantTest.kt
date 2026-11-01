@@ -294,7 +294,7 @@ class FloatingAssistantTest {
     @Test fun memoryOptionAndDailyTabUseSeparateRoutes() {
         Server().use { server -> Screen(server).use { screen ->
             screen.tapCharacter(); screen.await { screen.views().any { it is AssistantBubbleMenu } }
-            screen.test.runOnMainSync { screen.views().single { it.contentDescription == "가족 추억 찾기" }.performClick() }
+            screen.test.runOnMainSync { screen.views(screen.menu()).single { it.contentDescription == "가족 추억 찾기" }.performClick() }
             screen.await { screen.views().any { it is FamilyMemoryPanel } }
             screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
             screen.await { screen.views().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
