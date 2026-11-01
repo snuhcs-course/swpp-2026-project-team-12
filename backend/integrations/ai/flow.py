@@ -9,6 +9,7 @@ from django.utils import timezone
 from openai import AsyncOpenAI
 
 from . import prompts
+from . import history_evidence
 from .options import model_options
 from .provider import FEATURE_INSTRUCTIONS
 
@@ -70,7 +71,8 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         results = await search(queries)
         timings["search"] = perf_counter() - started
         if not results[0]["memories"]:
-            return {"text": "가족 기록에서 관련 내용을 찾지 못했어요.", "query": text, "memories": []}
+            return {"text": "가족 기록에서 관련 내용을 찾지 못했어요.", "query": text,
+                    "memories": [], "source_episode_ids": []}
 
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         if ways == 3:
@@ -109,6 +111,8 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         # Only the three-way flow keeps the tool definition for its tool-call history.
         options = {"tools": [prompts.SEARCH_TOOL], "tool_choice": "none"} if ways == 3 else {}
         if two_way:
+            instructions += history_evidence.INSTRUCTIONS
+            options["text"] = history_evidence.ANSWER_FORMAT
             items = json.dumps({
                 "질문": text, "현재 시각": timezone.now().isoformat(),
                 "기록": memory_context(list(memories.values())),
@@ -116,13 +120,15 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         started = perf_counter()
         final = await client.responses.create(
             **answer_options, instructions=instructions, input=items,
-            max_output_tokens=700, store=False, **options,
+            max_output_tokens=1200 if two_way else 700, store=False, **options,
         )
         timings["answer"] = perf_counter() - started
         if final.status != "completed" or not final.output_text.strip():
             raise RuntimeError("최종 답변이 완료되지 않았습니다.")
         result = {"text": final.output_text, "query": queries[0] if ways > 1 else None,
                   "memories": list(memories.values())}
+        if two_way:
+            result.update(history_evidence.parse_answer(final.output_text, result["memories"]))
         if ways == 3:
             result["queries"] = queries
         return result

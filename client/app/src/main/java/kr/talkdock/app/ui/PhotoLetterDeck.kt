@@ -23,6 +23,7 @@ class PhotoLetterDeck(
     selectedId: Int?, private val load: (ImageView, JSONObject, String) -> Unit,
     private val release: (ImageView) -> Unit, private val open: (JSONObject) -> Unit,
     private val reply: (JSONObject) -> Unit, private val changed: (JSONObject) -> Unit,
+    private val showPagination: Boolean = true,
     private var reservedHeaderHeight: Int = 0,
 ) : LinearLayout(context) {
     var currentIndex = posts.indexOfFirst { it.optInt("id") == selectedId }.coerceAtLeast(0)
@@ -82,7 +83,7 @@ class PhotoLetterDeck(
         currentCard.clipToOutline = true; currentCard.elevation = ui.dp(2).toFloat()
         stack.addView(currentCard, FrameLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(4) })
         addView(stack, LayoutParams(-1, -2))
-        val pagination = ui.row()
+        val pagination = ui.row().apply { visibility = if (showPagination) View.VISIBLE else View.GONE }
         pagination.addView(previous, LayoutParams(ui.dp(48), ui.dp(48)))
         pagination.addView(count, LayoutParams(0, -2, 1f))
         pagination.addView(next, LayoutParams(ui.dp(48), ui.dp(48)))

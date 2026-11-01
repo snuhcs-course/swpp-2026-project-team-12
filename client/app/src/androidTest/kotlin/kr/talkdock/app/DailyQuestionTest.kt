@@ -12,6 +12,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
 import kr.talkdock.app.ui.DailyQuestionPanel
+import kr.talkdock.app.ui.FamilyMemoryPanel
+import kr.talkdock.app.ui.FloatingAssistantView
 import kr.talkdock.app.ui.PhotoLetterDeck
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,7 +54,9 @@ class DailyQuestionTest {
         val comments = JSONArray()
         val options get() = if (kind == "text") JSONArray() else JSONArray(
             if (kind == "tier") listOf("집에서 쉬기", "밖에서 산책") else listOf("집에서 쉬기", "밖에서 산책", "기타"))
-        private fun question() = JSONObject().put("id", questionId).put("post_id", 301).put("date", "2026-10-31")
+        // The home preview only displays today's question in Korea time.
+        private val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).toString()
+        private fun question() = JSONObject().put("id", questionId).put("post_id", 301).put("date", today)
             .put("version", "31:family:1").put("title", "주말엔 뭘 할까요?").put("kind", kind).put("options", options)
             .put("answers", JSONArray().put(JSONObject().put("id", 1).put("author_id", 2).put("author_name", "할머니")
                 .put("choice", if (kind == "text" || kind == "tier") "" else "밖에서 산책").put("text", "같이 바람 쐬면 좋겠어.")
@@ -88,8 +92,13 @@ class DailyQuestionTest {
                                 .put("author_name", "정아").put("relationship", "가족").put("caption", "가족 소식 $id" +
                                     if (id == 1) "\n오늘은 가족에게 긴 소식을 전해요.\n우리 가족 모두 잘 지내고 있나요?" else "")
                                 .put("created_at", "2026-10-31T1$id:00:00+09:00").put("images", JSONArray()).put("comment_count", 0))
-                            JSONObject().put("posts", posts).put("daily_question", JSONObject().put("id", questionId).put("date", "2026-10-31").put("title", "주말엔 뭘 할까요?").put("version", "31:family:1"))
+                            JSONObject().put("posts", posts).put("daily_question", JSONObject().put("id", questionId).put("date", today).put("title", "주말엔 뭘 할까요?").put("version", "31:family:1"))
                         }
+                        path == "/api/searching/history/" && method == "POST" -> JSONObject()
+                            .put("text", "가족 소식 2를 찾았어요.")
+                            .put("evidence_posts", JSONArray().put(JSONObject().put("id", 2).put("author_id", 1)
+                                .put("author_name", "정아").put("relationship", "가족").put("caption", "가족 소식 2")
+                                .put("created_at", "2026-10-31T12:00:00+09:00").put("images", JSONArray()).put("comment_count", 0)))
                         path.endsWith("/answer/") && method == "PUT" -> {
                             if (failAnswer.getAndSet(false)) { status = 503; JSONObject().put("error", "답변 저장 실패 · 다시 시도해 주세요.") }
                             else { answer = JSONObject(payload.toString()).put("id", 2).put("author_id", 1).put("author_name", "정아"); question() }
@@ -317,6 +326,52 @@ class DailyQuestionTest {
         click(activity, "내 답변 수정"); click(activity, "집에서 쉬기"); click(activity, "오늘의 질문 답변 저장")
         awaitUi { hasText(activity, "가족 답변 2") && views(activity.window.decorView).filterIsInstance<RadioButton>().all { !it.isEnabled } }
         assertEquals("", server.answer!!.getString("other_text"))
+    }
+
+    @Test fun dailyAnswersAndMemoryEvidenceCoexistAcrossFeedNavigation() = withApp { activity, server ->
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        click(activity, "집에서 쉬기")
+        test.runOnMainSync { editor(activity).setText("두 기능 통합 확인") }
+        click(activity, "오늘의 질문 답변 저장")
+        awaitUi { hasText(activity, "내 답변 · 집에서 쉬기") }
+        click(activity, "내 답변 수정")
+        test.runOnMainSync {
+            editor(activity).setText("추억 검색 전에 작성한 초안")
+            views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }
+                .setText("추억을 보고 이어 쓸 댓글")
+        }
+        test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        test.runOnMainSync { views(activity.window.decorView).filterIsInstance<FloatingAssistantView>().single().performClick() }
+        awaitUi { hasText(activity, "가족 추억 찾기") }
+        test.runOnMainSync {
+            var action: View = views(activity.window.decorView).filterIsInstance<TextView>().first { it.text.toString() == "가족 추억 찾기" }
+            while (!action.isClickable && action.parent is View) action = action.parent as View
+            assertTrue(action.performClick())
+        }
+        awaitUi { views(activity.window.decorView).any { it is FamilyMemoryPanel } }
+        test.runOnMainSync {
+            val panel = views(activity.window.decorView).filterIsInstance<FamilyMemoryPanel>().single()
+            panel.input.setText("가족 소식 찾아줘"); panel.searchButton.performClick()
+        }
+        awaitUi { hasText(activity, "가족 소식 2를 찾았어요.") && views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        test.runOnMainSync {
+            val deck = views(activity.window.decorView).filterIsInstance<PhotoLetterDeck>().single()
+            assertEquals(2, deck.currentPost.getInt("id"))
+            assertFalse(views(deck).filterIsInstance<TextView>().any { it.isShown && it.text.toString() == "1 / 1" })
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        click(activity, "오늘의 질문")
+        awaitUi { views(activity.window.decorView).filterIsInstance<EditText>().any { it.contentDescription == "오늘의 질문 답변 입력" } }
+        test.runOnMainSync {
+            assertEquals("추억 검색 전에 작성한 초안", editor(activity).text.toString())
+            assertEquals("추억을 보고 이어 쓸 댓글", views(activity.window.decorView).filterIsInstance<EditText>()
+                .single { it.contentDescription == "댓글 입력" }.text.toString())
+            assertTrue(views(activity.window.decorView).filterIsInstance<RadioButton>().single { it.text == "집에서 쉬기" }.isChecked)
+        }
+        assertEquals("집에서 쉬기", server.answer!!.getString("choice"))
+        assertEquals("두 기능 통합 확인", server.answer!!.getString("text"))
     }
 
     @Test fun activityRecreationRestoresUnsentAnswerAndComment() = withApp { activity, server ->

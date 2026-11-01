@@ -2,6 +2,7 @@ from apps.api import APIError, api, body, required
 from apps.families.services import room_for
 
 from . import services
+from .evidence import evidence_posts
 
 
 @api("POST")
@@ -9,7 +10,8 @@ def history(request):
     room = room_for(request)
     question = required(body(request), "question", 1000)
     try:
-        return services.search_history(room.pk, question)
+        result = services.search_history(room.pk, question)
+        return {**result, **evidence_posts(result, room, request)}
     except services.SearchUnavailable as error:
         raise APIError("가족 기록을 검색하지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
 

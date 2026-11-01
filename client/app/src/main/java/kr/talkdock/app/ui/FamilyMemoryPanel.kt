@@ -11,9 +11,12 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.data.RequestCancellation
+import kr.talkdock.app.data.MemorySearchResult
+import org.json.JSONObject
 import java.net.SocketTimeoutException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
@@ -26,6 +29,7 @@ class FamilyMemoryPanel(
     private val client: ApiClient,
     private val executor: ExecutorService,
     initial: Bundle? = null,
+    private val renderPost: (LinearLayout, JSONObject) -> Unit,
     onLogin: () -> Unit
 ) : LinearLayout(activity) {
     private var generation = 0
@@ -34,6 +38,9 @@ class FamilyMemoryPanel(
     private var cancellation: RequestCancellation? = null
     private var answeredQuestion = initial?.getString("question").orEmpty()
     private var answer = initial?.getString("answer").orEmpty()
+    private var evidence = initial?.getString("result")?.let {
+        runCatching { MemorySearchResult.fromJson(JSONObject(it)) }.getOrNull()
+    }
     val input = ui.input(this, "어떤 추억이 궁금하세요?",
         "예: 지난번 가족 여행은 어디로 갔었지?", multiline = true,
         initial = initial?.getString("draft").orEmpty()).apply {
@@ -76,12 +83,18 @@ class FamilyMemoryPanel(
         })
         if (answer.isNotBlank()) showAnswer()
         updateControls()
+        post { scrollParent()?.scrollTo(0, initial?.getInt("scrollY", 0) ?: 0) }
     }
+
+    private fun scrollParent(): ScrollView? = generateSequence(parent as? View) { it.parent as? View }
+        .filterIsInstance<ScrollView>().firstOrNull()
 
     fun snapshot() = Bundle().apply {
         putString("draft", input.text.toString())
         putString("question", answeredQuestion)
         putString("answer", answer)
+        putString("result", evidence?.toJson()?.toString())
+        putInt("scrollY", scrollParent()?.scrollY ?: 0)
     }
 
     private fun updateControls() {
@@ -97,7 +110,7 @@ class FamilyMemoryPanel(
         if (pending || question.isBlank() || !isAttachedToWindow) return
         pending = true
         error.visibility = GONE; login.visibility = GONE
-        answeredQuestion = ""; answer = ""; result.removeAllViews()
+        answeredQuestion = ""; answer = ""; evidence = null; result.removeAllViews()
         input.clearFocus()
         (activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
             .hideSoftInputFromWindow(windowToken, 0)
@@ -109,8 +122,8 @@ class FamilyMemoryPanel(
             activity.runOnUiThread {
                 if (generation != request || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
                 task = null; cancellation = null; pending = false
-                response.fold({ text ->
-                    answeredQuestion = question; answer = text
+                response.fold({ found ->
+                    answeredQuestion = question; answer = found.text; evidence = found
                     showAnswer()
                 }, { failure ->
                     error.text = when {
@@ -131,13 +144,24 @@ class FamilyMemoryPanel(
         result.removeAllViews()
         ui.gap(result, 16)
         val card = ui.card(result, ui.sky, stroke = false)
-        ui.label(card, "토닥이 찾은 이야기", if (large) 24f else 20f, true, ui.skyDeep)
-        ui.gap(card, 12)
-        ui.label(card, answeredQuestion, if (large) 22f else 18f, true, ui.skyDeep)
-        ui.gap(card, 16)
         ui.label(card, answer, if (large) 23f else 18f, color = ui.skyDeep).apply {
+            tag = "memory-answer"
             setTextIsSelectable(true)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        ui.gap(result, 24)
+        ui.label(result, "이 이야기가 담긴 소식", if (large) 24f else 20f, true)
+        ui.gap(result, 12)
+        val found = evidence
+        if (found?.unavailable == true) {
+            ui.label(result, "일부 소식을 불러오지 못했어요. 다시 추억 찾기를 누르면 재시도할 수 있어요.",
+                if (large) 20f else 15f, color = ui.muted)
+            ui.gap(result, 12)
+        }
+        if (found == null || found.posts.isEmpty()) {
+            ui.label(result, "연결된 원문 게시글이 없어요.", if (large) 20f else 16f, color = ui.muted)
+        } else {
+            found.posts.forEach { post -> renderPost(result, post); ui.gap(result, 20) }
         }
     }
 

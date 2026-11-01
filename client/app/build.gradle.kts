@@ -31,10 +31,15 @@ android {
         val apiUrl = providers.gradleProperty("talkDockApiUrl").getOrElse("http://10.0.2.2:8000/api/")
         buildConfigField("String", "API_URL", "\"" + apiUrl + "\"")
         manifestPlaceholders["cleartextAllowed"] = "false"
+        manifestPlaceholders["appLabel"] = "토닥"
     }
     buildTypes {
         debug {
             manifestPlaceholders["cleartextAllowed"] = "true"
+            if (providers.gradleProperty("talkDockDemo").orNull == "true") {
+                applicationIdSuffix = ".memorydemo"
+                manifestPlaceholders["appLabel"] = "토닥 데모"
+            }
             // JaCoCo reports: createDebugUnitTestCoverageReport and createDebugAndroidTestCoverageReport.
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
