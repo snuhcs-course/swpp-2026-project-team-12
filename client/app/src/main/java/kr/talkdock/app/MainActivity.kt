@@ -484,7 +484,6 @@ class MainActivity : ComponentActivity() {
             else "토닥 도우미, ${target.optString("author_name")}님의 소식에 질문하기. 끌어서 위치 옮기기"
         // A post-scoped tag also makes the selected context inspectable without exposing credentials.
         button.tag = target?.optInt("id")
-        feedDeck?.setAssistantOnLeft(button.x + button.width / 2f < root.width / 2f)
         if (busy) closeAssistantMenu()
         else assistantMenu?.let { menu ->
             menu.setPostAvailable(target != null)
