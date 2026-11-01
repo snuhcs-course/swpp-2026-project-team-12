@@ -294,7 +294,8 @@ class FamilyMemorySearchTest {
         } }
     }
 
-    @Test fun familyRoomAlsoOpensSearch() {
+    // Memory search lives only in the assistant menu; the room switcher stays focused on rooms.
+    @Test fun roomSwitcherDoesNotOfferSearch() {
         Server { answer("답변") }.use { server -> Screen(server).use { screen ->
             screen.test.runOnMainSync { screen.views().first { it.contentDescription == "프로필 메뉴" }.performClick() }
             screen.await {
@@ -308,9 +309,8 @@ class FamilyMemorySearchTest {
                 while (!view.isClickable && view.parent is View) view = view.parent as View
                 view.performClick()
             }
-            screen.await { screen.has("지금 보는 가족방") }
-            screen.open()
-            screen.test.runOnMainSync { assertTrue(screen.has("함께 쌓아온 추억 찾기")) }
+            screen.await { screen.has("지금 보는 가족방") && screen.has("새 가족방 만들기") }
+            screen.test.runOnMainSync { assertFalse(screen.has("가족 추억 찾기")) }
         } }
     }
 

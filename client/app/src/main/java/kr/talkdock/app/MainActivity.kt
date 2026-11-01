@@ -324,19 +324,25 @@ class MainActivity : ComponentActivity() {
         }
         val mainPage = name == "home" || name == "digest"
         if (mainPage) {
-            val brand = ui.column()
-            brand.addView(ui.text("토닥", 28f, true).apply { typeface = ui.titleFont })
-            // Show which family the feed belongs to; tapping it opens the room switcher.
+            // Equal-weight sides keep the family name centered on screen, not between logo and buttons.
+            val brand = ui.row()
+            brand.addView(ImageView(this).apply {
+                setImageResource(R.drawable.todak_logo); adjustViewBounds = true; contentDescription = "토닥"
+            }, LinearLayout.LayoutParams(-2, ui.dp(52)))
+            header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
             room.optString("name").takeIf { it.isNotBlank() }?.let { name ->
-                brand.addView(ui.text(name, if (large) 18f else 15f, true, ui.coralDeep).apply {
-                    maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                header.addView(ui.text(name, if (large) 18f else 15f, true, ui.coralDeep).apply {
+                    gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                    maxWidth = ui.dp(if (large) 180 else 150)
+                    background = ui.shape(ui.blush, 18); setPadding(ui.dp(14), ui.dp(6), ui.dp(14), ui.dp(6))
                     contentDescription = "현재 가족방 $name, 가족방 바꾸기"
                     isClickable = true; isFocusable = true
                     setOnClickListener { if (!busy) roomChoice() }
-                })
+                }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = ui.dp(8); marginEnd = ui.dp(8) })
             }
-            header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-            header.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
+            val actions = ui.row().apply { gravity = Gravity.END or Gravity.CENTER_VERTICAL }
+            header.addView(actions, LinearLayout.LayoutParams(0, -2, 1f))
+            actions.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
                 background = ui.shape(ui.sky, 28)
             })
             val profile = ui.text(session?.optString("name").orEmpty().take(1).ifBlank { "나" }, 16f, true).apply {
@@ -346,7 +352,7 @@ class MainActivity : ComponentActivity() {
                 isClickable = true; isFocusable = true
                 setOnClickListener { openProfileMenu() }
             }
-            header.addView(profile, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
+            actions.addView(profile, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
         } else {
             if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() })
             header.addView(ui.text(title, if (name == "dailyQuestion" && !large) 18f else 21f, true).apply {
@@ -562,7 +568,7 @@ class MainActivity : ComponentActivity() {
         val box = ui.column(22).apply { background = ui.shape(ui.paper, 32) }
         val header = ui.row()
         header.addView(ImageView(this).apply { setImageResource(R.drawable.assistant_character); scaleType = ImageView.ScaleType.FIT_CENTER },
-            LinearLayout.LayoutParams(ui.dp(36), ui.dp(42)))
+            LinearLayout.LayoutParams(ui.dp(40), ui.dp(48)))
         header.addView(ui.text("토닥에게 물어보기", if (large) 23f else 20f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8) })
         header.addView(ui.iconButton("close", "도우미 닫기") { dialog.dismiss() })
         box.addView(header); ui.gap(box, 16)
@@ -830,7 +836,7 @@ class MainActivity : ComponentActivity() {
     private fun welcome() {
         navigation("토닥", name = "welcome")
         ui.gap(content, 20)
-        ui.label(content, "토닥", 34f, true).gravity = Gravity.CENTER
+        ui.label(content, "토닥", 34f, true).apply { gravity = Gravity.CENTER; typeface = ui.titleFont }
         ui.gap(content, 20)
         ui.label(content, "가족의 하루에\n마음을 건네는 시간", 26f, true).gravity = Gravity.CENTER
         ui.gap(content, 20); ui.art(content); ui.gap(content, 20)
