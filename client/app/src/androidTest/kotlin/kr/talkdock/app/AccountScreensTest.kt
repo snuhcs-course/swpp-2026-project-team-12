@@ -167,8 +167,11 @@ class AccountScreensTest {
             }
         }.use { api -> UiHarness(api, room(1, "가족 A"), others = listOf(other)).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.openSettings(); ui.await { ui.has("이 휴대폰의 다른 계정으로 보기") }
-            ui.click("이 휴대폰의 다른 계정으로 보기"); ui.await { ui.has("누구의 화면을 볼까요?") }
+            ui.openProfile(); ui.click("계정 전환"); ui.await { ui.has("누구의 화면을 볼까요?") }
+            // Leaving the account list returns to the feed, not to settings.
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.await { ui.has("첫 소식을 기다리고 있어요") && !ui.has("누구의 화면을 볼까요?") }
+            ui.openProfile(); ui.click("계정 전환"); ui.await { ui.has("누구의 화면을 볼까요?") }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("테스트 사용자 (review-user) · 가족 A"))
                 assertTrue(ui.has("다른 계정으로 로그인")); assertTrue(ui.has("새 계정 만들기"))
