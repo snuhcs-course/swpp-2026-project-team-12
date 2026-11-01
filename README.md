@@ -54,12 +54,19 @@ The Android home has a fixed **오늘의 질문** preview bar below the header, 
 the actual question with a speech icon and a small unread dot. Its height is
 reserved from the photo cover so captions and the reply action keep their space.
 Opening it preserves the selected family letter and scroll position.
+Closing and reopening the question also restores its unsent selection, custom
+answer, reason, tier grades and comment for the same account/server/room/question.
+The home preview resolves today's question before restoring, so a previous day's
+draft cannot appear on a new question.
 Question posts are excluded from the normal feed, its pagination,
 daily digests and Graphiti post construction.
 
 Run `python backend/manage.py migrate` after pulling this change. Each room gets
-one question per Korean calendar day on its first feed/question request. A curated
-rotation in `backend/apps/posts/data/daily_questions.json` works without AI
+one question per Korean calendar day on its first feed/question request.
+On SQLite, first-publication lock conflicts roll back and retry outside the
+transaction, reusing the winner's question; exhausted retries return a retryable
+503 response. This prevents duplicate questions and orphan question posts.
+The curated rotation in `backend/apps/posts/data/daily_questions.json` works without AI
 credentials or a separate scheduler. Members
 can read others' answers before participating, save or edit one answer per
 question, and continue discussing in existing text/voice comments. Answer voice

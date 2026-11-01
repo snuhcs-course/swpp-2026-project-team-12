@@ -1,10 +1,12 @@
 """Daily conversation prompts are posts for discussion, but never feed letters."""
 import json
+import time
 from datetime import date
 from pathlib import Path
+from sqlite3 import SQLITE_BUSY, SQLITE_LOCKED
 
 from django.core.exceptions import ImproperlyConfigured
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, OperationalError, connection, transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -66,22 +68,38 @@ def definition(day):
 
 def ensure_today(room):
     day = timezone.localdate()
-    existing = DailyQuestion.objects.select_related("post", "room").filter(room=room, date=day).first()
-    if existing:
-        return existing
-    try:
-        with transaction.atomic():
-            # Serialize publication per room on databases with row locks. The unique
-            # constraint is the final arbiter, and rolls back the losing post too.
-            FamilyRoom.objects.select_for_update().get(pk=room.pk)
-            existing = DailyQuestion.objects.select_related("post", "room").filter(room=room, date=day).first()
+    query = DailyQuestion.objects.select_related("post", "room").filter(room=room, date=day)
+    for attempt in range(6):
+        try:
+            existing = query.first()
             if existing:
                 return existing
-            title, kind, options = definition(day)
-            post = Post.objects.create(room=room, author=None, kind="question", caption=title)
-            return DailyQuestion.objects.create(post=post, room=room, date=day, kind=kind, options=options)
-    except IntegrityError:
-        return DailyQuestion.objects.select_related("post", "room").get(room=room, date=day)
+            try:
+                with transaction.atomic():
+                    FamilyRoom.objects.select_for_update().get(pk=room.pk)
+                    existing = query.first()
+                    if existing:
+                        return existing
+                    title, kind, options = definition(day)
+                    post = Post.objects.create(room=room, author=None, kind="question", caption=title)
+                    return DailyQuestion.objects.create(post=post, room=room, date=day, kind=kind, options=options)
+            except IntegrityError:
+                # The unique constraint also protects databases with row locking.
+                # Re-query after rolling back the losing post and transaction.
+                existing = query.first()
+                if existing:
+                    return existing
+                raise
+        except OperationalError as error:
+            # SQLite's select_for_update() is a no-op. Two readers can race to
+            # upgrade to writers; release the read transaction before retrying
+            # so the winner can commit, then look for its published question.
+            code = getattr(error.__cause__, "sqlite_errorcode", 0)
+            if connection.vendor != "sqlite" or (code & 0xFF) not in {SQLITE_BUSY, SQLITE_LOCKED}:
+                raise
+            if attempt == 5:
+                raise APIError("질문을 준비하고 있어요. 잠시 후 다시 시도해 주세요.", 503) from error
+        time.sleep(min(0.02 * 2 ** attempt, 0.2))
 
 
 def question_for(request, pk):

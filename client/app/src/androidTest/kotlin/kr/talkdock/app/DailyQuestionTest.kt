@@ -49,11 +49,14 @@ class DailyQuestionTest {
         val failComment = AtomicBoolean(false)
         val failDetailAfterComment = AtomicBoolean(false)
         @Volatile var hasNewPost = false
+        @Volatile var questionId = 31
         @Volatile var answer: JSONObject? = null
         val comments = JSONArray()
         val options get() = if (kind == "text") JSONArray() else JSONArray(
             if (kind == "tier") listOf("집에서 쉬기", "밖에서 산책") else listOf("집에서 쉬기", "밖에서 산책", "기타"))
-        private fun question() = JSONObject().put("id", 31).put("post_id", 301).put("date", "2026-10-31")
+        // The home preview only displays today's question in Korea time.
+        private val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).toString()
+        private fun question() = JSONObject().put("id", questionId).put("post_id", 301).put("date", today)
             .put("version", "31:family:1").put("title", "주말엔 뭘 할까요?").put("kind", kind).put("options", options)
             .put("answers", JSONArray().put(JSONObject().put("id", 1).put("author_id", 2).put("author_name", "할머니")
                 .put("choice", if (kind == "text" || kind == "tier") "" else "밖에서 산책").put("text", "같이 바람 쐬면 좋겠어.")
@@ -89,7 +92,7 @@ class DailyQuestionTest {
                                 .put("author_name", "정아").put("relationship", "가족").put("caption", "가족 소식 $id" +
                                     if (id == 1) "\n오늘은 가족에게 긴 소식을 전해요.\n우리 가족 모두 잘 지내고 있나요?" else "")
                                 .put("created_at", "2026-10-31T1$id:00:00+09:00").put("images", JSONArray()).put("comment_count", 0))
-                            JSONObject().put("posts", posts).put("daily_question", JSONObject().put("id", 31).put("date", "2026-10-31").put("title", "주말엔 뭘 할까요?").put("version", "31:family:1"))
+                            JSONObject().put("posts", posts).put("daily_question", JSONObject().put("id", questionId).put("date", today).put("title", "주말엔 뭘 할까요?").put("version", "31:family:1"))
                         }
                         path == "/api/searching/history/" && method == "POST" -> JSONObject()
                             .put("text", "가족 소식 2를 찾았어요.")
@@ -331,6 +334,12 @@ class DailyQuestionTest {
         test.runOnMainSync { editor(activity).setText("두 기능 통합 확인") }
         click(activity, "오늘의 질문 답변 저장")
         awaitUi { hasText(activity, "내 답변 · 집에서 쉬기") }
+        click(activity, "내 답변 수정")
+        test.runOnMainSync {
+            editor(activity).setText("추억 검색 전에 작성한 초안")
+            views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }
+                .setText("추억을 보고 이어 쓸 댓글")
+        }
         test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
         awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
         test.runOnMainSync { views(activity.window.decorView).filterIsInstance<FloatingAssistantView>().single().performClick() }
@@ -354,9 +363,15 @@ class DailyQuestionTest {
         }
         awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
         click(activity, "오늘의 질문")
-        awaitUi { hasText(activity, "내 답변 · 집에서 쉬기") }
-        test.runOnMainSync { assertTrue(hasText(activity, "두 기능 통합 확인")) }
+        awaitUi { views(activity.window.decorView).filterIsInstance<EditText>().any { it.contentDescription == "오늘의 질문 답변 입력" } }
+        test.runOnMainSync {
+            assertEquals("추억 검색 전에 작성한 초안", editor(activity).text.toString())
+            assertEquals("추억을 보고 이어 쓸 댓글", views(activity.window.decorView).filterIsInstance<EditText>()
+                .single { it.contentDescription == "댓글 입력" }.text.toString())
+            assertTrue(views(activity.window.decorView).filterIsInstance<RadioButton>().single { it.text == "집에서 쉬기" }.isChecked)
+        }
         assertEquals("집에서 쉬기", server.answer!!.getString("choice"))
+        assertEquals("두 기능 통합 확인", server.answer!!.getString("text"))
     }
 
     @Test fun activityRecreationRestoresUnsentAnswerAndComment() = withApp { activity, server ->
@@ -380,5 +395,63 @@ class DailyQuestionTest {
             assertTrue(views(next.window.decorView).filterIsInstance<RadioButton>().single { it.text == "집에서 쉬기" }.isChecked)
         }
         assertNull(server.answer)
+    }
+
+    @Test fun closingAndReopeningQuestionKeepsChoiceCustomTextAnswerAndComment() = withApp { activity, server ->
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        click(activity, "기타")
+        test.runOnMainSync {
+            views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "기타 내용 입력" }.setText("함께 요리")
+            editor(activity).setText("아직 보내지 않은 이유")
+            views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.setText("아직 보내지 않은 댓글")
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        test.runOnMainSync {
+            assertEquals("아직 보내지 않은 이유", editor(activity).text.toString())
+            assertEquals("아직 보내지 않은 댓글", views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.text.toString())
+            assertEquals("함께 요리", views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "기타 내용 입력" }.text.toString())
+            assertTrue(views(activity.window.decorView).filterIsInstance<RadioButton>().single { it.text == "기타" }.isChecked)
+        }
+        assertNull(server.answer)
+        assertEquals(0, server.comments.length())
+    }
+
+    @Test fun closingAndReopeningQuestionKeepsTierSelections() = withApp(kind = "tier") { activity, server ->
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        test.runOnMainSync {
+            val spinners = views(activity.window.decorView).filterIsInstance<Spinner>()
+            spinners[0].setSelection(1); spinners[1].setSelection(3)
+            editor(activity).setText("아직 보내지 않은 등급 이유")
+        }
+        test.waitForIdleSync()
+        test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        test.runOnMainSync {
+            val spinners = views(activity.window.decorView).filterIsInstance<Spinner>()
+            assertEquals(1, spinners[0].selectedItemPosition); assertEquals(3, spinners[1].selectedItemPosition)
+            assertEquals("아직 보내지 않은 등급 이유", editor(activity).text.toString())
+        }
+        assertNull(server.answer)
+    }
+
+    @Test fun newTodaysQuestionDoesNotReceivePreviousQuestionsDraft() = withApp { activity, server ->
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        click(activity, "집에서 쉬기")
+        test.runOnMainSync {
+            editor(activity).setText("이전 질문의 답변")
+            views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.setText("이전 질문의 댓글")
+            activity.onBackPressedDispatcher.onBackPressed()
+        }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        server.questionId = 32
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
+        test.runOnMainSync {
+            assertEquals("", editor(activity).text.toString())
+            assertEquals("", views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.text.toString())
+            assertTrue(views(activity.window.decorView).filterIsInstance<RadioButton>().none { it.isChecked })
+        }
     }
 }

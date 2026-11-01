@@ -122,7 +122,8 @@ Graphiti/OpenAI answer, original v2 letters, photos and return from detail.
 
 ## Alignment with daily questions (PR #51)
 
-The integration includes PR #51 at `d24bfc8`. `PhotoLetterDeck` retains both
+The integration includes `iteration-3-demo` at `4d299e9`, including PR #51's
+latest fixes at `4cea414`. `PhotoLetterDeck` retains both
 `reservedHeaderHeight` for the feed's daily-question preview and `showPagination`
 for memory evidence cards. Both web modules/styles and both JavaScript suites
 are registered together. Daily question posts (`kind="question"`) remain
@@ -130,17 +131,23 @@ separate from ordinary feed posts, memory evidence, digests and Graphiti post
 construction. Distribution APKs are rebuilt from the combined source.
 
 `DailyQuestionTest.dailyAnswersAndMemoryEvidenceCoexistAcrossFeedNavigation`
-checks saving a daily answer, returning to the feed, searching memories through
-the character, displaying a full evidence card without pagination, and returning
-to the saved daily answer. The backend integration test also verifies that a
-daily question cannot become a normal memory evidence card.
+checks saving a daily answer, editing an unsent answer and comment, returning to
+the feed, searching memories through the character, displaying a full evidence
+card without pagination, and returning to the unchanged drafts. It also checks
+that navigation does not publish the draft over the saved answer. The backend
+integration test verifies that a daily question cannot become a normal memory
+evidence card. The home-preview fixture uses the current Korea date so it remains
+valid after the original demo date.
 
-Local alignment validation: backend 214 passed / 4 opt-in tests skipped; web
-52 passed; Android JVM 39 passed; Android UI 32 passed, including the combined
-navigation test; opt-in live memory demo 1 passed. The UI selection excludes
+Local alignment validation: backend 217 passed / 4 opt-in tests skipped; web
+52 passed; Android JVM 39 passed; Android UI 35 passed (24 memory/assistant/photo
+tests and 11 daily-question tests), including the combined draft/navigation
+test. The UI selection excludes
 `cancellingVoiceAnswerRestoresUnsentChoiceAndText`, which explicitly changes a
 microphone permission; no local permission changes were made. Regular/debug test
 builds, both distribution APK builds and the missing-migration check passed.
 
-The draft-reopening and SQLite concurrent-publication findings submitted on
-PR #51 remain tracked there; this integration preserves that PR's behavior.
+The upstream fixes restore drafts only within the same user, room, server and
+question, and refresh today's question before reopening it. SQLite publication
+retries locked transactions after rollback, with a bounded retry count and a
+503 response on exhaustion. Both fixes and their regression tests are retained.

@@ -1,5 +1,9 @@
 import io
 import json
+import os
+import sqlite3
+import subprocess
+import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -8,10 +12,12 @@ from unittest.mock import patch
 from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
+from django.db import OperationalError
 from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
+from apps.api import APIError
 from apps.digests.services import generate_digest
 from apps.families.models import FamilyRoom
 from apps.posts.models import DailyQuestion, Post, QuestionAnswer, QuestionTemplate
@@ -59,6 +65,20 @@ class QuestionRotationTests(SimpleTestCase):
             self.assertIn(str(path), str(error.exception))
 
 
+class DailyQuestionConcurrencyTests(SimpleTestCase):
+    def test_concurrent_first_feed_and_question_request_on_file_sqlite(self):
+        # A separate process keeps the real file-backed SQLite connections
+        # independent of Django's shared in-memory test database and transactions.
+        with TemporaryDirectory() as folder:
+            env = {**os.environ, "DJANGO_DB_PATH": str(Path(folder) / "concurrent.sqlite3"), "PYTHONIOENCODING": "utf-8"}
+            result = subprocess.run(
+                [sys.executable, "-m", "developer.test_codes.daily_question_concurrency_case"],
+                cwd=Path(__file__).resolve().parents[2], env=env,
+                capture_output=True, text=True, encoding="utf-8", timeout=45,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+
 class DailyQuestionTests(TestCase):
     def setUp(self):
         self.day = date(2026, 10, 31)
@@ -82,6 +102,28 @@ class DailyQuestionTests(TestCase):
 
     def answer(self, pk, payload, auth=None):
         return self.client.put(f"/api/daily-questions/{pk}/answer/", json.dumps(payload), content_type="application/json", **(auth or self.auth))
+
+    def test_sqlite_lock_retries_are_bounded_and_failed_posts_are_rolled_back(self):
+        for code in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED_SHAREDCACHE):
+            cause = sqlite3.OperationalError("database is locked")
+            cause.sqlite_errorcode = code
+            error = OperationalError("database is locked")
+            error.__cause__ = cause
+            with self.subTest(code=code), patch("apps.posts.daily_questions.DailyQuestion.objects.create", side_effect=error) as create, patch("apps.posts.daily_questions.time.sleep") as sleep:
+                with self.assertRaises(APIError) as caught:
+                    ensure_today(self.room)
+                self.assertEqual(caught.exception.status, 503)
+                self.assertEqual(create.call_count, 6)
+                self.assertEqual(sleep.call_count, 5)
+            self.assertFalse(Post.objects.exists())
+            self.assertFalse(DailyQuestion.objects.exists())
+
+    def test_non_lock_database_error_is_not_retried(self):
+        with patch("apps.posts.daily_questions.Post.objects.create", side_effect=OperationalError("no such table")) as create, patch("apps.posts.daily_questions.time.sleep") as sleep:
+            with self.assertRaises(OperationalError):
+                ensure_today(self.room)
+        create.assert_called_once()
+        sleep.assert_not_called()
 
     def test_json_rotation_cycles_by_date_and_published_questions_stay_frozen(self):
         self.assertEqual(definition(self.day), ("주말에 가족과 시간을 보낸다면?", "choice", ["집에서 쉬기", "밖에서 산책"]))
