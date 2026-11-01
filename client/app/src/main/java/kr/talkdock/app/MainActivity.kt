@@ -318,8 +318,30 @@ class MainActivity : ComponentActivity() {
         }
         val mainPage = name == "home" || name == "digest"
         if (mainPage) {
-            header.addView(ui.text("토닥", 28f, true).apply { typeface = ui.titleFont }, LinearLayout.LayoutParams(0, -2, 1f))
-            header.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
+            // Symmetric insets plus a logo slot as wide as the buttons keep the family name centered on
+            // screen; the logo sits slightly inset so the gap beside the name does not look lopsided.
+            // The roomier bottom clears the daily question card.
+            header.setPadding(ui.dp(16), ui.dp(8), ui.dp(16), ui.dp(12))
+            val actionsWidth = ui.dp(48 + 8 + 48)
+            val brand = ui.row()
+            brand.addView(ImageView(this).apply {
+                setImageResource(R.drawable.todak_logo); adjustViewBounds = true; contentDescription = "토닥"
+            }, LinearLayout.LayoutParams(-2, ui.dp(52)).apply { marginStart = ui.dp(20) })
+            header.addView(brand, LinearLayout.LayoutParams(actionsWidth, -2))
+            val center = FrameLayout(this)
+            header.addView(center, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8); marginEnd = ui.dp(8) })
+            room.optString("name").takeIf { it.isNotBlank() }?.let { name ->
+                center.addView(ui.text(name, if (large) 20f else 17f, true, ui.coralDeep).apply {
+                    gravity = Gravity.CENTER; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
+                    background = ui.shape(ui.blush, 22); setPadding(ui.dp(18), ui.dp(9), ui.dp(18), ui.dp(9))
+                    contentDescription = "현재 가족방 $name, 가족방 바꾸기"
+                    isClickable = true; isFocusable = true
+                    setOnClickListener { if (!busy) roomChoice() }
+                }, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
+            }
+            val actions = ui.row()
+            header.addView(actions, LinearLayout.LayoutParams(actionsWidth, -2))
+            actions.addView(ui.iconButton("plus", "가족 소식 작성하기") { composer() }.apply {
                 background = ui.shape(ui.sky, 28)
             })
             val profile = ui.text(session?.optString("name").orEmpty().take(1).ifBlank { "나" }, 16f, true).apply {
@@ -329,7 +351,7 @@ class MainActivity : ComponentActivity() {
                 isClickable = true; isFocusable = true
                 setOnClickListener { openProfileMenu() }
             }
-            header.addView(profile, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
+            actions.addView(profile, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)).apply { marginStart = ui.dp(8) })
         } else {
             if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() })
             header.addView(ui.text(title, if (name == "dailyQuestion" && !large) 18f else 21f, true).apply {
@@ -544,7 +566,7 @@ class MainActivity : ComponentActivity() {
         val box = ui.column(22).apply { background = ui.shape(ui.paper, 32) }
         val header = ui.row()
         header.addView(ImageView(this).apply { setImageResource(R.drawable.assistant_character); scaleType = ImageView.ScaleType.FIT_CENTER },
-            LinearLayout.LayoutParams(ui.dp(36), ui.dp(42)))
+            LinearLayout.LayoutParams(ui.dp(40), ui.dp(48)))
         header.addView(ui.text("토닥에게 물어보기", if (large) 23f else 20f, true), LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(8) })
         header.addView(ui.iconButton("close", "도우미 닫기") { dialog.dismiss() })
         box.addView(header); ui.gap(box, 16)
@@ -717,27 +739,6 @@ class MainActivity : ComponentActivity() {
         }
         root.addView(cover, FrameLayout.LayoutParams(-1, -1))
     }
-    private fun connectionSettings() {
-        val input = EditText(this).apply { setText(sessions.serverUrl()); inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI }
-        val dialog = AlertDialog.Builder(this).setTitle("테스트 서버 연결")
-            .setMessage("팀원이 안내한 주소를 입력해 주세요. 서버를 바꾸면 이 휴대폰에서 다시 로그인해야 해요.")
-            .setView(input).setPositiveButton("연결", null).setNegativeButton("취소", null).create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val raw = input.text.toString().trim().trimEnd('/')
-                val url = if (raw.endsWith("/api")) raw + "/" else raw + "/api/"
-                val parsed = runCatching { java.net.URI(url) }.getOrNull()
-                if (parsed == null || parsed.scheme !in listOf("http", "https") || parsed.host.isNullOrBlank() ||
-                    parsed.rawUserInfo != null || parsed.rawQuery != null || parsed.rawFragment != null || parsed.path != "/api/") {
-                    input.error = "예: http://192.168.0.10:8000/api/"; return@setOnClickListener
-                }
-                sessions.changeServer(url); session = sessions.current(); room = session?.optJSONObject("room") ?: JSONObject()
-                imageLoader.clear(); dialog.dismiss()
-                if (session == null) welcome() else if (room.has("id")) members() else roomChoice()
-            }
-        }
-        dialog.show()
-    }
     private fun remotePhoto(view: ImageView, post: JSONObject, url: String = post.getString("image_url"), thumbnail: Boolean = false) {
         if (view.contentDescription?.toString()?.startsWith("사진 ") != true)
             view.contentDescription = post.optString("author_name") + "님의 사진"
@@ -803,7 +804,6 @@ class MainActivity : ComponentActivity() {
                 else -> "들어갈 가족방을 골라 주세요."
             })
             rooms.forEach { roomCard(it); ui.gap(content, 12) }
-            if (room.has("id")) { ui.button(content, "가족 추억 찾기", false, if (large) 76 else 56) { familyMemories() }; ui.gap(content, 12) }
             if (rooms.isNotEmpty()) ui.gap(content, 8)
             ui.button(content, "새 가족방 만들기", height = if (large) 76 else 56) { create() }
             ui.button(content, "초대 코드로 참여하기", false, if (large) 76 else 56) { join() }
@@ -812,7 +812,6 @@ class MainActivity : ComponentActivity() {
                 ui.ghost(content, "내 계정 수정") { editAccount() }
                 ui.ghost(content, "다른 계정으로 로그인") { login() }
             }
-            if (BuildConfig.DEBUG) ui.ghost(content, "테스트 연결 설정") { connectionSettings() }
         }
     }
     private fun roomCard(item: JSONObject) {
@@ -848,7 +847,7 @@ class MainActivity : ComponentActivity() {
     private fun welcome() {
         navigation("토닥", name = "welcome")
         ui.gap(content, 20)
-        ui.label(content, "토닥", 34f, true).gravity = Gravity.CENTER
+        ui.label(content, "토닥", 34f, true).apply { gravity = Gravity.CENTER; typeface = ui.titleFont }
         ui.gap(content, 20)
         ui.label(content, "가족의 하루에\n마음을 건네는 시간", 26f, true).gravity = Gravity.CENTER
         ui.gap(content, 20); ui.art(content); ui.gap(content, 20)
@@ -858,7 +857,6 @@ class MainActivity : ComponentActivity() {
         ui.gap(content, 12)
         ui.ghost(content, "이미 계정이 있어요") { login() }
         if (sessions.all().isNotEmpty()) ui.ghost(content, "이 휴대폰의 계정으로 돌아가기") { accounts() }
-        if (BuildConfig.DEBUG) ui.ghost(content, "테스트 연결 설정") { connectionSettings() }
     }
     private fun register() {
         navigation("계정 만들기", { welcome() }, name = "register")
@@ -1154,7 +1152,6 @@ class MainActivity : ComponentActivity() {
         heading("소식을 불러오지 못했어요", message)
         ui.button(content, "다시 불러오기") { home() }
         ui.button(content, "가족방으로", false) { roomChoice() }
-        if (BuildConfig.DEBUG) ui.ghost(content, "테스트 연결 설정") { connectionSettings() }
     }
     private fun photoItems(post: JSONObject): List<JSONObject> {
         post.optJSONArray("images")?.let { return objects(it).filter { image -> image.optString("url").isNotBlank() } }
@@ -1811,8 +1808,6 @@ class MainActivity : ComponentActivity() {
                     }, parts[0].toInt(), parts[1].toInt(), true).show()
                 }
             }
-            if (BuildConfig.DEBUG) ui.button(content, "테스트 연결 설정", false) { connectionSettings() }
-            ui.button(content, "이 휴대폰의 다른 계정으로 보기", false) { accounts() }
             ui.button(content, "로그아웃", false) {
                 val client = api
                 async({ client.request("accounts/logout/", "POST", JSONObject()) }) {
@@ -1822,7 +1817,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun accounts() {
-        navigation("이 휴대폰의 계정", { if (session == null) welcome() else if (room.has("id")) members() else roomChoice() }, name = "accounts")
+        navigation("이 휴대폰의 계정", { if (session == null) welcome() else if (room.has("id")) home() else roomChoice() }, name = "accounts")
         heading("누구의 화면을 볼까요?", "이 휴대폰에서 로그인한 계정만 보여요.")
         sessions.all().forEach { account ->
             val name = account.getString("name") + " (" + account.getString("username") + ")" +

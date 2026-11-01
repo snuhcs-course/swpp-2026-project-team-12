@@ -48,7 +48,7 @@ class FloatingAssistantView(
     }
 
     init {
-        layoutParams = LayoutParams(ui.dp(60), ui.dp(72), Gravity.TOP or Gravity.LEFT)
+        layoutParams = LayoutParams(ui.dp(68), ui.dp(82), Gravity.TOP or Gravity.LEFT)
         isClickable = true; isFocusable = true
         contentDescription = "토닥 도우미. 누르면 질문하기, 끌어서 위치 옮기기"
         addView(characterImage, LayoutParams(-1, -1))
@@ -64,7 +64,7 @@ class FloatingAssistantView(
         // Fit the whole mascot, then mirror its image view for right-edge docking.
         val left = drawable.intrinsicWidth * (30f / 1151f)
         val top = drawable.intrinsicHeight * (23f / 1367f)
-        val visibleWidth = drawable.intrinsicWidth * (1092f / 1151f)
+        val visibleWidth = drawable.intrinsicWidth * (1094f / 1151f)
         val visibleHeight = drawable.intrinsicHeight * (1304f / 1367f)
         if (visibleWidth <= 0 || visibleHeight <= 0) return
         val scale = minOf(characterImage.width / visibleWidth, characterImage.height / visibleHeight)
@@ -81,7 +81,7 @@ class FloatingAssistantView(
     /** Attach menus to the visible hand, excluding the PNG's transparent canvas. */
     internal fun bubbleAttachmentX(): Float {
         val drawable = characterImage.drawable ?: return x + width / 2f
-        val point = floatArrayOf(drawable.intrinsicWidth * (1122f / 1151f), 0f)
+        val point = floatArrayOf(drawable.intrinsicWidth * (1124f / 1151f), 0f)
         characterImage.imageMatrix.mapPoints(point)
         val innerEdge = if (characterImage.scaleX < 0) width - point[0] else point[0]
         return x + innerEdge.coerceIn(0f, width.toFloat())
