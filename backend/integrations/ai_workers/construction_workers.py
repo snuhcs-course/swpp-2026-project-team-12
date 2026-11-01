@@ -61,7 +61,7 @@ def construct(family_id, once, stdout, stderr):
                     int(name[5:]) for name in names
                     if name.startswith("post_") and name[5:].isdigit()
                 }
-                posts = Post.objects.filter(room_id=family_id).exclude(pk__in=completed)
+                posts = Post.objects.filter(room_id=family_id, kind="news").exclude(pk__in=completed)
                 for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
                     try:
                         if not post.description:

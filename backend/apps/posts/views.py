@@ -16,6 +16,8 @@ from .services import post_for, prepare_uploads, save_post, serialize
 @api("POST")
 def question(request, pk):
     post = post_for(request, pk)
+    if post.kind == "question":
+        raise APIError("오늘의 질문에서는 가족의 답변과 댓글을 확인해 주세요.")
     data = body(request)
     text = required(data, "question", 1000)
     dialogue = data.get("prior_dialogue", [])
@@ -37,9 +39,11 @@ def question(request, pk):
 def feed(request):
     room = room_for(request)
     if request.method == "GET":
-        posts = (room.posts.select_related("author")
+        posts = (room.posts.filter(kind="news").select_related("author")
                  .annotate(comment_count=Count("comments")).order_by("-created_at", "-id")[:100])
-        return {"posts": [serialize(post, request) for post in posts]}
+        from .daily_questions import ensure_today, status
+        return {"posts": [serialize(post, request) for post in posts],
+                "daily_question": status(ensure_today(room), request.user)}
 
     caption = request.POST.get("caption", "").strip()
     if len(caption) > 2000:
@@ -81,6 +85,8 @@ def photo(request, pk, image_index=0):
 @api("GET", "POST")
 def message(request, pk):
     post = post_for(request, pk)
+    if post.kind == "question":
+        raise APIError("오늘의 질문에서는 가족의 답변과 댓글을 확인해 주세요.")
     obj, _ = AdaptedMessage.objects.get_or_create(post=post, viewer=request.user)
     version = provider.summary_cache_version()
     eligible = Q(status="pending") | Q(

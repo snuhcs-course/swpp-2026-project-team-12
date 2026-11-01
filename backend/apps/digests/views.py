@@ -34,7 +34,7 @@ def daily(request):
 def history(request):
     room = room_for(request)
     dates = {timezone.localdate()}
-    for created_at in room.posts.values_list("created_at", flat=True)[:200]:
+    for created_at in room.posts.filter(kind="news").values_list("created_at", flat=True)[:200]:
         local = timezone.localtime(created_at)
         dates.add(local.date() + (timedelta(days=1) if local.time() >= room.digest_time else timedelta()))
     dates.update(room.digests.values_list("date", flat=True))

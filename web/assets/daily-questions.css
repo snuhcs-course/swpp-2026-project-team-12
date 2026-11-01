@@ -1,0 +1,73 @@
+/* Daily conversation prompts share the feed's paper, peach and terracotta palette. */
+#daily-entry { position: sticky; top: 12px; z-index: 5; margin-bottom: 26px; }
+.daily-entry { display: flex; align-items: center; gap: 15px; width: 100%; min-height: 76px; padding: 14px 20px; border: 1px solid #e7d4c4; border-radius: 14px; background: #f8eee5; text-align: left; box-shadow: 0 3px 12px #593e2510; }
+.daily-entry:hover { background: #f5e6da; border-color: #cdaa90; }
+.daily-entry-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; background: var(--paper); color: var(--accent); }
+.daily-entry-copy { flex: 1; min-width: 0; }
+.daily-entry-copy > span { display: flex; align-items: center; gap: 8px; color: var(--accent); font-size: .72rem; font-weight: 650; }
+.daily-entry-copy > strong { display: block; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .96rem; font-weight: 650; }
+.daily-entry-cta { color: var(--accent); font-size: .8rem; white-space: nowrap; }
+.daily-entry > .icon { color: var(--accent); width: 17px; }
+.daily-unread { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.daily-dialog { max-width: 1040px; }
+.daily-meta, .daily-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.daily-meta time { font-size: .8rem; color: var(--muted); }
+.daily-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 30px; align-items: start; }
+.daily-prompt { min-width: 0; background: #faf3e9; border: 1px solid #efe4d5; border-radius: 16px; padding: 24px; }
+.daily-prompt > h3 { font-size: 1.38rem; margin: 14px 0 20px; overflow-wrap: anywhere; }
+.daily-prompt .field { margin-block: 20px 14px; }
+.daily-prompt textarea { background: var(--paper); min-height: 105px; }
+.daily-options, .daily-tiers { padding: 0; margin: 0; min-width: 0; border: 0; }
+.daily-option { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-top: 8px; border: 1px solid #e5d9ca; border-radius: 10px; background: var(--paper); }
+.daily-option:first-of-type { margin-top: 0; }
+.daily-option.selected { border-color: var(--accent); background: #f9e9dd; }
+.daily-option > label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; padding: 12px; font-size: .9rem; cursor: pointer; overflow-wrap: anywhere; }
+.daily-option input[type="radio"] { width: 18px; height: 18px; min-width: 18px; margin: 0; accent-color: var(--accent); }
+.daily-option input:disabled { cursor: default; }
+.daily-option.selected > label { font-weight: 700; color: var(--accent); }
+.daily-option:has([name="other_text"]:not([hidden])) > label, .daily-option:has(> strong) > label { flex: 0 0 auto; }
+.daily-option [name="other_text"] { flex: 1; width: 0; margin-right: 8px; padding: 8px 10px; font-size: .85rem; }
+.daily-option > strong { flex: 1; min-width: 0; padding: 8px 12px 8px 0; font-size: .85rem; color: var(--accent); overflow-wrap: anywhere; }
+.daily-submit { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.daily-note { margin-top: 13px; }
+.daily-own-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; font-size: .87rem; }
+.daily-choice-chip { display: inline-block; max-width: 100%; width: fit-content; padding: 4px 10px; border-radius: 8px; color: var(--accent); background: #f7e4d6; font-size: .8rem; font-weight: 750; overflow-wrap: anywhere; }
+.daily-answer-text { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.85; font-size: .9rem; }
+.daily-tiers legend { font-size: .9rem; font-weight: 650; }
+.daily-tiers > .help { margin-block: 6px 15px; }
+.daily-tiers > label { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; font-size: .9rem; border-bottom: 1px solid #ebe0d2; }
+.daily-tiers > label > span { min-width: 0; overflow-wrap: anywhere; }
+.daily-tiers select { width: 86px; flex: 0 0 86px; padding: 8px; background: var(--paper); }
+.daily-tier-results { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.daily-tier-results > span { display: inline-flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 7px; background: var(--peach); font-size: .8rem; overflow-wrap: anywhere; }
+.daily-tier-results b { color: var(--accent); }
+.daily-conversation { min-width: 0; }
+.daily-conversation h3 { font-size: 1rem; }
+.daily-conversation h3 > span { font-size: .85rem; font-weight: 600; color: var(--accent); margin-left: 6px; }
+.daily-answers { margin-top: 13px; }
+.daily-answer { display: flex; align-items: start; gap: 11px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 12px; background: #fffaf4; }
+.daily-answer > div { flex: 1; min-width: 0; }
+.daily-answer-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.daily-answer-name { min-width: 0; font-size: .85rem; overflow-wrap: anywhere; }
+.daily-comments { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); }
+.daily-comments .comment { padding-inline: 0; }
+.daily-comments textarea { background: #fffaf4; font-size: .88rem; margin-top: 12px; }
+.daily-history-list { display: grid; gap: 10px; margin-bottom: 18px; }
+.daily-history-list > button { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; border: 1px solid var(--line); border-radius: 12px; padding: 17px 20px; background: var(--paper); text-align: left; }
+.daily-history-list > button:hover { background: #faf3e9; border-color: #d8c5b4; }
+.daily-history-list > button > span { min-width: 0; }
+.daily-history-list time, .daily-history-list strong, .daily-history-list small { display: block; }
+.daily-history-list strong { font-size: 1rem; margin-block: 3px; overflow-wrap: anywhere; }
+.daily-history-list time, .daily-history-list small { color: var(--muted); font-size: .77rem; }
+@media (max-width: 800px) {
+  .daily-layout { grid-template-columns: minmax(0, 1fr); gap: 25px; }
+  .daily-dialog { max-width: 650px; }
+}
+@media (max-width: 760px) {
+  #daily-entry { top: 8px; margin-bottom: 20px; }
+  .daily-entry { gap: 10px; padding: 12px; min-height: 68px; }
+  .daily-entry-cta { display: none; }
+  .daily-entry-copy > strong { font-size: .9rem; }
+  .daily-prompt { padding: 18px; }
+  .daily-prompt > h3 { font-size: 1.2rem; }
+}
