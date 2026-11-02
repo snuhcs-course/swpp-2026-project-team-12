@@ -137,8 +137,11 @@ USE_TZ = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+# Uploads have no byte limit; every photo is re-encoded to MAX_IMAGE_DIMENSION before storage.
+# MAX_IMAGE_PIXELS only guards against decompression bombs and leaves room for 48-50MP phone photos.
 MAX_POST_IMAGES = 5
-MAX_POST_UPLOAD_BYTES = 30 * 1024 * 1024
-MAX_IMAGE_PIXELS = 20_000_000
+MAX_IMAGE_PIXELS = 100_000_000
 MAX_IMAGE_DIMENSION = 1600
+# Each photo sent to graph construction is downsampled until it fits both limits.
+CONSTRUCTION_IMAGE_MAX_BYTES = 1 * 1024 * 1024
+CONSTRUCTION_IMAGE_MAX_DIMENSION = 1600

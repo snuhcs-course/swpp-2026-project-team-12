@@ -137,6 +137,8 @@ class MainActivity : ComponentActivity() {
     private fun apiClient(token: String = "", baseUrl: String = sessions.serverUrl(), roomId: Int? = null) =
         ApiClient(token, baseUrl, roomId) { runOnUiThread { showMaintenance() } }
     private val cameraCode = 10
+    // Photos have no byte limit (the server re-encodes them); this only matches the server's pixel guard.
+    private val maxPhotoPixels = 100_000_000L
     private val microphoneCode = 12
     private val photoPicker = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -1329,8 +1331,7 @@ class MainActivity : ComponentActivity() {
             if (resultCode == RESULT_OK && output != null && output.length() > 0) {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(output.absolutePath, bounds)
-                if (output.length() > 10 * 1024 * 1024 || bounds.outWidth <= 0 || bounds.outHeight <= 0 ||
-                    bounds.outWidth.toLong() * bounds.outHeight > 20_000_000) {
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > maxPhotoPixels) {
                     output.delete(); toast("사진이 너무 크거나 읽을 수 없어요. 다른 사진을 선택해 주세요.")
                     composer()
                     return
@@ -1348,27 +1349,18 @@ class MainActivity : ComponentActivity() {
     private fun copyGalleryPhotos(uris: List<Uri>): List<File> {
         val directory = File(filesDir, "camera").apply { mkdirs() }
         val files = mutableListOf<File>()
-        var combined = 0L
         try {
             uris.forEach { uri ->
                 val output = File.createTempFile("picked-", ".jpg", directory)
                 files.add(output)
                 contentResolver.openInputStream(uri)?.use { source ->
                     output.outputStream().use { destination ->
-                        val buffer = ByteArray(8192); var total = 0L
-                        while (true) {
-                            val count = source.read(buffer); if (count < 0) break
-                            total += count; combined += count
-                            if (total > 10 * 1024 * 1024 || combined > 30 * 1024 * 1024) {
-                                throw ApiException("사진 한 장은 10MB, 전체 사진은 30MB까지 선택할 수 있어요.")
-                            }
-                            destination.write(buffer, 0, count)
-                        }
+                        source.copyTo(destination)
                     }
                 } ?: throw ApiException("사진을 읽지 못했어요.")
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 BitmapFactory.decodeFile(output.absolutePath, bounds)
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 20_000_000) {
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > maxPhotoPixels) {
                     throw ApiException("읽을 수 없거나 너무 큰 사진이에요. 다른 사진을 선택해 주세요.")
                 }
             }
@@ -1400,7 +1392,7 @@ class MainActivity : ComponentActivity() {
             }, choose = { caption = text.text.toString(); launchPhotoChooser() }), LinearLayout.LayoutParams(-1, -2))
         if (hasInvalidPhoto) ui.label(content, "읽을 수 없는 사진이 있어요. 빼거나 다시 선택해 주세요.", 18f)
         ui.gap(content, 16)
-        ui.label(content, "사진 ${files.size} / 5장 · 한 장당 10MB · 전체 30MB", 14f, color = ui.muted)
+        ui.label(content, "사진 ${files.size} / 5장", 14f, color = ui.muted)
         ui.gap(content, 12)
         ui.button(content, "가족에게 전하기", height = if (large) 76 else 56) {
             caption = text.text.toString().trim()
@@ -1623,6 +1615,23 @@ class MainActivity : ComponentActivity() {
         updateAssistantContext()
     }
 
+    /**
+     * The server separates each author's paragraph with a blank line; show them one line apart instead and
+     * bold the leading "[관계 - 이름]" tag. Speech still reads the server text unchanged.
+     */
+    private fun digestParagraphs(text: String): CharSequence {
+        val out = android.text.SpannableStringBuilder()
+        text.lines().map { it.trim() }.filter { it.isNotEmpty() }.forEach { paragraph ->
+            if (out.isNotEmpty()) out.append('\n')
+            val start = out.length
+            out.append(paragraph)
+            val tagEnd = if (paragraph.startsWith("[")) paragraph.indexOf(']') else -1
+            if (tagEnd > 0) out.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                start, start + tagEnd + 1, android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        return out
+    }
+
     private fun digest(date: String = digestDate, retry: Boolean = false) {
         digestDate = date
         navigation("하루", { home() }, name = "digest")
@@ -1666,7 +1675,9 @@ class MainActivity : ComponentActivity() {
                         }
                         ui.gap(letter, 24)
                     }
-                    ui.label(letter, data.getString("text"), if (large) 25f else 21f).apply { setLineSpacing(ui.dp(5).toFloat(), 1.25f) }
+                    ui.label(letter, "", if (large) 25f else 21f).apply {
+                        setLineSpacing(ui.dp(5).toFloat(), 1.25f); text = digestParagraphs(data.getString("text"))
+                    }
                     ui.gap(letter, 26)
                     val playback = ReplyAudioButton(this, ui, data.getString("text"), client, speaker, summaries, large,
                         playLabel = "오늘 이야기 듣기", stopLabel = "하루 요약 듣기 중지", primary = true).also { replyPreview = it }

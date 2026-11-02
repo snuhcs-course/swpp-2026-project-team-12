@@ -1,5 +1,6 @@
 """Offline regressions: synthetic photos, isolated storage, mocked AI."""
 import io
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
@@ -95,15 +96,41 @@ class PostPhotoTests(TestCase):
         self.assertFalse(Post.objects.exists())
         self.assertFalse(any(x.is_file() for x in self.media.rglob("*")))
 
-    @override_settings(MAX_UPLOAD_BYTES=10)
-    def test_per_photo_byte_limit(self):
+    def test_large_photos_have_no_byte_limit_and_are_stored_downsized(self):
+        # Uncompressed BMPs: each one alone is over the old 10MB limit, together over the old 30MB.
+        def large(index):
+            data = io.BytesIO()
+            Image.new("RGB", (2400, 1600), (40 * index, 90, 160)).save(data, "BMP")
+            self.assertGreater(len(data.getvalue()), 10 * 1024 * 1024)
+            return SimpleUploadedFile(f"large-{index}.bmp", data.getvalue(), content_type="image/bmp")
+        result = self.client.post("/api/posts/", {"images": [large(i) for i in range(3)], "caption": "큰 사진"}, **self.auth)
+        self.assertEqual(result.status_code, 200)
+        for image in Post.objects.get().photo_files():
+            with image.open("rb") as stream, Image.open(stream) as stored:
+                self.assertEqual(stored.format, "JPEG")
+                self.assertLessEqual(max(stored.size), 1600)
+
+    @override_settings(MAX_IMAGE_PIXELS=100)
+    def test_pixel_guard_still_rejects_oversized_dimensions(self):
         self.assertEqual(self.upload().status_code, 400)
         self.assertFalse(Post.objects.exists())
 
-    @override_settings(MAX_POST_UPLOAD_BYTES=10)
-    def test_combined_byte_limit(self):
-        self.assertEqual(self.upload().status_code, 400)
-        self.assertFalse(Post.objects.exists())
+    def test_construction_photos_are_downsampled_only_when_over_the_limit(self):
+        from integrations.ai.feed_description import construction_jpeg
+        small = io.BytesIO(); Image.new("RGB", (800, 600), "orange").save(small, "JPEG", quality=88)
+        self.assertEqual(construction_jpeg(small.getvalue()), small.getvalue())
+        # Noise defeats JPEG compression, so this 1600px photo is well over 1MB.
+        noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
+        heavy = io.BytesIO(); noisy.save(heavy, "JPEG", quality=95)
+        self.assertGreater(len(heavy.getvalue()), 1024 * 1024)
+        fitted = construction_jpeg(heavy.getvalue())
+        self.assertLessEqual(len(fitted), 1024 * 1024)
+        with Image.open(io.BytesIO(fitted)) as decoded:
+            self.assertEqual(decoded.format, "JPEG")
+            self.assertLessEqual(max(decoded.size), 1600)
+        wide = io.BytesIO(); Image.new("RGB", (3000, 1000), "green").save(wide, "PNG")
+        with Image.open(io.BytesIO(construction_jpeg(wide.getvalue()))) as decoded:
+            self.assertEqual((decoded.format, decoded.size), ("JPEG", (1600, 533)))
 
     def test_storage_failure_rolls_back_and_cleans_first_file(self):
         from apps.posts.services import prepare_image, save_post

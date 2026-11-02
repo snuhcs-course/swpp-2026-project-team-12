@@ -75,6 +75,8 @@ class PostComposerTest {
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
         return ByteArrayOutputStream().also { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it); bitmap.recycle() }.toByteArray()
     }
+    /** A readable JPEG padded past its end marker, so it is large on disk but decodes like a small photo. */
+    private fun jpegOfSize(bytes: Int) = jpeg(Color.GREEN).let { it + ByteArray(maxOf(0, bytes - it.size)) }
     private fun UiHarness.draftFile(name: String, bytes: ByteArray) =
         File(File(activity.filesDir, "camera").apply { mkdirs() }, name).apply { writeBytes(bytes) }
 
@@ -90,7 +92,7 @@ class PostComposerTest {
     @Test fun textOnlyPostIsUploadedToTheCurrentRoomAndEmptyPostsAreBlocked() {
         feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족")).use { ui ->
             ui.openComposer()
-            ui.test.runOnMainSync { assertTrue(ui.has("사진 0 / 5장 · 한 장당 10MB · 전체 30MB")); assertTrue(ui.has("사진 추가")) }
+            ui.test.runOnMainSync { assertTrue(ui.has("사진 0 / 5장")); assertTrue(ui.has("사진 추가")) }
             ui.click("가족에게 전하기")
             assertTrue("An empty post must not be sent", api.uploads().isEmpty())
             ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("  오늘은 공원을 산책했어요  ") }
@@ -125,14 +127,14 @@ class PostComposerTest {
                     setAttribute(android.media.ExifInterface.TAG_ORIENTATION, "6"); saveAttributes()
                 }
             }
-            ui.attach(listOf(first, rotated)); ui.await { ui.has("사진 2 / 5장 · 한 장당 10MB · 전체 30MB") }
+            ui.attach(listOf(first, rotated)); ui.await { ui.has("사진 2 / 5장") }
             ui.test.runOnMainSync {
                 assertTrue(ui.has("사진 다시 선택"))
                 val preview = ui.all().first { it.contentDescription?.toString() == "첨부 사진 2" } as ImageView
                 val bitmap = (preview.drawable as BitmapDrawable).bitmap
                 assertTrue("EXIF orientation 6 must be shown upright", bitmap.height > bitmap.width)
             }
-            ui.clickDescription("1번째 사진 빼기"); ui.await { ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB") }
+            ui.clickDescription("1번째 사진 빼기"); ui.await { ui.has("사진 1 / 5장") }
             assertFalse("A removed photo is deleted from the draft folder", first.exists())
             ui.click("가족에게 전하기"); ui.await(12000) { ui.has("첫 소식을 기다리고 있어요") }
             val body = api.uploads().single().body
@@ -154,12 +156,12 @@ class PostComposerTest {
                 assertEquals(2, removes.size)
                 removes[1].performClick()
             }
-            ui.await { ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB") && !ui.has("읽을 수 없는 사진이 있어요. 빼거나 다시 선택해 주세요.") }
+            ui.await { ui.has("사진 1 / 5장") && !ui.has("읽을 수 없는 사진이 있어요. 빼거나 다시 선택해 주세요.") }
             assertTrue(good.exists()); assertFalse(broken.exists())
         } }
     }
 
-    @Test fun copyingGalleryPhotosRejectsOversizedAndUnreadableFiles() {
+    @Test fun copyingGalleryPhotosRejectsUnreadableFilesButNotLargeOnes() {
         feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
             val copy = MainActivity::class.java.getDeclaredMethod("copyGalleryPhotos", List::class.java).apply { isAccessible = true }
@@ -171,7 +173,9 @@ class PostComposerTest {
             }
             val camera = File(ui.activity.filesDir, "camera")
             camera.listFiles()?.forEach { it.delete() }
-            assertTrue(copyError(ByteArray(10 * 1024 * 1024 + 1)).contains("10MB"))
+            // Photos have no byte limit any more; only unreadable files are rejected.
+            assertEquals("", copyError(jpegOfSize(11 * 1024 * 1024)))
+            camera.listFiles()?.forEach { it.delete() }
             assertEquals("읽을 수 없거나 너무 큰 사진이에요. 다른 사진을 선택해 주세요.", copyError("not-an-image".toByteArray()))
             assertTrue("Failed copies leave no files behind", camera.listFiles().isNullOrEmpty())
             val source = File(ui.activity.cacheDir, "gallery-ok.jpg").apply { writeBytes(jpeg(Color.YELLOW)) }
@@ -224,7 +228,7 @@ class PostComposerTest {
                 test.waitForIdleSync(); android.os.SystemClock.sleep(400)
                 ui.screenshot(if (large) "photo-sheet-large.png" else "photo-sheet.png")
                 ui.tapText("사진 추가 (2)")
-                ui.await { ui.has("사진 2 / 5장 · 한 장당 10MB · 전체 30MB") }
+                ui.await { ui.has("사진 2 / 5장") }
                 ui.test.runOnMainSync { assertEquals("가족에게 보내는 사진이에요", ui.all().filterIsInstance<EditText>().single().text.toString()) }
                 @Suppress("UNCHECKED_CAST")
                 val drafts = listOf(MainActivity::class.java.getDeclaredField("photo").apply { isAccessible = true }.get(ui.activity) as File) +
@@ -247,13 +251,13 @@ class PostComposerTest {
                 ui.clickDescription("첨부 사진 다시 선택하기"); ui.tapText("닫기")
                 ui.test.runOnMainSync {
                     assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString())
-                    assertTrue(ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB"))
+                    assertTrue(ui.has("사진 1 / 5장"))
                 }
                 val monitor = ui.test.addMonitor(IntentFilter(MediaStore.ACTION_IMAGE_CAPTURE), Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
                 try {
                     ui.clickDescription("첨부 사진 다시 선택하기"); ui.awaitText("최근 사진")
                     ui.test.runOnMainSync { assertTrue(windowViews().first { it.contentDescription == "사진 촬영하기" }.performClick()) }
-                    ui.await { monitor.hits == 1 && windowText("최근 사진") == null && ui.has("사진 1 / 5장 · 한 장당 10MB · 전체 30MB") }
+                    ui.await { monitor.hits == 1 && windowText("최근 사진") == null && ui.has("사진 1 / 5장") }
                     ui.test.runOnMainSync { assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString()) }
                     assertTrue(file.exists()); assertTrue(api.uploads().isEmpty())
                 } finally { ui.test.removeMonitor(monitor) }
@@ -307,7 +311,7 @@ class PostComposerTest {
                 ui.await { pickerText("4 / 5") }
                 val expected = listOf(0, 1, 3, 4).map { uriAt(it) }
                 test.runOnMainSync { views().filterIsInstance<Button>().first { it.text.toString() == "다음 (4)" }.performClick() }
-                ui.await(10000) { ui.has("사진 4 / 5장 · 한 장당 10MB · 전체 30MB") }
+                ui.await(10000) { ui.has("사진 4 / 5장") }
                 @Suppress("UNCHECKED_CAST")
                 val drafts = listOf(MainActivity::class.java.getDeclaredField("photo").apply { isAccessible = true }.get(ui.activity) as File) +
                     (MainActivity::class.java.getDeclaredField("extraPhotos").apply { isAccessible = true }.get(ui.activity) as List<File>)
