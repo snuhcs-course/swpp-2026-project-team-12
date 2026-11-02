@@ -27,13 +27,14 @@ FEATURE_INSTRUCTIONS = {
 
 
 def answer_with_memory(feature, family_id, text, images=()):
-    """Keep application callers synchronous; the worker owns the async flow."""
+    """Return author paragraphs for digest, display text for the other features."""
     from integrations.ai_workers.searching_workers import SearchUnavailable, run_search
 
     if not settings.OPENAI_API_KEY:
         raise AIUnavailable("AI 서비스를 설정하지 않았어요.")
     try:
-        return run_search(feature, family_id, text, images=images)["text"][:4000]
+        result = run_search(feature, family_id, text, images=images)
+        return result["summaries"] if feature == "digest" else result["text"][:4000]
     except SearchUnavailable as error:
         raise AIUnavailable("AI 요청을 처리하지 못했어요.") from error
 
@@ -56,10 +57,23 @@ def rewrite(recognized, name, *, family_id):
 def summarize(posts):
     if not posts or any(post.room_id != posts[0].room_id for post in posts):
         raise AIUnavailable("같은 가족의 게시물로 요약을 요청하세요.")
+    authors, images = {}, []
+    for index, post in enumerate(posts):
+        photos = post.photo_files()
+        # Preserve the existing eight-post/eight-image budget and source order.
+        selected = photos[:max(0, 8 - len(images))] if index < 8 else []
+        photo_numbers = list(range(len(images) + 1, len(images) + len(selected) + 1))
+        images.extend(selected)
+        author = authors.setdefault(post.author_id, {
+            "작성자 ID": post.author_id, "작성자": post.author.display_name, "게시글": [],
+        })
+        author["게시글"].append({
+            "게시글 ID": post.pk, "게시시각": post.created_at.isoformat(), "원문": post.caption,
+            "첨부 사진 수": len(photos), "전달 사진 번호": photo_numbers,
+        })
     return answer_with_memory(
         "digest", posts[0].room_id,
-        json.dumps([{"작성자": post.author.display_name, "원문": post.caption} for post in posts], ensure_ascii=False),
-        [image for post in posts[:8] for image in post.photo_files()][:8],
+        json.dumps(list(authors.values()), ensure_ascii=False), images,
     )
 
 

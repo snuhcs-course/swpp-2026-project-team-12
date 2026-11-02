@@ -6,7 +6,7 @@ from apps.api import APIError, api, body
 from apps.families.services import room_for
 from apps.posts.services import serialize
 
-from .services import generate_digest
+from .services import generate_digest, render_text
 
 
 @api("GET", "POST")
@@ -20,13 +20,13 @@ def daily(request):
     except (TypeError, ValueError) as error:
         raise APIError("날짜를 다시 확인해 주세요.") from error
     digest = generate_digest(room, chosen, retry=request.method == "POST")
+    posts = [serialize(post, request) for post in digest.posts.select_related("author")] if digest else []
     return {
         "date": chosen.isoformat(),
         "status": digest.status if digest else "pending",
-        "text": digest.text if digest else "",
+        "text": render_text(digest, posts) if digest else "",
         "digest_time": room.digest_time.strftime("%H:%M"),
-        "posts": [serialize(post, request) for post in digest.posts.select_related("author")]
-        if digest else [],
+        "posts": posts,
     }
 
 

@@ -130,7 +130,7 @@ def update_account(user, data):
             status="pending", text="", updated_at=timezone.now()
         )
         Digest.objects.filter(room_id__in=rooms).update(
-            status="pending", text="", updated_at=timezone.now()
+            status="pending", text="", summaries=[], updated_at=timezone.now()
         )
     result = account_data(user)
     if changing_password:

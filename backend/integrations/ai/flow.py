@@ -8,7 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from openai import AsyncOpenAI
 
-from . import prompts
+from . import digest_output, prompts
 from . import history_evidence
 from .options import model_options
 from .provider import FEATURE_INSTRUCTIONS
@@ -44,6 +44,33 @@ def choose_instruction(feature):
     return FEATURE_INSTRUCTIONS[feature] + prompts.RETRIEVAL_INSTRUCTIONS
 
 
+def input_content(text, images, feature):
+    image_items = []
+    for image in images:
+        with image.open("rb") as file:
+            image_items.append({
+                "type": "input_image", "detail": "low",
+                "image_url": "data:image/jpeg;base64," + base64.b64encode(file.read()).decode(),
+            })
+    if feature != "digest":
+        return [{"type": "input_text", "text": text}, *image_items]
+
+    # Author groups contain explicit post boundaries, including text-only posts.
+    # Photo numbers refer to the original upload-order list, even after grouping.
+    content = []
+    for author in json.loads(text):
+        content.append({"type": "input_text", "text": json.dumps({
+            "작성자 ID": author["작성자 ID"], "작성자": author["작성자"],
+        }, ensure_ascii=False)})
+        for post in author["게시글"]:
+            content.append({"type": "input_text", "text": json.dumps({
+                "게시글 시작": post["게시글 ID"], **post,
+            }, ensure_ascii=False)})
+            content.extend(image_items[number - 1] for number in post["전달 사진 번호"])
+            content.append({"type": "input_text", "text": json.dumps({"게시글 끝": post["게시글 ID"]})})
+    return content
+
+
 async def answer_with_memory(search, text, feature, *, images=(), timings=None):
     """The search callback is bound to a family by the server, not the model."""
     if feature in {"post_summary", "post_qa"}:
@@ -56,14 +83,7 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
     timings = timings if timings is not None else {}
     timings.update(decision=0.0, search=0.0, answer=0.0)
     queries, results = [text], []
-    content = [{"type": "input_text", "text": text}]
-    for image in images:
-        with image.open("rb") as file:
-            content.append({
-                "type": "input_image", "detail": "low",
-                "image_url": "data:image/jpeg;base64," + base64.b64encode(file.read()).decode(),
-            })
-    items = [{"role": "user", "content": content}]
+    items = [{"role": "user", "content": input_content(text, images, feature)}]
 
     # Single search for two-way flow
     if two_way:
@@ -110,6 +130,9 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         memories = {memory["id"]: memory for result in results for memory in result["memories"]}
         # Only the three-way flow keeps the tool definition for its tool-call history.
         options = {"tools": [prompts.SEARCH_TOOL], "tool_choice": "none"} if ways == 3 else {}
+        if feature == "digest":
+            author_ids = [author["작성자 ID"] for author in json.loads(text)]
+            options["text"] = digest_output.answer_format(author_ids)
         if two_way:
             instructions += history_evidence.INSTRUCTIONS
             options["text"] = history_evidence.ANSWER_FORMAT
@@ -120,13 +143,15 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         started = perf_counter()
         final = await client.responses.create(
             **answer_options, instructions=instructions, input=items,
-            max_output_tokens=1200 if two_way else 700, store=False, **options,
+            max_output_tokens=1200 if two_way or feature == "digest" else 700, store=False, **options,
         )
         timings["answer"] = perf_counter() - started
         if final.status != "completed" or not final.output_text.strip():
             raise RuntimeError("최종 답변이 완료되지 않았습니다.")
         result = {"text": final.output_text, "query": queries[0] if ways > 1 else None,
                   "memories": list(memories.values())}
+        if feature == "digest":
+            result["summaries"] = digest_output.parse_answer(final.output_text, author_ids)
         if two_way:
             result.update(history_evidence.parse_answer(final.output_text, result["memories"]))
         if ways == 3:
