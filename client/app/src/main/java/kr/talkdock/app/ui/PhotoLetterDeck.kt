@@ -26,7 +26,7 @@ class PhotoLetterDeck(
     private val showPagination: Boolean = true,
     // Memory-search evidence shows the letter only; replying happens from the opened post.
     private val showReply: Boolean = true,
-    private var reservedHeaderHeight: Int = 0,
+    private val fillAvailableHeight: Boolean = false,
 ) : LinearLayout(context) {
     var currentIndex = posts.indexOfFirst { it.optInt("id") == selectedId }.coerceAtLeast(0)
         private set
@@ -62,18 +62,14 @@ class PhotoLetterDeck(
         gravity = Gravity.CENTER; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
     }
     private val photo = ImageView(context).apply { scaleType = ImageView.ScaleType.CENTER_CROP }
+    private lateinit var picture: FrameLayout
     private var startX = 0f
     private var startY = 0f
     private var horizontal = false
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
-    private val photoHeight: Int get() = (ui.dp((resources.displayMetrics.heightPixels /
-        resources.displayMetrics.density - if (large) 570 else 490).toInt().coerceIn(210, 430)) - reservedHeaderHeight).coerceAtLeast(ui.dp(150))
-
-    fun reserveHeaderSpace(height: Int) {
-        if (reservedHeaderHeight == height) return
-        reservedHeaderHeight = height
-        render()
-    }
+    private val photoHeight: Int get() = if (fillAvailableHeight) ui.dp(150) else ui.dp(
+        (resources.displayMetrics.heightPixels / resources.displayMetrics.density -
+            if (large) 570 else 490).toInt().coerceIn(210, 430))
 
     init {
         require(posts.isNotEmpty())
@@ -122,7 +118,7 @@ class PhotoLetterDeck(
         val topInset = ui.dp(4 + (photos.size - 1).coerceIn(0, 2) * 10)
         currentCard.layoutParams = (currentCard.layoutParams as FrameLayout.LayoutParams).apply { topMargin = topInset }
         stack.invalidate()
-        val picture = FrameLayout(context).apply {
+        picture = FrameLayout(context).apply {
             // Only the outer letter clips its top corners; the photo meets the paper on a straight edge.
             setBackgroundColor(ui.blush)
             isClickable = true; isFocusable = true
@@ -176,6 +172,23 @@ class PhotoLetterDeck(
         previous.alpha = if (previous.isEnabled) .7f else .18f
         next.alpha = if (next.isEnabled) .7f else .18f
         count.text = "${currentIndex + 1} / ${posts.size}"
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        if (!fillAvailableHeight) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            return
+        }
+        // ScrollView first asks for the minimum content height, then fills its viewport.
+        // Measure the real caption, author, pagination and reply before giving the photo
+        // all remaining space. Small windows keep the minimum photo and scroll naturally.
+        picture.layoutParams.height = ui.dp(150)
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED))
+        val minimumHeight = measuredHeight
+        val availableHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED)
+            minimumHeight else maxOf(minimumHeight, MeasureSpec.getSize(heightMeasureSpec))
+        picture.layoutParams.height += availableHeight - minimumHeight
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(availableHeight, MeasureSpec.EXACTLY))
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {

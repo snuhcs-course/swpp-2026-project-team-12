@@ -42,7 +42,9 @@ The main navigation has **소식** and **하루**. The `+` in the header creates
 
 The home exposes one primary action, **말로 답장하기**. It opens a recording page for the current letter and requests microphone permission when necessary. Stopping records and transcribes the draft, then retains the existing review-before-send workflow. The listening animation shows elapsed recording time, not live transcription. Back cancels the recording without uploading it.
 
-**하루** presents the selected date's digest as one journal page, up to three clickable photo/text covers, a single play/stop control, and links to any remaining source posts. Date selection and pending/empty/error recovery remain available. AI/STT/TTS keys stay on the backend.
+Home letters fill the actual viewport between the daily-question preview and bottom navigation. The cover grows after measuring the caption, author, pagination and reply action, so different window heights and text sizes do not leave unused space below the reply button. Compact windows retain a 150dp minimum cover and scroll when needed.
+
+**하루** presents the selected date's digest as one journal page, a horizontally scrollable row of every source post, and a single play/stop control. The row keeps three portrait-cropped photo/text covers visible at once; tap a cover to open its post. Date selection and pending/empty/error recovery remain available. AI/STT/TTS keys stay on the backend.
 
 The selected font combination is **학교안심 둥근미소 R** for the top-left **토닥** brand title and **Pretendard Medium** for the rest of the UI (sample 11). Both files are bundled under `app/src/main/res/font/`; their embedded notices are preserved in `app/src/main/assets/SELECTED-FONT-NOTICES.txt`. The UI keeps white backgrounds, warm brown text, coral/peach/beige accents, and rounded controls. Cards and dialogs stay white, while supporting panels and inputs retain the warm tints. The shared palette is in `app/src/main/res/values/colors.xml` and is used by both the Kotlin UI and Android window/system-bar themes. The existing NanumSquareRound and Noto resources and license notices remain in the project.
 
