@@ -136,7 +136,7 @@ class TextPostTests(TestCase):
         post = Post.objects.get()
         day = timezone.localdate() - timedelta(days=2)
         Post.objects.filter(pk=post.pk).update(created_at=timezone.make_aware(datetime.combine(day, time(12))))
-        with patch.object(provider, "answer_with_memory", return_value="가족이 산책을 다녀왔어요.") as answer:
+        with patch.object(provider, "answer_with_memory", return_value=[{"author_id": post.author_id, "text": "산책을 다녀왔어요."}]) as answer:
             response = self.client.get(f"/api/digests/?date={day.isoformat()}", **self.auth)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["status"], "ready")
@@ -148,9 +148,10 @@ class TextPostTests(TestCase):
         self.upload("글만 있는 소식")
         self.upload("사진이 있는 소식", image=photo())
         posts = list(Post.objects.order_by("pk"))
-        with patch.object(provider, "answer_with_memory", return_value="하루 소식") as answer:
-            self.assertEqual(provider.summarize(posts), "하루 소식")
-        captions = [item["원문"] for item in json.loads(answer.call_args.args[2])]
+        summaries = [{"author_id": posts[0].author_id, "text": "하루 소식"}]
+        with patch.object(provider, "answer_with_memory", return_value=summaries) as answer:
+            self.assertEqual(provider.summarize(posts), summaries)
+        captions = [post["원문"] for author in json.loads(answer.call_args.args[2]) for post in author["게시글"]]
         self.assertEqual(captions, ["글만 있는 소식", "사진이 있는 소식"])
         self.assertEqual(len(answer.call_args.args[3]), 1)
         self.assertTrue(answer.call_args.args[3][0])

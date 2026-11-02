@@ -167,12 +167,14 @@ class AccountProfileTests(TestCase):
         add_member(room, self.user)
         post = Post.objects.create(room=room, author=self.user, images=["unused.jpg"], caption="산책")
         message = AdaptedMessage.objects.create(post=post, viewer=self.other, status="ready", text="정아 소식")
-        digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루")
+        digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루",
+                                       summaries=[{"author_id": self.user.pk, "text": "산책했어요."}])
         digest.posts.add(post)
         self.assertEqual(self.update({"name": "새 이름"}).status_code, 200)
         message.refresh_from_db(); digest.refresh_from_db()
         self.assertEqual((message.status, message.text), ("pending", ""))
         self.assertEqual((digest.status, digest.text), ("pending", ""))
+        self.assertEqual(digest.summaries, [])
 
     def test_inflight_explanation_cannot_restore_a_previous_name(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC002", password_hash="unused", owner=self.user)

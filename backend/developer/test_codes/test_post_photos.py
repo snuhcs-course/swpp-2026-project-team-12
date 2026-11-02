@@ -168,6 +168,7 @@ class PostPhotoTests(TestCase):
     def test_digest_caps_images_at_eight(self):
         self.upload(("red",) * 5)
         self.upload(("blue",) * 5)
-        with patch.object(provider, "answer_with_memory", return_value="요약") as answer:
-            self.assertEqual(provider.summarize(list(Post.objects.all())), "요약")
+        summaries = [{"author_id": self.owner.pk, "text": "요약"}]
+        with patch.object(provider, "answer_with_memory", return_value=summaries) as answer:
+            self.assertEqual(provider.summarize(list(Post.objects.all())), summaries)
         self.assertEqual(len(answer.call_args.args[3]), 8)

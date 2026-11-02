@@ -196,7 +196,8 @@ class VoiceReplyAPITests(TestCase):
         self.assertCountEqual([post["id"] for post in digest["posts"]], [game_id, self.post.pk])
         self.assertTrue(digest["text"].strip())
         saved_digest = Digest.objects.get(room=self.post.room, date=digest_date)
-        self.assertEqual(saved_digest.text, digest["text"])
+        self.assertTrue(saved_digest.summaries)
+        self.assertTrue(digest["text"].startswith("[손녀 - 정아] "))
         with patch.object(ai_provider, "summarize") as summarize:
             cached = self.client.get(
                 f"/api/digests/?date={digest_date.isoformat()}", **self.auth(self.grandma_token)
