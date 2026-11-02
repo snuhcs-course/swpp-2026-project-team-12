@@ -1649,14 +1649,41 @@ class MainActivity : ComponentActivity() {
             LinearLayout.LayoutParams(arrowSize, arrowSize).apply { marginStart = ui.dp(6) })
         letter.addView(datePicker, LinearLayout.LayoutParams(-1, -2)); ui.gap(letter, 12)
         ui.label(letter, "오늘도, 함께", if (large) 36f else 32f, true).gravity = Gravity.CENTER
+        val postCount = ui.label(letter, "", if (large) 18f else 14f, color = ui.muted).apply {
+            gravity = Gravity.CENTER; visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) }
+        }
         ui.gap(letter, 24)
         async({ if (retry) client.request("digests/", "POST", json("date" to date)) else client.request("digests/?date=" + date) }) { data ->
             when (data.getString("status")) {
                 "ready" -> {
                     val posts = objects(data.getJSONArray("posts"))
+                    postCount.text = "이날의 소식 ${posts.size}개"
+                    postCount.visibility = View.VISIBLE
                     if (posts.isNotEmpty()) {
-                        val strip = ui.row(); letter.addView(strip, LinearLayout.LayoutParams(-1, -2))
-                        posts.take(3).forEachIndexed { index, post ->
+                        val strip = ui.row()
+                        val slider = object : HorizontalScrollView(this) {
+                            override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                                // Keep the existing three portrait covers visible, with all other
+                                // digest posts continuing in the same horizontally scrollable row.
+                                val slots = minOf(3, posts.size)
+                                val coverWidth = ((View.MeasureSpec.getSize(widthMeasureSpec) -
+                                    ui.dp(6) * (slots - 1)) / slots).coerceAtLeast(1)
+                                for (index in 0 until strip.childCount) {
+                                    val cover = strip.getChildAt(index)
+                                    if (cover.layoutParams.width != coverWidth) {
+                                        cover.layoutParams = cover.layoutParams.apply { width = coverWidth }
+                                    }
+                                }
+                                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                            }
+                        }.apply {
+                            tag = "digest-post-strip"
+                            isHorizontalScrollBarEnabled = false
+                        }
+                        slider.addView(strip)
+                        letter.addView(slider, LinearLayout.LayoutParams(-1, ui.dp(if (large) 190 else 170)))
+                        posts.forEachIndexed { index, post ->
                             val tile = FrameLayout(this).apply {
                                 background = ui.shape(ui.blush, 22); clipToOutline = true
                                 isClickable = true; isFocusable = true
@@ -1668,7 +1695,11 @@ class MainActivity : ComponentActivity() {
                                 val preview = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
                                 tile.addView(preview, FrameLayout.LayoutParams(-1, -1)); remotePhoto(preview, post, image.getString("url"), thumbnail = true)
                             } else tile.addView(ui.text(post.optString("author_name").takeLast(2), if (large) 24f else 20f, true).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(-1, -1))
-                            strip.addView(tile, LinearLayout.LayoutParams(0, ui.dp(if (large) 190 else 170), 1f).apply { if (index > 0) marginStart = ui.dp(6) })
+                            strip.addView(tile, LinearLayout.LayoutParams(ui.dp(90), -1).apply { if (index > 0) marginStart = ui.dp(6) })
+                        }
+                        if (posts.size > 3) {
+                            ui.gap(letter, 8)
+                            ui.label(letter, "좌우로 넘겨 보세요", if (large) 16f else 13f, color = ui.muted).gravity = Gravity.CENTER
                         }
                         ui.gap(letter, 24)
                     }
@@ -1679,12 +1710,6 @@ class MainActivity : ComponentActivity() {
                     val playback = ReplyAudioButton(this, ui, data.getString("text"), client, speaker, summaries, large,
                         playLabel = "오늘 이야기 듣기", stopLabel = "하루 요약 듣기 중지", primary = true).also { replyPreview = it }
                     letter.addView(playback)
-                    ui.gap(letter, 20)
-                    ui.label(letter, "이날의 소식 ${posts.size}개", if (large) 18f else 14f, color = ui.muted).gravity = Gravity.CENTER
-                    // Every source remains reachable, including text-only posts and days with more than three posts.
-                    posts.drop(3).forEach { post ->
-                        ui.ghost(letter, post.optString("author_name") + "의 소식 보기") { detail(post) }
-                    }
                 }
                 "pending" -> ui.note(letter, "오늘 " + data.optString("digest_time", room.optString("digest_time", "21:00")) + "에 하루 요약이 도착해요.", large)
                 "processing" -> { ui.note(letter, "가족의 하루를 모으고 있어요.", large); ui.ghost(letter, "다시 확인하기") { digest(date) } }
