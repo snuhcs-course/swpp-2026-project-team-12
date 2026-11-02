@@ -52,6 +52,12 @@ class DailyQuestionPanel(
         return (0 until rows.length()).map { rows.getJSONObject(it) }
     }
 
+    private fun authorLabel(author: JSONObject): String {
+        val name = author.getString("author_name")
+        val relation = if (author.optInt("author_id") == userId) "나" else author.optString("relationship").ifBlank { "가족" }
+        return if (name == relation) name else "$name · $relation"
+    }
+
     fun snapshot(): Bundle {
         capture()
         return Bundle().apply {
@@ -259,9 +265,8 @@ class DailyQuestionPanel(
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
             }, LayoutParams(ui.dp(avatarSize), ui.dp(avatarSize)))
             val words = ui.column()
-            val name = answer.getString("author_name") + if (answer.optInt("author_id") == userId) " · 나" else ""
             val answerHeading = ui.row()
-            answerHeading.addView(ui.text(name, if (large) 21f else 15f, true), LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) })
+            answerHeading.addView(ui.text(authorLabel(answer), if (large) 21f else 15f, true), LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) })
             choiceLabel(answer).takeIf { it.isNotBlank() }?.let { choiceChip(answerHeading, it) }
             words.addView(answerHeading); ui.gap(words, 4)
             renderAnswer(words, answer, includeChoice = false)
@@ -273,7 +278,7 @@ class DailyQuestionPanel(
         ui.label(this, "댓글 ${comments.size}", if (large) 24f else 18f, true); ui.gap(this, 8)
         comments.forEach { comment ->
             val bubble = ui.card(this, ui.blush, padding = 12, stroke = false).apply { background = ui.shape(ui.blush, 12) }
-            ui.label(bubble, comment.getString("author_name"), if (large) 20f else 14f, true)
+            ui.label(bubble, authorLabel(comment), if (large) 20f else 14f, true)
             ui.gap(bubble, 4); ui.label(bubble, comment.getString("text"), bodySize); ui.gap(this, 8)
         }
         val field = CommentComposer(context, ui, large, title = "", hintText = "댓글 남기기", compact = true,
@@ -289,7 +294,7 @@ class DailyQuestionPanel(
                         runCatching { api.request("daily-questions/${data.getInt("id")}/", readTimeoutMillis = 10_000) }.getOrElse {
                             JSONObject(data.toString()).apply {
                                 getJSONArray("comments").put(JSONObject().put("id", accepted.getInt("id"))
-                                    .put("author_id", userId).put("author_name", "나").put("text", text).put("source", "text"))
+                                    .put("author_id", userId).put("author_name", "나").put("relationship", "나").put("text", text).put("source", "text"))
                             }
                         }
                     }, { updated ->

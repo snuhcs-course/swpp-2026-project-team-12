@@ -51,12 +51,42 @@ test('question, answers, options, comments and history escape user-controlled te
   const bad = '<img src=x onerror=alert(1)>';
   const data = question('choice', [bad, '기타']);
   data.title = bad;
-  data.answers = [{ author_id: 2, author_name: bad, choice: bad, text: bad, tiers: {} }];
-  data.comments = [{ author_name: bad, text: bad }];
+  data.answers = [{ author_id: 2, author_name: bad, relationship: bad, choice: bad, text: bad, tiers: {} }];
+  data.comments = [{ author_name: bad, relationship: bad, text: bad }];
   for (const markup of [questionMarkup(data, 1), questionEntry(data), questionHistory([data], null)]) {
     assert.doesNotMatch(markup, /<img/);
     assert.match(markup, /&lt;img/);
   }
+});
+
+test('answers and shared comments show viewer-relative relationships and a single self label', () => {
+  const data = question();
+  data.answers = [
+    { author_id: 2, author_name: '경자', relationship: '할머니', choice: '산책', text: '같이 가요' },
+    { author_id: 1, author_name: '정아', relationship: '나', choice: '쉬기', text: '쉬고 싶어요' },
+  ];
+  data.comments = [
+    { author_id: 2, author_name: '경자', relationship: '할머니', text: '어디로 갈까요?' },
+    { author_id: 1, author_name: '정아', relationship: '나', text: '공원에 가요' },
+  ];
+  const markup = questionMarkup(data, 1);
+  assert.equal((markup.match(/경자 · 할머니/g) || []).length, 2);
+  assert.equal((markup.match(/정아 · 나/g) || []).length, 2);
+  assert.doesNotMatch(markup, /나 · 나/);
+
+  data.comments = [{ author_id: 1, author_name: '나', relationship: '나', text: '새로고침 실패 후 내 댓글' }];
+  const fallback = questionMarkup(data, 1);
+  assert.match(fallback, /<strong>나<\/strong>/);
+  assert.doesNotMatch(fallback, /나 · 나/);
+});
+
+test('older responses without relationship metadata retain the author name', () => {
+  const data = question();
+  data.answers = [{ author_id: 2, author_name: '경자', text: '가족 답변' }];
+  data.comments = [{ author_id: 1, author_name: '정아', text: '내 댓글' }];
+  const markup = questionMarkup(data, 1);
+  assert.match(markup, /경자 · 가족/);
+  assert.match(markup, /정아 · 나/);
 });
 
 test('history supports pagination and entry versions detect new family activity', () => {

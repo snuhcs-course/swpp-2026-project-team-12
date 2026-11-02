@@ -23,7 +23,7 @@ from apps.families.models import FamilyRoom
 from apps.posts.models import DailyQuestion, Post, QuestionAnswer, QuestionTemplate
 from apps.posts.daily_questions import ROTATION, definition, ensure_today, load_rotation
 
-from .family_fixtures import add_member, auth_headers
+from .family_fixtures import add_member, auth_headers, link_parent
 
 
 class QuestionRotationTests(SimpleTestCase):
@@ -188,6 +188,27 @@ class DailyQuestionTests(TestCase):
         detail = self.client.get(f"/api/posts/{question['post_id']}/", **self.auth).json()
         self.assertEqual(detail["author_name"], "토닥")
         self.assertEqual(self.client.get(f"/api/posts/{question['post_id']}/message/", **self.auth).status_code, 400)
+
+    def test_answers_and_comments_use_the_readers_family_relationships(self):
+        for user in (self.owner, self.grandma):
+            person = self.room.members.get(user=user).person
+            person.gender = "female"
+            person.save(update_fields=["gender"])
+        link_parent(self.room, self.grandma, self.owner)
+        question = self.today()
+        for auth in (self.auth, self.grandma_auth):
+            self.assertEqual(self.answer(question["id"], {"choice": question["options"][0]}, auth).status_code, 200)
+            response = self.client.post(f"/api/posts/{question['post_id']}/comments/", json.dumps({"text": "함께해요"}),
+                                        content_type="application/json", **auth)
+            self.assertEqual(response.status_code, 200)
+        for auth, expected in (
+            (self.auth, {self.owner.pk: "나", self.grandma.pk: "어머니"}),
+            (self.grandma_auth, {self.owner.pk: "딸", self.grandma.pk: "나"}),
+        ):
+            for path in ("/api/daily-questions/today/", f"/api/daily-questions/{question['id']}/"):
+                result = self.client.get(path, **auth).json()
+                for collection in ("answers", "comments"):
+                    self.assertEqual({row["author_id"]: row["relationship"] for row in result[collection]}, expected)
 
     def test_all_input_kinds_validate_and_past_answers_remain_editable(self):
         for i, (kind, options, good, bad) in enumerate([

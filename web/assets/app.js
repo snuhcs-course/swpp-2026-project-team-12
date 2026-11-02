@@ -736,7 +736,7 @@ const formHandlers = {
       dailyQuestion = updated; markDailySeen(updated);
     } catch {
       if (version !== dailyRequest || !modal.open) return;
-      question.comments.push({ id: result.id, author_id: state.user.user_id, author_name: state.user.name, text: data.text.trim() });
+      question.comments.push({ id: result.id, author_id: state.user.user_id, author_name: state.user.name, relationship: '나', text: data.text.trim() });
       toast('댓글은 등록됐어요. 최신 목록은 질문을 다시 열어 확인해 주세요.');
     }
     renderDailyQuestion();
