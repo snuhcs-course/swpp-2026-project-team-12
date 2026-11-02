@@ -123,8 +123,8 @@ Graphiti/OpenAI answer, original v2 letters, photos and return from detail.
 ## Alignment with daily questions (PR #51)
 
 The integration includes `iteration-3-demo` at `4d299e9`, including PR #51's
-latest fixes at `4cea414`. `PhotoLetterDeck` retains both
-`reservedHeaderHeight` for the feed's daily-question preview and `showPagination`
+latest fixes at `4cea414`. `PhotoLetterDeck` uses `fillAvailableHeight` for the
+feed's actual viewport below the daily-question preview and `showPagination`
 for memory evidence cards. Both web modules/styles and both JavaScript suites
 are registered together. Daily question posts (`kind="question"`) remain
 separate from ordinary feed posts, memory evidence, digests and Graphiti post

@@ -376,7 +376,7 @@ class MainActivity : ComponentActivity() {
         val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
         pageScroll = scroll
         content = ui.column().apply {
-            setPadding(ui.dp(if (mainPage) 16 else 20), ui.dp(8), ui.dp(if (mainPage) 16 else 20), ui.dp(24))
+            setPadding(ui.dp(if (mainPage) 16 else 20), ui.dp(8), ui.dp(if (mainPage) 16 else 20), ui.dp(if (name == "home") 8 else 24))
             clipChildren = false; clipToPadding = false
         }
         scroll.addView(content)
@@ -398,9 +398,6 @@ class MainActivity : ComponentActivity() {
 
     private fun questionEntry() = DailyQuestionEntryView(this, ui, large) { if (!busy) dailyQuestions(openToday = true) }.apply {
         dailyEntry = this
-        addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
-            feedDeck?.reserveHeaderSpace(view.height + ui.dp(4))
-        }
         post { updateDailyEntry() }
     }
 
@@ -1097,10 +1094,10 @@ class MainActivity : ComponentActivity() {
                     feedPostId = post.getInt("id"); closeAssistantMenu(); stopPostAudio()
                     feedDeck?.currentCard?.tag = "feed-post:${post.getInt("id")}"
                     updateAssistantContext(); assistant?.refreshPosition()
-                }, reservedHeaderHeight = (dailyEntry?.height?.takeIf { it > 0 } ?: ui.dp(if (large) 76 else 56)) + ui.dp(4))
+                }, fillAvailableHeight = true)
             feedDeck = deck; feedPostId = deck.currentPost.getInt("id")
             deck.currentCard.tag = "feed-post:${deck.currentPost.getInt("id")}"
-            content.addView(deck, LinearLayout.LayoutParams(-1, -2))
+            content.addView(deck, LinearLayout.LayoutParams(-1, 0, 1f))
             feedPostTargets.add(deck.currentCard to deck.currentPost)
             deck.post { updateAssistantContext(); assistant?.refreshPosition() }
             if (restoreFeedScroll) {
