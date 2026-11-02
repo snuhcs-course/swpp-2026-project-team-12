@@ -58,7 +58,7 @@ class DailyQuestionTest {
         private val today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).toString()
         private fun question() = JSONObject().put("id", questionId).put("post_id", 301).put("date", today)
             .put("version", "31:family:1").put("title", "주말엔 뭘 할까요?").put("kind", kind).put("options", options)
-            .put("answers", JSONArray().put(JSONObject().put("id", 1).put("author_id", 2).put("author_name", "할머니")
+            .put("answers", JSONArray().put(JSONObject().put("id", 1).put("author_id", 2).put("author_name", "경자").put("relationship", "할머니")
                 .put("choice", if (kind == "text" || kind == "tier") "" else "밖에서 산책").put("text", "같이 바람 쐬면 좋겠어.")
                 .put("tiers", if (kind == "tier") JSONObject().put("집에서 쉬기", "B").put("밖에서 산책", "S") else JSONObject())))
             .also { data -> answer?.let { data.getJSONArray("answers").put(JSONObject(it.toString())) } }
@@ -101,11 +101,11 @@ class DailyQuestionTest {
                                 .put("created_at", "2026-10-31T12:00:00+09:00").put("images", JSONArray()).put("comment_count", 0)))
                         path.endsWith("/answer/") && method == "PUT" -> {
                             if (failAnswer.getAndSet(false)) { status = 503; JSONObject().put("error", "답변 저장 실패 · 다시 시도해 주세요.") }
-                            else { answer = JSONObject(payload.toString()).put("id", 2).put("author_id", 1).put("author_name", "정아"); question() }
+                            else { answer = JSONObject(payload.toString()).put("id", 2).put("author_id", 1).put("author_name", "정아").put("relationship", "나"); question() }
                         }
                         path == "/api/posts/301/comments/" -> {
                             if (failComment.getAndSet(false)) { status = 503; JSONObject().put("error", "댓글 저장 실패 · 다시 시도해 주세요.") }
-                            else { comments.put(JSONObject().put("id", comments.length() + 1).put("author_id", 1).put("author_name", "정아").put("text", payload.getString("text"))); JSONObject().put("id", comments.length()) }
+                            else { comments.put(JSONObject().put("id", comments.length() + 1).put("author_id", 1).put("author_name", "정아").put("relationship", "나").put("text", payload.getString("text"))); JSONObject().put("id", comments.length()) }
                         }
                         path.startsWith("/api/daily-questions/history/") -> JSONObject().put("questions", JSONArray().put(JSONObject().put("id", 31).put("date", "2026-10-31").put("title", "주말엔 뭘 할까요?")))
                         path.startsWith("/api/daily-questions/") -> if (comments.length() > 0 && failDetailAfterComment.getAndSet(false)) {
@@ -237,6 +237,7 @@ class DailyQuestionTest {
         click(activity, "댓글 보내기"); awaitUi { hasText(activity, "댓글 1") }
         assertEquals("An accepted comment must not be resent after refresh failure", 1, server.comments.length())
         assertEquals("어디로 갈까요?", server.comments.getJSONObject(0).getString("text"))
+        test.runOnMainSync { assertTrue(hasText(activity, "나")); assertFalse(hasText(activity, "나 · 나")) }
         click(activity, "내 답변 수정"); awaitUi { views(activity.window.decorView).filterIsInstance<EditText>().any { it.contentDescription == "오늘의 질문 답변 입력" } }
         test.runOnMainSync { editor(activity).setText("함께 공원에 가요.") }
         click(activity, "오늘의 질문 답변 저장"); awaitUi { hasText(activity, "가족 답변 2") && hasText(activity, "함께 공원에 가요.") }
@@ -250,6 +251,25 @@ class DailyQuestionTest {
         click(activity, "오늘의 질문 답변 저장"); awaitUi { hasText(activity, "가족 답변 2") }
         click(activity, "지난 질문"); awaitUi { hasText(activity, "2026-10-31\n주말엔 뭘 할까요?") }
         click(activity, "2026-10-31\n주말엔 뭘 할까요?"); awaitUi { hasText(activity, "고무줄놀이를 좋아했어요.") }
+    }
+
+    @Test fun relationshipsAppearInAnswersAndSharedComments() = withApp { activity, server ->
+        server.comments.put(JSONObject().put("id", 1).put("author_id", 2).put("author_name", "경자")
+            .put("relationship", "할머니").put("text", "어디로 갈까요?"))
+        click(activity, "오늘의 질문"); awaitUi { hasText(activity, "댓글 1") }
+        test.runOnMainSync {
+            assertEquals(2, views(activity.window.decorView).filterIsInstance<TextView>().count { it.text.toString() == "경자 · 할머니" })
+        }
+        click(activity, "집에서 쉬기"); click(activity, "오늘의 질문 답변 저장")
+        awaitUi { hasText(activity, "정아 · 나") }
+        test.runOnMainSync {
+            views(activity.window.decorView).filterIsInstance<EditText>().single().setText("공원에 가요")
+        }
+        click(activity, "댓글 보내기"); awaitUi { hasText(activity, "댓글 2") }
+        test.runOnMainSync {
+            assertEquals(2, views(activity.window.decorView).filterIsInstance<TextView>().count { it.text.toString() == "정아 · 나" })
+        }
+        screenshot(activity, "daily-question-relationships.png")
     }
 
     @Test fun tierInputUsesAccessibleTapSelectionInsteadOfDragging() = withApp(kind = "tier") { activity, server ->

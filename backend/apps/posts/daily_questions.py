@@ -140,6 +140,7 @@ def serialize_question(question, request):
         } for answer in question.answers.select_related("author")],
         "comments": [{
             "id": comment.pk, "author_id": comment.author_id, "author_name": comment.author.display_name,
+            "relationship": relationship(request.user, comment.author, question.room),
             "text": comment.text, "source": comment.source,
             "created_at": timezone.localtime(comment.created_at).isoformat(),
         } for comment in question.post.comments.select_related("author")],
