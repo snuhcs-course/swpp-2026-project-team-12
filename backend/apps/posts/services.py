@@ -51,8 +51,8 @@ def serialize(post, request):
 
 
 def prepare_image(uploaded):
-    if uploaded is None or uploaded.size > settings.MAX_UPLOAD_BYTES:
-        raise APIError("사진을 다시 확인해 주세요. 사진은 10MB까지 올릴 수 있어요.")
+    if uploaded is None:
+        raise APIError("사진을 다시 확인해 주세요.")
     try:
         with Image.open(uploaded) as image:
             if image.width * image.height > settings.MAX_IMAGE_PIXELS:
@@ -76,8 +76,6 @@ def prepare_uploads(request):
     uploads = multiples or singles
     if len(uploads) > settings.MAX_POST_IMAGES:
         raise APIError("사진은 한 번에 5장까지 올릴 수 있어요.")
-    if sum(photo.size for photo in uploads) > settings.MAX_POST_UPLOAD_BYTES:
-        raise APIError("사진의 전체 크기는 30MB까지 올릴 수 있어요.")
     return [prepare_image(photo) for photo in uploads]
 
 

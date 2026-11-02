@@ -591,13 +591,12 @@ async function playSpeech(text, target, valid = () => true) {
 }
 
 function openComposer() {
-  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 한 장당 10MB · 전체 30MB · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
   if (next.length > 5) return toast('사진은 최대 5장까지 선택할 수 있어요.');
   if (next.some(file => !/^image\/(jpeg|png|webp|gif|bmp)$/.test(file.type))) return toast('JPG, PNG, WebP, GIF, BMP 사진을 선택해 주세요.');
-  if (next.some(file => file.size > 10 * 1024 * 1024) || next.reduce((sum, file) => sum + file.size, 0) > 30 * 1024 * 1024) return toast('사진은 한 장당 10MB, 전체 30MB까지 올릴 수 있어요.');
   state.files = next;
   renderPreviews();
 }

@@ -1,14 +1,47 @@
 """Describe a caption and all ordered post photos before graph construction."""
 
 import base64
+import io
 import json
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from openai import AsyncOpenAI
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from . import prompts
 from .options import model_options
+
+
+def construction_jpeg(data):
+    """Return JPEG bytes within the construction byte and dimension limits, downsampling only when needed."""
+    max_bytes, max_side = settings.CONSTRUCTION_IMAGE_MAX_BYTES, settings.CONSTRUCTION_IMAGE_MAX_DIMENSION
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            if len(data) <= max_bytes and max(source.size) <= max_side and source.format == "JPEG":
+                return data
+            image = ImageOps.exif_transpose(source).convert("RGB")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        # An unreadable stored file is sent as before rather than failing the whole post's construction.
+        return data
+    image.thumbnail((max_side, max_side))
+
+    def encode(picture, quality):
+        output = io.BytesIO()
+        picture.save(output, format="JPEG", quality=quality, optimize=True)
+        return output.getvalue()
+
+    # Lower quality first, then shrink further; a 256px floor keeps the photo legible to the model.
+    for quality in (85, 75, 65):
+        encoded = encode(image, quality)
+        if len(encoded) <= max_bytes:
+            return encoded
+    while max(image.size) > 256:
+        image = image.resize((max(1, int(image.width * .8)), max(1, int(image.height * .8))), Image.LANCZOS)
+        encoded = encode(image, 65)
+        if len(encoded) <= max_bytes:
+            return encoded
+    return encoded
 
 
 def _description_content(post):
@@ -22,7 +55,7 @@ def _description_content(post):
         with photo.open("rb") as image:
             content.append({
                 "type": "input_image", "detail": "high",
-                "image_url": "data:image/jpeg;base64," + base64.b64encode(image.read()).decode(),
+                "image_url": "data:image/jpeg;base64," + base64.b64encode(construction_jpeg(image.read())).decode(),
             })
     return content
 

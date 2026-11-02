@@ -232,7 +232,6 @@ class PostAPITests(TestCase):
         self.assertEqual(self.client.post("/api/posts/", {}, **self.auth(self.owner_token)).status_code, 400)
         self.assertEqual(self.upload(image=SimpleUploadedFile("bad.jpg", b"not a photo")).status_code, 400)
         self.assertEqual(self.upload(caption="x" * 2001).status_code, 400)
-        self.assertEqual(self.upload(image=SimpleUploadedFile("huge.jpg", b"x" * (10 * 1024 * 1024 + 1))).status_code, 400)
         self.assertEqual(Post.objects.count(), 0)
         print("Post upload validation test pass", flush=True)
 
