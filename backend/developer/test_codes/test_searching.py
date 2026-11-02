@@ -441,12 +441,15 @@ class MemoryFlowTests(SimpleTestCase):
 
     @override_settings(SUMMARY_AI_MODEL="summary-model", SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none")
     def test_digest_answers_directly_without_search(self):
-        response = SimpleNamespace(status="completed", output=[], output_text="오늘의 가족 소식이에요.")
+        response = SimpleNamespace(status="completed", output=[], output_text=json.dumps({"1": "오늘 소식을 올렸어요."}))
         search = AsyncMock()
         with patch.object(flow, "AsyncOpenAI") as sdk:
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=response)
-            result = asyncio.run(flow.answer_with_memory(search, "게시물 목록", "digest"))
+            text = json.dumps([{"작성자 ID": 1, "작성자": "정아", "게시글": [{
+                "게시글 ID": 10, "원문": "오늘 소식", "전달 사진 번호": [],
+            }]}], ensure_ascii=False)
+            result = asyncio.run(flow.answer_with_memory(search, text, "digest"))
         search.assert_not_awaited()
         request = client.responses.create.await_args.kwargs
         self.assertNotIn("tools", request)
@@ -454,6 +457,7 @@ class MemoryFlowTests(SimpleTestCase):
         self.assertEqual((request["model"], request["service_tier"], request["reasoning"]),
                          ("summary-model", "fast", {"effort": "none"}))
         self.assertEqual((result["text"], result["query"], result["memories"]), (response.output_text, None, []))
+        self.assertEqual(result["summaries"], [{"author_id": 1, "text": "오늘 소식을 올렸어요."}])
 
     @override_settings(ANSWER_AI_MODEL="answer-model", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
     def test_family_history_answers_with_the_answer_group(self):
