@@ -7,7 +7,7 @@ import json
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from openai import AsyncOpenAI
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from . import prompts
 from .options import model_options
@@ -16,10 +16,14 @@ from .options import model_options
 def construction_jpeg(data):
     """Return JPEG bytes within the construction byte and dimension limits, downsampling only when needed."""
     max_bytes, max_side = settings.CONSTRUCTION_IMAGE_MAX_BYTES, settings.CONSTRUCTION_IMAGE_MAX_DIMENSION
-    with Image.open(io.BytesIO(data)) as source:
-        if len(data) <= max_bytes and max(source.size) <= max_side and source.format == "JPEG":
-            return data
-        image = ImageOps.exif_transpose(source).convert("RGB")
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            if len(data) <= max_bytes and max(source.size) <= max_side and source.format == "JPEG":
+                return data
+            image = ImageOps.exif_transpose(source).convert("RGB")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        # An unreadable stored file is sent as before rather than failing the whole post's construction.
+        return data
     image.thumbnail((max_side, max_side))
 
     def encode(picture, quality):

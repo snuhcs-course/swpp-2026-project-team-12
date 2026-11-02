@@ -119,6 +119,8 @@ class PostPhotoTests(TestCase):
         from integrations.ai.feed_description import construction_jpeg
         small = io.BytesIO(); Image.new("RGB", (800, 600), "orange").save(small, "JPEG", quality=88)
         self.assertEqual(construction_jpeg(small.getvalue()), small.getvalue())
+        # Unreadable stored files are passed through instead of failing the post's construction.
+        self.assertEqual(construction_jpeg(b"not a photo"), b"not a photo")
         # Noise defeats JPEG compression, so this 1600px photo is well over 1MB.
         noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
         heavy = io.BytesIO(); noisy.save(heavy, "JPEG", quality=95)
