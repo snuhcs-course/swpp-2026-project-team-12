@@ -515,7 +515,8 @@ class FamilyMemorySearchTest {
                     assertEquals(0, screen.views(card).filterIsInstance<PhotoCarousel>().size)
                     assertTrue(screen.views().any { it is PhotoLetterDeck })
                     assertTrue(screen.has("이 이야기가 담긴 소식"))
-                    assertTrue(screen.views().any { it.contentDescription == "말로 답장하기" })
+                    assertFalse("Evidence letters open the post instead of replying in place",
+                        screen.views().any { it.contentDescription == "말로 답장하기" })
                 }
                 val card = screen.views().single { it.tag == "feed-post:12" }
                 screen.scrollTo(card)

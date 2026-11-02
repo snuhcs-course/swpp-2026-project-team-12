@@ -24,6 +24,8 @@ class PhotoLetterDeck(
     private val release: (ImageView) -> Unit, private val open: (JSONObject) -> Unit,
     private val reply: (JSONObject) -> Unit, private val changed: (JSONObject) -> Unit,
     private val showPagination: Boolean = true,
+    // Memory-search evidence shows the letter only; replying happens from the opened post.
+    private val showReply: Boolean = true,
     private var reservedHeaderHeight: Int = 0,
 ) : LinearLayout(context) {
     var currentIndex = posts.indexOfFirst { it.optInt("id") == selectedId }.coerceAtLeast(0)
@@ -86,7 +88,7 @@ class PhotoLetterDeck(
         pagination.addView(count, LayoutParams(0, -2, 1f))
         pagination.addView(next, LayoutParams(ui.dp(48), ui.dp(48)))
         addView(pagination, LayoutParams(-1, -2))
-        ui.action(this, "말로 답장하기", "mic", large) { reply(currentPost) }
+        if (showReply) ui.action(this, "말로 답장하기", "mic", large) { reply(currentPost) }
         render()
     }
 

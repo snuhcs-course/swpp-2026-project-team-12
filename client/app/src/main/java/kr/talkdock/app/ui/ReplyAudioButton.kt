@@ -15,7 +15,10 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
-/** One accessible play/stop action beside the reviewed reply's heading. */
+/**
+ * One accessible play/stop action. The default is a compact icon beside the reviewed reply's heading;
+ * [primary] renders the wide labelled pill used for main actions (same look as `Ui.action`).
+ */
 class ReplyAudioButton(
     private val activity: Activity,
     private val ui: Ui,
@@ -31,11 +34,19 @@ class ReplyAudioButton(
     private var request = 0
     private var active = false
     private var task: Future<*>? = null
+    private val large = large
 
     init {
-        val size = ui.dp(if (large) 64 else 48)
-        layoutParams = android.widget.LinearLayout.LayoutParams(size, size)
-        background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(if (primary) ui.coralDeep else ui.sky, if (primary) 36 else 16), null)
+        if (primary) {
+            layoutParams = android.widget.LinearLayout.LayoutParams(-1, -2)
+            minimumHeight = ui.dp(if (large) 76 else 64)
+            setPadding(ui.dp(20), ui.dp(12), ui.dp(20), ui.dp(12))
+            background = RippleDrawable(ColorStateList.valueOf(ui.coral), ui.shape(ui.coralDeep, 36), null)
+        } else {
+            val size = ui.dp(if (large) 64 else 48)
+            layoutParams = android.widget.LinearLayout.LayoutParams(size, size)
+            background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.sky, 16), null)
+        }
         isClickable = true; isFocusable = true
         setOnClickListener { if (active) stop() else play() }
         render()
@@ -49,6 +60,20 @@ class ReplyAudioButton(
             indeterminateTintList = ColorStateList.valueOf(if (primary) android.graphics.Color.WHITE else ui.skyDeep)
         } else IconView(activity, if (active) "stop" else if (primary) "play" else "listen", if (primary) android.graphics.Color.WHITE else ui.skyDeep)
         glyph.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        if (primary) {
+            // Icon and label sit inside the pill, centered together like Ui.action.
+            val row = ui.row().apply { gravity = Gravity.CENTER }
+            // Native play/stop glyphs fill about half their box, so a larger box matches the 28dp SVG icons of Ui.action.
+            val glyphSize = ui.dp(if (loading) 24 else 44)
+            row.addView(glyph, android.widget.LinearLayout.LayoutParams(glyphSize, glyphSize).apply {
+                if (!loading) { marginStart = -ui.dp(8); marginEnd = -ui.dp(8) }
+            })
+            row.addView(ui.text(if (active) stopLabel else playLabel, if (large) 23f else 20f, true, android.graphics.Color.WHITE).apply {
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginStart = ui.dp(10) })
+            addView(row, LayoutParams(-2, -2, Gravity.CENTER))
+            return
+        }
         val side = if (loading) ui.dp(26) else LayoutParams.MATCH_PARENT
         addView(glyph, LayoutParams(side, side, Gravity.CENTER))
     }

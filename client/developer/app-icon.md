@@ -10,7 +10,7 @@
 - Foreground: `app/src/main/res/drawable/ic_launcher_foreground.xml`, with a 10dp inset to keep the roof and faces inside launcher masks.
 - Background: `#FFEFE1` (`todak_launcher_background` in `res/values/launcher_colors.xml`), matching the recolored mark.
 - In-app header logo: `app/src/main/res/drawable-nodpi/todak_logo.png`, a transparent-background version of the same artwork with the "토닥" wordmark, recolored the same way. It replaces the text title on the home and daily tabs.
-- The web favicon (`web/assets/favicon.svg`) still embeds the original pink artwork.
+- The web favicon and web header logo (`web/assets/favicon.svg`) embed the same recolored mark at 256 × 256 (2026-11-02).
 - The manifest uses `@mipmap/ic_launcher`; the minimum SDK is 26, so all supported devices can use the adaptive icon.
 - App icon resources only; no backend or in-app character changes.
 

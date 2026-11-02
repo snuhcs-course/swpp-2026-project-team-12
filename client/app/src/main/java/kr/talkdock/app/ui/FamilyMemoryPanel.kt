@@ -12,6 +12,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
+import androidx.core.view.doOnLayout
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.data.RequestCancellation
@@ -124,7 +125,7 @@ class FamilyMemoryPanel(
                 task = null; cancellation = null; pending = false
                 response.fold({ found ->
                     answeredQuestion = question; answer = found.text; evidence = found
-                    showAnswer()
+                    revealAnswer(showAnswer())
                 }, { failure ->
                     error.text = when {
                         failure is ApiException && failure.status == 401 -> "로그인이 만료되었어요. 다시 로그인해 주세요."
@@ -140,7 +141,18 @@ class FamilyMemoryPanel(
         }
     }
 
-    private fun showAnswer() {
+    /** Only after a fresh search: bring the answer card to the top so the answer and first post are visible. */
+    private fun revealAnswer(card: View) = card.doOnLayout {
+        val scroll = scrollParent() ?: return@doOnLayout
+        // Card position inside the scroll content, summed up to the ScrollView's single child.
+        var top = 0; var view: View = card
+        while (view.parent !== scroll) { top += view.top; view = view.parent as? View ?: return@doOnLayout }
+        // An instant jump finishes inside this layout pass; an animated scroll would keep moving after
+        // anything else (the reader or a test) scrolls next and override that position.
+        scroll.scrollTo(0, (top - ui.dp(12)).coerceAtLeast(0))
+    }
+
+    private fun showAnswer(): View {
         result.removeAllViews()
         ui.gap(result, 16)
         val card = ui.card(result, ui.sky, stroke = false)
@@ -163,6 +175,7 @@ class FamilyMemoryPanel(
         } else {
             found.posts.forEach { post -> renderPost(result, post); ui.gap(result, 20) }
         }
+        return card
     }
 
     override fun onDetachedFromWindow() {
