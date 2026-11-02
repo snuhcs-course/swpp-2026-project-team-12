@@ -1588,9 +1588,25 @@ class MainActivity : ComponentActivity() {
         val selected = runCatching { LocalDate.parse(digestDate) }.getOrDefault(today).let { if (it.isAfter(today)) today else it }
         if (calendarDialog != null) return
         closeAssistantMenu()
+        val client = api
+        // Only days the server can build a digest for (today, days with posts, existing digests) are offered.
+        // A failed date list must not replace the feed with the home error screen; maintenance and 401 keep their shared handling.
+        async({ client.request("digests/history/") }, showLoading = false, failure = { error ->
+            val handled = !(error is ApiException && error.status == 401)
+            if (handled) toast((error as? ApiException)?.message ?: "날짜 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+            handled
+        }) { data ->
+            val list = data.optJSONArray("dates") ?: org.json.JSONArray()
+            val available = (0 until list.length()).mapNotNull { runCatching { LocalDate.parse(list.getString(it)) }.getOrNull() }.toSet()
+            showFeedCalendar(selected, today, available + today)
+        }
+    }
+
+    private fun showFeedCalendar(selected: LocalDate, today: LocalDate, available: Set<LocalDate>) {
+        if (calendarDialog != null) return
         val dialog = Dialog(this)
         calendarDialog = dialog
-        dialog.setContentView(FeedCalendarSheet(this, ui, large, selected, today) { day ->
+        dialog.setContentView(FeedCalendarSheet(this, ui, large, selected, today, available) { day ->
             dialog.dismiss(); digest(day.toString())
         })
         dialog.setOnDismissListener { if (calendarDialog === dialog) calendarDialog = null; updateAssistantContext() }

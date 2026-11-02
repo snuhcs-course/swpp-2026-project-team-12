@@ -11,13 +11,17 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 
-/** Bottom-sheet month calendar; days after [today] stay visible but cannot be chosen. */
+/**
+ * Bottom-sheet month calendar. Only [available] days (those with a digest or posts, from
+ * `digests/history/`) can be chosen; every other day stays visible but dimmed.
+ */
 class FeedCalendarSheet(
     context: Context,
     private val ui: Ui,
     private val large: Boolean,
     private val selected: LocalDate,
     private val today: LocalDate,
+    private val available: Set<LocalDate>,
     private val onPick: (LocalDate) -> Unit,
 ) : LinearLayout(context) {
     private var month = YearMonth.from(selected)
@@ -60,7 +64,11 @@ class FeedCalendarSheet(
     private fun show(target: YearMonth) {
         month = target
         title.text = "${target.year}년 ${target.monthValue}월"
-        val canGoForward = target.isBefore(YearMonth.from(today))
+        // Arrows stop at the first and last months that have a day to choose.
+        val months = available.map { YearMonth.from(it) }
+        val canGoBack = months.any { it.isBefore(target) }
+        val canGoForward = months.any { it.isAfter(target) }
+        previous.isEnabled = canGoBack; previous.alpha = if (canGoBack) 1f else .3f
         next.isEnabled = canGoForward; next.alpha = if (canGoForward) 1f else .3f
         grid.removeAllViews()
         // Sunday-first grid; leading blanks shift the 1st under its weekday.
@@ -75,23 +83,24 @@ class FeedCalendarSheet(
 
     private fun cell(date: LocalDate?): View {
         if (date == null) return View(context)
-        val future = date.isAfter(today)
+        val open = date in available && !date.isAfter(today)
         val chosen = date == selected
         val label = TextView(context).apply {
             text = date.dayOfMonth.toString(); gravity = Gravity.CENTER; textSize = if (large) 21f else 18f
             includeFontPadding = false
             typeface = Typeface.create(ui.font, if (chosen || date == today) Typeface.BOLD else Typeface.NORMAL)
-            setTextColor(when { chosen -> ui.paper; future -> ui.border; date == today -> ui.coralDeep; else -> ui.ink })
+            setTextColor(when { chosen -> ui.paper; !open -> ui.border; date == today -> ui.coralDeep; else -> ui.ink })
             if (chosen) background = ui.shape(ui.coralDeep, 22)
         }
         return android.widget.FrameLayout(context).apply {
             addView(label, android.widget.FrameLayout.LayoutParams(ui.dp(44), ui.dp(44), Gravity.CENTER))
             tag = "calendar-day:$date"
             val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.KOREAN)
-            contentDescription = "${date.monthValue}월 ${date.dayOfMonth}일 $weekday" + if (date == today) ", 오늘" else ""
+            contentDescription = "${date.monthValue}월 ${date.dayOfMonth}일 $weekday" + (if (date == today) ", 오늘" else "") +
+                if (open) "" else ", 볼 수 있는 소식 없음"
             if (chosen) androidx.core.view.ViewCompat.setStateDescription(this, "선택됨")
-            isEnabled = !future; isClickable = !future; isFocusable = !future
-            if (!future) setOnClickListener { onPick(date) }
+            isEnabled = open; isClickable = open; isFocusable = open
+            if (open) setOnClickListener { onPick(date) }
         }
     }
 }
