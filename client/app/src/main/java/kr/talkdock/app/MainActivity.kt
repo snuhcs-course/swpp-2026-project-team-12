@@ -319,7 +319,8 @@ class MainActivity : ComponentActivity() {
         if (name == "dailyQuestion" && !large) {
             header.setPadding(ui.dp(16), ui.dp(4), ui.dp(16), ui.dp(4)); header.minimumHeight = ui.dp(56)
         }
-        val mainPage = name == "home" || name == "digest"
+        // Every bottom-tab destination shares the brand header and gutters; system Back still uses [back].
+        val mainPage = name in setOf("home", "digest", "memories")
         if (mainPage) {
             // Equal-width side slots (logo + write, calendar + profile) keep the family name centered on
             // screen. The roomier bottom clears the daily question card.
@@ -1130,17 +1131,21 @@ class MainActivity : ComponentActivity() {
             putInt("userId", session!!.getInt("user_id")); putInt("roomId", room.getInt("id"))
             putString("server", sessions.serverUrl())
         }
-        heading("함께 쌓아온 추억 찾기", "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.")
+        // Match the daily tab: same inset as its letter card, a 48dp first row, and centered text.
+        ui.gap(content, if (large) 20 else 22)
+        ui.label(content, "함께 쌓아온 추억 찾기", if (large) 30f else 26f, true).apply {
+            gravity = Gravity.CENTER; minimumHeight = ui.dp(48)
+        }
+        ui.gap(content, 12)
+        ui.label(content, "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.", if (large) 21f else 17f, color = ui.muted).gravity = Gravity.CENTER
+        ui.gap(content, 24)
         memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, restored,
             renderPost = { parent, post ->
                 val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
                     load = { image, source, url -> remotePhoto(image, source, url, thumbnail = true) },
                     release = { imageLoader.release(it) },
                     open = { source -> detail(source, returnToMemories = rememberMemories()) },
-                    reply = { source ->
-                        memoryReturn = rememberMemories()
-                        voice(source, fromDetail = true)
-                    }, changed = {}, showPagination = false)
+                    reply = {}, changed = {}, showPagination = false, showReply = false)
                 deck.currentCard.tag = "feed-post:${post.getInt("id")}"
                 parent.addView(deck, LinearLayout.LayoutParams(-1, -2))
             }) {
@@ -1665,13 +1670,7 @@ class MainActivity : ComponentActivity() {
                     ui.gap(letter, 26)
                     val playback = ReplyAudioButton(this, ui, data.getString("text"), client, speaker, summaries, large,
                         playLabel = "오늘 이야기 듣기", stopLabel = "하루 요약 듣기 중지", primary = true).also { replyPreview = it }
-                    val playRow = ui.row().apply { gravity = Gravity.CENTER }
-                    playRow.addView(playback)
-                    playRow.addView(ui.text("오늘 이야기 듣기", if (large) 22f else 18f, true, ui.coralDeep).apply {
-                        setPadding(ui.dp(12), 0, 0, 0); minimumHeight = ui.dp(56); gravity = Gravity.CENTER
-                        isClickable = true; isFocusable = true; setOnClickListener { playback.performClick() }
-                    })
-                    letter.addView(playRow)
+                    letter.addView(playback)
                     ui.gap(letter, 20)
                     ui.label(letter, "이날의 소식 ${posts.size}개", if (large) 18f else 14f, color = ui.muted).gravity = Gravity.CENTER
                     // Every source remains reachable, including text-only posts and days with more than three posts.

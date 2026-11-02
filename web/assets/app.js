@@ -62,7 +62,7 @@ window.addEventListener('message', async event => {
 const e = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const $ = (selector, root = document) => root.querySelector(selector);
 const avatar = (name, id = 0, size = '') => `<span class="avatar tone-${Math.abs(Number(id) || 0) % 5} ${size}" aria-hidden="true">${e([...String(name || '가')][0])}</span>`;
-const brand = () => '<a class="brand" href="#/feed" aria-label="토닥 홈"><img src="/web/assets/favicon.svg?v=family-20261026" alt="" width="42" height="42"><span>토닥<small>TALK DOCK</small></span></a>';
+const brand = () => '<a class="brand" href="#/feed" aria-label="토닥 홈"><img src="/web/assets/favicon.svg?v=family-20261102" alt="" width="42" height="42"><span>토닥<small>TALK DOCK</small></span></a>';
 const button = (action, label, symbol, cls = 'button secondary', extra = '') => `<button type="button" class="${cls}" data-action="${action}" ${extra}>${symbol ? icon(symbol) : ''}${label}</button>`;
 const character = (sad = false, classes = '') => `<span class="character-art ${sad ? 'character-sad' : 'character-boy'} ${classes}" aria-hidden="true"></span>`;
 const loading = (text = '불러오는 중이에요') => `<div class="loading" role="status">${character()}<span>${e(text)}</span></div>`;
