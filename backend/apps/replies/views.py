@@ -1,6 +1,7 @@
 from django.db import transaction
 
 from apps.api import APIError, api, body, required
+from apps.families.utils.tree import family_names
 from apps.posts.services import post_for
 from integrations.ai import provider
 
@@ -20,7 +21,10 @@ def prepare(request, pk):
     post = post_for(request, pk)
     recognized = required(body(request), "recognized", 2000)
     try:
-        converted = provider.rewrite(recognized, post.author.display_name if post.author_id else "우리 가족", family_id=post.room_id)
+        converted = provider.rewrite(
+            recognized, post.author.display_name if post.author_id else "우리 가족", family_id=post.room_id,
+            speaker=request.user.display_name, caption=post.caption, family_names=family_names(post.room),
+        )
     except provider.AIUnavailable as error:
         raise APIError("댓글을 정리하지 못했어요. 다시 시도해 주세요.", 503) from error
     draft = VoiceDraft.objects.create(

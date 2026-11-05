@@ -16,13 +16,15 @@ from urllib.request import Request, urlopen
 
 from PIL import Image
 
+from ..common.paths import BACKEND_ROOT, OUTPUT_ROOT, config_relative, dataset_config, read_json, write_json
 
-ROOT = Path(__file__).resolve().parent
 OPENVERSE_API = "https://api.openverse.org/v1/images/"
 PEXELS_API = "https://api.pexels.com/v1/search"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 SUPPORTED_IMAGE_PROVIDERS = {"curated", "openverse", "pexels", "commons"}
 SUPPORTED_AUTHOR_POLICIES = {"round_robin", "thread_owner_weighted"}
+# Catalog sections for features other than post QA, copied into the manifest for later runners.
+EXTRA_CASE_SECTIONS = ("history_questions", "voice_replies")
 SEARCH_FALLBACKS = {
     "lemonade": ("friends drinking lemonade cafe", "people drinking at cafe"),
     "smartphone": ("person taking photo with smartphone", "people smartphone photography"),
@@ -52,18 +54,8 @@ BENCHMARK_ORDER = {
     "camera": ("camera-return", "camera-again", "camera-distractor", "camera-lesson", "camera-photo"),
 }
 # Use the application's tree search without initializing Django for dataset builds.
-sys.path.insert(0, str(ROOT.parents[1] / "backend"))
+sys.path.insert(0, str(BACKEND_ROOT))
 from apps.families.utils import find_relationship
-
-
-def read_json(path):
-    return json.loads(Path(path).read_text(encoding="utf-8"))
-
-
-def write_json(path, value):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def clean_html(value):
@@ -132,7 +124,26 @@ def validate_config(config, catalog):
             raise ValueError(f"{thread['id']} 사건 줄기에는 probe가 정확히 하나 있어야 합니다.")
         if not isinstance(probes[0].get("evaluation_question"), str) or not probes[0]["evaluation_question"].strip():
             raise ValueError(f"{probes[0].get('id', thread['id'])}에 evaluation_question이 필요합니다.")
+        for event in thread["events"]:
+            validate_event_overrides(event)
     return selected
+
+
+def validate_event_overrides(event):
+    """Optional per-event author, schedule and photo count for hand-written weeks."""
+    if "author" in event and not re.fullmatch(r"m\d+", str(event["author"])):
+        raise ValueError(f"{event['id']}의 author는 m0, m1 같은 구성원 slot이어야 합니다.")
+    if ("day" in event) != ("time" in event):
+        raise ValueError(f"{event['id']}에는 day와 time을 함께 지정해야 합니다.")
+    if "day" in event:
+        if type(event["day"]) is not int or not 0 <= event["day"] <= 6:
+            raise ValueError(f"{event['id']}의 day는 0~6 정수여야 합니다.")
+        clock.fromisoformat(event["time"])
+    photos = event.get("photos", 1)
+    if type(photos) is not int or photos < 0:
+        raise ValueError(f"{event['id']}의 photos는 0 이상의 정수여야 합니다.")
+    if photos == 0 and not event["caption"].strip():
+        raise ValueError(f"{event['id']}는 사진이 없으므로 caption이 필요합니다.")
 
 
 def select_events(threads, post_count):
@@ -159,17 +170,150 @@ def make_event(event, thread, author, names, occurred, sequence):
         "sequence": sequence, "feed_key": event["id"], "thread_id": thread["id"],
         "thread_title": thread["title"], "kind": event["kind"],
         "author_username": author["username"], "author_name": author["name"],
-        "created_at": occurred.isoformat(), "caption": event["caption"].format(**names),
+        "created_at": occurred.isoformat(), "caption": fill_names(event["caption"], names),
         "image_query": event["image_query"],
     }
     labels = (
         "establishes", "invalidates", "distractor_for", "required_memories",
-        "optional_memories", "must_filter", "evaluation_question", "prior_dialogue",
+        "optional_memories", "must_filter", "evaluation_question", "prior_dialogue", "photos",
     )
     result.update({key: event[key] for key in labels if key in event})
     if "evaluation_question" in result:
-        result["evaluation_question"] = result["evaluation_question"].format(**names)
+        result["evaluation_question"] = fill_names(result["evaluation_question"], names)
     return result
+
+
+def member_for_slot(slot, members):
+    return members[int(slot[1:]) % len(members)]
+
+
+def scheduled_at(event, start):
+    if "day" not in event:
+        return None
+    return datetime.combine(start + timedelta(days=event["day"]), clock.fromisoformat(event["time"]),
+                            timezone(timedelta(hours=9)))
+
+
+# A particle written after a {m0} slot is replaced by the form that fits the actual name.
+JOSA = {
+    "이가": ("이가", "가"), "이한테": ("이한테", "한테"), "이랑": ("이랑", "랑"), "랑": ("이랑", "랑"),
+    "이네": ("이네", "네"), "이": ("이", "가"), "가": ("이", "가"),
+    "은": ("은", "는"), "는": ("은", "는"), "을": ("을", "를"), "를": ("을", "를"),
+    "과": ("과", "와"), "와": ("과", "와"), "아": ("아", "야"), "야": ("아", "야"),
+}
+NAME_JOSA = re.compile(r"\{(m\d+)\}(" + "|".join(sorted(JOSA, key=len, reverse=True)) + r")(?![가-힣])")
+
+
+def has_final_consonant(word):
+    last = word[-1]
+    return "가" <= last <= "힣" and (ord(last) - ord("가")) % 28 != 0
+
+
+def fill_names(text, names):
+    """Fill {m0} slots, choosing 이/가, 은/는, 아/야 and similar particles for each actual name."""
+    def attach(match):
+        name = names[match.group(1)]
+        consonant, vowel = JOSA[match.group(2)]
+        return name + (consonant if has_final_consonant(name) else vowel)
+    return NAME_JOSA.sub(attach, text).format(**names)
+
+
+def format_names(value, names):
+    if isinstance(value, str):
+        return fill_names(value, names)
+    if isinstance(value, list):
+        return [format_names(item, names) for item in value]
+    if isinstance(value, dict):
+        return {key: format_names(item, names) for key, item in value.items()}
+    return value
+
+
+def resolve_extra_cases(catalog, members, names, events):
+    """Copy non-probe evaluation cases, checking that their labels and feeds exist in history."""
+    history = [event for event in events if event["kind"] != "probe"]
+    labels = set().union(*(event.get("establishes", []) for event in history))
+    feed_keys = {event["feed_key"] for event in events}
+    extras = {}
+    for section in EXTRA_CASE_SECTIONS:
+        cases = []
+        for case in catalog.get(section, []):
+            item = format_names(case, names)
+            for key in ("asker", "speaker"):
+                if key in case:
+                    item[f"{key}_username"] = member_for_slot(case[key], members)["username"]
+            missing = set(case.get("required_memories", []) + case.get("must_filter", [])) - labels
+            if missing:
+                raise ValueError(f"{case['id']}의 label이 history에 없습니다: {sorted(missing)}")
+            if "feed_key" in case and case["feed_key"] not in feed_keys:
+                raise ValueError(f"{case['id']}의 feed_key가 선택된 게시물에 없습니다: {case['feed_key']}")
+            cases.append(item)
+        if cases:
+            extras[section] = cases
+    return extras
+
+
+def resolve_comment(comment, members, names, start, after, label):
+    item = {
+        "author_username": member_for_slot(comment["author"], members)["username"],
+        "created_at": scheduled_at(comment, start).isoformat(),
+        "text": fill_names(comment["text"], names),
+        "source": comment.get("source", "text"),
+    }
+    if item["source"] not in {"text", "voice"}:
+        raise ValueError(f"{label} 댓글의 source는 text 또는 voice여야 합니다.")
+    if item["source"] == "voice":
+        # Voice comments keep the recognized speech beside the converted text, as the app does.
+        item["recognized"] = fill_names(comment["recognized"], names)
+    if item["created_at"] <= after:
+        raise ValueError(f"{label} 댓글은 원래 게시물보다 뒤에 달려야 합니다.")
+    return item
+
+
+def validate_answer(answer, kind, options, label):
+    choice, tiers, text = answer.get("choice", ""), answer.get("tiers", {}), answer.get("text", "")
+    if kind in {"choice", "weather"}:
+        if choice not in [*options, "기타"] or tiers or (choice == "기타") != bool(answer.get("other_text")):
+            raise ValueError(f"{label}: 선택지 답변을 확인하세요.")
+    elif kind == "text":
+        if not text.strip() or choice or tiers:
+            raise ValueError(f"{label}: 한 줄 답변에는 text만 적습니다.")
+    elif choice or set(tiers) != set(options) or any(grade not in {"S", "A", "B", "C"} for grade in tiers.values()):
+        raise ValueError(f"{label}: 모든 항목에 S/A/B/C 등급이 필요합니다.")
+
+
+def resolve_conversations(catalog, members, names, events, start):
+    """Comments on posts and past daily questions; the app shows them but never feeds them to the graph."""
+    posts = {event["feed_key"]: event for event in events}
+    comments = []
+    for comment in catalog.get("comments", []):
+        if comment["feed_key"] not in posts:
+            raise ValueError(f"댓글의 feed_key가 선택된 게시물에 없습니다: {comment['feed_key']}")
+        post = posts[comment["feed_key"]]
+        comments.append({"feed_key": post["feed_key"],
+                         **resolve_comment(comment, members, names, start, post["created_at"], post["feed_key"])})
+    questions = []
+    for question in catalog.get("daily_questions", []):
+        day = (start + timedelta(days=question["day"])).isoformat()
+        published = f"{day}T00:00:00+09:00"
+        answers = []
+        for answer in question.get("answers", []):
+            validate_answer(answer, question["kind"], question["options"], f"{day} 질문")
+            answers.append({
+                "author_username": member_for_slot(answer["author"], members)["username"],
+                "created_at": scheduled_at({"day": question["day"], "time": answer["time"]}, start).isoformat(),
+                "choice": answer.get("choice", ""), "other_text": answer.get("other_text", ""),
+                "text": fill_names(answer.get("text", ""), names), "tiers": answer.get("tiers", {}),
+                "source": answer.get("source", "text"),
+            })
+        if len({answer["author_username"] for answer in answers}) != len(answers):
+            raise ValueError(f"{day} 질문에는 한 사람당 답변이 하나입니다.")
+        questions.append({
+            "date": day, "title": question["title"], "kind": question["kind"], "options": question["options"],
+            "answers": answers,
+            "comments": [resolve_comment({**comment, "day": question["day"]}, members, names, start, published, day)
+                         for comment in question.get("comments", [])],
+        })
+    return {key: value for key, value in (("comments", comments), ("daily_questions", questions)) if value}
 
 
 def owner_weighted_authors(config, threads, chosen):
@@ -218,7 +362,7 @@ def owner_weighted_authors(config, threads, chosen):
     return assignments
 
 
-def build_plan(config, threads):
+def build_plan(config, threads, catalog=None):
     members = config["members"]
     # Catalog templates currently refer to members m0 through m5. Smaller
     # families reuse members cyclically so every catalog thread remains valid.
@@ -242,22 +386,30 @@ def build_plan(config, threads):
             ti % len(members) if event["kind"] == "core" else (ti + bi + 1) % len(members),
         )
         branch_number[thread["id"]] += 1
+        author = member_for_slot(event["author"], members) if "author" in event else members[author_index]
         day_offset = min(5, sequence * 6 // max(1, len(history)))
-        occurred = datetime.combine(start + timedelta(days=day_offset), clock(9 + sequence % 10, sequence * 7 % 60), timezone(timedelta(hours=9)))
-        events.append(make_event(event, thread, members[author_index], names, occurred, sequence + 1))
+        occurred = scheduled_at(event, start) or datetime.combine(start + timedelta(days=day_offset), clock(9 + sequence % 10, sequence * 7 % 60), timezone(timedelta(hours=9)))
+        events.append(make_event(event, thread, author, names, occurred, sequence + 1))
     for offset, (thread, event) in enumerate(probes):
         author_index = weighted_authors.get(
             event["id"], (thread_index[thread["id"]] + 1) % len(members)
         )
-        author = members[author_index]
+        author = member_for_slot(event["author"], members) if "author" in event else members[author_index]
         # Keep every probe on day seven. Half-hour spacing supports up to 20
         # probes while preserving a valid time range.
-        occurred = datetime.combine(
+        occurred = scheduled_at(event, start) or datetime.combine(
             start + timedelta(days=6),
             clock(9 + offset // 2, 30 if offset % 2 else 0),
             timezone(timedelta(hours=9)),
         )
         events.append(make_event(event, thread, author, names, occurred, len(events) + 1))
+    if any("day" in event for _, event in chosen):
+        # Hand-scheduled weeks are numbered in posting order; probes still follow history.
+        events.sort(key=lambda item: (item["kind"] == "probe", item["created_at"]))
+        for sequence, item in enumerate(events, 1):
+            item["sequence"] = sequence
+    extras = resolve_extra_cases(catalog or {}, members, names, events)
+    extras.update(resolve_conversations(catalog or {}, members, names, events, start))
     return {
         "schema_version": 2, "dataset_name": config["dataset_name"],
         "family": {
@@ -278,7 +430,14 @@ def build_plan(config, threads):
             "author_policy": config.get("author_policy", {"mode": "round_robin"}),
         },
         "events": events,
+        **extras,
     }
+
+
+def photo_keys(event):
+    """The first photo keeps the feed key; extra photos use '<feed_key>#2', '#3', ..."""
+    return [event["feed_key"] if index == 0 else f"{event['feed_key']}#{index + 1}"
+            for index in range(event.get("photos", 1))]
 
 
 class PhotoCrawler:
@@ -308,18 +467,22 @@ class PhotoCrawler:
                 request = Request(url, headers=request_headers)
                 with urlopen(request, timeout=45) as response:
                     destination.write_bytes(response.read())
-                with Image.open(destination) as source:
-                    image = source.convert("RGB")
-                    if min(image.size) < 400:
-                        raise ValueError("짧은 변이 400px보다 작은 이미지는 제외합니다.")
-                    image.thumbnail((1600, 1600))
-                    image.save(destination, "JPEG", quality=88)
+                self.normalize_image(destination)
                 time.sleep(self.delay)
                 return url
             except Exception as error:
                 last_error = error
                 destination.unlink(missing_ok=True)
         raise RuntimeError(f"이미지를 내려받지 못했습니다: {last_error}")
+
+    @staticmethod
+    def normalize_image(destination):
+        with Image.open(destination) as source:
+            image = source.convert("RGB")
+            if min(image.size) < 400:
+                raise ValueError("짧은 변이 400px보다 작은 이미지는 제외합니다.")
+            image.thumbnail((1600, 1600))
+            image.save(destination, "JPEG", quality=88)
 
     @staticmethod
     def search_queries(query):
@@ -501,13 +664,33 @@ class CompositeCrawler:
 class CuratedCrawler(PhotoCrawler):
     def __init__(self, user_agent, sources_path, width=1200, delay=0.3):
         super().__init__(user_agent, width, delay)
+        self.sources_root = Path(sources_path).resolve().parent
         self.sources = {item["feed_key"]: item for item in read_json(sources_path)}
 
     def download(self, query, destination, feed_key=None):
         if feed_key not in self.sources:
             raise RuntimeError(f"curated source가 없는 feed입니다: {feed_key}")
         source = self.sources[feed_key]
+        if "local_path" in source:
+            # Photos stored in the dataset folder: Pexels photos kept for reproducibility, and
+            # screenshots or documents drawn for the testbed so their text matches the labels.
+            destination.write_bytes((self.sources_root / source["local_path"]).read_bytes())
+            self.normalize_image(destination)
+            if source.get("page_url"):
+                return self.pexels_metadata(source, query, download_url=None)
+            return {
+                "provider": "Generated for this testbed", "query": query,
+                "matched_query": "generated", "title": source["title"],
+                "page_id": None, "artist": source["artist"],
+                "license": source["license"], "license_url": None,
+                "credit": source["artist"], "description_url": None,
+                "original_url": source["local_path"], "download_url": None,
+            }
         downloaded_url = self.download_file([source["image_url"]], destination)
+        return self.pexels_metadata(source, query, downloaded_url)
+
+    @staticmethod
+    def pexels_metadata(source, query, download_url):
         return {
             "provider": "Pexels (manually curated)", "query": query,
             "matched_query": "manual web selection", "title": source["title"],
@@ -515,11 +698,11 @@ class CuratedCrawler(PhotoCrawler):
             "license": "Pexels License", "license_url": "https://www.pexels.com/license/",
             "credit": f"Photo by {source['artist']} on Pexels",
             "description_url": source["page_url"], "original_url": source["image_url"],
-            "download_url": downloaded_url,
+            "download_url": download_url,
         }
 
 
-def make_crawler(config):
+def make_crawler(config, config_path):
     common = (
         config["user_agent"],
         config.get("image_width", 1200),
@@ -528,9 +711,7 @@ def make_crawler(config):
     crawlers = []
     for provider in config.get("image_providers", ["openverse"]):
         if provider == "curated":
-            sources_path = Path(config.get("curated_sources", ROOT / "input" / "curated_sources.example.json"))
-            if not sources_path.is_absolute():
-                sources_path = ROOT / sources_path
+            sources_path = config_relative(config_path, config.get("curated_sources", "curated_sources.json"))
             crawlers.append(CuratedCrawler(common[0], sources_path, common[1], common[2]))
         elif provider == "openverse":
             crawlers.append(OpenverseCrawler(
@@ -551,44 +732,48 @@ def make_crawler(config):
 
 
 def generate(config_path, output_path=None, skip_images=False):
-    config_path = Path(config_path).resolve()
+    config_path = dataset_config(config_path)
     config = read_json(config_path)
-    catalog_path = Path(config.get("event_catalog", ROOT / "input" / "event_catalog.example.json"))
-    if not catalog_path.is_absolute():
-        catalog_path = ROOT / catalog_path
-    catalog = read_json(catalog_path)
+    catalog = read_json(config_relative(config_path, config.get("event_catalog", "event_catalog.json")))
     threads = validate_config(config, catalog)
-    plan = build_plan(config, threads)
-    output = Path(output_path or ROOT / "output" / config["dataset_name"]).resolve()
+    plan = build_plan(config, threads, catalog)
+    output = Path(output_path or OUTPUT_ROOT / config["dataset_name"]).resolve()
     output.mkdir(parents=True, exist_ok=True)
     manifest_path = output / "manifest.json"
     previous_images = set()
     if manifest_path.exists():
         previous_images = {
-            (output / event["image_path"]).resolve()
-            for event in read_json(manifest_path).get("events", []) if event.get("image_path")
+            (output / path).resolve()
+            for event in read_json(manifest_path).get("events", [])
+            for path in event.get("image_paths") or [event.get("image_path")] if path
         }
     # The event plan survives even when a later image request fails.
     write_json(output / "dataset_plan.json", plan)
     crawler = None
     if config.get("download_images", True) and not skip_images:
-        crawler = make_crawler(config)
+        crawler = make_crawler(config, config_path)
         (output / "images").mkdir(exist_ok=True)
     for event in plan["events"]:
         event["image_path"] = None
         event["image_source"] = None
+        event["image_paths"] = []
+        event["image_sources"] = []
     if crawler:
         image_root = (output / "images").resolve()
         with tempfile.TemporaryDirectory(prefix=".images-", dir=output) as staging_directory:
             staging = Path(staging_directory)
             for event in plan["events"]:
-                filename = f"{event['sequence']:02d}_{event['feed_key']}.jpg"
-                staged_image = staging / filename
-                event["image_source"] = crawler.download(event["image_query"], staged_image, event["feed_key"])
-                event["image_path"] = f"images/{filename}"
+                for index, key in enumerate(photo_keys(event)):
+                    suffix = "" if index == 0 else f"_{index + 1}"
+                    filename = f"{event['sequence']:02d}_{event['feed_key']}{suffix}.jpg"
+                    event["image_sources"].append(crawler.download(event["image_query"], staging / filename, key))
+                    event["image_paths"].append(f"images/{filename}")
+                if event["image_paths"]:
+                    event["image_path"], event["image_source"] = event["image_paths"][0], event["image_sources"][0]
             for event in plan["events"]:
-                (staging / Path(event["image_path"]).name).replace(output / event["image_path"])
-        current_images = {(output / event["image_path"]).resolve() for event in plan["events"]}
+                for path in event["image_paths"]:
+                    (staging / Path(path).name).replace(output / path)
+        current_images = {(output / path).resolve() for event in plan["events"] for path in event["image_paths"]}
         for stale in previous_images - current_images:
             if stale.parent == image_root and stale.is_file():
                 stale.unlink()
@@ -598,11 +783,11 @@ def generate(config_path, output_path=None, skip_images=False):
 
 def main():
     parser = argparse.ArgumentParser(description="Graphiti 가족 피드 벤치마크를 생성합니다.")
-    parser.add_argument("--config", default=str(ROOT / "input" / "config.example.json"))
+    parser.add_argument("--dataset", default="example", help="datasets/ 아래 폴더 이름 또는 config 경로")
     parser.add_argument("--output")
     parser.add_argument("--skip-images", action="store_true", help="사건과 정답표만 생성합니다.")
     args = parser.parse_args()
-    output, plan = generate(args.config, args.output, args.skip_images)
+    output, plan = generate(args.dataset, args.output, args.skip_images)
     print(f"{len(plan['events'])}개 피드 계획 생성: {output}")
 
 

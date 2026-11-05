@@ -28,14 +28,12 @@
     "exercise",
     "album"
   ],
-  "event_catalog": "input/event_catalog.week-100-five-members.json",
-  "evaluation_set": "input/evaluation_sets/family-week-100-v1.json",
-  "evaluation_thresholds": "input/evaluation_sets/family-week-100-v1.thresholds.json",
+  "event_catalog": "event_catalog.json",
   "download_images": true,
   "image_providers": [
     "curated"
   ],
-  "curated_sources": "input/curated_sources.week-100-five-members.json",
+  "curated_sources": "curated_sources.json",
   "image_width": 1200,
   "request_delay_seconds": 0.3,
   "user_agent": "TalkDockDatasetBuilder/1.0 (https://github.com/snuhcs-course/swpp-2026-project-team-12; educational test dataset)",

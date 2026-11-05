@@ -47,10 +47,23 @@ def adapt(post, relation):
     )
 
 
-def rewrite(recognized, name, *, family_id):
+def rewrite_payload(recognized, name, *, speaker=None, caption=None, family_names=()):
+    """STT input; names let the model fix misheard family names without a search."""
+    payload = {"게시물 작성자": name}
+    if speaker:
+        payload["말하는 사람"] = speaker
+    if caption:
+        payload["게시물 원문"] = caption
+    if family_names:
+        payload["가족 이름 목록"] = list(family_names)
+    payload["인식된 말"] = recognized
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def rewrite(recognized, name, *, family_id, speaker=None, caption=None, family_names=()):
     return answer_with_memory(
         "stt_correction", family_id,
-        json.dumps({"게시물 작성자": name, "인식된 말": recognized}, ensure_ascii=False),
+        rewrite_payload(recognized, name, speaker=speaker, caption=caption, family_names=family_names),
     )
 
 

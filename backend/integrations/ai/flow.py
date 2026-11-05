@@ -41,7 +41,7 @@ def choose_instruction(feature):
         return FEATURE_INSTRUCTIONS[feature]
     if ways == 2:
         return prompts.HISTORY_INSTRUCTIONS
-    return FEATURE_INSTRUCTIONS[feature] + prompts.RETRIEVAL_INSTRUCTIONS
+    return FEATURE_INSTRUCTIONS[feature] + prompts.STT_RETRIEVAL
 
 
 def input_content(text, images, feature):

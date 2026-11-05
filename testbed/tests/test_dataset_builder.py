@@ -4,29 +4,33 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from dataset_builder import (
-    ROOT,
+from testbed.builder.dataset_builder import (
     CompositeCrawler,
     CuratedCrawler,
     build_plan,
     generate,
     make_crawler,
     read_json,
+    fill_names,
     find_relationship,
     family_tree,
     validate_config,
 )
+from testbed.common.paths import DATASETS_ROOT
 
 
 class DatasetBuilderTests(unittest.TestCase):
     def config(self):
-        config = read_json(ROOT / "input" / "config.example.json")
+        config = read_json(DATASETS_ROOT / "example" / "config.json")
         config["download_images"] = False
+        # Absolute paths let tests copy this config into a temporary folder.
+        for key in ("event_catalog", "curated_sources"):
+            config[key] = str(DATASETS_ROOT / "example" / config[key])
         return config
 
     def test_plan_has_multiple_authors_and_day_seven_probes(self):
         config = self.config()
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
         plan = build_plan(config, validate_config(config, catalog))
         self.assertEqual(len(plan["events"]), config["post_count"])
         for thread_id in config["thread_ids"]:
@@ -44,7 +48,7 @@ class DatasetBuilderTests(unittest.TestCase):
         config["parents"].append({"parent_id": "test_jimin", "child_id": "test_son"})
         config["thread_ids"] = ["lunchbox", "birthday", "knitting"]
         config["post_count"] = 15
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
 
         plan = build_plan(config, validate_config(config, catalog))
 
@@ -61,7 +65,7 @@ class DatasetBuilderTests(unittest.TestCase):
             "basil", "dog", "cafe", "camera", "lunchbox", "bicycle", "birthday", "trip", "knitting", "recital",
         ]
         config["post_count"] = 50
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
 
         plan = build_plan(config, validate_config(config, catalog))
 
@@ -81,7 +85,7 @@ class DatasetBuilderTests(unittest.TestCase):
 
     def test_default_probes_have_required_and_filter_memories_in_history(self):
         config = self.config()
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
         plan = build_plan(config, validate_config(config, catalog))
         for probe in (event for event in plan["events"] if event["kind"] == "probe"):
             history = [
@@ -94,7 +98,7 @@ class DatasetBuilderTests(unittest.TestCase):
 
     def test_selected_probe_requires_evaluation_question(self):
         config = self.config()
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
         probe = next(event for event in catalog["threads"][0]["events"] if event["kind"] == "probe")
         probe.pop("evaluation_question")
         with self.assertRaisesRegex(ValueError, "evaluation_question"):
@@ -112,19 +116,19 @@ class DatasetBuilderTests(unittest.TestCase):
 
     def test_default_crawler_uses_manually_curated_sources(self):
         config = self.config()
-        crawler = make_crawler(config)
+        crawler = make_crawler(config, DATASETS_ROOT / "example" / "config.json")
         self.assertIsInstance(crawler, CompositeCrawler)
         self.assertIsInstance(crawler.crawlers[0], CuratedCrawler)
 
     def test_curated_sources_cover_default_plan(self):
         config = self.config()
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
         plan = build_plan(config, validate_config(config, catalog))
-        sources = {item["feed_key"] for item in read_json(ROOT / "input" / "curated_sources.example.json")}
+        sources = {item["feed_key"] for item in read_json(DATASETS_ROOT / "example" / "curated_sources.json")}
         self.assertEqual({event["feed_key"] for event in plan["events"]}, sources)
 
     def test_image_queries_describe_people_or_human_actions(self):
-        catalog = read_json(ROOT / "input" / "event_catalog.example.json")
+        catalog = read_json(DATASETS_ROOT / "example" / "event_catalog.json")
         human_terms = {"person", "family", "friends", "hands", "adult"}
         for thread in catalog["threads"]:
             for event in thread["events"]:
@@ -168,12 +172,25 @@ class DatasetBuilderTests(unittest.TestCase):
             image.write_bytes(b"existing image")
             config_path.write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
 
-            with patch("dataset_builder.make_crawler", return_value=FailingCrawler()):
+            with patch("testbed.builder.dataset_builder.make_crawler", return_value=FailingCrawler()):
                 with self.assertRaises(RuntimeError):
                     generate(config_path, output)
 
             self.assertEqual(image.read_bytes(), b"existing image")
             self.assertFalse(any(output.glob(".images-*")))
+
+
+class NameParticleTests(unittest.TestCase):
+    def test_particles_follow_the_final_consonant_of_each_name(self):
+        names = {"m0": "준호", "m1": "도윤", "m2": "수진"}
+        self.assertEqual(fill_names("{m0}이 왔고 {m1}가 갔어요.", names), "준호가 왔고 도윤이 갔어요.")
+        self.assertEqual(fill_names("{m0}아, {m1}야, {m2}은 {m0}과", names), "준호야, 도윤아, 수진은 준호와")
+        self.assertEqual(fill_names("{m0}이한테 {m1}이한테 {m2}이가", names), "준호한테 도윤이한테 수진이가")
+
+    def test_invariant_particles_and_following_words_are_left_alone(self):
+        names = {"m0": "준호", "m1": "지민"}
+        self.assertEqual(fill_names("{m0}의 {m0}에게 {m0}네 {m1}이네 {m0}가족", names),
+                         "준호의 준호에게 준호네 지민이네 준호가족")
 
 
 if __name__ == "__main__":
