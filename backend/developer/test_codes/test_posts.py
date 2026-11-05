@@ -17,7 +17,7 @@ from PIL import Image
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
-from integrations.ai import flow, provider, post_flow
+from integrations.ai import flow, provider, post_flow, prompts
 from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member, link_parent, sample_family
@@ -326,7 +326,7 @@ class PostAPITests(TestCase):
         self.assertEqual(payload["service_tier"], "fast")
         self.assertEqual(payload["reasoning"], {"effort": "none"})
         self.assertFalse(payload["store"])
-        self.assertIn("두 문장", payload["instructions"])
+        self.assertEqual(payload["instructions"], prompts.POST_SUMMARY)
         content = payload["input"][0]["content"]
         self.assertIn("오늘 산책했어요", content[0]["text"])
         self.assertIn("어머니", content[0]["text"])
