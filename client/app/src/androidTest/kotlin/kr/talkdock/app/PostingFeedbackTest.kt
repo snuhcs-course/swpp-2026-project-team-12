@@ -58,39 +58,69 @@ class PostingFeedbackTest {
         }.use { api -> UiHarness(api, room(1, "완료 화면 테스트")).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }
             lateinit var host: ViewGroup
-            lateinit var success: TodakSuccessView
-            lateinit var boy: TodakJoyView
             fun frame(): Bitmap {
-                lateinit var image: Bitmap
-                ui.test.runOnMainSync {
-                    image = Bitmap.createBitmap(host.width, host.height, Bitmap.Config.ARGB_8888)
-                    host.draw(Canvas(image))
-                }
+                val image = Bitmap.createBitmap(host.width, host.height, Bitmap.Config.ARGB_8888)
+                host.draw(Canvas(image))
                 return image
             }
-            ui.test.runOnMainSync {
-                host = ui.activity.findViewById(android.R.id.content)
-                success = TodakSuccessView(ui.activity, "댓글을 달았어요!") {}
-                host.addView(success, ViewGroup.LayoutParams(-1, -1))
-                boy = (0 until success.childCount).map { success.getChildAt(it) }.filterIsInstance<TodakJoyView>().single()
+            fun moving(boy: TodakJoyView) = kotlin.math.abs(boy.translationY) > .5f || kotlin.math.abs(boy.rotation) > .1f
+            // A clearly lifted or tilted pose (the animation peaks at 10 dp and 3 degrees), so the frame differs visibly.
+            val lift = 2f * ui.activity.resources.displayMetrics.density
+            fun posed(boy: TodakJoyView) = kotlin.math.abs(boy.translationY) > lift || kotlin.math.abs(boy.rotation) > 1f
+            // The celebration is one 1.8 s animation that starts and ends at rest. A slow software-rendered
+            // emulator can finish it before a fixed sleep wakes up, so poll its state on the main thread and
+            // draw the frame in the same main-thread turn the state was read in.
+            fun <T : Any> awaitOnMain(timeoutMs: Long, read: () -> T?): T? {
+                val deadline = System.currentTimeMillis() + timeoutMs
+                while (System.currentTimeMillis() < deadline) {
+                    var value: T? = null
+                    ui.test.runOnMainSync { value = read() }
+                    value?.let { return it }
+                    Thread.sleep(16)
+                }
+                return null
             }
-            ui.test.waitForIdleSync()
-            val resting = frame()
-            Thread.sleep(500)
-            val celebrating = frame()
-            try {
-                assertFalse("The new boy must visibly move on success", resting.sameAs(celebrating))
-                ui.screenshot("boy-posting-success.png")
+            fun show(): Pair<TodakSuccessView, TodakJoyView> {
+                lateinit var shown: Pair<TodakSuccessView, TodakJoyView>
                 ui.test.runOnMainSync {
-                    assertTrue(kotlin.math.abs(boy.translationY) > .1f || kotlin.math.abs(boy.rotation) > .1f)
-                    host.removeView(success)
-                    assertFalse(boy.isAttachedToWindow)
-                    assertEquals(0f, boy.translationY, .001f)
-                    assertEquals(0f, boy.rotation, .001f)
+                    host = ui.activity.findViewById(android.R.id.content)
+                    val success = TodakSuccessView(ui.activity, "댓글을 달았어요!") {}
+                    host.addView(success, ViewGroup.LayoutParams(-1, -1))
+                    shown = success to (0 until success.childCount).map { success.getChildAt(it) }
+                        .filterIsInstance<TodakJoyView>().single()
+                }
+                return shown
+            }
+
+            val (success, boy) = show()
+            var celebrating: Bitmap? = null
+            var resting: Bitmap? = null
+            try {
+                // The animation cannot end before its first frame, so a long wait here only absorbs a slow start.
+                celebrating = awaitOnMain(5000) { if (posed(boy)) frame() else null }
+                assertNotNull("The new boy must start moving on success", celebrating)
+                ui.screenshot("boy-posting-success.png")
+                resting = awaitOnMain(5000) { if (!moving(boy)) frame() else null }
+                assertNotNull("The success motion must settle back to rest", resting)
+                assertFalse("The new boy must visibly move on success", resting!!.sameAs(celebrating))
+            } finally {
+                celebrating?.recycle(); resting?.recycle()
+                ui.test.runOnMainSync { host.removeView(success) }
+            }
+
+            // Removing the view mid-celebration must stop the motion and reset the pose.
+            val (again, nextBoy) = show()
+            try {
+                assertNotNull("The new boy must move again when shown again",
+                    awaitOnMain(5000) { if (posed(nextBoy)) true else null })
+                ui.test.runOnMainSync {
+                    host.removeView(again)
+                    assertFalse(nextBoy.isAttachedToWindow)
+                    assertEquals(0f, nextBoy.translationY, .001f)
+                    assertEquals(0f, nextBoy.rotation, .001f)
                 }
             } finally {
-                resting.recycle(); celebrating.recycle()
-                ui.test.runOnMainSync { host.removeView(success) }
+                ui.test.runOnMainSync { host.removeView(again) }
             }
         } }
     }

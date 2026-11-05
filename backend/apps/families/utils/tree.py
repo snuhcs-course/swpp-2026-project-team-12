@@ -37,6 +37,11 @@ def tree_data(room):
     }
 
 
+def family_names(room):
+    """Display names of everyone in the tree, claimed or not, in tree order."""
+    return list(dict.fromkeys(person["name"] for person in tree_data(room)["people"] if person["name"]))
+
+
 def join_tree(room, user, data):
     version, additions, selected = data.get("tree_version"), data.get("additions", []), data.get("person_id")
     if type(version) is not int or version < 0:

@@ -1,26 +1,18 @@
 from __future__ import annotations
 
-import json
 import os
 import sys
+from contextlib import ExitStack
 from pathlib import Path
 
 
-def build_post_qa_input(post, event, relation, viewer, current_time):
-    """Mirror integrations.ai.provider.ask without hiding retrieval metadata."""
-    return json.dumps(
-        {
-            "작성자": post.author.display_name,
-            "관계": relation,
-            "원문": post.caption,
-            "게시시각": post.created_at.isoformat(),
-            "질문": event["evaluation_question"],
-            "질문자": viewer["name"],
-            "이전대화": event.get("prior_dialogue", []),
-            "현재시각": current_time.isoformat(),
-        },
-        ensure_ascii=False,
-    )
+def event_image_paths(event):
+    """Older manifests only have image_path; newer ones list every photo in image_paths."""
+    return event.get("image_paths") or ([event["image_path"]] if event.get("image_path") else [])
+
+
+def missing_photos(event):
+    return len(event_image_paths(event)) < event.get("photos", 1)
 
 
 class TalkDockDjangoAdapter:
@@ -69,7 +61,8 @@ class TalkDockDjangoAdapter:
                 raise RuntimeError(f"TalkDock 모델을 찾을 수 없습니다: {app_label}.{model_name}")
             self.models[name] = model
 
-    def seed(self, manifest, manifest_path, events, default_password=None):
+    def seed(self, manifest, manifest_path, events, default_password=None, family_id=None):
+        """family_id pins the room's primary key so each dataset gets its own Graphiti group."""
         from django.contrib.auth.hashers import make_password
         from django.core.files import File
 
@@ -102,6 +95,7 @@ class TalkDockDjangoAdapter:
         room, _ = FamilyRoom.objects.get_or_create(
             invite_code=family["invite_code"],
             defaults={
+                **({"id": family_id} if family_id else {}),
                 "name": family["name"],
                 "password_hash": make_password(room_password),
                 "owner": users[owner_spec["username"]],
@@ -109,6 +103,9 @@ class TalkDockDjangoAdapter:
         )
         if room.owner_id != users[owner_spec["username"]].pk:
             raise ValueError("기존 가족방 owner가 manifest와 다릅니다.")
+        if family_id and room.pk != family_id:
+            raise ValueError(f"기존 가족방 ID {room.pk}가 지정한 family_id {family_id}와 다릅니다. "
+                             "test DB를 지우고 다시 seed하세요.")
 
         from django.db import transaction
         from django.db.models import F
@@ -139,26 +136,78 @@ class TalkDockDjangoAdapter:
         manifest_root = Path(manifest_path).resolve().parent
         post_ids = {}
         for event in events:
-            if not event.get("image_path"):
+            if missing_photos(event):
                 raise ValueError("사진이 없는 manifest는 DB에 넣을 수 없습니다. 이미지 다운로드 후 실행하세요.")
             author = users[event["author_username"]]
             post = Post.objects.filter(room=room, author=author, caption=event["caption"]).first()
             if post is None:
-                source = manifest_root / event["image_path"]
-                with source.open("rb") as handle:
+                sources = [manifest_root / path for path in event_image_paths(event)]
+                with ExitStack() as stack:
+                    files = [File(stack.enter_context(source.open("rb")), name=source.name) for source in sources]
                     if hasattr(Post, "images"):
                         from apps.posts.services import save_post
 
-                        post = save_post(room, author, event["caption"], [File(handle, name=source.name)])
-                    else:
+                        post = save_post(room, author, event["caption"], files)
+                    elif len(files) == 1:
                         # The benchmark can also target the historical single-image backend.
                         post = Post.objects.create(room=room, author=author, caption=event["caption"],
-                                                   image=File(handle, name=source.name))
+                                                   image=files[0])
+                    else:
+                        raise ValueError("이 backend는 사진이 정확히 한 장인 게시물만 지원합니다.")
                 Post.objects.filter(pk=post.pk).update(created_at=event["created_at"])
                 post.refresh_from_db()
             post_ids[event["feed_key"]] = post.pk
 
         return {"family_id": room.pk, "post_ids": post_ids}
+
+    def seed_conversations(self, manifest, post_ids):
+        """Add comments and past daily questions; re-running skips rows that already exist."""
+        from django.apps import apps
+        from django.db import transaction
+
+        Comment = apps.get_model("replies", "Comment")
+        VoiceDraft = apps.get_model("replies", "VoiceDraft")
+        DailyQuestion = apps.get_model("posts", "DailyQuestion")
+        QuestionAnswer = apps.get_model("posts", "QuestionAnswer")
+        Post = self.models["post"]
+        users = {user.username: user for user in self.models["user"].objects.filter(
+            username__in=[member["username"] for member in manifest["family"]["members"]])}
+        room = self.models["family"].objects.get(invite_code=manifest["family"]["invite_code"])
+
+        def add_comment(post, spec):
+            author = users[spec["author_username"]]
+            if Comment.objects.filter(post=post, author=author, text=spec["text"]).exists():
+                return
+            draft = None
+            if spec["source"] == "voice":
+                draft = VoiceDraft.objects.create(post=post, author=author, recognized=spec["recognized"],
+                                                  converted=spec["text"])
+                VoiceDraft.objects.filter(pk=draft.pk).update(created_at=spec["created_at"])
+            comment = Comment.objects.create(post=post, author=author, text=spec["text"],
+                                             source=spec["source"], draft=draft)
+            Comment.objects.filter(pk=comment.pk).update(created_at=spec["created_at"])
+
+        with transaction.atomic():
+            for spec in manifest.get("comments", []):
+                add_comment(Post.objects.get(pk=post_ids[spec["feed_key"]]), spec)
+            for spec in manifest.get("daily_questions", []):
+                question = DailyQuestion.objects.filter(room=room, date=spec["date"]).first()
+                if question is None:
+                    post = Post.objects.create(room=room, author=None, kind="question", caption=spec["title"])
+                    Post.objects.filter(pk=post.pk).update(created_at=f"{spec['date']}T00:00:00+09:00")
+                    question = DailyQuestion.objects.create(post=post, room=room, date=spec["date"],
+                                                            kind=spec["kind"], options=spec["options"])
+                for answer in spec["answers"]:
+                    row, _ = QuestionAnswer.objects.update_or_create(
+                        question=question, author=users[answer["author_username"]],
+                        defaults={key: answer[key] for key in ("choice", "other_text", "text", "tiers", "source")},
+                    )
+                    QuestionAnswer.objects.filter(pk=row.pk).update(
+                        created_at=answer["created_at"], updated_at=answer["created_at"])
+                for comment in spec["comments"]:
+                    add_comment(question.post, comment)
+        return {"comments": Comment.objects.filter(post__room=room).count(),
+                "daily_questions": DailyQuestion.objects.filter(room=room).count()}
 
     def close(self):
         """Release DB connections so a worker subprocess can use the SQLite file."""
@@ -167,53 +216,3 @@ class TalkDockDjangoAdapter:
         except ModuleNotFoundError:
             return
         connections.close_all()
-
-    def evaluate(self, manifest, database_state, on_case_done=None):
-        """Run the backend's post QA path while preserving retrieval evidence."""
-        from integrations.ai_workers.searching_workers import run_search
-        from django.utils import timezone
-
-        Post = self.models["post"]
-        family_id = database_state["family_id"]
-        post_ids = database_state["post_ids"]
-        members = manifest["family"]["members"]
-        relationships = manifest["family"]["relationship_matrix"]
-        probes = [event for event in manifest["events"] if event["kind"] == "probe"]
-        cases = []
-
-        for probe_index, event in enumerate(probes, 1):
-            post = Post.objects.select_related("author").get(pk=post_ids[event["feed_key"]])
-            if hasattr(post, "photo_files"):
-                images = post.photo_files()
-            else:
-                images = [post.image] if post.image else []
-            for viewer_index, viewer in enumerate(members, 1):
-                relation = relationships[viewer["username"]][event["author_username"]]
-                question = event["evaluation_question"]
-                prior_dialogue = event.get("prior_dialogue", [])
-                content = build_post_qa_input(post, event, relation, viewer, timezone.now())
-                result = run_search("post_qa", family_id, content, images=images)
-                cases.append({
-                    "feed_key": event["feed_key"],
-                    "thread_id": event["thread_id"],
-                    "viewer_username": viewer["username"],
-                    "viewer_name": viewer["name"],
-                    "author_username": event["author_username"],
-                    "expected_relationship": relation,
-                    "question": question,
-                    "prior_dialogue": prior_dialogue,
-                    "answer": result["text"],
-                    "query": result.get("query"),
-                    "queries": result.get("queries", []),
-                    "memories": result.get("memories", []),
-                })
-                if on_case_done:
-                    on_case_done(
-                        probe_index,
-                        len(probes),
-                        viewer_index,
-                        len(members),
-                        event["feed_key"],
-                        viewer["name"],
-                    )
-        return cases

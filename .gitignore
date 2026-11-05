@@ -15,8 +15,8 @@ venv/
 backend/media/*
 backend/developer/test_media/
 backend/developer/family_tree.html
-testbed/context_retrieval/output/
-testbed/**/input/*.local.json
+testbed/output/
+testbed/datasets/*/config.local.json
 *.log
 
 # Local Nginx state and maintenance switch
