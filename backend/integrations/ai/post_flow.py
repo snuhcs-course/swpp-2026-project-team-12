@@ -12,18 +12,17 @@ from .options import model_options
 
 
 def select_budget(results, limit=prompts.FACT_BUDGET):
-    """Same round-robin, unique-fact budget as the adopted experiment."""
+    """Select up to limit unique facts and episodes each, round-robin across queries."""
     selected = [{'query': r['query'], 'memories': []} for r in results]
-    seen = set()
+    seen = {'fact': set(), 'episode': set()}
     for rank in range(max((len(r['memories']) for r in results), default=0)):
         for i, result in enumerate(results):
             if rank < len(result['memories']):
                 memory = result['memories'][rank]
-                if memory['id'] not in seen:
+                kind = 'episode' if memory.get('source_episode_ids') == [memory['id']] else 'fact'
+                if memory['id'] not in seen[kind] and len(seen[kind]) < limit:
                     selected[i]['memories'].append(memory)
-                    seen.add(memory['id'])
-                    if len(seen) == limit:
-                        return selected
+                    seen[kind].add(memory['id'])
     return selected
 
 
