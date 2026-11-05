@@ -69,7 +69,9 @@ class PostQATests(TestCase):
             ids = [0] + [n + rank * 5 for rank in range(1, 5)]
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids], episodes=[])
+                                     episodes=[f"e{i}"]) for i in ids], episodes=[
+                SimpleNamespace(uuid=f"episode{i}", group_id=f"family_{self.room.pk}", name=f"post_{i}",
+                                content=f"기록{i}", valid_at=timezone.now()) for i in ids])
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
@@ -101,9 +103,13 @@ class PostQATests(TestCase):
         self.assertEqual(initial["input"][0]["content"][1]["detail"], "high")
         outputs = [item for item in last["input"] if isinstance(item, dict) and item.get("type") == "function_call_output"]
         self.assertEqual([o["call_id"] for o in outputs], [f"call{i}" for i in range(5)])
-        facts = [f for o in outputs for f in json.loads(o["output"])["facts"]]
+        memories = [m for o in outputs for m in json.loads(o["output"])["facts"]]
+        facts = [m for m in memories if m["source_episode_ids"] != [m["id"]]]
+        episodes = [m for m in memories if m["source_episode_ids"] == [m["id"]]]
         self.assertEqual({f["id"] for f in facts}, {"fact0", "fact5", "fact6", "fact7", "fact8"})
         self.assertEqual(len(facts), 5)
+        self.assertEqual({e["id"] for e in episodes}, {"episode0", "episode5", "episode6", "episode7", "episode8"})
+        self.assertEqual(len(episodes), 5)
         self.assertEqual(json.loads(outputs[-1]["output"]), {"facts": [], "sources": []})
         close.assert_awaited_once_with(graph)
 
