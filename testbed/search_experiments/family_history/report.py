@@ -37,7 +37,7 @@ def main(phase):
    subset=[r for r in rs if r['case_id'] in ids and r['mode']==mode];m=metrics(subset,gs);vals.append(f"{m['correct']}/{m['tasks']} ({pc(m['accuracy'])})")
   lines.append('| '+cat+' | '+' | '.join(vals)+' |')
  lines += ['','## 측정 범위와 해석','', '- Evidence Recall은 충분 근거 조합의 게시글 ID 확보율이다. 정보 없음 4문항은 제외한다. 의미 근거 충분성과 동일하지 않다.', '- Citation Sufficiency는 최종 표시 출처가 정답을 충분히 지지하는지 의미 채점한 비율이다. Citation ID Recall은 사전 정답표 기준이며 대체 근거 인정 여부와 차이가 날 수 있다.', '- Supported Citation Precision은 답변 가능한 문항에서 실제 표시한 출처 중 관련 사실을 지지하는 출처의 비율이다. 빈 출처는 precision 분모에서 제외하고 sufficiency/recall에서 실패로 반영한다.', '- 생성 토큰은 온라인 입력+출력이며 캐시 입력도 포함한다. 임베딩·채점은 별도. 실청구 비용 또는 전체 서비스 비용으로 해석하지 않는다.', '- 시간은 문맥 조립·검색·답변 완료까지 포함하며 HTTP·큐·UI·TTS·출처 카드 직렬화는 제외한다. 최초 호출을 제외하지 않았다.', '- Full에 역사 사진을 재전송하지 않고 동일한 동결 설명을 제공했다. 사진 이해 품질과 최신 construction 품질을 새로 측정한 실험은 아니다.', '- 한 합성 가족·30문항이다. 반복은 독립 질문 수를 늘리지 않으며 새로운 문항 구성이므로 과거 Post QA 정확도와 직접 비교하지 않는다.', '- 초기 예비 환경 오류 1건(임베딩 35토큰)은 별도 보존 후 환경만 복구했다. 본실험과 예비의 정상 결과에 합산하지 않는다.', '- 수치에 맞춰 정답·질문·프롬프트를 사후 변경하지 않았다. 결과의 합격 기준을 임의로 설정하지 않았다.']
- lines += ['', '채점 주의: Memory Update Error 자동 판정은 수동 대조와 불일치하여 해석을 보류한다. reports/ANALYSIS.md 및 reports/RESULTS.md의 검수 주의사항을 함께 읽는다.']
+ lines += ['', '채점 주의: Memory Update Error 자동 판정은 수동 대조와 불일치하여 해석을 보류한다. 패키지 상위 README.md의 채점 주의사항을 함께 읽는다.']
  (OUT/('RESULTS.md' if phase=='full' else 'PILOT.md')).write_text('\n'.join(lines)+'\n')
  failures=['# 실패 사례 — 가족 추억 찾기','', '정답 실패 또는 표시 출처가 충분하지 않은 응답. 정보 없음의 불필요한 출처는 별도로 포함. 원시 채점은 보존했다.','']
  allcases=['# 전체 질문·답변·출처','']

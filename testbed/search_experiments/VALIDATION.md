@@ -15,4 +15,8 @@
 
 A fresh dependency installation, fresh Neo4j restore, and new paid answer generation were not performed during packaging. Existing graph connectivity was checked. For an exact live replay, the two external input bundles in `artifacts.json` must be supplied separately; they are not hosted at a public URL. The available account must support the original model/tier.
 
-The original judge limitations remain. In particular, Family History's automated memory-update-error result must not be treated as proof of zero stale answers. See the archived analysis. New report generation checks portable source hashes instead of the original developer's local checkouts.
+The original judge limitations remain. In particular, Family History's automated memory-update-error result must not be treated as proof of zero stale answers. See the grading caveats in README.md. New report generation checks portable source hashes instead of the original developer's local checkouts.
+
+## Report cleanup — 2026-11-06
+
+Generated report files are excluded from Git. The verifier uses compact expected Post QA metrics extracted unchanged from the original results; Family History uses the archived metrics. Raw answer archives and grading criteria are unchanged. Offline recomputation, 20 Post QA tests, and 5 Family History contract tests passed after cleanup. No paid calls were made.

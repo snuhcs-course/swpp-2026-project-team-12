@@ -7,7 +7,8 @@
 - `run_qa_prompt_compare.py`: interleave 고정, QA 지시문만 변경.
 - `run_separate_budget.py`: `855cd61`의 fact 5 + episode 5 선택기.
 - `frozen/judge_reference.py`: 당시 채점 기준. `source_lock.json`에 원본 hash와 커밋.
-- `reports/`: 변경하지 않은 원래 결과와 실패 사례.
+- `recorded.json.xz`: 원본 답변·채점·검색 후보 기록.
+- `expected_metrics.json`: 오프라인 검증용 기존 집계 기준값.
 
 ## API 없는 검사
 
@@ -40,4 +41,4 @@ QA 지시문 비교는 새 출력 폴더를 지정한 후 `run_qa_prompt_compare
 
 이 패키지는 **고정 후보 replay**를 우선 지원한다. 검색부터 새로 실행하려면 팀원의 원본 그래프를 전용 Neo4j에 복원하고 `NEO4J_URI/USER/PASSWORD`를 지정해야 한다. MemoryQA 그래프를 연결하면 안 된다. `run_pilot.py retrieve`는 그 별도 환경과 임베딩 호출을 요구하며, 이번 PR 준비에서는 실행하지 않았다.
 
-100건은 20주제 × 5열람자다. initial reranker 비교에는 API가 거절한 1건이 미채점으로 남아 있다. 5+5 비교의 A/B/C는 각 100건 채점 완료다. 요구 근거 라벨 확보율과 의미적 충분성을 구분하며, 지연은 최종 답변 호출/합산 추정치로 구분한다. 기존 판정의 관계·시간 누락 문제와 한계는 각 REVIEW에 남겨 두었다.
+100건은 20주제 × 5열람자다. initial reranker 비교에는 API가 거절한 1건이 미채점으로 남아 있다. 5+5 비교의 A/B/C는 각 100건 채점 완료다. 요구 근거 라벨 확보율과 의미적 충분성을 구분하며, 지연은 최종 답변 호출/합산 추정치로 구분한다. 기존 판정의 관계·시간 누락 문제와 한계는 [공통 README](../README.md)의 채점 주의사항을 참고한다.

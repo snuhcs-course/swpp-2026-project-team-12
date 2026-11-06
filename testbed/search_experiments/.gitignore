@@ -9,3 +9,4 @@
 **/*.sqlite3
 verification.json
 family_history/runtime_lock.json
+**/reports/

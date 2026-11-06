@@ -1,6 +1,6 @@
 # Family History Search
 
-[실험 계획](reports/PLAN.md), [검수표](reports/REVIEW.md), [결과](reports/RESULTS.md), [분석](reports/ANALYSIS.md).
+[평가 문항·정답·근거](cases.json), [공통 검증과 채점 주의사항](../README.md).
 
 공통 30문항, 100/200/300개 기록, Full History/Graphiti, 3회 반복이다. 답변 모델은 Luna Fast/none/1,200토큰. 질문에는 현재 게시글이나 사진을 넣지 않는다. Full도 과거 사진 대신 Graphiti와 같은 동결 설명을 받는다.
 
@@ -33,6 +33,6 @@ python testbed/search_experiments/family_history/audit.py full --complete
 python testbed/search_experiments/family_history/report.py full
 ```
 
-540개 답변 외 검색 임베딩·채점에도 비용이 든다. 완료 ID는 건너뛰며, 오류가 기록되면 내용을 검토한 뒤 재개한다. 유료 호출을 재현해도 비결정성·서버 상태로 정답과 시간은 달라질 수 있다. `reports/`의 원래 결과와 `output/`의 새 결과를 섞지 않는다.
+540개 답변 외 검색 임베딩·채점에도 비용이 든다. 완료 ID는 건너뛰며, 오류가 기록되면 내용을 검토한 뒤 재개한다. 유료 호출을 재현해도 비결정성·서버 상태로 정답과 시간은 달라질 수 있다. `recorded.json.xz`의 원래 결과와 `output/`의 새 결과를 섞지 않는다.
 
 세 그래프는 각각 구축돼 fact가 완전히 중첩되지 않는다. 규모 효과와 추출 차이를 분리한 실험이 아니다. 사진 이해·새 construction·HTTP·작업 큐·TTS는 평가하지 않는다.

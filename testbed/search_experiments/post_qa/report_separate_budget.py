@@ -110,7 +110,7 @@ def main():
         '- 오류 응답은 미채점으로 별도 기록하며 전체 예정 100건 기준 정답 수를 표시한다. 오류로 토큰 usage를 받지 못하면 비용은 확인 불가다.',
         '', '## 주제별 정답 (각 5건)','','| 주제 | A | B | C |','|---|---:|---:|---:|']
     lines += ['| '+topic+' | '+' | '.join(f"{r[m]}/5" for m in MODES)+' |' for topic,r in groups.items()]
-    lines += ['','## 파일','','- CASES.md: 전체 질문·정답·세 방식 답변·채점 사유·C 선택 근거','- REVIEW.md: 개선 및 실패 사례 해석','- selection_comparison.json: C 선택 근거와 확보율','- manifest.json / verification.json: 재현 조건과 불변 검증','- qa_prompt.txt: 세 방식 공통 QA 프롬프트']
+    lines += ['','## 파일','','- CASES.md: 전체 질문·정답·세 방식 답변·채점 사유·C 선택 근거','- 채점 주의사항: 패키지 상위 README.md','- selection_comparison.json: C 선택 근거와 확보율','- manifest.json / verification.json: 재현 조건과 불변 검증','- qa_prompt.txt: 세 방식 공통 QA 프롬프트']
     (OUT/'RESULTS.md').write_text('\n'.join(lines)+'\n')
     detail=['# 전체 사례 대조','']
     for cid,c in orig.items():

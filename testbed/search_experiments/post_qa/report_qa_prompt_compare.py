@@ -89,7 +89,7 @@ def main():
               '', '## 주제별 정답 (각 5건)','','| 주제 | A | B |','|---|---:|---:|']
     for topic,r in groups.items():lines.append(f"| {topic} | {r['A']}/5 | {r['B']}/5 |")
     lines+=['','## 파일','','- prompt_A.txt / prompt_B.txt: 최종 호출 프롬프트 전후','- CASES.md: 질문·선택 근거·정답·양쪽 답변·판정 사유','- answers.jsonl / grades.jsonl: B 원본 로그','- manifest.json / verification.json: 고정 조건과 검증 결과']
-    lines += ['', '사례별 해석과 채점 주의사항은 [REVIEW.md](REVIEW.md)를 참고한다.',
+    lines += ['', '채점 주의사항은 패키지 상위 README.md를 참고한다.',
               f"A 평균 캐시 입력 {a['cached_tokens_mean']:,.0f}토큰, B {b['cached_tokens_mean']:,.0f}토큰이므로 총 토큰 감소율을 비용 절감률로 해석하지 않는다."]
     (OUT/'RESULTS.md').write_text('\n'.join(lines)+'\n')
     report=['# QA 비교 사례','', '기존 정답과 채점 기준을 유지한 원본 대조 기록. 라벨 확보와 실제 정보 충분성은 구분해야 한다.','']

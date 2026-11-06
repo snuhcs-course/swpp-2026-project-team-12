@@ -43,7 +43,7 @@ def post_qa():
  path=ROOT/'post_qa/candidate_selectors/post_flow_855cd61.py';tree=ast.parse(path.read_text())
  spec=importlib.util.spec_from_file_location('pinned_prompts',path.with_name('prompts_855cd61.py'));prompts=importlib.util.module_from_spec(spec);spec.loader.exec_module(prompts)
  ns={'prompts':prompts};exec(compile(ast.Module(body=[x for x in tree.body if isinstance(x,ast.FunctionDef) and x.name=='select_budget'],type_ignores=[]),str(path),'exec'),ns)
- result={};expected=read(ROOT/'post_qa/reports/separate_budget_855cd61_100/results.json')['summary']
+ result={};expected=read(ROOT/'post_qa/expected_metrics.json')['selection']
  for mode in ['baseline','interleave','separate_5_5']:
   for cid,c in cases.items():
    selected=([m for r in ns['select_budget'](c['results']) for m in r['memories']] if mode=='separate_5_5' else getattr(lab,mode)(c['results'],5))
@@ -57,8 +57,8 @@ def post_qa():
   result[mode]=metrics
  # Prompt-only comparison: 54 -> 54, paired 5 gains and 5 losses.
  candidate={r['case_id']:r for r in lines(d,'qa_interleave_v2_100/grades.jsonl')};assert len(candidate)==100
- expected_prompt=read(ROOT/'post_qa/reports/qa_interleave_v2_100/results.json')
- correct=sum(x['verdicts']['correct']['pass'] for x in candidate.values());equal(correct,expected_prompt['summary']['B']['correct'])
+ expected_prompt=read(ROOT/'post_qa/expected_metrics.json')
+ correct=sum(x['verdicts']['correct']['pass'] for x in candidate.values());equal(correct,expected_prompt['prompt_candidate_correct'])
  result['prompt_candidate_correct']=correct
  return result
 
