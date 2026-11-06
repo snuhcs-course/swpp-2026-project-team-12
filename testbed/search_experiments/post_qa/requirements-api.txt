@@ -1,0 +1,3 @@
+# Offline validation uses only Python's standard library.
+# Pin to the locally inspected SDK. No package installation is needed until API replay.
+openai==2.54.0

@@ -1,0 +1,11 @@
+**/.runtime/
+**/.inputs/
+**/output/
+**/outputs/
+**/inputs/
+**/.venv/
+**/__pycache__/
+**/.env*
+**/*.sqlite3
+verification.json
+family_history/runtime_lock.json

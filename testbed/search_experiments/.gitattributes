@@ -1,0 +1,6 @@
+# Preserve historical prompt bytes and generated reports, including whitespace.
+**/reports/** linguist-generated=true whitespace=-blank-at-eol,-blank-at-eof
+**/frozen/** linguist-vendored=true whitespace=-blank-at-eol,-blank-at-eof
+**/candidate_selectors/** linguist-vendored=true whitespace=-blank-at-eol,-blank-at-eof
+*.json linguist-generated=true
+*.xz binary

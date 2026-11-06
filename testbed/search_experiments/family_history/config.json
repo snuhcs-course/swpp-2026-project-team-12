@@ -1,0 +1,29 @@
+{
+  "app_commit": "ed296d4f6c86d4b2b6da48273d5e525e98bd641d",
+  "graph_origin_commit": "2c24972542b3dcbff9e843e52ffbf87c10bbf4b3",
+  "model": "gpt-6-luna",
+  "service_tier": "fast",
+  "reasoning_effort": "none",
+  "max_output_tokens": 1200,
+  "sizes": [
+    100,
+    200,
+    300
+  ],
+  "repetitions": 3,
+  "pilot_ids": [
+    "HQ01",
+    "HQ03",
+    "HQ09",
+    "HQ12",
+    "HQ17",
+    "HQ20",
+    "HQ23",
+    "HQ24",
+    "HQ27",
+    "HQ30"
+  ],
+  "seed": 20261106,
+  "scope": "family_history direct question; no current post/photo/viewer context; frozen historical descriptions",
+  "new_graph_construction": false
+}

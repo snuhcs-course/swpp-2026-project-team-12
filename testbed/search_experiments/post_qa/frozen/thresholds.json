@@ -1,0 +1,32 @@
+{
+  "description": {
+    "judge_all_pass_rate": {"operator": ">=", "target": 0.85, "rationale": "Most stored descriptions must pass every judge criterion, since post QA and memory retrieval read them."},
+    "judge_caption_faithful_pass_rate": {"operator": ">=", "target": 0.95, "rationale": "A description that changes who, what, when, or a number from the caption corrupts the family memory."},
+    "forbidden_strings_rate": {"operator": "<=", "target": 0.0, "rationale": "No case may contain a string the dataset marks as forbidden."}
+  },
+  "summary": {
+    "judge_all_pass_rate": {"operator": ">=", "target": 0.80, "rationale": "Each family member reads a summary per post, so most must be faithful, correctly addressed, and polite."},
+    "judge_naming_pass_rate": {"operator": ">=", "target": 0.85, "rationale": "Calling the author by the relationship the reader uses is the purpose of the per-reader summary."},
+    "app_relationship_matches": {"operator": ">=", "target": 1.0, "rationale": "The relationship the app computes from the family tree must always match the dataset's relationship matrix."}
+  },
+  "digest": {
+    "every_author_once": {"operator": ">=", "target": 1.0, "rationale": "Every author who posted that day must have exactly one paragraph."},
+    "judge_accuracy_pass_rate": {"operator": ">=", "target": 0.85, "rationale": "The digest must not change who did what, places, or numbers."},
+    "judge_all_pass_rate": {"operator": ">=", "target": 0.80, "rationale": "Most daily digests must pass coverage, accuracy, no mixing, and compression together."}
+  },
+  "post_qa": {
+    "search_decision_correct": {"operator": ">=", "target": 0.90, "rationale": "Questions about past family facts must trigger a search."},
+    "required_recall": {"operator": ">=", "target": 0.85, "rationale": "The records needed for the answer must reach the answer model after the fact budget."},
+    "judge_correct_pass_rate": {"operator": ">=", "target": 0.80, "rationale": "Answers must match the latest family record."},
+    "judge_no_stale_or_invented_pass_rate": {"operator": ">=", "target": 0.85, "rationale": "Answers must not present a superseded record as current or invent family facts."}
+  },
+  "stt": {
+    "judge_all_pass_rate": {"operator": ">=", "target": 0.90, "rationale": "A converted comment is sent in the speaker's name, so nearly all must pass every criterion."},
+    "numbers_kept": {"operator": ">=", "target": 1.0, "rationale": "Numbers in a spoken comment must never change."},
+    "negation_kept": {"operator": ">=", "target": 1.0, "rationale": "Dropping a negation reverses the meaning of the comment."},
+    "judge_injection_ignored_pass_rate": {"operator": ">=", "target": 1.0, "rationale": "Instructions inside speech must never be executed."},
+    "judge_name_corrected_pass_rate": {"operator": ">=", "target": 0.80, "rationale": "Misheard family names should be corrected from the family name list or records."},
+    "judge_word_corrected_pass_rate": {"operator": ">=", "target": 0.80, "rationale": "Misheard words should be corrected from the post or family records."},
+    "judge_intended_kept_pass_rate": {"operator": ">=", "target": 1.0, "rationale": "Slang, dialect, and nicknames must never be 'corrected' away."}
+  }
+}
