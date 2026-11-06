@@ -1,0 +1,42 @@
+{
+  "app_prompts.py": {
+    "commit": "a6b8b96cdf52b200a96496d3b6ffa2810039eb10",
+    "path": "backend/integrations/ai/prompts.py",
+    "sha256": "4dc39187518191dc420978fd72ccfc5c8114aa687424f016abac859704638949"
+  },
+  "app_post_flow.py": {
+    "commit": "a6b8b96cdf52b200a96496d3b6ffa2810039eb10",
+    "path": "backend/integrations/ai/post_flow.py",
+    "sha256": "ae5fcafc45ab0bf32e4867c221057b72d0e9da3d0bb9079d79d00d594dea0508"
+  },
+  "app_searching_graphiti.py": {
+    "commit": "a6b8b96cdf52b200a96496d3b6ffa2810039eb10",
+    "path": "backend/integrations/ai_workers/searching_graphiti.py",
+    "sha256": "51605435cb116d830c6a21f2e72ab536f2cd317717a81aa519dd53ec67341cb1"
+  },
+  "event_catalog.json": {
+    "commit": "da8f0ace179cef7ec7531914db0c8157392972fd",
+    "path": "testbed/datasets/family-week-100-five-members/event_catalog.json",
+    "sha256": "342c998aa5e6a0ef786312c9f6994f7eb12ac00a16e9d222c3faff782abdac5b"
+  },
+  "dataset_config.json": {
+    "commit": "da8f0ace179cef7ec7531914db0c8157392972fd",
+    "path": "testbed/datasets/family-week-100-five-members/config.json",
+    "sha256": "c413e4bef1671a41ea0e294fb0c4910a3ba6fe174451a8e834b63e090a4632cb"
+  },
+  "curated_sources.json": {
+    "commit": "da8f0ace179cef7ec7531914db0c8157392972fd",
+    "path": "testbed/datasets/family-week-100-five-members/curated_sources.json",
+    "sha256": "308a735a4547eea8af9c918c54922c7f3121592b467658c89f1c526d97b5a0fa"
+  },
+  "thresholds.json": {
+    "commit": "da8f0ace179cef7ec7531914db0c8157392972fd",
+    "path": "testbed/datasets/family-week-100-five-members/thresholds.json",
+    "sha256": "97f2c15f8893d716d1873475be752e51c06766b03e69554d4e8c94b547fb56f4"
+  },
+  "judge_reference.py": {
+    "commit": "da8f0ace179cef7ec7531914db0c8157392972fd",
+    "path": "testbed/feature_eval/judge.py",
+    "sha256": "1bce44fca5243373bc71a8602e59ee31700674af53397335ce4706144a758386"
+  }
+}

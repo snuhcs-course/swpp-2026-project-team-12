@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "cases": [
+    {
+      "id": "synthetic-tomato",
+      "question": "방울토마토 화분은 지금 어디에 있나요?",
+      "question_at": "2026-10-17T12:00:00+09:00",
+      "input_text": "{\"질문\": \"방울토마토 화분은 지금 어디에 있나요?\", \"현재시각\": \"2026-10-17T12:00:00+09:00\"}",
+      "results": [
+        {
+          "query": "방울토마토 화분 위치 변경",
+          "memories": [
+            {
+              "id": "f0",
+              "fact": "과거 화분 관련 사실 0",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "old"
+              ],
+              "sources": [
+                {
+                  "id": "old",
+                  "name": "post_0",
+                  "text": "과거 화분 관련 사실 0",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            },
+            {
+              "id": "f1",
+              "fact": "과거 화분 관련 사실 1",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "old"
+              ],
+              "sources": [
+                {
+                  "id": "old",
+                  "name": "post_1",
+                  "text": "과거 화분 관련 사실 1",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            },
+            {
+              "id": "f2",
+              "fact": "과거 화분 관련 사실 2",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "old"
+              ],
+              "sources": [
+                {
+                  "id": "old",
+                  "name": "post_2",
+                  "text": "과거 화분 관련 사실 2",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            },
+            {
+              "id": "f3",
+              "fact": "과거 화분 관련 사실 3",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "old"
+              ],
+              "sources": [
+                {
+                  "id": "old",
+                  "name": "post_3",
+                  "text": "과거 화분 관련 사실 3",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            },
+            {
+              "id": "f4",
+              "fact": "과거 화분 관련 사실 4",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "old"
+              ],
+              "sources": [
+                {
+                  "id": "old",
+                  "name": "post_4",
+                  "text": "과거 화분 관련 사실 4",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            },
+            {
+              "id": "new",
+              "fact": "방울토마토 화분을 창가 안쪽으로 옮겼어요.",
+              "valid_at": null,
+              "invalid_at": null,
+              "source_episode_ids": [
+                "new"
+              ],
+              "sources": [
+                {
+                  "id": "new",
+                  "name": "post_6",
+                  "text": "방울토마토 화분을 창가 안쪽으로 옮겼어요.",
+                  "recorded_at": "2026-10-15T00:00:00+09:00"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "source_labels": {
+        "old": [
+          "OLD"
+        ],
+        "new": [
+          "CURRENT"
+        ]
+      },
+      "gold": {
+        "required_memories": [
+          "CURRENT"
+        ],
+        "must_filter": [
+          "OLD"
+        ]
+      },
+      "final_request": {
+        "instructions": "TEST ONLY: frozen answer instructions",
+        "tool_choice": "none",
+        "tools": [],
+        "input": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "input_text",
+                "text": "{\"질문\": \"방울토마토 화분은 지금 어디에 있나요?\", \"현재시각\": \"2026-10-17T12:00:00+09:00\"}"
+              }
+            ]
+          },
+          {
+            "type": "function_call",
+            "name": "search_family_memory",
+            "arguments": "{\"query\": \"\\ubc29\\uc6b8\\ud1a0\\ub9c8\\ud1a0 \\ud654\\ubd84 \\uc704\\uce58 \\ubcc0\\uacbd\"}",
+            "call_id": "call1"
+          },
+          {
+            "type": "function_call_output",
+            "call_id": "call1",
+            "output": "{}"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "Django": "5.2.18",
+  "graphiti-core": "0.31.1",
+  "openai": "2.54.0",
+  "neo4j": "6.4.1",
+  "pydantic": "2.14.3",
+  "python-dotenv": "1.2.4",
+  "asgiref": "3.12.1"
+}
