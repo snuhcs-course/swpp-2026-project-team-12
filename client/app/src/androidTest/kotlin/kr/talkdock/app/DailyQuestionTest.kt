@@ -15,6 +15,7 @@ import kr.talkdock.app.ui.DailyQuestionPanel
 import kr.talkdock.app.ui.FamilyMemoryPanel
 import kr.talkdock.app.ui.FloatingAssistantView
 import kr.talkdock.app.ui.PhotoLetterDeck
+import kr.talkdock.app.ui.FeedPostCard
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -136,7 +137,8 @@ class DailyQuestionTest {
                 activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
                 val launched = activity!!
-                awaitUi { views(launched.window.decorView).any { it is PhotoLetterDeck } }
+                awaitUi { views(launched.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
+                test.runOnMainSync { launched.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(launched).let { (it as? android.app.Dialog)?.dismiss() } }
                 body(launched, server)
             } finally {
                 test.runOnMainSync {
@@ -175,6 +177,8 @@ class DailyQuestionTest {
     @Test fun headerEntrySurvivesNewPostsAndReturnsToSameLetterAndScroll() = withApp { activity, server ->
         lateinit var scroll: ScrollView
         var position = 0
+        var anchor = 0
+        var anchorOffset = 0
         // Keep the fixture scrollable even with the reserved preview height
         // and compact, single-line captions on CI emulator profiles.
         test.runOnMainSync {
@@ -184,27 +188,34 @@ class DailyQuestionTest {
         test.waitForIdleSync()
         test.runOnMainSync {
             val all = views(activity.window.decorView)
-            all.filterIsInstance<PhotoLetterDeck>().single().show(1)
+            all.filterIsInstance<FeedPostCard>().single { it.post.optInt("id") == 1 }.requestRectangleOnScreen(android.graphics.Rect(0, 0, 1, 200), true)
             scroll = all.filterIsInstance<ScrollView>().single()
             val entry = all.first { it.contentDescription == "오늘의 질문" }
             assertTrue(hasText(activity, "주말엔 뭘 할까요?"))
             assertTrue(entry is kr.talkdock.app.ui.DailyQuestionEntryView)
-            var parent = entry.parent
-            while (parent is View) { assertFalse("Entry must stay outside the feed scroll", parent is ScrollView); parent = parent.parent }
+            var parent = entry.parent; var withinFeed = false
+            while (parent is View) { if (parent is ScrollView) withinFeed = true; parent = parent.parent }
+            assertTrue("Question entry scrolls with the feed", withinFeed)
         }
         test.waitForIdleSync()
-        test.runOnMainSync { scroll.scrollTo(0, 40); position = scroll.scrollY; assertTrue("Fixture must actually scroll", position > 0) }
+        test.runOnMainSync {
+            scroll.scrollTo(0, 40); position = scroll.scrollY; assertTrue("Fixture must actually scroll", position > 0)
+            views(activity.window.decorView).filterIsInstance<FeedPostCard>().first { it.bottom > position }.let {
+                anchor = it.post.getInt("id"); anchorOffset = it.top - position
+            }
+        }
         screenshot(activity, "daily-question-home.png")
         click(activity, "오늘의 질문")
         awaitUi { hasText(activity, "가족 답변 1") }
         test.runOnMainSync { assertTrue(views(activity.window.decorView).filterIsInstance<TextView>().any { it.text.contains("같이 바람 쐬면 좋겠어.") }) }
         server.hasNewPost = true
         test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-        awaitUi { hasText(activity, "가족 소식 1\n오늘은 가족에게 긴 소식을 전해요.\n우리 가족 모두 잘 지내고 있나요?") && hasText(activity, "3 / 3") &&
-            views(activity.window.decorView).filterIsInstance<ScrollView>().single().scrollY == position }
+        awaitUi { hasText(activity, "가족 소식 1\n오늘은 가족에게 긴 소식을 전해요.\n우리 가족 모두 잘 지내고 있나요?") && views(activity.window.decorView).filterIsInstance<FeedPostCard>().size == 3 &&
+            views(activity.window.decorView).filterIsInstance<FeedPostCard>().first { it.post.getInt("id") == anchor }.top -
+                views(activity.window.decorView).filterIsInstance<ScrollView>().single().scrollY == anchorOffset }
         test.runOnMainSync {
             val actual = views(activity.window.decorView).filterIsInstance<ScrollView>().single()
-            assertEquals(position, actual.scrollY)
+            assertEquals(anchorOffset, views(activity.window.decorView).filterIsInstance<FeedPostCard>().first { it.post.getInt("id") == anchor }.top - actual.scrollY)
             assertTrue(views(activity.window.decorView).any { it.contentDescription == "오늘의 질문" })
         }
     }
@@ -361,7 +372,7 @@ class DailyQuestionTest {
                 .setText("추억을 보고 이어 쓸 댓글")
         }
         test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         test.runOnMainSync { views(activity.window.decorView).filterIsInstance<FloatingAssistantView>().single().performClick() }
         awaitUi { hasText(activity, "가족 추억 찾기") }
         test.runOnMainSync {
@@ -374,14 +385,14 @@ class DailyQuestionTest {
             val panel = views(activity.window.decorView).filterIsInstance<FamilyMemoryPanel>().single()
             panel.input.setText("가족 소식 찾아줘"); panel.searchButton.performClick()
         }
-        awaitUi { hasText(activity, "가족 소식 2를 찾았어요.") && views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { hasText(activity, "가족 소식 2를 찾았어요.") && views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         test.runOnMainSync {
             val deck = views(activity.window.decorView).filterIsInstance<PhotoLetterDeck>().single()
             assertEquals(2, deck.currentPost.getInt("id"))
             assertFalse(views(deck).filterIsInstance<TextView>().any { it.isShown && it.text.toString() == "1 / 1" })
             activity.onBackPressedDispatcher.onBackPressed()
         }
-        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         click(activity, "오늘의 질문")
         awaitUi { views(activity.window.decorView).filterIsInstance<EditText>().any { it.contentDescription == "오늘의 질문 답변 입력" } }
         test.runOnMainSync {
@@ -426,7 +437,7 @@ class DailyQuestionTest {
             views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.setText("아직 보내지 않은 댓글")
             activity.onBackPressedDispatcher.onBackPressed()
         }
-        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
         test.runOnMainSync {
             assertEquals("아직 보내지 않은 이유", editor(activity).text.toString())
@@ -447,7 +458,7 @@ class DailyQuestionTest {
         }
         test.waitForIdleSync()
         test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
         test.runOnMainSync {
             val spinners = views(activity.window.decorView).filterIsInstance<Spinner>()
@@ -465,7 +476,7 @@ class DailyQuestionTest {
             views(activity.window.decorView).filterIsInstance<EditText>().single { it.contentDescription == "댓글 입력" }.setText("이전 질문의 댓글")
             activity.onBackPressedDispatcher.onBackPressed()
         }
-        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck } }
+        awaitUi { views(activity.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
         server.questionId = 32
         click(activity, "오늘의 질문"); awaitUi { hasText(activity, "가족 답변 1") }
         test.runOnMainSync {

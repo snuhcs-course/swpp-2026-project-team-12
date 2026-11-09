@@ -30,9 +30,9 @@ class AccountScreensTest {
             ui.test.runOnMainSync {
                 assertTrue(ui.has("테스트 사용자님")); assertTrue(ui.has("초대 코드  REVIEW"))
                 assertTrue("The owner can change the digest time", ui.has("하루 요약 시간  ·  21:00"))
-                assertTrue(ui.has("나")); assertTrue(ui.has("큰 글씨로 보기"))
+                assertTrue(ui.has("나")); assertTrue(ui.has("어르신 화면으로 보기"))
             }
-            ui.click("큰 글씨로 보기"); ui.await { ui.has("기본 글씨로 보기") }
+            ui.click("어르신 화면으로 보기"); ui.await { ui.has("기본 화면으로 보기") }
             val prefs = ui.test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
             assertTrue(JSONObject(prefs.getString("current", "{}")!!).optBoolean("large"))
             ui.click("로그아웃"); ui.await { ui.has("토닥 시작하기") }

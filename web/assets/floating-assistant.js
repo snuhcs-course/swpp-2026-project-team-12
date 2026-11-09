@@ -17,7 +17,7 @@ export class FloatingAssistant {
     this.placement = restoreLauncher(this.layout.button);
     this.panelRect = this.layout.panel && typeof this.layout.panel === 'object' ? this.layout.panel : null;
     root.innerHTML = `<div class="assistant-shade" hidden aria-hidden="true"></div>
-      <button type="button" class="assistant-launcher" aria-label="토닥 도우미 열기" aria-expanded="false" aria-controls="assistant-panel" title="토닥 도우미 · 드래그로 이동" hidden><span class="assistant-launcher-portrait" aria-hidden="true">${character}</span><span class="assistant-launcher-mark" aria-hidden="true">${icon('sparkle')}</span></button>
+      <button type="button" class="assistant-launcher" aria-label="토닥 도우미 열기" aria-expanded="false" aria-controls="assistant-panel" title="토닥 도우미 · 드래그로 이동" hidden><span class="assistant-launcher-portrait" aria-hidden="true">${character}</span><span class="assistant-launcher-mark" aria-hidden="true">${icon('sparkle')}</span><span class="assistant-launcher-label" aria-hidden="true">토닥 도우미</span></button>
       <section id="assistant-panel" class="assistant-panel" role="region" aria-labelledby="assistant-title" hidden>
         <header class="assistant-header"><span class="assistant-avatar" aria-hidden="true">${character}</span><h2 id="assistant-title"><button type="button" class="assistant-grip" title="드래그하거나 방향키로 대화창 이동">이 글에 대해 궁금하세요?</button></h2><div class="assistant-controls"><button type="button" class="assistant-close icon-button" aria-label="도우미 닫기" title="닫기">${icon('close')}</button></div></header>
         <div class="assistant-history" role="log" aria-label="현재 게시글에 대한 대화" aria-live="polite" aria-relevant="additions text"></div>
@@ -104,7 +104,7 @@ export class FloatingAssistant {
     this.positionLauncher();
     const view = this.viewport();
     const header = document.querySelector('.topbar')?.getBoundingClientRect();
-    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: view.top + view.height };
+    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: Math.min(view.top + view.height, document.querySelector('.screen-bottom')?.getBoundingClientRect().top || Infinity) };
     const nodes = [...document.querySelectorAll('#feed-list .post-card[data-post-id]')];
     const cards = nodes.map(node => ({ id: Number(node.dataset.postId), ...node.getBoundingClientRect().toJSON() }));
     const id = centeredPost(cards, viewport, this.targetId);
@@ -163,7 +163,13 @@ export class FloatingAssistant {
   }
   positionLauncher() {
     if (this.gesture?.kind === 'launcher' && this.gesture.moved) return;
-    const point = launcherPosition(this.placement, this.viewport());
+    const view = this.viewport();
+    const bottom = document.querySelector('.screen-bottom')?.getBoundingClientRect().top;
+    if (Number.isFinite(bottom)) view.height = Math.min(view.height, Math.max(1, bottom - view.top - 10));
+    const elder = document.documentElement.classList.contains('elder-screen');
+    view.height = Math.max(1, view.height - Math.max(0, this.launcher.offsetHeight - LAUNCHER_SIZE) - (elder ? 40 : 0));
+    const placement = elder ? { ...this.placement, xRatio: 1 } : this.placement;
+    const point = launcherPosition(placement, view);
     Object.assign(this.launcher.style, { left: `${point.x}px`, top: `${point.y}px` });
   }
   positionPanel() {

@@ -44,6 +44,7 @@ class DigestPostListTest {
         val api = MockApi { request -> when {
             request.path == "/api/families/current/" -> jsonReply(room(77, "우리 가족"))
             request.path == "/api/posts/" -> emptyFeed()
+            request.path == "/api/digests/history/" -> jsonReply(JSONObject().put("dates", JSONArray().put("2026-10-30")))
             request.path.startsWith("/api/digests/?") -> jsonReply(JSONObject().put("status", "ready")
                 .put("text", "[딸 - 정아] 가족과 함께 산책하며 즐거운 하루를 보냈어요.\n\n[아들 - 준하] 맛있는 저녁을 준비하고, 서로의 안부를 나눴어요.")
                 .put("posts", JSONArray((1..6).map { post(it) })))

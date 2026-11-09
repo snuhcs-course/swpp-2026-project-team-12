@@ -12,8 +12,8 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * Bottom-sheet month calendar. Only [available] days (those with a digest or posts, from
- * `digests/history/`) can be chosen; every other day stays visible but dimmed.
+ * Month calendar. Normally only [available] days can be chosen; the full Day page
+ * enables [allowEmptyDays] so a past date can also display its empty state.
  */
 class FeedCalendarSheet(
     context: Context,
@@ -22,6 +22,7 @@ class FeedCalendarSheet(
     private val selected: LocalDate,
     private val today: LocalDate,
     private val available: Set<LocalDate>,
+    private val allowEmptyDays: Boolean = false,
     private val onPick: (LocalDate) -> Unit,
 ) : LinearLayout(context) {
     private var month = YearMonth.from(selected)
@@ -66,8 +67,8 @@ class FeedCalendarSheet(
         title.text = "${target.year}년 ${target.monthValue}월"
         // Arrows stop at the first and last months that have a day to choose.
         val months = available.map { YearMonth.from(it) }
-        val canGoBack = months.any { it.isBefore(target) }
-        val canGoForward = months.any { it.isAfter(target) }
+        val canGoBack = allowEmptyDays || months.any { it.isBefore(target) }
+        val canGoForward = if (allowEmptyDays) target.isBefore(YearMonth.from(today)) else months.any { it.isAfter(target) }
         previous.isEnabled = canGoBack; previous.alpha = if (canGoBack) 1f else .3f
         next.isEnabled = canGoForward; next.alpha = if (canGoForward) 1f else .3f
         grid.removeAllViews()
@@ -83,7 +84,7 @@ class FeedCalendarSheet(
 
     private fun cell(date: LocalDate?): View {
         if (date == null) return View(context)
-        val open = date in available && !date.isAfter(today)
+        val open = (allowEmptyDays || date in available) && !date.isAfter(today)
         val chosen = date == selected
         val label = TextView(context).apply {
             text = date.dayOfMonth.toString(); gravity = Gravity.CENTER; textSize = if (large) 21f else 18f

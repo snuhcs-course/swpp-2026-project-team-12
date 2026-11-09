@@ -15,6 +15,7 @@ class AssistantBubbleMenu(
     context: Context, private val ui: Ui, private val large: Boolean,
     askPost: () -> Unit, findMemories: () -> Unit,
     listenPost: (() -> Unit)? = null, summarizePost: (() -> Unit)? = null,
+    showDay: (() -> Unit)? = null, showHelp: (() -> Unit)? = null,
 ) : FrameLayout(context) {
     private val content = ui.column(12)
     private val postOption: View
@@ -56,6 +57,8 @@ class AssistantBubbleMenu(
         }
         ui.line(content)
         option("가족 추억 찾기", "family", findMemories)
+        if (showDay != null) { ui.line(content); option("오늘 가족의 하루", "digest", showDay) }
+        if (showHelp != null) { ui.line(content); option("도움말", "chat", showHelp) }
     }
     fun setPostAvailable(available: Boolean) {
         postOption.isEnabled = available; postOption.alpha = if (available) 1f else .4f

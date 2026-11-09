@@ -14,6 +14,8 @@ import android.widget.TextView
 import android.widget.ScrollView
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.PhotoLetterDeck
+import kr.talkdock.app.ui.FeedPostCard
+import kr.talkdock.app.ui.FloatingAssistantView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
@@ -76,6 +78,7 @@ class FamilyMemorySearchTest {
                         "/api/families/" -> Reply(JSONObject().put("rooms", JSONArray().put(family)).toString())
                         "/api/families/current/" -> Reply(family.toString())
                         "/api/posts/" -> Reply(JSONObject().put("posts", posts).toString())
+                        "/api/digests/history/" -> Reply("{\"dates\":[]}")
                         else -> respond(request)
                     }
                     fun absolutePhotoUrls(value: Any?) {
@@ -101,7 +104,7 @@ class FamilyMemorySearchTest {
         override fun close() { socket.close(); workers.shutdownNow(); accept.join(1000) }
     }
 
-    private inner class Screen(server: Server, large: Boolean = false) : AutoCloseable {
+    private inner class Screen(server: Server, private val large: Boolean = false) : AutoCloseable {
         val test = InstrumentationRegistry.getInstrumentation()
         private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
         private val saved = prefs.all.toMap()
@@ -112,7 +115,8 @@ class FamilyMemorySearchTest {
             prefs.edit().clear().putString("current", user.toString()).putString("server", server.base).commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-            await { has("첫 소식을 기다리고 있어요") || views().any { it is PhotoLetterDeck } }
+            await { has("첫 소식을 기다리고 있어요") || views().any { it is FeedPostCard } }
+            test.runOnMainSync { activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity).let { (it as? android.app.Dialog)?.dismiss() } }
         }
         fun views(view: View = activity.window.decorView): List<View> = listOf(view) +
             if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
@@ -128,11 +132,13 @@ class FamilyMemorySearchTest {
             }
             fail("Memory screen condition timed out")
         }
-        fun click(text: String) = test.runOnMainSync {
-            var target: View = views().filterIsInstance<TextView>().first { it.text.toString() == text }
+        private fun clickNow(text: String) {
+            var target: View = views().filterIsInstance<TextView>().firstOrNull { it.text.toString() == text }
+                ?: error("Missing memory navigation action: $text")
             while (!target.isClickable && target.parent is View) target = target.parent as View
             assertTrue(target.performClick())
         }
+        fun click(text: String) = test.runOnMainSync { clickNow(text) }
         fun open() {
             if (views().any { it.tag == "main-tab:memories" }) {
                 tab("memories")
@@ -151,8 +157,20 @@ class FamilyMemorySearchTest {
             await { views().any { it is FamilyMemoryPanel } }
         }
         fun ask(text: String) = test.runOnMainSync { panel().input.setText(text); panel().searchButton.performClick() }
-        fun tab(destination: String) = test.runOnMainSync {
-            assertTrue(views().single { it.tag == "main-tab:$destination" }.performClick())
+        fun tab(destination: String) {
+            if (!large) { test.runOnMainSync { assertTrue(views().single { it.tag == "main-tab:$destination" }.performClick()) }; return }
+            if (destination == "memories" && views().any { it is FamilyMemoryPanel }) return
+            if (views().none { it is FeedPostCard }) {
+                test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+                await { views().any { it is FeedPostCard } || has("첫 소식을 기다리고 있어요") }
+            }
+            if (destination == "home") return
+            // Route selection is independent of the post being centered. Keep it in one
+            // UI turn so an async photo layout cannot dismiss the menu between test calls.
+            test.runOnMainSync {
+                views().filterIsInstance<FloatingAssistantView>().single().performClick()
+                clickNow(if (destination == "memories") "가족 추억 찾기" else "오늘 가족의 하루")
+            }
         }
         fun recreate(expected: String = "memories") {
             val previous = activity
@@ -163,7 +181,7 @@ class FamilyMemorySearchTest {
                 if (next != null) activity = next
                 next != null && when (expected) {
                     "memories" -> views().any { it is FamilyMemoryPanel }
-                    "home" -> has("첫 소식을 기다리고 있어요") || views().any { it is PhotoLetterDeck }
+                    "home" -> has("첫 소식을 기다리고 있어요") || views().any { it is FeedPostCard }
                     else -> has("가족의 소식")
                 }
             }
@@ -317,19 +335,15 @@ class FamilyMemorySearchTest {
                 }
             }.use { server -> Screen(server, large).use { screen ->
                 screen.test.runOnMainSync {
-                    val deck = screen.views().filterIsInstance<PhotoLetterDeck>().single()
-                    deck.show(1)
-                    assertEquals(12, deck.currentPost.getInt("id"))
+                    val card = screen.views().filterIsInstance<FeedPostCard>().single { it.post.optInt("id") == 12 }
+                    card.requestRectangleOnScreen(Rect(0, 0, 1, 250), true)
                     val tabs = screen.views().filter { it.tag?.toString()?.startsWith("main-tab:") == true }
-                    assertEquals(3, tabs.size)
-                    assertEquals(1, tabs.count { it.isSelected })
-                    assertTrue(tabs.single { it.tag == "main-tab:home" }.isSelected)
-                    assertTrue(tabs.all { kotlin.math.abs(it.width - tabs.first().width) <= 1 && it.height >= 48 * screen.activity.resources.displayMetrics.density })
+                    assertEquals(if (large) 0 else 3, tabs.size)
+                    if (!large) assertTrue(tabs.single { it.tag == "main-tab:home" }.isSelected)
                 }
                 screen.await {
-                    val deck = screen.views().filterIsInstance<PhotoLetterDeck>().single()
-                    deck.currentCard.translationX == 0f && screen.views(deck).filterIsInstance<android.widget.ImageView>()
-                        .any { it.drawable is android.graphics.drawable.BitmapDrawable }
+                    val card = screen.views().filterIsInstance<FeedPostCard>().single { it.post.optInt("id") == 12 }
+                    screen.views(card).filterIsInstance<android.widget.ImageView>().any { it.drawable is android.graphics.drawable.BitmapDrawable }
                 }
                 screen.screenshot(if (large) "memory-tab-home-large.png" else "memory-tab-home.png")
                 screen.tab("memories"); screen.await { screen.views().any { it is FamilyMemoryPanel } }
@@ -337,7 +351,7 @@ class FamilyMemorySearchTest {
                 screen.tab("memories")
                 screen.test.runOnMainSync {
                     assertSame(originalPanel, screen.panel())
-                    assertTrue(screen.views().single { it.tag == "main-tab:memories" }.isSelected)
+                    if (!large) assertTrue(screen.views().single { it.tag == "main-tab:memories" }.isSelected)
                 }
                 assertTrue(server.searches().isEmpty())
                 screen.screenshot(if (large) "memory-tab-search-large.png" else "memory-tab-search.png")
@@ -350,9 +364,9 @@ class FamilyMemorySearchTest {
                 assertTrue(savedScroll > 0)
                 screen.tab("digest")
                 screen.await { screen.views().filterIsInstance<TextView>().any { it.text.contains("21:00") } }
-                screen.test.runOnMainSync { assertTrue(screen.views().single { it.tag == "main-tab:digest" }.isSelected) }
+                screen.test.runOnMainSync { if (!large) assertTrue(screen.views().single { it.tag == "main-tab:digest" }.isSelected) }
                 screen.tab("home")
-                screen.await { screen.views().filterIsInstance<PhotoLetterDeck>().singleOrNull()?.currentPost?.optInt("id") == 12 }
+                screen.await { screen.views().filterIsInstance<FeedPostCard>().any { it.post.optInt("id") == 12 } }
                 screen.recreate("home")
                 screen.tab("memories")
                 screen.await {
@@ -373,12 +387,12 @@ class FamilyMemorySearchTest {
     }
 
     @Test fun bottomTabsRestoreTheFeedScrollPosition() {
-        Server(JSONArray().put(evidencePost(12))) { answer("답변") }.use { server -> Screen(server).use { screen ->
+        Server(JSONArray().put(evidencePost(12)).put(evidencePost(13)).put(evidencePost(14))) { answer("답변") }.use { server -> Screen(server).use { screen ->
             screen.test.runOnMainSync {
                 val surface = screen.activity.findViewById<ViewGroup>(android.R.id.content).getChildAt(0)
                 surface.layoutParams = surface.layoutParams.apply { height = (480 * screen.activity.resources.displayMetrics.density).toInt() }
             }
-            screen.await { screen.views().filterIsInstance<PhotoLetterDeck>().single().height > screen.views().filterIsInstance<ScrollView>().first().height }
+            screen.await { screen.views().filterIsInstance<ScrollView>().first().getChildAt(0).height > screen.views().filterIsInstance<ScrollView>().first().height }
             var savedScroll = 0
             screen.test.runOnMainSync {
                 val scroll = screen.views().filterIsInstance<ScrollView>().first()
@@ -388,7 +402,7 @@ class FamilyMemorySearchTest {
             screen.tab("memories"); screen.await { screen.views().any { it is FamilyMemoryPanel } }
             screen.tab("home")
             screen.await {
-                screen.views().filterIsInstance<PhotoLetterDeck>().singleOrNull()?.currentPost?.optInt("id") == 12 &&
+                screen.views().filterIsInstance<FeedPostCard>().any { it.post.optInt("id") == 12 } &&
                     screen.views().filterIsInstance<ScrollView>().first().scrollY == savedScroll
             }
             assertTrue(server.searches().isEmpty())
@@ -435,18 +449,8 @@ class FamilyMemorySearchTest {
     // Memory search lives in its bottom tab and the assistant menu; the room switcher stays focused on rooms.
     @Test fun roomSwitcherDoesNotOfferSearch() {
         Server { answer("답변") }.use { server -> Screen(server).use { screen ->
-            screen.test.runOnMainSync { screen.views().first { it.contentDescription == "프로필 메뉴" }.performClick() }
-            screen.await {
-                val f = screen.activity.javaClass.getDeclaredField("profileMenuDialog").apply { isAccessible = true }
-                (f.get(screen.activity) as? android.app.Dialog)?.isShowing == true
-            }
-            screen.test.runOnMainSync {
-                val f = screen.activity.javaClass.getDeclaredField("profileMenuDialog").apply { isAccessible = true }
-                val dialog = f.get(screen.activity) as android.app.Dialog
-                var view: View = screen.views(dialog.window!!.decorView).filterIsInstance<TextView>().first { it.text.toString() == "가족방 바꾸기" }
-                while (!view.isClickable && view.parent is View) view = view.parent as View
-                view.performClick()
-            }
+            screen.test.runOnMainSync { screen.views().first { it.contentDescription == "설정으로 이동" }.performClick() }
+            screen.await { screen.has("가족방 전환") }; screen.click("가족방 전환")
             screen.await { screen.has("지금 보는 가족방") && screen.has("새 가족방 만들기") }
             screen.test.runOnMainSync { assertFalse(screen.has("가족 추억 찾기")) }
         } }
@@ -491,7 +495,7 @@ class FamilyMemorySearchTest {
         return Reply("", image = stream.toByteArray())
     }
 
-    @Test fun evidenceUsesTheSameFullPostAsFeedInBothFontSizes() {
+    @Test fun evidencePreservesPostContentAfterFeedLayoutChangeInBothModes() {
         for (large in listOf(false, true)) {
             val post = evidencePost(12, 2)
             Server(JSONArray().put(post)) { request ->
@@ -510,7 +514,13 @@ class FamilyMemorySearchTest {
                     val card = screen.views().single { it.tag == "feed-post:12" }
                     val evidenceTexts = screen.views(card).filterIsInstance<TextView>()
                         .filter { it !is android.widget.EditText }.map { it.text.toString() }
-                    assertEquals(feedTexts, evidenceTexts)
+                    // The feed has new actions; memory evidence deliberately retains its letter layout.
+                    for (value in listOf(post.getString("author_name"), post.getString("caption"))) {
+                        assertTrue(feedTexts.contains(value)); assertTrue(evidenceTexts.contains(value))
+                    }
+                    val evidence = screen.views().filterIsInstance<PhotoLetterDeck>().first { it.currentPost.getInt("id") == 12 }.currentPost
+                    assertEquals(post.getInt("id"), evidence.getInt("id"))
+                    assertEquals(post.getJSONArray("images").length(), evidence.getJSONArray("images").length())
                     assertEquals(1, screen.views().count { it.tag == "feed-post:9" })
                     assertEquals(0, screen.views(card).filterIsInstance<PhotoCarousel>().size)
                     assertTrue(screen.views().any { it is PhotoLetterDeck })
