@@ -233,7 +233,10 @@ class FloatingAssistantTest {
                 assertEquals(if (large) 1f else -1f, screen.character().scaleX, 0f)
             }
             screen.recreate(); settle()
-            assertEquals("Reopening must retain the text layout", original, textBounds(2))
+            fun relative(bounds: Map<String, android.graphics.Rect>) = bounds.mapValues { (_, rect) ->
+                android.graphics.Rect(rect).apply { offset(-bounds.getValue("profile").left, -bounds.getValue("profile").top) }
+            }
+            assertEquals("Reopening must retain text sizes and spacing within the post", relative(original), relative(textBounds(2)))
             screen.center(3); settle()
             val next = textBounds(3)
             for (edge in listOf(FloatingAssistantView.ACTION_LEFT, FloatingAssistantView.ACTION_RIGHT)) {

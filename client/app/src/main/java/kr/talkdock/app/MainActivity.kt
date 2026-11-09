@@ -493,7 +493,8 @@ class MainActivity : ComponentActivity() {
         if (busy) closeAssistantMenu()
         else assistantMenu?.let { menu ->
             menu.setPostAvailable(target != null)
-            menu.setAudioActive(detailPostAudio?.isPlaying == true)
+            menu.setAudioActive(detailPostAudio?.isPlaying == true ||
+                feedCards.firstOrNull { it.post.optInt("id") == target?.optInt("id") }?.audio?.isPlaying == true)
             assistantBounds()?.let { menu.follow(button, it) }
         }
     }

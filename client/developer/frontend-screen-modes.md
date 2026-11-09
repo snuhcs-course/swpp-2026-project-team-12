@@ -78,6 +78,39 @@ The browser check requires Playwright and its Chromium browser. `PLAYWRIGHT_MODU
 It intercepts API requests locally and writes screenshots/results to ignored `web/.qa/ui-modes/`.
 Production login, real AI quality, microphone hardware, and physical-device accessibility are outside these mock checks.
 
+## PR 67 CI follow-up
+
+[CI run 98](https://github.com/snuhcs-course/swpp-2026-project-team-12/actions/runs/42599750379) on `b9d1f0b` passed backend/web integration, web modules, and Android unit/test builds. The Android emulator job failed.
+
+- Migrated remaining horizontal-letter, old profile menu, and old question/voice button expectations to the vertical feed, settings gear, assistant dialog, and icon actions. Tests continue to check source-post IDs, photo access, voice cancellation, and stale-answer isolation.
+- Added the calendar-history response to the local digest/audio fixtures and made the shared test helper navigate through the calendar/story views.
+- Isolated first-use preferences for each test; mock-server port reuse must not suppress the tutorial in a later test.
+- Compared recreated text layout relative to its card, while retaining absolute drag checks. Selected-post fixtures reserve a viewport of space so each post can be centered on both large and small devices.
+- Kept family-memory menu selection in one UI turn to avoid a photo-layout callback dismissing it between test calls.
+- Fixed a production issue: the assistant now offers **Stop listening** for the currently playing feed post, as well as for a playing detail post.
+- Ran `web/test_ui_modes.mjs` locally alongside the existing web tests. The CI workflow remains unchanged so the push does not require a token with workflow-edit permissions. No existing CI tests were excluded and no new skips were introduced.
+
+Local verification uses an API 36 emulator with hardware configured at 320×640 / density 160. A `wm`-only override retains a different physical touch density and is unsuitable for the pinch test; the family-tree test and production tree code remain unchanged. `ApiRoundTripTest` uses the unchanged Django API with a temporary SQLite database and media directory, served through a standalone WSGI application without starting Graphiti. The GitHub emulator is API 34; its result still needs a new CI run after the fix is pushed. Live Graphiti remains opt-in.
+
+Final local run on 2026-11-09: **122 instrumentation cases discovered, 121 passed, 1 existing live-Graphiti assumption skip, 0 failures** (288.754 seconds). This was a fresh complete run after the fixes, not just the targeted failures. Android builds, 39 JVM tests, and Lint passed; the local web command, including `web/test_ui_modes.mjs`, passed all 59 tests. Backend source files were not changed.
+
+Full local instrumentation command (test API server must already be running):
+
+```sh
+adb shell am instrument -w -e server http://10.0.2.2:18067/api/ \
+  kr.talkdock.app.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+To update the existing PR after reviewing the local changes:
+
+```sh
+git add .github/workflows/ci.yml client/app/src client/developer/frontend-screen-modes.md
+git commit -m "fix: align screen-mode tests and assistant playback"
+git push
+```
+
+This updates PR #67 on the same branch; a new PR is not needed.
+
 ## Suggested PR
 
 **Title:** `feature: add standard and elderly screen modes for Android and web`

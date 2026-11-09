@@ -98,8 +98,13 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     val test = InstrumentationRegistry.getInstrumentation()
     private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
     private val savedPreferences = prefs.all.toMap()
+    private val helpPrefs = test.targetContext.getSharedPreferences("MainActivity", Context.MODE_PRIVATE)
+    private val savedHelpPreferences = helpPrefs.all.toMap()
+    private var selectedFeedId: Int? = null
     val activity: MainActivity
     init {
+        // Isolate first-use state even when Linux reuses a mock server's ephemeral port.
+        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v1:") }.forEach { remove(it) } }.commit()
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
@@ -122,6 +127,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     }
     fun openProfile() = openSettings()
     fun openSettings() {
+        dismissHelp()
         if (has("계정 전환") && has("가족방 전환")) return
         if (all().none { it.contentDescription == "설정으로 이동" }) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
         await { all().any { it.contentDescription == "설정으로 이동" } }
@@ -130,20 +136,45 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     }
     fun openRooms() { openSettings(); click("가족방 전환") }
     fun openDaily() {
-        if (all().any { it.tag == "main-tab:digest" }) test.runOnMainSync { all().single { it.tag == "main-tab:digest" }.performClick() }
-        else openAssistantOption("오늘 가족의 하루")
+        dismissHelp()
+        if (has("오늘도, 함께")) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+        if (!has("오늘 이야기 보기")) {
+            if (all().any { it.tag == "main-tab:digest" }) test.runOnMainSync { all().single { it.tag == "main-tab:digest" }.performClick() }
+            else openAssistantOption("오늘 가족의 하루")
+        }
         await { has("오늘 이야기 보기") }; click("오늘 이야기 보기")
     }
     fun openCurrentPost() {
+        dismissHelp()
         if (hasPostDetail()) return
         await { all().any { it is kr.talkdock.app.ui.FeedPostCard } }
-        test.runOnMainSync { all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().first().performClick() }
+        test.runOnMainSync {
+            val cards = all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>()
+            (cards.firstOrNull { it.post.optInt("id") == selectedFeedId } ?: cards.first()).performClick()
+        }
         await { hasPostDetail() }
     }
     fun hasPostDetail() = has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
     fun selectLetter(id: Int) {
+        dismissHelp()
         await { all().any { it is kr.talkdock.app.ui.FeedPostCard && it.post.optInt("id") == id } }
-        test.runOnMainSync { all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().first { it.post.optInt("id") == id }.requestRectangleOnScreen(android.graphics.Rect(0, 0, 1, 250), true) }
+        selectedFeedId = id
+        // Use photo-sized fixture cards so each post can occupy the reading viewport,
+        // including text-only fixtures that would otherwise all fit on a large emulator.
+        test.runOnMainSync {
+            val height = all().filterIsInstance<android.widget.ScrollView>().first().height
+            all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().forEach { it.minimumHeight = height }
+        }
+        await { all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().all { !it.isLayoutRequested } }
+        test.runOnMainSync {
+            val card = all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.optInt("id") == id }
+            val scroll = all().filterIsInstance<android.widget.ScrollView>().first()
+            scroll.scrollTo(0, card.top + card.height / 2 - scroll.height / 2)
+        }
+        await { all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().tag == id }
+    }
+    fun dismissHelp() = test.runOnMainSync {
+        (activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity) as? android.app.Dialog)?.dismiss()
     }
     fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }
@@ -166,6 +197,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         }
     }
     fun openAssistantOption(label: String) {
+        dismissHelp()
         await { all().any { it is kr.talkdock.app.ui.FloatingAssistantView } }
         test.runOnMainSync {
             assertTrue(all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().performClick())
@@ -197,6 +229,16 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
             is Set<*> -> edit.putStringSet(key,value.filterIsInstance<String>().toSet())
         } }
         edit.commit()
+        val helpEdit = helpPrefs.edit().clear()
+        savedHelpPreferences.forEach { (key, value) -> when (value) {
+            is Boolean -> helpEdit.putBoolean(key, value)
+            is String -> helpEdit.putString(key, value)
+            is Int -> helpEdit.putInt(key, value)
+            is Long -> helpEdit.putLong(key, value)
+            is Float -> helpEdit.putFloat(key, value)
+            is Set<*> -> helpEdit.putStringSet(key, value.filterIsInstance<String>().toSet())
+        } }
+        helpEdit.commit()
     }
 }
 
@@ -582,6 +624,7 @@ class InlinePostAudioTest {
         custom(request) ?: when {
             request.path == "/api/families/current/" -> jsonReply(room(1, "재생 검증 가족"))
             request.path == "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post(1)).put(post(2))))
+            request.path == "/api/digests/history/" -> jsonReply(JSONObject().put("dates", JSONArray()))
             request.path.endsWith("/message/") -> ready()
             request.path == "/api/speech/" -> audio()
             request.path.startsWith("/api/digests/?") -> jsonReply(JSONObject().put("status", "ready")
@@ -593,7 +636,7 @@ class InlinePostAudioTest {
     private fun panels(ui: UiHarness) = ui.all().filterIsInstance<kr.talkdock.app.ui.InlinePostAudio>()
     private fun tap(ui: UiHarness) {
         var active = false
-        ui.test.runOnMainSync { active = panels(ui).single().isPlaying }
+        ui.test.runOnMainSync { active = panels(ui).any { it.isPlaying } }
         ui.openAssistantOption(if (active) "듣기 중지" else "음성으로 듣기")
     }
     private fun playing(ui: UiHarness): Boolean {
@@ -610,21 +653,20 @@ class InlinePostAudioTest {
         }
         ui.openAssistantOption("AI 요약 보기")
     }
-    @Test fun feedBotActionsOpenTheSelectedPostAndSummaryDoesNotStartSpeech() {
+    @Test fun feedBotActionsUseTheSelectedPostInlineAndSummaryDoesNotStartSpeech() {
         for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
             ui.selectLetter(1)
             ui.openAssistantOption("AI 요약 보기")
-            ui.await { ui.hasPostDetail() && ui.has("사진과 글을 설명한 AI 요약") }
+            ui.await { !ui.hasPostDetail() && ui.has("사진과 글을 설명한 AI 요약") }
             assertTrue(api.paths().contains("/api/posts/1/message/"))
             assertFalse(api.paths().contains("/api/speech/"))
             ui.test.runOnMainSync { assertTrue(ui.has("오늘의 소식 1")); assertFalse(playing(ui)) }
-            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
             ui.selectLetter(2)
             ui.openAssistantOption("음성으로 듣기")
-            ui.await { ui.hasPostDetail() && playing(ui) }
+            ui.await { !ui.hasPostDetail() && playing(ui) }
             assertTrue(api.paths().contains("/api/posts/2/message/"))
             ui.test.runOnMainSync { assertTrue(ui.has("오늘의 소식 2")) }
-            tap(ui); ui.await { !playing(ui) && !panels(ui).single().isPlaying }
+            tap(ui); ui.await { !playing(ui) && panels(ui).none { it.isPlaying } }
         } }
     }
     @Test fun summaryAndSpeechShowTheirOwnPreparationUntilReadyInBothSizes() {
@@ -1134,13 +1176,14 @@ class PostQuestionUiTest {
                 assertEquals("", panel(ui).composer.input.text.toString())
                 assertTrue(ui.all().any { it.contentDescription == "도우미 닫기" }); assertFalse(ui.has("추가 질문 닫기"))
                 assertTrue(ui.has("모모는 누구예요?")); assertTrue(ui.has("가족 기록으로 확인한 답변이에요."))
-                assertTrue(ui.has("말로 답장하기"))
+                assertTrue(ui.all().any { it.contentDescription == "말로 댓글" || it.contentDescription == "댓글 달기" })
                 assertEquals(1000, panel(ui).composer.input.filters.filterIsInstance<android.text.InputFilter.LengthFilter>().single().max)
                 panel(ui).requestRectangleOnScreen(android.graphics.Rect(0, 0, panel(ui).width, panel(ui).height), true)
             }
             ui.screenshot("post-question-answer.png")
-            ui.click("닫기")
-            ui.test.runOnMainSync { assertFalse(panel(ui).composer.isShown); assertTrue(ui.has("궁금한 점을 물어보세요")) }
+            ui.test.runOnMainSync { ui.all().single { it.contentDescription == "도우미 닫기" }.performClick() }
+            ui.await { ui.all().none { it is kr.talkdock.app.ui.PostQuestionPanel } }
+            ui.test.runOnMainSync { assertTrue(ui.all().any { it is kr.talkdock.app.ui.FloatingAssistantView }) }
             val request = api.requests.single { it.path.endsWith("/questions/") }
             assertEquals("/api/posts/2/questions/", request.path); assertEquals("POST", request.method)
             val body = JSONObject(request.body)

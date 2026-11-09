@@ -132,11 +132,13 @@ class FamilyMemorySearchTest {
             }
             fail("Memory screen condition timed out")
         }
-        fun click(text: String) = test.runOnMainSync {
-            var target: View = views().filterIsInstance<TextView>().first { it.text.toString() == text }
+        private fun clickNow(text: String) {
+            var target: View = views().filterIsInstance<TextView>().firstOrNull { it.text.toString() == text }
+                ?: error("Missing memory navigation action: $text")
             while (!target.isClickable && target.parent is View) target = target.parent as View
             assertTrue(target.performClick())
         }
+        fun click(text: String) = test.runOnMainSync { clickNow(text) }
         fun open() {
             if (views().any { it.tag == "main-tab:memories" }) {
                 tab("memories")
@@ -163,8 +165,12 @@ class FamilyMemorySearchTest {
                 await { views().any { it is FeedPostCard } || has("첫 소식을 기다리고 있어요") }
             }
             if (destination == "home") return
-            test.runOnMainSync { views().filterIsInstance<FloatingAssistantView>().single().performClick() }
-            click(if (destination == "memories") "가족 추억 찾기" else "오늘 가족의 하루")
+            // Route selection is independent of the post being centered. Keep it in one
+            // UI turn so an async photo layout cannot dismiss the menu between test calls.
+            test.runOnMainSync {
+                views().filterIsInstance<FloatingAssistantView>().single().performClick()
+                clickNow(if (destination == "memories") "가족 추억 찾기" else "오늘 가족의 하루")
+            }
         }
         fun recreate(expected: String = "memories") {
             val previous = activity
