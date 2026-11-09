@@ -67,6 +67,8 @@ class FloatingAssistantTest {
                                 .put("caption", "소식 $id\n" + "함께한 하루의 이야기입니다.\n".repeat(8))
                                 .put("images", JSONArray()).put("image_url", "").put("image_count", 0).put("comment_count", 0)
                         }))
+                        path == "/api/digests/history/" -> JSONObject().put("dates", JSONArray().put("2026-10-26"))
+                        path.matches(Regex("/api/posts/\\d+/")) -> JSONObject().put("comments", JSONArray())
                         path.startsWith("/api/digests/") -> JSONObject().put("status", "pending").put("digest_time", "21:00")
                         path.endsWith("/questions/") -> { questionPaths.add(path); JSONObject().put("text", "테스트 답변") }
                         else -> JSONObject().put("text", "가족 추억")
@@ -95,7 +97,14 @@ class FloatingAssistantTest {
             positionPrefs.edit().clear().commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
-            await { views().any { it is kr.talkdock.app.ui.PhotoLetterDeck && it.height > 0 } }
+            await { views().any { it is kr.talkdock.app.ui.FeedPostCard && it.height > 0 } }
+            // Tall synthetic cards model photo posts so every post can occupy the reading viewport.
+            test.runOnMainSync {
+                val height = views().filterIsInstance<ScrollView>().first().height
+                views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().forEach { it.minimumHeight = height }
+            }
+            test.runOnMainSync { activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity).let { (it as? android.app.Dialog)?.dismiss() } }
+
         }
         fun views(view: View = activity.window.decorView): List<View> {
             fun walk(root: View): List<View> = listOf(root) + if (root is ViewGroup) (0 until root.childCount).flatMap { walk(root.getChildAt(it)) } else emptyList()
@@ -131,8 +140,10 @@ class FloatingAssistantTest {
         }
         fun center(id: Int) {
             test.runOnMainSync {
-                val deck = views().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
-                for (index in 0 until deck.letterCount) { deck.show(index); if (deck.currentPost.optInt("id") == id) break }
+                val card = views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.optInt("id") == id }
+                val scroll = views().filterIsInstance<ScrollView>().first()
+                val a = IntArray(2); val b = IntArray(2); card.getLocationOnScreen(a); scroll.getLocationOnScreen(b)
+                scroll.scrollBy(0, a[1] + card.height / 2 - b[1] - scroll.height / 2)
             }
             await { button().tag == id }
         }
@@ -154,7 +165,13 @@ class FloatingAssistantTest {
                 if (next != null) activity = next
                 next != null && views().any { it is FloatingAssistantView }
             }
-            await { views().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+            await { views().any { it is kr.talkdock.app.ui.FeedPostCard } }
+            test.runOnMainSync {
+                val height = views().filterIsInstance<ScrollView>().first().height
+                views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().forEach { it.minimumHeight = height }
+            }
+            test.waitForIdleSync()
+            center(2)
         }
         private fun restore(prefs: android.content.SharedPreferences, values: Map<String, *>) {
             val editor = prefs.edit().clear()
@@ -177,16 +194,15 @@ class FloatingAssistantTest {
     @Test fun characterMovesKeepProfileAuthorDateAndCaptionInPlace() {
         for (large in listOf(false, true)) Server().use { server -> Screen(server, large).use { screen ->
             fun settle() = screen.await {
-                val deck = screen.views().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
-                !deck.isLayoutRequested && deck.currentCard.translationX == 0f && deck.currentCard.alpha == 1f
+                screen.views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().all { !it.isLayoutRequested }
             }
             fun textBounds(id: Int): Map<String, android.graphics.Rect> {
                 var result = emptyMap<String, android.graphics.Rect>()
                 screen.test.runOnMainSync {
-                    val texts = screen.views().filterIsInstance<TextView>()
+                    val texts = screen.views(screen.card(id)).filterIsInstance<TextView>()
                     val targets = linkedMapOf(
                         "caption" to texts.first { it.text.startsWith("소식 $id\n") },
-                        "profile" to texts.single { it.contentDescription == "작성자$id 프로필" },
+                        "profile" to texts.single { it.contentDescription == "작성자$id" },
                         "author" to texts.single { it.text.toString() == "작성자$id" },
                         "date" to texts.single { it.text.toString().contains("10월 26일") },
                     )
@@ -205,7 +221,7 @@ class FloatingAssistantTest {
             screen.drag(-1500f, 0f); settle()
             assertEquals("Dragging left must not move or resize text (large=$large)", original, textBounds(2))
             screen.test.runOnMainSync {
-                assertTrue(screen.button().x < right)
+                if (large) assertEquals(0f, screen.button().x, 2f) else assertTrue(screen.button().x < right)
                 assertEquals(1f, screen.character().scaleX, 0f)
                 assertEquals(2, screen.button().tag)
                 assertTrue(screen.views().none { it is AssistantBubbleMenu })
@@ -214,7 +230,7 @@ class FloatingAssistantTest {
             assertEquals("Dragging right must not move or resize text (large=$large)", original, textBounds(2))
             screen.test.runOnMainSync {
                 assertEquals(right, screen.button().x, 2f)
-                assertEquals(-1f, screen.character().scaleX, 0f)
+                assertEquals(if (large) 1f else -1f, screen.character().scaleX, 0f)
             }
             screen.recreate(); settle()
             assertEquals("Reopening must retain the text layout", original, textBounds(2))
@@ -285,7 +301,7 @@ class FloatingAssistantTest {
                         val row = screen.views(menu).single { it.contentDescription == label }
                         assertTrue(row.isClickable && row.isFocusable); assertTrue(row.height >= screen.activity.resources.displayMetrics.density * 48)
                     }
-                    assertFalse(screen.views(menu).filterIsInstance<TextView>().any { it.text.toString() == "오늘 가족의 하루" })
+                    assertTrue(screen.views(menu).filterIsInstance<TextView>().any { it.text.toString() == "오늘 가족의 하루" })
                     screen.button().performClick()
                 }
             }
@@ -297,7 +313,7 @@ class FloatingAssistantTest {
             screen.test.runOnMainSync { screen.views(screen.menu()).single { it.contentDescription == "가족 추억 찾기" }.performClick() }
             screen.await { screen.views().any { it is FamilyMemoryPanel } }
             screen.test.runOnMainSync { screen.activity.onBackPressedDispatcher.onBackPressed() }
-            screen.await { screen.views().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+            screen.await { screen.views().any { it is kr.talkdock.app.ui.FeedPostCard } }
             screen.test.runOnMainSync {
                 val label = screen.views().filterIsInstance<TextView>().single { it.text.toString() == "하루" }
                 (label.parent as View).performClick()

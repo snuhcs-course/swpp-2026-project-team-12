@@ -54,7 +54,7 @@ class PostComposerTest {
     }
     private fun UiHarness.openComposer() {
         await { has("첫 소식을 기다리고 있어요") }
-        clickDescription("가족 소식 작성하기"); await { has("가족에게 전하기") }
+        clickDescription("첫 소식 쓰기"); await { has("가족에게 전하기") }
     }
     private fun UiHarness.back() = test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
 
@@ -107,12 +107,12 @@ class PostComposerTest {
         feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족")).use { ui ->
             ui.openComposer()
             ui.back(); ui.await { ui.has("첫 소식을 기다리고 있어요") }  // an empty draft leaves at once
-            ui.clickDescription("가족 소식 작성하기"); ui.await { ui.has("가족에게 전하기") }
+            ui.clickDescription("첫 소식 쓰기"); ui.await { ui.has("가족에게 전하기") }
             ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("아직 쓰는 중") }
             ui.back(); ui.awaitText("소식 작성을 그만할까요?"); ui.tapText("계속 쓰기")
             ui.test.runOnMainSync { assertEquals("아직 쓰는 중", ui.all().filterIsInstance<EditText>().single().text.toString()) }
             ui.back(); ui.tapText("그만하기"); ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            ui.clickDescription("가족 소식 작성하기"); ui.await { ui.has("가족에게 전하기") }
+            ui.clickDescription("첫 소식 쓰기"); ui.await { ui.has("가족에게 전하기") }
             ui.test.runOnMainSync { assertEquals("", ui.all().filterIsInstance<EditText>().single().text.toString()) }
             assertTrue(api.uploads().isEmpty())
         } }

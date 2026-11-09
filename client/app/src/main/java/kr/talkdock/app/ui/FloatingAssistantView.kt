@@ -23,11 +23,12 @@ class FloatingAssistantView(
     private val onPositionChanged: (Float) -> Unit,
     private val onMoveStarted: () -> Unit = {},
     private val preferredDock: () -> Rect? = { null },
+    private val fixedLeft: Boolean = false,
     onOpen: () -> Unit,
 ) : FrameLayout(context) {
     private val preferences = context.getSharedPreferences("talkdock-assistant-letter", Context.MODE_PRIVATE)
     private var anchor = AssistantAnchor(
-        if (preferences.getBoolean("left", false)) AssistantEdge.LEFT else AssistantEdge.RIGHT,
+        if (fixedLeft || preferences.getBoolean("left", false)) AssistantEdge.LEFT else AssistantEdge.RIGHT,
         preferences.getFloat("height", .62f).takeIf { it.isFinite() } ?: .62f,
     )
     private var startRawX = 0f
@@ -92,7 +93,7 @@ class FloatingAssistantView(
         val area = bounds() ?: return
         if (!touching) {
             val point = AssistantPlacement.position(anchor, area, width.toFloat(), height.toFloat())
-            x = point.x; y = point.y
+            x = if (fixedLeft) area.left else point.x; y = point.y
             if (!preferences.contains("height")) preferredDock()?.let { pocket ->
                 y = (pocket.exactCenterY() - height / 2f).coerceIn(area.top, maxOf(area.top, area.bottom - height))
             }
@@ -130,7 +131,7 @@ class FloatingAssistantView(
                     onMoveStarted()
                 }
                 if (dragging) bounds()?.let {
-                    x = (startX + dx).coerceIn(it.left, maxOf(it.left, it.right - width))
+                    x = if (fixedLeft) it.left else (startX + dx).coerceIn(it.left, maxOf(it.left, it.right - width))
                     y = (startY + dy).coerceIn(it.top, maxOf(it.top, it.bottom - height))
                     updateCharacterFacing(it)
                     reportPosition()
@@ -162,7 +163,7 @@ class FloatingAssistantView(
         super.onInitializeAccessibilityNodeInfo(info)
         info.className = "android.widget.Button"
         info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_LEFT, "왼쪽 가장자리로 이동"))
-        info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_RIGHT, "오른쪽 가장자리로 이동"))
+        if (!fixedLeft) info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_RIGHT, "오른쪽 가장자리로 이동"))
         info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_UP, "위로 이동"))
         info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_DOWN, "아래로 이동"))
     }
@@ -170,7 +171,7 @@ class FloatingAssistantView(
     override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
         anchor = when (action) {
             ACTION_LEFT -> anchor.copy(edge = AssistantEdge.LEFT)
-            ACTION_RIGHT -> anchor.copy(edge = AssistantEdge.RIGHT)
+            ACTION_RIGHT -> if (fixedLeft) return false else anchor.copy(edge = AssistantEdge.RIGHT)
             ACTION_UP -> anchor.copy(fraction = (anchor.fraction - .15f).coerceAtLeast(0f))
             ACTION_DOWN -> anchor.copy(fraction = (anchor.fraction + .15f).coerceAtMost(1f))
             else -> return super.performAccessibilityAction(action, arguments)

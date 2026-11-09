@@ -1,8 +1,10 @@
+import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore } from './ui-modes.js';
+import { GuidedHelp } from './guided-help.js';
 import { api, ApiError, registrationPayload, hasToken, setToken, setRoom, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
-import { FloatingAssistant } from './floating-assistant.js';
+import { FloatingAssistant } from './floating-assistant.js?v=ui-modes-20261109';
 import { memoryEvidence } from './memory-search.js';
 import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
 
@@ -12,6 +14,22 @@ const toastBox = document.querySelector('#toast');
 const busyIndicator = document.querySelector('#busy-indicator');
 const postingSuccessBox = document.querySelector('#posting-success');
 let postingSuccessTimer;
+let elder = false, inlineObserver, selectedDigestDate = null, digestMonth = null, digestDates = [];
+const preferredModes = new Map();
+const expandedPosts = new Set(), inlineComments = new Map(), pendingComments = new Set();
+let commentQueue = [], commentActive = 0;
+const help = new GuidedHelp();
+function applyScreenMode() {
+  elder = state.user && (preferredModes.get(state.user.user_id) || readMode(localStorage, state.user.user_id)) === 'elder';
+  document.documentElement.classList.toggle('elder-screen', Boolean(elder));
+  document.documentElement.classList.toggle('large-text', Boolean(elder));
+}
+function maybeShowHelp() {
+  if (!elder || modal.open || currentRoute() !== 'feed') return;
+  const key = `talkdock.web.help:v1:${state.user.user_id}`;
+  let seen = false; try { seen = localStorage.getItem(key) === 'true'; } catch {}
+  if (!seen) help.open(() => { try { localStorage.setItem(key, 'true'); } catch {} });
+}
 const pendingOperations = new Set();
 const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
 const assistant = new FloatingAssistant({
@@ -25,7 +43,7 @@ const assistant = new FloatingAssistant({
     method: 'POST', room: roomId, data: { question, prior_dialogue: dialogue },
   }),
 });
-const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
+const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['search', 'search', '추억']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
 let maintenanceNotice, reconnecting = false;
@@ -118,6 +136,7 @@ function stopAudio() {
   if (audio) { audio.pause(); audio = null; }
   if (audioURL) { URL.revokeObjectURL(audioURL); audioURL = null; }
   document.querySelectorAll('[data-action="stop-audio"]').forEach(node => { node.hidden = true; });
+  document.querySelectorAll('[data-action="feed-stop-listen"]').forEach(node => { node.dataset.action = 'feed-listen'; node.innerHTML = icon('volume') + '소식 듣기'; });
 }
 function updateBusyIndicator() {
   const active = [...pendingOperations].some(operation =>
@@ -184,6 +203,7 @@ async function busy(element, task, errorTarget) {
 }
 
 function resetSession() {
+  inlineComments.clear(); pendingComments.clear(); commentQueue = []; expandedPosts.clear();
   assistant.reset();
   hidePostingSuccess();
   state.session++;
@@ -197,7 +217,7 @@ function resetSession() {
   stopAudio();
   if (modal.open) modal.close();
   dailyDrafts.clear(); dailyStatus = null;
-  observer?.disconnect();
+  observer?.disconnect(); inlineObserver?.disconnect();
   updateBusyIndicator();
 }
 window.addEventListener('session-expired', () => { resetSession(); renderAuth(); toast('로그인 시간이 만료되었어요. 다시 로그인해 주세요.'); });
@@ -259,6 +279,7 @@ function renderAuth(register = false) {
         ${field('아이디', 'username', 'text', 'required maxlength="150" autocomplete="username" placeholder="아이디를 입력해 주세요" autocapitalize="none"')}
         ${field('비밀번호', 'password', 'password', `required maxlength="128" ${register ? 'minlength="10"' : ''} autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
         ${register ? field('비밀번호 확인', 'confirm_password', 'password', 'required maxlength="128" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"') : ''}
+        ${register ? '<label class="screen-choice"><input type="checkbox" name="screen_mode" value="elder">어르신 화면으로 시작하기</label>' : ''}
         ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><div data-voice-field hidden><label class="field"><span>소식을 읽어 줄 목소리 (선택)</span><select name="tts_voice"></select></label><button type="button" class="button quiet compact" data-voice-sample hidden></button><p class="help" data-voice-default></p></div><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
         <p class="form-error" role="alert"></p><button class="button primary full" type="submit">${register ? '계정 만들기' : '우리 가족 만나러 가기'}${icon('arrow')}</button>
       </form><p class="auth-hint">${icon('heart')}안드로이드에서 쓰던 계정으로도 로그인할 수 있어요.</p></div></section></main>`;
@@ -290,6 +311,7 @@ function useRoom(room) {
   if (state.room?.id !== room.id) { assistant.reset(); dailyDrafts.clear(); dailyStatus = null; }
   state.room = room;
   state.posts = [];
+  inlineComments.clear(); pendingComments.clear(); commentQueue = []; expandedPosts.clear();
   state.digest = state.lookup = null;
   setRoom(room.id);
   rememberRoom(room.id);
@@ -362,12 +384,12 @@ function renderJoinPreview(message = '') {
 }
 
 function renderShell() {
-  app.innerHTML = `<div class="app-layout"><aside class="sidebar">${brand()}<div class="sidebar-label">우리의 이야기</div><nav aria-label="주 메뉴">${nav.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span>${icon('chevron', 'nav-chevron')}</a>`).join('')}</nav>
-    <div class="sidebar-note">${icon('heart')}<p>자주 보지 못해도,<br>마음은 늘 가까이.</p><span>오늘도 안부를 전해 보세요.</span></div>
-    <div class="sidebar-bottom"><a href="#/settings" data-nav="settings">${icon('settings')}계정 설정</a><button type="button" data-action="logout">${icon('logout')}로그아웃</button><div class="profile">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><small>@${e(state.user.username)}</small></div><span class="online-dot" title="로그인됨"></span></div></div></aside>
-    <div class="workspace"><header class="topbar"><a class="room-label" href="#/rooms" title="가족방 바꾸기" aria-label="${e(state.room.name)} · 가족방 바꾸기">${icon('home')}<span>${e(state.room.name)}</span><span class="private-badge">가족 전용</span>${icon('chevron', 'room-switch')}</a><div class="topbar-actions"><span class="today-label">${dateLabel(new Date(), false)}</span>${button('text-size', '큰 글씨', 'text', 'button quiet compact', `aria-pressed="${document.documentElement.classList.contains('large-text')}"`)}</div></header><main id="main" tabindex="-1"><div id="page"></div></main><footer class="workspace-footer"><span>토닥</span>가족의 일상을 잇는 따뜻한 공간</footer></div></div>`;
+  applyScreenMode();
+  const bottom = elder ? button('compose', '소식 쓰기', 'plus', 'button primary elder-compose') : nav.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span></a>`).join('');
+  app.innerHTML = `<div class="app-layout screen-layout"><div class="workspace"><header class="topbar">${brand()}<div class="current-family">${e(state.room.name)}</div><a class="icon-button" href="#/settings" aria-label="설정으로 이동">${icon('settings')}</a></header><main id="main" tabindex="-1"><div id="page"></div></main><nav class="screen-bottom" aria-label="${elder ? '소식 작성' : '주 메뉴'}">${bottom}</nav></div></div>`;
   window.scrollTo(0, 0);
 }
+
 function pageHeading(eyebrow, title, text, controls = '') {
   return `<header class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="muted">${text}</p></div>${controls}</header>`;
 }
@@ -418,10 +440,10 @@ function familyRail() {
     <p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
 }
 async function renderFeed(version) {
-  $('#page').innerHTML = `${pageHeading('OUR FAMILY, EVERY DAY', '우리 가족의 작은 일상', '오늘은 어떤 하루를 보내셨나요? 소소한 이야기를 들려주세요.', button('compose', '소식 남기기', 'plus', 'button primary'))}<div class="feed-layout"><section aria-label="가족 소식"><button type="button" data-action="compose" class="composer-prompt">${avatar(state.user.name, state.user.user_id)}<span>${e(state.user.name)}님, 오늘의 안부를 전해 보세요.</span>${icon('photo')}</button><div class="feed-toolbar"><h2>최근 소식 <span id="post-count"></span></h2>${button('refresh-feed', '<span class="sr-only">소식 새로고침</span>', 'refresh', 'icon-button')}</div><div class="feed-filter"><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="불러온 소식에서 글·이름 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>${familyRail()}</div>`;
+  $('#page').innerHTML = `<section class="vertical-feed" aria-label="가족 소식"><div class="feed-toolbar"><h2>가족의 소식 <span id="post-count"></span></h2>${elder ? '' : button('compose', '소식 쓰기', 'plus', 'button quiet compact')}</div><div class="feed-filter" ${elder ? 'hidden' : ''}><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="가족의 소식에서 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>`;
   const entry = document.createElement('div');
   entry.id = 'daily-entry'; entry.innerHTML = questionEntry(dailyStatus);
-  $('.feed-layout').before(entry);
+  $('.vertical-feed').before(entry);
   const result = await api('posts/');
   if (version !== state.pageVersion) return;
   state.posts = result.posts;
@@ -430,7 +452,7 @@ async function renderFeed(version) {
   if (!dailyStatus?.title) api('daily-questions/today/').then(question => {
     if (version === state.pageVersion) { dailyStatus = question; updateDailyEntry(); }
   }).catch(() => { /* The entry remains available for an explicit retry. */ });
-  updateFeed();
+  updateFeed(); maybeShowHelp();
 }
 
 function dailySeenKey() { return `talkdock.web.dailySeen:${state.user?.user_id}:${state.room?.id}`; }
@@ -508,19 +530,62 @@ async function loadDailyHistory(before = null) {
     target.innerHTML = failureBlock(error, button('daily-history', '다시 불러오기', 'refresh'));
   }
 }
-function postCard(post) {
+function memoryPostCard(post) {
   const photos = post.images || [];
   return `<article class="post-card" data-post-id="${post.id}"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div><span class="family-only">가족에게만</span></header>
     ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo-url="${e(photos[0].url)}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
     <div class="post-body"><p class="post-caption">${e(post.caption)}</p></div><footer class="post-actions">${button('open-post', `댓글 <span>${post.comment_count}</span>`, 'comment', 'button quiet', `data-id="${post.id}"`)}${button('post-summary', 'AI로 소식 읽기', 'sparkle', 'button quiet ai-link', `data-id="${post.id}"`)}</footer></article>`;
 }
+function inlineCommentMarkup(comments) {
+  return comments.length ? comments.map(item => `<article class="comment">${avatar(item.author_name, item.id, 'small')}<div><strong>${e(item.author_name)}</strong><span class="relationship">${e(item.relationship)}</span><p>${e(item.text)}</p></div></article>`).join('') : '<p class="no-comments">첫 댓글을 남겨 주세요.</p>';
+}
+function postCard(post) {
+  const photos = post.images || [];
+  const more = captionNeedsMore(post.caption, elder) && !expandedPosts.has(post.id);
+  const actions = `<footer class="post-actions">${button(elder ? 'elder-comment' : 'feed-comments', elder ? '댓글 달기' : `댓글 <span>${post.comment_count}</span>`, 'comment', 'button quiet', `data-id="${post.id}"`)}${elder ? '' : button('feed-voice', '말로 댓글', 'mic', 'button quiet', `data-id="${post.id}"`)}${button('feed-listen', '소식 듣기', 'volume', 'button quiet ai-link', `data-id="${post.id}"`)}</footer>`;
+  const caption = `<div class="post-body"><p class="post-caption${more ? ' caption-clamped' : ''}">${e(post.caption)}</p>${more ? button('expand-post', '더보기', null, 'button quiet compact', `data-id="${post.id}"`) : ''}</div>`;
+  return `<article class="post-card" data-post-id="${post.id}"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div></header>
+    ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo-url="${e(photos[0].url)}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
+    ${elder ? caption + actions : actions + caption}
+    ${elder ? `<section class="feed-inline-comments" aria-label="${e(post.author_name)}님의 소식에 달린 댓글" data-comments="${post.id}"><h3>가족의 댓글</h3><div>${inlineComments.has(post.id) ? inlineCommentMarkup(inlineComments.get(post.id)) : '<p class="muted">댓글을 불러올게요.</p>'}</div></section>` : ''}</article>`;
+}
+function observeInlineComments() {
+  if (!elder) return;
+  inlineObserver?.disconnect();
+  inlineObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+    if (!entry.isIntersecting) return;
+    inlineObserver.unobserve(entry.target);
+    const id = Number(entry.target.dataset.postId);
+    const key = `${state.session}:${state.room.id}:${id}`;
+    if (!inlineComments.has(id) && !pendingComments.has(key)) { pendingComments.add(key); commentQueue.push({ id, key, session: state.session, room: state.room.id }); drainInlineComments(); }
+  }), { rootMargin: '200px' });
+  document.querySelectorAll('#feed-list .post-card').forEach(card => inlineObserver.observe(card));
+}
+function drainInlineComments() {
+  while (commentActive < 2 && commentQueue.length) {
+    const task = commentQueue.shift();
+    if (task.session !== state.session || task.room !== state.room?.id) { pendingComments.delete(task.key); continue; }
+    commentActive++;
+    api(`posts/${task.id}/`, { room: task.room }).then(post => {
+      if (task.session !== state.session || task.room !== state.room?.id) return;
+      inlineComments.set(task.id, post.comments);
+      const target = document.querySelector(`[data-comments="${task.id}"] > div`);
+      if (target) target.innerHTML = inlineCommentMarkup(post.comments);
+    }).catch(() => {
+      if (task.session !== state.session || task.room !== state.room?.id) return;
+      const target = document.querySelector(`[data-comments="${task.id}"] > div`);
+      if (target) target.innerHTML = `<p class="muted">댓글을 불러오지 못했어요.</p>${button('retry-comments', '다시 불러오기', 'refresh', 'button quiet compact', `data-id="${task.id}"`)}`;
+    }).finally(() => { pendingComments.delete(task.key); commentActive--; drainInlineComments(); });
+  }
+}
+
 function updateFeed() {
   const query = ($('#feed-filter')?.value || '').trim().toLocaleLowerCase();
   const author = $('#author-filter')?.value;
   const posts = state.posts.filter(post => (!author || String(post.author_id) === author) && `${post.caption} ${post.author_name}`.toLocaleLowerCase().includes(query));
   $('#post-count').textContent = `${posts.length}`;
   $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', query || author ? '일치하는 소식이 없어요' : '첫 번째 안부를 기다리고 있어요', query || author ? '검색어나 가족을 바꿔서 다시 찾아보세요.' : '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', query || author ? '' : button('compose', '첫 소식 남기기', 'plus', 'button primary'));
-  hydrateImages();
+  hydrateImages(); observeInlineComments();
   assistant.refresh();
 }
 function hydrateImages(root = document) {
@@ -610,32 +675,67 @@ function renderSearch() {
   $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p><form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
 }
 async function renderDigest(version) {
-  $('#page').innerHTML = `${pageHeading('A DAY TO REMEMBER', '하루 모아보기', '바쁜 하루 사이 놓친 가족의 소식, 한 편의 이야기로 만나보세요.')}<div class="digest-layout"><aside class="panel date-panel"><h2>${icon('calendar')}날짜 선택</h2><label class="field"><span>한국 시간 기준</span><input id="digest-date" type="date" value="${today()}" max="${today()}" required></label><div id="digest-dates">${loading()}</div></aside><section class="panel digest-content" id="digest-result" aria-live="polite">${loading('오늘의 이야기를 모으고 있어요')}</section></div>`;
-  const history = api('digests/history/').then(result => {
-    if (version !== state.pageVersion) return;
-    $('#digest-dates').innerHTML = `<p class="eyebrow">소식이 있는 날</p>${result.dates.map(date => `<button type="button" class="date-item ${date === today() ? 'selected' : ''}" data-action="digest-date" data-date="${date}" aria-pressed="${date === today()}">${icon('book')}${e(date)}${icon('chevron')}</button>`).join('')}`;
-  }).catch(error => { if (version === state.pageVersion) $('#digest-dates').innerHTML = failureBlock(error); });
-  await Promise.all([history, loadDigest(today(), false, version)]);
+  selectedDigestDate ||= today(); digestMonth ||= new Date(`${selectedDigestDate.slice(0, 7)}-01T00:00:00Z`);
+  $('#page').innerHTML = `<section class="day-page"><h1>우리 가족의 하루</h1><p class="muted">달력에서 함께한 날을 골라 보세요.</p><input id="digest-date" type="date" value="${selectedDigestDate}" max="${today()}" hidden><section class="panel month-calendar" aria-label="날짜 선택"><div class="month-heading">${button('day-prev', '<span class="sr-only">이전 달</span>', 'chevron', 'icon-button previous-month')}<h2 id="month-title"></h2>${button('day-next', '<span class="sr-only">다음 달</span>', 'chevron', 'icon-button')}</div><div class="month-weekdays" aria-hidden="true">${['일','월','화','수','목','금','토'].map(day=>`<span>${day}</span>`).join('')}</div><div id="month-grid" class="month-grid"></div></section><section id="digest-result" aria-live="polite">${loading('이날의 소식을 가져오고 있어요')}</section></section>`;
+  renderMonth();
+  api('digests/history/').then(result => { if (version === state.pageVersion) { digestDates = result.dates; renderMonth(); } }).catch(() => {});
+  await loadDigest(selectedDigestDate, false, version);
+}
+function renderMonth() {
+  if (!$('#month-grid')) return;
+  const year=digestMonth.getUTCFullYear(), month=digestMonth.getUTCMonth();
+  $('#month-title').textContent=`${year}년 ${month+1}월`;
+  $('[data-action="day-next"]').disabled = `${year}-${String(month+1).padStart(2,'0')}` >= today().slice(0,7);
+  $('#month-grid').innerHTML=calendarDays(year,month).map(day=>{
+    if (!day) return '<span></span>';
+    const date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    return `<button type="button" data-action="digest-date" data-date="${date}" aria-label="${month+1}월 ${day}일" aria-pressed="${date===selectedDigestDate}" class="month-day${digestDates.includes(date)?' has-news':''}" ${date>today()?'disabled':''}>${day}</button>`;
+  }).join('');
 }
 async function loadDigest(date, retry = false, version = state.pageVersion) {
   if (!date) return;
-  const requestId = Symbol();
-  state.digestRequest = requestId;
-  $('#digest-result').innerHTML = loading('하루의 이야기를 모으고 있어요');
-  stopAudio();
-  state.digest = null;
+  selectedDigestDate=date; const requestId=Symbol(); state.digestRequest=requestId;
+  renderMonth(); $('#digest-result').innerHTML=loading('이날의 이야기를 가져오고 있어요');
   try {
-    const result = await api(retry ? 'digests/' : `digests/?date=${encodeURIComponent(date)}`, retry ? { method: 'POST', data: { date } } : {});
-    if (version !== state.pageVersion || state.digestRequest !== requestId) return;
-    state.digest = result;
-    const content = $('#digest-result');
-    const header = `<p class="eyebrow">${e(result.date)} · ${e(result.digest_time)} 기준</p><h2>가족의 하루를 담았어요</h2>`;
-    if (result.status === 'ready') content.innerHTML = `${header}<div class="digest-reading"><span class="tag">${icon('sparkle')}AI가 모은 가족 소식</span><p class="digest-text">${e(result.text)}</p><div class="button-row">${button('digest-audio', '이야기 듣기', 'volume', 'button secondary')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}</div></div><h3 class="digest-post-heading">이날의 소식 ${result.posts.length}개</h3><div class="digest-posts">${result.posts.map(post => `<button type="button" class="digest-post" data-action="open-post" data-id="${post.id}">${avatar(post.author_name, post.author_id)}<span><strong>${e(post.author_name)}</strong><span>${e(post.caption || '사진으로 전한 소식')}</span></span>${icon('chevron')}</button>`).join('')}</div>`;
-    else if (result.status === 'empty') content.innerHTML = header + empty('leaf', '조용히 지나간 하루예요', '이 시간대에는 가족이 남긴 소식이 없어요. 다른 날짜도 살펴보세요.');
-    else if (result.status === 'failed') content.innerHTML = header + empty('book', '이야기를 모으지 못했어요', '잠시 후 다시 시도해 주세요.', button('retry-digest', '요약 다시 만들기', 'refresh'));
-    else content.innerHTML = header + empty('book', result.status === 'pending' ? '이야기가 모일 시간을 기다려요' : '가족의 하루를 정리하고 있어요', result.status === 'pending' ? `한국 시간 ${e(result.digest_time)} 이후에 하루 요약을 만날 수 있어요.` : '잠시 후 새로고침해 주세요.', button('retry-digest', '다시 확인하기', 'refresh'));
-  } catch (error) { if (version === state.pageVersion && state.digestRequest === requestId) $('#digest-result').innerHTML = failureBlock(error, button('retry-digest', '다시 불러오기', 'refresh')); }
+    const result=await api(`digests/${retry?'':`?date=${encodeURIComponent(date)}`}`,retry?{method:'POST',data:{date}}:{});
+    let posts=result.posts;
+    if (!posts) {
+      const result = await api('posts/');
+      posts=result.posts.filter(post=>koreanDay(post.created_at)===date);
+    }
+    if (version!==state.pageVersion || state.digestRequest!==requestId) return;
+    state.digest={...result,posts};
+    const pictures=posts.map(post=>`<button type="button" class="day-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 소식 보기">${post.images?.[0]?`<img data-post="${post.id}" data-photo-url="${e(post.images[0].url)}" alt="${e(post.author_name)}님의 사진">`:`<span>${icon('text')}<span class="sr-only">글로 전한 소식</span></span>`}</button>`).join('');
+    $('#digest-result').innerHTML=`<h2>${e(dateLabel(date+'T12:00:00+09:00'))}의 소식 ${posts.length}개</h2>${posts.length?`<div class="day-photos">${pictures}</div>`:empty('leaf','이날은 아직 올라온 소식이 없어요','다른 날짜를 골라보세요.')}<div class="day-actions">${button('digest-story','오늘 이야기 보기','book','button secondary full')}${button('digest-audio','오늘 이야기 듣기','volume','button secondary full',result.status==='ready'?'':'disabled')}${button('stop-audio','듣기 중지','stop','button quiet','hidden')}</div>${result.status!=='ready'?`<p class="help">${result.status==='pending'?`${e(result.digest_time||state.room.digest_time)}에 하루 요약이 도착해요.`:result.status==='processing'?'하루 요약을 준비하고 있어요.':result.status==='failed'?'하루 요약을 준비하지 못했어요.':'소식이 모이면 하루 이야기를 들을 수 있어요.'}</p>${['failed','processing'].includes(result.status)?button('retry-digest','다시 준비하기','refresh','button quiet'):''}`:''}`;
+    hydrateImages($('#digest-result'));
+  } catch(error) { if (version===state.pageVersion && state.digestRequest===requestId) $('#digest-result').innerHTML=failureBlock(error,button('retry-digest','다시 불러오기','refresh')); }
 }
+function showDigestStory() {
+  const digest=state.digest;if(!digest)return;
+  const pictures=digest.posts.map(post=>`<button type="button" class="day-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 소식 보기">${post.images?.[0]?`<img data-post="${post.id}" data-photo-url="${e(post.images[0].url)}" alt="${e(post.author_name)}님의 사진">`:icon('text')}</button>`).join('');
+  openModal(`${modalHeading('오늘도, 함께')}<p class="muted">${e(digest.date)} · 이날의 소식 ${digest.posts.length}개</p><div class="day-photos">${pictures}</div>${digest.status==='ready'?`<p class="digest-text">${e(digest.text)}</p>`:`<p class="help">${digest.status==='pending'?'하루 요약이 도착할 시간을 기다리고 있어요.':digest.status==='empty'?'이날은 아직 올라온 소식이 없어요.':'하루 요약을 아직 준비하지 못했어요. 하루 화면에서 다시 확인해 주세요.'}</p>`}`,'day-story-dialog');
+  hydrateImages(modal);
+}
+function refreshPostComments(id, comments) {
+  const card=document.querySelector(`#feed-list .post-card[data-post-id="${id}"]`);if(!card)return;
+  const count=card.querySelector('[data-action="feed-comments"] span');if(count)count.textContent=comments.length;
+  const target=card.querySelector('.feed-inline-comments > div');if(target)target.innerHTML=inlineCommentMarkup(comments);
+}
+async function listenToPost(id, target) {
+  const session=state.session, room=state.room.id, version=state.pageVersion;
+  let playing = false;
+  await busy(target,async()=>{
+    const result=await api(`posts/${id}/message/`,{method:'POST',room});
+    if(session!==state.session || room!==state.room?.id || version!==state.pageVersion)return;
+    if(result.status!=='ready')throw new ApiError(result.status==='failed'?'소식을 읽을 준비를 하지 못했어요. 다시 시도해 주세요.':'소식을 읽을 준비 중이에요. 잠시 후 다시 눌러 주세요.');
+    await playSpeech(result.text,null,()=>session===state.session&&room===state.room?.id&&version===state.pageVersion);
+    playing = Boolean(audio && !audio.paused);
+  });
+  if (playing && target.isConnected && session===state.session && room===state.room?.id && version===state.pageVersion) {
+    target.innerHTML=icon('stop')+'듣기 중지';target.dataset.action='feed-stop-listen';
+  }
+}
+
 function renderFamily() {
   const owner = state.room.members.some(member => member.id === state.user.user_id && member.is_owner);
   $('#page').innerHTML = `${pageHeading('CLOSER, TOGETHER', '우리 가족', '가족의 연결을 가계도에서 살펴보세요.', button('refresh-page', '가계도 새로고침', 'refresh'))}<div class="family-layout"><section class="panel"><div class="section-heading"><div><p class="eyebrow">FAMILY ROOM</p><h2>${e(state.room.name)}</h2></div><span class="tag">${state.room.members.length}명의 가족</span></div>${treeMarkup(new FamilyTreeDraft(state.room.tree), { userId: state.user.user_id, members: state.room.members })}<p class="help">가입한 가족 ${state.room.members.length}명 · 가계도 속 사람 ${state.room.tree.people.length}명</p></section><aside><section class="panel invitation-card"><span class="empty-icon">${icon('heart')}</span><h2>가족을 초대해 보세요</h2><p class="muted">초대코드와 가족방 비밀번호를<br>가족에게 함께 알려주세요.</p><div class="invite-code">${e(state.room.invite_code)}</div>${button('copy-code', '초대코드 복사', 'copy', 'button secondary full')}<p class="help">참여할 때, 가계도에서 내 자리를 선택해 주세요.</p></section><section class="panel digest-settings"><h2>${icon('calendar')}하루 요약 시간</h2>${owner ? `<form data-form="digest-time">${field('매일, 한국 시간 기준', 'digest_time', 'time', `value="${e(state.room.digest_time)}" required`)}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">시간 저장하기</button></form>` : `<strong class="time-display">${e(state.room.digest_time)}</strong><p class="help">가족방을 만든 사람이 변경할 수 있어요.</p>`}</section></aside></div>`;
@@ -643,6 +743,7 @@ function renderFamily() {
 }
 function renderSettings() {
   $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel" data-voice-field hidden><h2>읽어 주는 목소리</h2><p class="muted">소식과 요약을 들을 때 사용할 목소리를 골라요.</p><form data-form="voice"><label class="field"><span>목소리</span><select name="tts_voice"></select></label><button type="button" class="button quiet compact" data-voice-sample hidden></button><p class="form-error" role="alert"></p><button class="button secondary" type="submit">목소리 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
+  $('#page').insertAdjacentHTML('afterbegin', `<section class="panel screen-preferences"><h2>화면과 가족방</h2><div class="button-row">${button('screen-standard', '기본 화면', 'home', 'button secondary', `aria-pressed="${!elder}"`)}${button('screen-elder', '어르신 화면', 'people', 'button secondary', `aria-pressed="${elder}"`)}</div><p class="help">어르신 화면은 글과 댓글을 크게 보여줘요. 하루와 추억은 토닥 도우미에서 열 수 있어요.</p><div class="button-row"><a href="#/rooms" class="button quiet">가족방 전환</a>${button('switch-account', '계정 전환', 'people', 'button quiet')}<a href="#/family" class="button quiet">가계도 보기</a>${button('logout', '로그아웃', 'logout', 'button quiet')}</div></section>`);
   fillVoiceSelect($('form[data-form="voice"] select[name="tts_voice"]'), state.user.tts_voice);
 }
 
@@ -747,9 +848,12 @@ const formHandlers = {
     await connectSession();
   },
   async register(data) {
+    const selected = document.querySelector('[data-form="register"] [name="screen_mode"]')?.checked ? 'elder' : 'standard';
     const result = await api('accounts/register/', { method: 'POST', data });
     setToken(result.token);
     await connectSession();
+    if (state.user) preferredModes.set(state.user.user_id, writeMode(localStorage, state.user.user_id, selected));
+    applyScreenMode();
   },
   async 'create-room'(data) {
     const result = await api('families/create/', { method: 'POST', data });
@@ -822,7 +926,7 @@ const formHandlers = {
       state.detail.comments = result.comments;
       renderComments();
       const post = state.posts.find(item => item.id === postId);
-      if (post) { post.comment_count = result.comments.length; if ($('#feed-list')) updateFeed(); }
+      if (post) { post.comment_count = result.comments.length; inlineComments.set(postId, result.comments); refreshPostComments(postId, result.comments); }
       const evidenceCount = $(`#search-result [data-post-id="${postId}"] .post-actions [data-action="open-post"] span`);
       if (evidenceCount) evidenceCount.textContent = result.comments.length;
     } catch { toast('댓글은 등록됐어요. 최신 댓글은 소식을 다시 열어 확인해 주세요.'); }
@@ -847,7 +951,7 @@ const formHandlers = {
       if (!current()) return;
       const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
       if (!current()) return;
-      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p></section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(postCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p></section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
       hydrateImages($('#search-result'));
     } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
@@ -912,6 +1016,31 @@ document.addEventListener('click', async event => {
   const target = event.target.closest('[data-action]');
   if (!target || target.disabled) return;
   const action = target.dataset.action;
+  if (action === 'screen-standard' || action === 'screen-elder') {
+    preferredModes.set(state.user.user_id, writeMode(localStorage, state.user.user_id, action === 'screen-elder' ? 'elder' : 'standard'));
+    renderShell(); return renderPage();
+  }
+  if (action === 'switch-account') { resetSession(); return renderAuth(); }
+  if (action === 'expand-post') {
+    const id = Number(target.dataset.id); expandedPosts.add(id);
+    const caption = target.closest('.post-card').querySelector('.post-caption'); caption.classList.remove('caption-clamped'); target.remove(); return;
+  }
+  if (action === 'retry-comments') {
+    const id = Number(target.dataset.id), key = `${state.session}:${state.room.id}:${id}`;
+    if (!pendingComments.has(key)) { pendingComments.add(key); commentQueue.push({ id, key, session: state.session, room: state.room.id }); drainInlineComments(); }
+    return;
+  }
+  if (action === 'feed-comments' || action === 'elder-comment' || action === 'feed-voice') {
+    await openPost(Number(target.dataset.id));
+    if (!state.detail || state.detail.id !== Number(target.dataset.id)) return;
+    if (action !== 'elder-comment') { modal.classList.add('comments-only'); $('#modal-title').textContent = '댓글'; }
+    if (action === 'feed-voice') return busy(target, () => startRecording());
+    const field = $('#comment-text', modal); field?.scrollIntoView({ block: 'nearest' }); field?.focus({ preventScroll: true }); return;
+  }
+  if (action === 'feed-stop-listen') { stopAudio(); target.dataset.action='feed-listen'; target.innerHTML=icon('volume')+'소식 듣기'; return; }
+  if (action === 'feed-listen') return listenToPost(Number(target.dataset.id), target);
+  if (action === 'digest-story') return showDigestStory();
+  if (action === 'day-prev' || action === 'day-next') { digestMonth.setUTCMonth(digestMonth.getUTCMonth() + (action === 'day-next' ? 1 : -1)); renderMonth(); return; }
   if (action === 'auth-login') return renderAuth(false);
   if (action === 'auth-register') return renderAuth(true);
   if (action === 'close-modal') return modal.close();
@@ -928,12 +1057,7 @@ document.addEventListener('click', async event => {
     if (!dailyQuestion) return;
     return busy(target, () => startRecording({ postId: dailyQuestion.post_id, purpose: action.endsWith('answer') ? 'answer' : 'comment' }));
   }
-  if (action === 'text-size') {
-    const large = document.documentElement.classList.toggle('large-text');
-    localStorage.setItem('talkdock.web.largeText', String(large));
-    target.setAttribute('aria-pressed', String(large));
-    return;
-  }
+  if (action === 'text-size') { writeMode(localStorage, state.user.user_id, elder ? 'standard' : 'elder'); renderShell(); return renderPage(); }
   if (action === 'undo-tree' && state.lookup) { state.lookup.draft.undo(); renderJoinPreview(); return; }
   if (action === 'compose') return openComposer();
   if (action === 'open-post' || action === 'retry-post' || action === 'post-summary') return openPost(Number(target.dataset.id), action === 'post-summary');
@@ -997,7 +1121,7 @@ document.addEventListener('click', async event => {
         state.detail.comments = post.comments;
         renderComments();
         const feedPost = state.posts.find(item => item.id === postId);
-        if (feedPost) { feedPost.comment_count = post.comments.length; if ($('#feed-list')) updateFeed(); }
+        if (feedPost) { feedPost.comment_count = post.comments.length; inlineComments.set(postId, post.comments); refreshPostComments(postId, post.comments); }
       } catch { toast('댓글은 등록됐어요. 최신 댓글은 소식을 다시 열어 확인해 주세요.'); }
       if (version === state.modalVersion) return { postingMessage: '댓글을 달았어요!' };
     }
@@ -1043,6 +1167,32 @@ document.addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft') showPhoto((state.photoIndex - 1 + state.detail.images.length) % Math.max(1, state.detail.images.length));
   }
 });
+function openBotMenu() {
+  assistant.sync();
+  const id = assistant.targetId, roomId = state.room?.id, session = state.session;
+  const menu = document.createElement('dialog'); menu.className = 'bot-menu-dialog';
+  menu.setAttribute('aria-label', '토닥 도우미 메뉴');
+  const rows = [['ask','comment','이 소식 물어보기',true],['listen','volume','음성으로 듣기',true],['summary','sparkle','AI 요약 보기',true],['memory','search','가족 추억 찾기',false],['day','calendar','오늘 가족의 하루',false],['help','book','도움말',false]];
+  menu.innerHTML = `<header><h2>무엇을 도와드릴까요?</h2><button type="button" class="icon-button" data-bot="close" aria-label="도우미 메뉴 닫기">${icon('close')}</button></header>${rows.map(([action,symbol,label,needsPost])=>`<button type="button" data-bot="${action}" ${needsPost&&id===null?'disabled':''}>${icon(symbol)}<span>${label}</span>${icon('chevron')}</button>`).join('')}`;
+  document.body.append(menu); menu.showModal();
+  menu.addEventListener('close',()=>menu.remove(),{once:true});
+  menu.onclick=async event=>{
+    const button=event.target.closest('[data-bot]');if(!button||button.disabled)return;
+    const action=button.dataset.bot;menu.close();
+    if(session!==state.session||roomId!==state.room?.id)return;
+    if(action==='help')return help.open();
+    if(action==='memory'){location.hash='#/search';return;}
+    if(action==='day'){location.hash='#/digest';return;}
+    if(action==='ask'){assistant.targetId=id;assistant.open();return;}
+    if(action==='listen')return listenToPost(id,document.querySelector(`#feed-list [data-action="feed-listen"][data-id="${id}"]`)||button);
+    if(action==='summary')return openPost(id,true);
+  };
+}
+document.querySelector('#assistant-root').addEventListener('click',event=>{
+  if(!event.target.closest('.assistant-launcher') || (event.detail && performance.now() < (assistant.suppressClickUntil||0)))return;
+  event.preventDefault();event.stopImmediatePropagation();openBotMenu();
+},true);
+
 window.addEventListener('pagehide', () => { stopRecording(true); stopAudio(); clearImages(); });
 document.documentElement.classList.toggle('large-text', localStorage.getItem('talkdock.web.largeText') === 'true');
 if (hasToken()) connectSession();

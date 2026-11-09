@@ -104,7 +104,7 @@ export class FloatingAssistant {
     this.positionLauncher();
     const view = this.viewport();
     const header = document.querySelector('.topbar')?.getBoundingClientRect();
-    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: view.top + view.height };
+    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: Math.min(view.top + view.height, document.querySelector('.screen-bottom')?.getBoundingClientRect().top || Infinity) };
     const nodes = [...document.querySelectorAll('#feed-list .post-card[data-post-id]')];
     const cards = nodes.map(node => ({ id: Number(node.dataset.postId), ...node.getBoundingClientRect().toJSON() }));
     const id = centeredPost(cards, viewport, this.targetId);
@@ -163,7 +163,13 @@ export class FloatingAssistant {
   }
   positionLauncher() {
     if (this.gesture?.kind === 'launcher' && this.gesture.moved) return;
-    const point = launcherPosition(this.placement, this.viewport());
+    const view = this.viewport();
+    const bottom = document.querySelector('.screen-bottom')?.getBoundingClientRect().top;
+    if (Number.isFinite(bottom)) view.height = Math.min(view.height, Math.max(1, bottom - view.top - 10));
+    view.height = Math.max(1, view.height - Math.max(0, this.launcher.offsetHeight - LAUNCHER_SIZE));
+    const elder = document.documentElement.classList.contains('elder-screen');
+    const placement = elder ? { ...this.placement, xRatio: 0 } : this.placement;
+    const point = launcherPosition(placement, view);
     Object.assign(this.launcher.style, { left: `${point.x}px`, top: `${point.y}px` });
   }
   positionPanel() {

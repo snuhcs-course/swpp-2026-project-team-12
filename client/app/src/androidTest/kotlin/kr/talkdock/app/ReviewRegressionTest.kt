@@ -113,44 +113,37 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         fun children(root: View): List<View> = listOf(root) + if (root is ViewGroup)
             (0 until root.childCount).flatMap { children(root.getChildAt(it)) } else emptyList()
         val result = children(view).toMutableList()
-        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog")) {
+        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog", "commentsDialog", "helpDialog", "calendarDialog")) {
             val field = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }
             val dialog = field.get(activity) as? android.app.Dialog
             if (dialog?.isShowing == true) dialog.window?.decorView?.let { result.addAll(children(it)) }
         }
         return result
     }
-    fun openProfile() {
-        if (all().none { it.contentDescription == "프로필 메뉴" }) {
-            test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-            await { all().any { it.contentDescription == "프로필 메뉴" } && all().none { it is kr.talkdock.app.ui.TodakWaitingView } }
-        }
-        test.runOnMainSync { all().first { it.contentDescription == "프로필 메뉴" }.performClick() }
-        await { has("가족방 바꾸기") }
+    fun openProfile() = openSettings()
+    fun openSettings() {
+        if (has("계정 전환") && has("가족방 전환")) return
+        if (all().none { it.contentDescription == "설정으로 이동" }) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+        await { all().any { it.contentDescription == "설정으로 이동" } }
+        test.runOnMainSync { all().first { it.contentDescription == "설정으로 이동" }.performClick() }
+        await { has("가족방 전환") }
     }
-    fun openSettings() { openProfile(); click("설정") }
-    fun openRooms() { openProfile(); click("가족방 바꾸기") }
+    fun openRooms() { openSettings(); click("가족방 전환") }
     fun openDaily() {
-        if (!has("하루")) { test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }; await { has("하루") && all().none { it is kr.talkdock.app.ui.TodakWaitingView } } }
-        click("하루")
+        if (all().any { it.tag == "main-tab:digest" }) test.runOnMainSync { all().single { it.tag == "main-tab:digest" }.performClick() }
+        else openAssistantOption("오늘 가족의 하루")
+        await { has("오늘 이야기 보기") }; click("오늘 이야기 보기")
     }
     fun openCurrentPost() {
         if (hasPostDetail()) return
-        await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
-        test.runOnMainSync {
-            val deck = all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
-            all(deck.currentCard).first { it.contentDescription == "소식과 댓글 자세히 보기" }.performClick()
-        }
+        await { all().any { it is kr.talkdock.app.ui.FeedPostCard } }
+        test.runOnMainSync { all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().first().performClick() }
         await { hasPostDetail() }
     }
     fun hasPostDetail() = has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
     fun selectLetter(id: Int) {
-        await { all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
-        test.runOnMainSync {
-            val deck = all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
-            for (index in 0 until deck.letterCount) { deck.show(index); if (deck.currentPost.optInt("id") == id) break }
-            assertEquals(id, deck.currentPost.optInt("id"))
-        }
+        await { all().any { it is kr.talkdock.app.ui.FeedPostCard && it.post.optInt("id") == id } }
+        test.runOnMainSync { all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().first { it.post.optInt("id") == id }.requestRectangleOnScreen(android.graphics.Rect(0, 0, 1, 250), true) }
     }
     fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }
@@ -397,7 +390,8 @@ class ReviewPhotoMemoryTest {
                     val drawable=view.drawable as? android.graphics.drawable.BitmapDrawable ?: continue
                     assertTrue("Thumbnails must be decoded near their display size",drawable.bitmap.width <= view.width*2)
                 }
-                ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single().show(29)
+                ui.all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.getInt("id") == 1 }
+                    .requestRectangleOnScreen(android.graphics.Rect(0, 0, 1, 250), true)
             }
             ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/1/") } }
             Thread.sleep(1200)
@@ -736,7 +730,7 @@ class InlinePostAudioTest {
             .use { api -> UiHarness(api, room(1, "재생")).use { ui ->
                 open(ui); readSummary(ui); ui.await { api.paths().any { it.endsWith("/message/") } }
                 ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
-                ui.await { ui.all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+                ui.await { ui.all().any { it is kr.talkdock.app.ui.FeedPostCard } }
                 Thread.sleep(700)
                 ui.test.runOnMainSync { assertFalse(ui.has("사진과 글을 설명한 AI 요약")); assertFalse(playing(ui)) }
                 assertFalse(api.paths().contains("/api/speech/"))
@@ -1122,10 +1116,9 @@ class PostQuestionUiTest {
                 .put(post(3, "2026-10-19T10:30:00+09:00")).put(post(2, "2026-10-19T11:00:00+09:00"))
             jsonReply(JSONObject().put("posts", items))
         } else null }.use { api -> UiHarness(api, room(1, "질문"), large).use { ui ->
-            ui.await { ui.all().any { it is kr.talkdock.app.ui.PhotoLetterDeck } }
+            ui.await { ui.all().any { it is kr.talkdock.app.ui.FeedPostCard } }
             ui.test.runOnMainSync {
-                val deck = ui.all().filterIsInstance<kr.talkdock.app.ui.PhotoLetterDeck>().single()
-                val ids = (0 until deck.letterCount).map { index -> deck.show(index); deck.currentPost.getInt("id") }
+                val ids = ui.all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().map { it.post.getInt("id") }
                 assertEquals(listOf(2, 1, 3, 100, 999), ids)
             }
         } }
