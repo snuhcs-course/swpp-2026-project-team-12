@@ -14,7 +14,7 @@ const toastBox = document.querySelector('#toast');
 const busyIndicator = document.querySelector('#busy-indicator');
 const postingSuccessBox = document.querySelector('#posting-success');
 let postingSuccessTimer;
-let elder = false, inlineObserver, selectedDigestDate = null, digestMonth = null, digestDates = [];
+let elder = false, inlineObserver, captionObserver, selectedDigestDate = null, digestMonth = null, digestDates = [];
 const preferredModes = new Map();
 const expandedPosts = new Set(), inlineComments = new Map(), pendingComments = new Set();
 let commentQueue = [], commentActive = 0;
@@ -136,7 +136,7 @@ function stopAudio() {
   if (audio) { audio.pause(); audio = null; }
   if (audioURL) { URL.revokeObjectURL(audioURL); audioURL = null; }
   document.querySelectorAll('[data-action="stop-audio"]').forEach(node => { node.hidden = true; });
-  document.querySelectorAll('[data-action="feed-stop-listen"]').forEach(node => { node.dataset.action = 'feed-listen'; node.innerHTML = icon('volume') + '소식 듣기'; });
+  document.querySelectorAll('[data-action="feed-stop-listen"]').forEach(node => { node.dataset.action = 'feed-listen'; node.innerHTML = icon('volume') + feedListenLabel(); node.setAttribute('aria-label','소식 듣기'); });
 }
 function updateBusyIndicator() {
   const active = [...pendingOperations].some(operation =>
@@ -440,7 +440,7 @@ function familyRail() {
     <p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
 }
 async function renderFeed(version) {
-  $('#page').innerHTML = `<section class="vertical-feed" aria-label="가족 소식"><div class="feed-toolbar"><h2>가족의 소식 <span id="post-count"></span></h2>${elder ? '' : button('compose', '소식 쓰기', 'plus', 'button quiet compact')}</div><div class="feed-filter" ${elder ? 'hidden' : ''}><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="가족의 소식에서 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>`;
+  $('#page').innerHTML = `<section class="vertical-feed" aria-label="가족 소식"><div class="feed-toolbar"><h2>가족의 소식 <span id="post-count"></span></h2>${elder ? '' : button('compose', '소식 쓰기', 'plus', 'button quiet compact')}</div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>`;
   const entry = document.createElement('div');
   entry.id = 'daily-entry'; entry.innerHTML = questionEntry(dailyStatus);
   $('.vertical-feed').before(entry);
@@ -541,9 +541,9 @@ function inlineCommentMarkup(comments) {
 }
 function postCard(post) {
   const photos = post.images || [];
-  const more = captionNeedsMore(post.caption, elder) && !expandedPosts.has(post.id);
-  const actions = `<footer class="post-actions">${button(elder ? 'elder-comment' : 'feed-comments', elder ? '댓글 달기' : `댓글 <span>${post.comment_count}</span>`, 'comment', 'button quiet', `data-id="${post.id}"`)}${elder ? '' : button('feed-voice', '말로 댓글', 'mic', 'button quiet', `data-id="${post.id}"`)}${button('feed-listen', '소식 듣기', 'volume', 'button quiet ai-link', `data-id="${post.id}"`)}</footer>`;
-  const caption = `<div class="post-body"><p class="post-caption${more ? ' caption-clamped' : ''}">${e(post.caption)}</p>${more ? button('expand-post', '더보기', null, 'button quiet compact', `data-id="${post.id}"`) : ''}</div>`;
+  const more = !elder && Boolean(post.caption?.trim()) && !expandedPosts.has(post.id);
+  const actions = `<footer class="post-actions">${button(elder ? 'elder-comment' : 'feed-comments', elder ? '댓글 달기' : '<span class="sr-only">댓글</span>', 'comment', 'button quiet', `data-id="${post.id}" aria-label="${elder ? '댓글 달기' : `댓글 ${post.comment_count}`}"`)}${elder ? '' : button('feed-voice', '<span class="sr-only">말로 댓글</span>', 'mic', 'button quiet', `data-id="${post.id}" aria-label="말로 댓글"`)}${button('feed-listen', feedListenLabel(), 'volume', 'button quiet ai-link', `data-id="${post.id}" aria-label="소식 듣기"`)}</footer>`;
+  const caption = `<div class="post-body"><p class="post-caption${more ? ' caption-clamped' : ''}">${e(post.caption)}</p>${more ? button('expand-post', '더보기', null, 'button quiet compact', `data-id="${post.id}" hidden`) : ''}</div>`;
   return `<article class="post-card" data-post-id="${post.id}"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div></header>
     ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo-url="${e(photos[0].url)}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
     ${elder ? caption + actions : actions + caption}
@@ -580,14 +580,28 @@ function drainInlineComments() {
 }
 
 function updateFeed() {
-  const query = ($('#feed-filter')?.value || '').trim().toLocaleLowerCase();
-  const author = $('#author-filter')?.value;
-  const posts = state.posts.filter(post => (!author || String(post.author_id) === author) && `${post.caption} ${post.author_name}`.toLocaleLowerCase().includes(query));
+  const posts = state.posts;
   $('#post-count').textContent = `${posts.length}`;
-  $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', query || author ? '일치하는 소식이 없어요' : '첫 번째 안부를 기다리고 있어요', query || author ? '검색어나 가족을 바꿔서 다시 찾아보세요.' : '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', query || author ? '' : button('compose', '첫 소식 남기기', 'plus', 'button primary'));
+  $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', '첫 번째 안부를 기다리고 있어요', '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', button('compose', '첫 소식 남기기', 'plus', 'button primary'));
+  observeCaptionOverflow();
   hydrateImages(); observeInlineComments();
   assistant.refresh();
 }
+function observeCaptionOverflow() {
+  captionObserver?.disconnect();
+  const sync = caption => {
+    const more = caption.parentElement?.querySelector('[data-action="expand-post"]');
+    if (more) more.hidden = !captionNeedsMore(caption.scrollHeight, caption.clientHeight, elder);
+  };
+  captionObserver = new ResizeObserver(entries => entries.forEach(entry => sync(entry.target)));
+  document.querySelectorAll('#feed-list .caption-clamped').forEach(caption => { sync(caption); captionObserver.observe(caption); });
+  document.fonts.ready.then(() => document.querySelectorAll('#feed-list .caption-clamped').forEach(sync));
+}
+function feedListenLabel(active = false) {
+  const label = active ? '듣기 중지' : '소식 듣기';
+  return elder ? label : `<span class="sr-only">${label}</span>`;
+}
+
 function hydrateImages(root = document) {
   observer ||= new IntersectionObserver(entries => {
     entries.forEach(entry => { if (entry.isIntersecting) { observer.unobserve(entry.target); loadImage(entry.target); } });
@@ -718,7 +732,7 @@ function showDigestStory() {
 }
 function refreshPostComments(id, comments) {
   const card=document.querySelector(`#feed-list .post-card[data-post-id="${id}"]`);if(!card)return;
-  const count=card.querySelector('[data-action="feed-comments"] span');if(count)count.textContent=comments.length;
+  const action=card.querySelector('[data-action="feed-comments"]');if(action)action.setAttribute('aria-label',`댓글 ${comments.length}`);
   const target=card.querySelector('.feed-inline-comments > div');if(target)target.innerHTML=inlineCommentMarkup(comments);
 }
 async function listenToPost(id, target) {
@@ -732,7 +746,7 @@ async function listenToPost(id, target) {
     playing = Boolean(audio && !audio.paused);
   });
   if (playing && target.isConnected && session===state.session && room===state.room?.id && version===state.pageVersion) {
-    target.innerHTML=icon('stop')+'듣기 중지';target.dataset.action='feed-stop-listen';
+    target.innerHTML=icon('stop')+feedListenLabel(true);target.setAttribute('aria-label','듣기 중지');target.dataset.action='feed-stop-listen';
   }
 }
 
@@ -1037,7 +1051,7 @@ document.addEventListener('click', async event => {
     if (action === 'feed-voice') return busy(target, () => startRecording());
     const field = $('#comment-text', modal); field?.scrollIntoView({ block: 'nearest' }); field?.focus({ preventScroll: true }); return;
   }
-  if (action === 'feed-stop-listen') { stopAudio(); target.dataset.action='feed-listen'; target.innerHTML=icon('volume')+'소식 듣기'; return; }
+  if (action === 'feed-stop-listen') { stopAudio(); target.dataset.action='feed-listen'; target.innerHTML=icon('volume')+feedListenLabel();target.setAttribute('aria-label','소식 듣기'); return; }
   if (action === 'feed-listen') return listenToPost(Number(target.dataset.id), target);
   if (action === 'digest-story') return showDigestStory();
   if (action === 'day-prev' || action === 'day-next') { digestMonth.setUTCMonth(digestMonth.getUTCMonth() + (action === 'day-next' ? 1 : -1)); renderMonth(); return; }
@@ -1134,7 +1148,6 @@ document.addEventListener('input', event => {
     form.querySelectorAll('[aria-invalid]').forEach(input => input.removeAttribute('aria-invalid'));
     $('.form-error', form).textContent = '';
   }
-  if (event.target.id === 'feed-filter') updateFeed();
   if (event.target.id === 'post-caption') $('#caption-count').textContent = event.target.value.length;
   if (event.target.closest('[data-form="lookup-room"]')) { state.lookup = null; $('#join-panel').innerHTML = ''; }
 });
@@ -1150,7 +1163,6 @@ document.addEventListener('change', event => {
     form.querySelectorAll('.daily-option').forEach(row => row.classList.toggle('selected', row.querySelector('input[type="radio"]').checked));
   }
   if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
-  if (event.target.id === 'author-filter') updateFeed();
   if (event.target.id === 'photo-input') { addFiles([...event.target.files]); event.target.value = ''; }
   if (event.target.id === 'digest-date' && event.target.validity.valid) {
     document.querySelectorAll('.date-item').forEach(node => { const selected = node.dataset.date === event.target.value; node.classList.toggle('selected', selected); node.setAttribute('aria-pressed', String(selected)); });

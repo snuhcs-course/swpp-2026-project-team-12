@@ -21,8 +21,10 @@ test('day membership uses Korean midnight rather than the browser timezone', () 
   assert.equal(koreanDay('2026-11-08T15:00:00Z'),'2026-11-09');
   assert.equal(koreanDay('invalid'),'');
 });
-test('long standard captions collapse while elderly captions and empty posts do not', () => {
-  assert.equal(captionNeedsMore('가'.repeat(121),false),true);
-  assert.equal(captionNeedsMore('가'.repeat(121),true),false);
-  assert.equal(captionNeedsMore('',false),false); assert.equal(captionNeedsMore(null,false),false);
+test('caption expansion follows measured two-line overflow and preserves elderly full text', () => {
+  assert.equal(captionNeedsMore(90,60,false),true);
+  assert.equal(captionNeedsMore(90,60,true),false);
+  assert.equal(captionNeedsMore(60,60,false),false);
+  assert.equal(captionNeedsMore(0,0,false),false);
+  assert.equal(captionNeedsMore(60.5,60,false),false);
 });

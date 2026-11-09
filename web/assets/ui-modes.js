@@ -18,4 +18,5 @@ export function koreanDay(value) {
   if (Number.isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
 }
-export function captionNeedsMore(caption, elder) { return !elder && String(caption || '').length > 120; }
+// Use measured overflow so short text with line breaks also respects the two-line limit.
+export function captionNeedsMore(scrollHeight, visibleHeight, elder) { return !elder && scrollHeight > visibleHeight + 1; }

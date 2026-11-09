@@ -47,6 +47,14 @@ class ScreenModesTest {
         ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
         ui.test.runOnMainSync {
             assertEquals(3, ui.all().count { it.tag?.toString()?.startsWith("main-tab:") == true })
+            val first = ui.all().filterIsInstance<FeedPostCard>().first()
+            val caption = descendants(first).filterIsInstance<TextView>().single { it.tag == "feed-caption" }
+            assertEquals(2, caption.maxLines)
+            for (name in listOf("댓글 1", "말로 댓글", "소식 듣기")) {
+                val action = descendants(first).single { it.contentDescription == name }
+                assertTrue(descendants(action).filterIsInstance<TextView>().isEmpty())
+                assertTrue(action.minimumHeight >= ui.activity.resources.displayMetrics.density * 48)
+            }
             val more = ui.all().filterIsInstance<TextView>().first { it.text.toString() == "더보기" }
             assertTrue(more.performClick()); assertEquals(View.GONE, more.visibility)
             ui.all().single { it.tag == "main-tab:digest" }.performClick()
@@ -55,6 +63,24 @@ class ScreenModesTest {
         ui.click("오늘 이야기 보기")
         ui.await { ui.has("오늘도, 함께") }
         ui.screenshot("standard-day-story.png")
+    } }
+
+    @Test fun shortThreeLineCaptionStillOffersMore() = server().use { api -> UiHarness(api, family).use { ui ->
+        ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
+        lateinit var caption: TextView
+        lateinit var more: TextView
+        ui.test.runOnMainSync {
+            val card = ui.all().filterIsInstance<FeedPostCard>().first()
+            caption = descendants(card).filterIsInstance<TextView>().single { it.tag == "feed-caption" }
+            more = descendants(card).filterIsInstance<TextView>().single { it.text == "더보기" }
+            caption.text = "첫째 줄\n둘째 줄\n셋째 줄"
+        }
+        ui.await { more.visibility == View.VISIBLE && caption.maxLines == 2 }
+        ui.test.runOnMainSync { caption.text = "짧은 한 줄" }
+        ui.await { more.visibility == View.GONE }
+        ui.test.runOnMainSync { caption.text = "첫째 줄\n둘째 줄\n셋째 줄" }
+        ui.await { more.visibility == View.VISIBLE }
+        ui.test.runOnMainSync { more.performClick(); assertEquals(Int.MAX_VALUE, caption.maxLines) }
     } }
 
     @Test fun elderlyModeHasSingleComposeAndLeftBotWithInlineComments() = server().use { api -> UiHarness(api, family, large = true).use { ui ->

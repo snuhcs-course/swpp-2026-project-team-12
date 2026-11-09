@@ -10,8 +10,8 @@ There are no backend, API schema, database, launcher artwork, or APK changes in 
 | Area | Standard | Elderly |
 | --- | --- | --- |
 | Navigation | News / Day / Memories | One bottom **Write news** action; Day and Memories are in the assistant |
-| News | Vertical feed; long captions expand with More | Full captions and inline family comments |
-| Post actions | Comments, voice comment, listen | Large comment and listen buttons |
+| News | Vertical feed; captions show at most two rendered lines before More; no search/family filters | Full captions and inline family comments |
+| Post actions | Icons only for comments, voice comment, and listen; accessible names retained | Large comment and listen buttons with text |
 | Comments | Bottom sheet with text/voice composer | Post detail with text/voice composer; Back restores the reading position |
 | Assistant | Context follows the visible post | Docked to the left; includes Help |
 | Day | Large calendar, selected-day thumbnails, story and audio actions | Same view, opened from the assistant |
@@ -32,7 +32,7 @@ Inline comments load when their posts enter the viewport, with at most two concu
 
 ## Reproduce checks
 
-Verified on 2026-11-09 with local synthetic data. These are targeted checks, not a claim that every repository test or production service was exercised.
+Initial screen-mode validation on 2026-11-09 used local synthetic data. The table below records that initial implementation; the compact-feed follow-up results are listed after it. These are targeted checks, not a claim that every repository test or production service was exercised.
 
 | Check | Result |
 | --- | --- |
@@ -44,6 +44,8 @@ Verified on 2026-11-09 with local synthetic data. These are targeted checks, not
 | Total targeted Android instrumentation tests | 63 passed |
 | Web Node tests | 59 passed |
 | Web browser scenarios | 19 checks passed; no page runtime errors |
+
+Compact-feed follow-up: debug app/test builds and Lint passed, 39 JVM tests passed, all 7 `ScreenModesTest` cases passed, 59 web Node tests passed, and 23 browser checks passed. This includes rendered two-line overflow (including short text with three explicit lines), icon-only standard actions, removed filters, expansion, and unchanged elderly controls.
 
 Android requires JDK 17+, SDK 36, and an isolated API 36 emulator. From `client`:
 
@@ -86,6 +88,7 @@ Production login, real AI quality, microphone hardware, and physical-device acce
 ## Changes
 - Replace the news carousel with a vertical feed and a compact today-question banner.
 - Add the selected standard layout with expandable captions, comment sheets, and News / Day / Memories navigation.
+- Keep the standard feed free of search/family filters, show icon-only post actions, and collapse captions after two rendered lines.
 - Add an elderly layout with full captions, inline comments, large actions, one bottom compose button, and a left-docked assistant.
 - Add calendar-based day previews and a story view with photos above the summary.
 - Add per-account client screen preferences and six-step, replayable practice using a separate virtual post.
@@ -94,6 +97,7 @@ Production login, real AI quality, microphone hardware, and physical-device acce
 ## Validation
 - Android debug builds and Lint passed; 39 JVM unit tests and 63 targeted instrumentation tests passed on an API 36 emulator.
 - Web: 59 Node tests and 19 browser checks passed, with no page runtime errors.
+- Compact-feed follow-up: builds/Lint, 39 JVM tests, 7 Android screen-mode cases, 59 web Node tests, and 23 browser checks passed.
 Local mock data is used; live AI, production accounts, and physical microphone/device behavior were not tested.
 ```
 
@@ -108,6 +112,7 @@ git diff --cached --stat
 git commit -m "feature: add standard and elderly screen modes"
 git push -u origin feature/frontend-screen-modes
 ```
+
 
 Open the PR with **base: `iteration-4-demo`**, **compare: `feature/frontend-screen-modes`**.
 If the team's integration branch has changed, agree on that destination before opening the PR.

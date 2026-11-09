@@ -25,6 +25,7 @@ const family = { id:77, name:'화면 테스트 가족', members:[{ id:7,name:'�
 const comments = [{ id:10,author_name:'김선희',relationship:'할머니',text:'좋은 하루 보내렴!',created_at:`${day}T08:00:00+09:00` }];
 const posts = [1,2,3].map(id => ({ id, author_id:id, author_name:`가족${id}`, relationship:'손자', caption: id === 1 ? '커피와 빵으로 아침을 먹었어요. '.repeat(18) : `가족의 ${id}번째 소식이에요.`, created_at:`${day}T08:00:00+09:00`, images:[], comment_count:comments.length }));
 posts[0].images=[{id:1,url:'/api/posts/1/images/1/'},{id:2,url:'/api/posts/1/images/2/'}];
+posts[1].caption='짧은 첫째 줄\n짧은 둘째 줄\n짧은 셋째 줄';
 const question = { id:5,post_id:9,date:day,version:1,kind:'choice',title:'가족과 함께하고 싶은 활동은?',options:['산책','식사'],answers:[],comments:[] };
 await page.addInitScript(() => sessionStorage.setItem('talkdock.web.token', 'synthetic-token'));
 await page.addInitScript(() => {
@@ -63,8 +64,14 @@ try {
   ok(await page.locator('.screen-bottom [data-nav]').count()===3,'standard has three tabs');
   await page.locator('#feed-list img.loaded').first().waitFor();
   await page.screenshot({path:path.join(output,'standard.png'),fullPage:false});
-  await page.getByRole('button',{name:'더보기',exact:true}).click();
-  ok(await page.locator('.caption-clamped').count()===0,'long caption expands');
+  ok(await page.locator('#feed-filter, #author-filter').count()===0,'feed has no search or family filters');
+  ok(await page.locator('#feed-list .post-actions').first().evaluate(el=>[...el.querySelectorAll('button')].every(button=>[...button.childNodes].every(node=>node.nodeType===3 ? !node.textContent.trim() : node.matches('svg, .sr-only')))),'standard actions use icons with accessible labels only');
+  const firstCaption=page.locator('#feed-list .post-caption').first();
+  ok(await firstCaption.evaluate(el=>getComputedStyle(el).webkitLineClamp==='2'&&el.clientHeight<=parseFloat(getComputedStyle(el).lineHeight)*2+1),'standard text is capped at two rendered lines');
+  await page.locator('#feed-list [data-post-id="2"] [data-action="expand-post"]').waitFor();
+  ok(await page.locator('#feed-list [data-post-id="3"] [data-action="expand-post"]').isHidden(),'short single-line text has no more button');
+  await page.locator('#feed-list [data-action="expand-post"]').first().click();
+  ok(await firstCaption.evaluate(el=>!el.classList.contains('caption-clamped')),'long caption expands');
   await page.locator('[data-action=feed-listen]').first().click();
   await page.getByRole('button',{name:'듣기 중지',exact:true}).waitFor();
   ok(await page.locator('[data-action=feed-stop-listen]').count()===1,'listen button exposes stop after loading');

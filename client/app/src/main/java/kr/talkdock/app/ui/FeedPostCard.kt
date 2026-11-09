@@ -19,6 +19,7 @@ class FeedPostCard(
     var commentsLoaded = false
     var commentsLoading = false
     private val commentLabel = ui.text("", if (elder) 21f else 16f)
+    private var commentAction: View? = null
 
     init {
         isClickable = true; isFocusable = true; contentDescription = "소식과 댓글 자세히 보기"
@@ -28,38 +29,47 @@ class FeedPostCard(
         setPadding(ui.dp(16), ui.dp(18), ui.dp(16), ui.dp(18))
         author(this, post); photos(this, post)
         val caption = ui.text(post.optString("caption"), if (elder) 23f else 18f).apply {
+            tag = "feed-caption"
             setLineSpacing(ui.dp(3).toFloat(), 1.2f)
         }
         val actions = ui.row().apply { setPadding(0, ui.dp(12), 0, ui.dp(10)) }
         fun action(label: String, symbol: String, callback: () -> Unit): View {
             val box = ui.column(8).apply {
-                gravity = Gravity.CENTER; minimumHeight = ui.dp(if (elder) 94 else 64)
+                gravity = Gravity.CENTER; minimumHeight = ui.dp(if (elder) 94 else 48)
                 isClickable = true; isFocusable = true; contentDescription = label
                 if (elder) background = ui.shape(if (symbol == "listen") ui.sky else ui.coral, 20)
                 setOnClickListener { callback() }
             }
             box.addView(IconView(context, symbol, if (symbol == "listen") ui.skyDeep else ui.coralDeep),
                 LayoutParams(ui.dp(if (elder) 34 else 26), ui.dp(if (elder) 34 else 26)))
-            if (symbol == "comment") {
+            if (elder && symbol == "comment") {
                 commentLabel.text = label; commentLabel.gravity = Gravity.CENTER
                 box.addView(commentLabel)
-            } else box.addView(ui.text(label, if (elder) 21f else 16f).apply { gravity = Gravity.CENTER })
+            } else if (elder) box.addView(ui.text(label, 21f).apply { gravity = Gravity.CENTER })
             actions.addView(box, LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(4) })
             return box
         }
-        action(if (elder) "댓글 달기" else "댓글 ${post.optInt("comment_count")}", "comment", comment)
+        commentAction = action(if (elder) "댓글 달기" else "댓글 ${post.optInt("comment_count")}", "comment", comment)
         if (!elder) action("말로 댓글", "mic", voice)
         action("소식 듣기", "listen") { audio.togglePlayback() }
         if (!elder) addView(actions)
         if (caption.text.isNotBlank()) {
             addView(caption, LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
-            if (!elder && caption.text.length > 120) {
-                caption.maxLines = 3; caption.ellipsize = android.text.TextUtils.TruncateAt.END
-                ui.text("더보기", 17f, true, ui.coralDeep).apply {
+            if (!elder) {
+                var expanded = false
+                caption.maxLines = 2; caption.ellipsize = android.text.TextUtils.TruncateAt.END
+                val more = ui.text("더보기", 17f, true, ui.coralDeep).apply {
+                    visibility = GONE
                     minimumHeight = ui.dp(44); gravity = Gravity.CENTER_VERTICAL
                     isClickable = true; isFocusable = true; contentDescription = "게시글 전체 보기"
-                    setOnClickListener { caption.maxLines = Int.MAX_VALUE; caption.ellipsize = null; visibility = GONE }
+                    setOnClickListener { expanded = true; caption.maxLines = Int.MAX_VALUE; caption.ellipsize = null; visibility = GONE }
                     addView(this)
+                }
+                caption.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                    if (!expanded) caption.layout?.let { layout ->
+                        val overflow = layout.lineCount > 2 || (layout.lineCount > 0 && layout.getEllipsisCount(layout.lineCount - 1) > 0)
+                        more.visibility = if (overflow) VISIBLE else GONE
+                    }
                 }
             }
         }
@@ -81,6 +91,7 @@ class FeedPostCard(
             ui.label(comments, item.optString("text"), 21f).setLineSpacing(ui.dp(3).toFloat(), 1.2f)
         }
         commentLabel.text = if (elder) "댓글 달기" else "댓글 ${items.size}"
+        commentAction?.contentDescription = commentLabel.text
     }
 
     fun commentsFailed(retry: () -> Unit) {
