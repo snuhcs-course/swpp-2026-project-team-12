@@ -88,8 +88,15 @@ class GuidedHelpView(context: Context, private val ui: Ui, private val finish: (
             }
             target = action
         } else {
-            target = ImageView(context).apply { setImageResource(R.drawable.assistant_character); contentDescription = "토닥 도우미" }
-            addView(target, LayoutParams(ui.dp(92), ui.dp(108), Gravity.BOTTOM or Gravity.LEFT).apply { bottomMargin = ui.dp(30) })
+            target = ui.column().apply {
+                gravity = Gravity.CENTER_HORIZONTAL; contentDescription = "토닥 도우미"
+                addView(ImageView(context).apply {
+                    setImageResource(R.drawable.assistant_character); scaleType = ImageView.ScaleType.FIT_CENTER
+                    importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, LinearLayout.LayoutParams(ui.dp(68), ui.dp(82)))
+                addView(ui.text("토닥 도우미", 15f, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(-1, ui.dp(28)))
+            }
+            addView(target, LayoutParams(ui.dp(88), ui.dp(114), Gravity.BOTTOM or Gravity.RIGHT).apply { bottomMargin = ui.dp(30) })
         }
         addView(shade, LayoutParams(-1, -1)); shade.target = target
         val coach = ui.column(20).apply { background = ui.shape(ui.paper, 24); elevation = ui.dp(8).toFloat(); tag = "help-step:${step + 1}" }

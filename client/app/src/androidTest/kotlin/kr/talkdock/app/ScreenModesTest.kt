@@ -83,7 +83,7 @@ class ScreenModesTest {
         ui.test.runOnMainSync { more.performClick(); assertEquals(Int.MAX_VALUE, caption.maxLines) }
     } }
 
-    @Test fun elderlyModeHasSingleComposeAndLeftBotWithInlineComments() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
+    @Test fun elderlyModeHasSingleComposeAndLabeledRightBotWithInlineComments() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
         ui.await { dialog(ui, "helpDialog")?.isShowing == true }
         ui.test.runOnMainSync { dialog(ui, "helpDialog")!!.dismiss() }
         ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
@@ -92,7 +92,10 @@ class ScreenModesTest {
             assertTrue(ui.all().none { it.tag?.toString()?.startsWith("main-tab:") == true })
             assertEquals(1, ui.all().count { it.tag == "elder-compose" })
             val bot = ui.all().filterIsInstance<FloatingAssistantView>().single()
-            assertTrue("Bot docks to left", bot.x < ui.activity.resources.displayMetrics.density * 16)
+            assertEquals("Bot docks to right", (bot.parent as View).width.toFloat(), bot.x + bot.width, 2f)
+            val label = descendants(bot).filterIsInstance<TextView>().single { it.tag == "assistant-label" }
+            assertEquals("토닥 도우미", label.text.toString())
+            assertTrue(label.top >= bot.getChildAt(0).bottom)
             ui.all().single { it.tag == "elder-compose" }.performClick()
         }
         ui.await { ui.has("가족에게 전하기") }

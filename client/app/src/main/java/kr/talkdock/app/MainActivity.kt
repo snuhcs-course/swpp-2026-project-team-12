@@ -382,7 +382,7 @@ class MainActivity : ComponentActivity() {
         assistantViewport = body
         if (session != null && room.has("id") && name in setOf("home", "detail")) {
             assistant = FloatingAssistantView(this, ui, { assistantBounds() }, { updateAssistantContext() },
-                onMoveStarted = { closeAssistantMenu() }, fixedLeft = large) { openAssistant() }
+                onMoveStarted = { closeAssistantMenu() }, fixedRight = large, showLabel = large) { openAssistant() }
                 .also { root.addView(it) }
         }
     }

@@ -221,8 +221,8 @@ class FloatingAssistantTest {
             screen.drag(-1500f, 0f); settle()
             assertEquals("Dragging left must not move or resize text (large=$large)", original, textBounds(2))
             screen.test.runOnMainSync {
-                if (large) assertEquals(0f, screen.button().x, 2f) else assertTrue(screen.button().x < right)
-                assertEquals(1f, screen.character().scaleX, 0f)
+                if (large) assertEquals(right, screen.button().x, 2f) else assertTrue(screen.button().x < right)
+                assertEquals(if (large) -1f else 1f, screen.character().scaleX, 0f)
                 assertEquals(2, screen.button().tag)
                 assertTrue(screen.views().none { it is AssistantBubbleMenu })
             }
@@ -230,7 +230,7 @@ class FloatingAssistantTest {
             assertEquals("Dragging right must not move or resize text (large=$large)", original, textBounds(2))
             screen.test.runOnMainSync {
                 assertEquals(right, screen.button().x, 2f)
-                assertEquals(if (large) 1f else -1f, screen.character().scaleX, 0f)
+                assertEquals(-1f, screen.character().scaleX, 0f)
             }
             screen.recreate(); settle()
             fun relative(bounds: Map<String, android.graphics.Rect>) = bounds.mapValues { (_, rect) ->

@@ -57,11 +57,14 @@ await page.route('**/api/**', async route => {
   else { await route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({error:'Unmocked route: '+url.pathname})}); return; }
   await route.fulfill({contentType:'application/json',body:JSON.stringify(data)});
 });
+const launcherLook = () => page.locator('#assistant-root .assistant-launcher').evaluate(el => {const css=getComputedStyle(el);return {width:el.offsetWidth,height:el.offsetHeight,border:css.border,borderRadius:css.borderRadius,background:css.backgroundColor,imageWidth:getComputedStyle(el.querySelector('img')).width};});
 let checks=0;const ok=(value,message)=>{assert.ok(value,message);checks++};
 try {
   await page.goto(`http://127.0.0.1:${server.address().port}/#/feed`);
   await page.locator('#feed-list .post-card').first().waitFor();
   ok(await page.locator('.screen-bottom [data-nav]').count()===3,'standard has three tabs');
+  const standardLauncherLook=await launcherLook();
+  ok(await page.locator('#assistant-root .assistant-launcher-label').isHidden(),'standard assistant has no visible caption');
   await page.locator('#feed-list img.loaded').first().waitFor();
   await page.screenshot({path:path.join(output,'standard.png'),fullPage:false});
   ok(await page.locator('#feed-filter, #author-filter').count()===0,'feed has no search or family filters');
@@ -117,7 +120,12 @@ try {
   await page.locator('[data-comments="1"]').getByText('좋은 하루 보내렴!').waitFor();
   ok(await page.locator('[data-comments="1"] .comment').count()>0,'elder comments visible inline');
   const bounds=await page.locator('.assistant-launcher').boundingBox();
-  ok(bounds.x<=20,'elder assistant docks left');
+  ok(bounds.x+bounds.width>=page.viewportSize().width-20,'elder assistant docks right');
+  ok(JSON.stringify(await launcherLook())===JSON.stringify(standardLauncherLook),'elder assistant matches the standard icon appearance');
+  const label=page.locator('#assistant-root .assistant-launcher-label');
+  ok(await label.isVisible() && await label.innerText()==='토닥 도우미','elder assistant shows its label');
+  const labelBounds=await label.boundingBox(), bottom=await page.locator('.screen-bottom').boundingBox();
+  ok(labelBounds.y>=bounds.y+bounds.height && labelBounds.y+labelBounds.height<bottom.y,'assistant caption sits below the icon and above navigation');
   await page.locator('.screen-bottom [data-action=compose]').click();
   ok(await page.locator('[data-form=post]').isVisible(),'bottom compose opens real composer');
   await page.getByRole('button',{name:'닫기',exact:true}).click();

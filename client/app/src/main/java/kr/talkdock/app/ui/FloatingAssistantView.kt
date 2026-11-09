@@ -23,12 +23,13 @@ class FloatingAssistantView(
     private val onPositionChanged: (Float) -> Unit,
     private val onMoveStarted: () -> Unit = {},
     private val preferredDock: () -> Rect? = { null },
-    private val fixedLeft: Boolean = false,
+    private val fixedRight: Boolean = false,
+    private val showLabel: Boolean = false,
     onOpen: () -> Unit,
 ) : FrameLayout(context) {
     private val preferences = context.getSharedPreferences("talkdock-assistant-letter", Context.MODE_PRIVATE)
     private var anchor = AssistantAnchor(
-        if (fixedLeft || preferences.getBoolean("left", false)) AssistantEdge.LEFT else AssistantEdge.RIGHT,
+        if (fixedRight) AssistantEdge.RIGHT else if (preferences.getBoolean("left", false)) AssistantEdge.LEFT else AssistantEdge.RIGHT,
         preferences.getFloat("height", .62f).takeIf { it.isFinite() } ?: .62f,
     )
     private var startRawX = 0f
@@ -49,10 +50,15 @@ class FloatingAssistantView(
     }
 
     init {
-        layoutParams = LayoutParams(ui.dp(68), ui.dp(82), Gravity.TOP or Gravity.LEFT)
+        layoutParams = LayoutParams(ui.dp(if (showLabel) 88 else 68), ui.dp(if (showLabel) 114 else 82), Gravity.TOP or Gravity.LEFT)
         isClickable = true; isFocusable = true
         contentDescription = "토닥 도우미. 누르면 질문하기, 끌어서 위치 옮기기"
-        addView(characterImage, LayoutParams(-1, -1))
+        addView(characterImage, LayoutParams(ui.dp(68), ui.dp(82), Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+        if (showLabel) addView(ui.text("토닥 도우미", 15f, true).apply {
+            tag = "assistant-label"; gravity = Gravity.CENTER; maxLines = 1
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            background = ui.shape(ui.paper, 10)
+        }, LayoutParams(-1, ui.dp(28), Gravity.BOTTOM))
         characterImage.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) fitCharacterToEdge()
         }
@@ -84,8 +90,8 @@ class FloatingAssistantView(
         val drawable = characterImage.drawable ?: return x + width / 2f
         val point = floatArrayOf(drawable.intrinsicWidth * (1124f / 1151f), 0f)
         characterImage.imageMatrix.mapPoints(point)
-        val innerEdge = if (characterImage.scaleX < 0) width - point[0] else point[0]
-        return x + innerEdge.coerceIn(0f, width.toFloat())
+        val innerEdge = if (characterImage.scaleX < 0) characterImage.width - point[0] else point[0]
+        return x + characterImage.left + innerEdge.coerceIn(0f, characterImage.width.toFloat())
     }
 
     fun refreshPosition() {
@@ -93,7 +99,7 @@ class FloatingAssistantView(
         val area = bounds() ?: return
         if (!touching) {
             val point = AssistantPlacement.position(anchor, area, width.toFloat(), height.toFloat())
-            x = if (fixedLeft) area.left else point.x; y = point.y
+            x = if (fixedRight) maxOf(area.left, area.right - width) else point.x; y = point.y
             if (!preferences.contains("height")) preferredDock()?.let { pocket ->
                 y = (pocket.exactCenterY() - height / 2f).coerceIn(area.top, maxOf(area.top, area.bottom - height))
             }
@@ -131,7 +137,7 @@ class FloatingAssistantView(
                     onMoveStarted()
                 }
                 if (dragging) bounds()?.let {
-                    x = if (fixedLeft) it.left else (startX + dx).coerceIn(it.left, maxOf(it.left, it.right - width))
+                    x = if (fixedRight) maxOf(it.left, it.right - width) else (startX + dx).coerceIn(it.left, maxOf(it.left, it.right - width))
                     y = (startY + dy).coerceIn(it.top, maxOf(it.top, it.bottom - height))
                     updateCharacterFacing(it)
                     reportPosition()
@@ -162,16 +168,16 @@ class FloatingAssistantView(
     override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
         super.onInitializeAccessibilityNodeInfo(info)
         info.className = "android.widget.Button"
-        info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_LEFT, "왼쪽 가장자리로 이동"))
-        if (!fixedLeft) info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_RIGHT, "오른쪽 가장자리로 이동"))
+        if (!fixedRight) info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_LEFT, "왼쪽 가장자리로 이동"))
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_RIGHT, "오른쪽 가장자리로 이동"))
         info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_UP, "위로 이동"))
         info.addAction(AccessibilityNodeInfo.AccessibilityAction(ACTION_DOWN, "아래로 이동"))
     }
 
     override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
         anchor = when (action) {
-            ACTION_LEFT -> anchor.copy(edge = AssistantEdge.LEFT)
-            ACTION_RIGHT -> if (fixedLeft) return false else anchor.copy(edge = AssistantEdge.RIGHT)
+            ACTION_LEFT -> if (fixedRight) return false else anchor.copy(edge = AssistantEdge.LEFT)
+            ACTION_RIGHT -> anchor.copy(edge = AssistantEdge.RIGHT)
             ACTION_UP -> anchor.copy(fraction = (anchor.fraction - .15f).coerceAtLeast(0f))
             ACTION_DOWN -> anchor.copy(fraction = (anchor.fraction + .15f).coerceAtMost(1f))
             else -> return super.performAccessibilityAction(action, arguments)

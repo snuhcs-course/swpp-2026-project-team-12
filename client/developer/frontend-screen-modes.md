@@ -13,7 +13,7 @@ There are no backend, API schema, database, launcher artwork, or APK changes in 
 | News | Vertical feed; captions show at most two rendered lines before More; no search/family filters | Full captions and inline family comments |
 | Post actions | Icons only for comments, voice comment, and listen; accessible names retained | Large comment and listen buttons with text |
 | Comments | Bottom sheet with text/voice composer | Post detail with text/voice composer; Back restores the reading position |
-| Assistant | Context follows the visible post | Docked to the left; includes Help |
+| Assistant | Context follows the visible post | Docked to the right with the same icon and a “토닥 도우미” caption; includes Help |
 | Day | Large calendar, selected-day thumbnails, story and audio actions | Same view, opened from the assistant |
 
 Settings retain the existing account/family controls and add explicit screen choices, family-room switching, and account switching.
@@ -111,6 +111,12 @@ git push
 
 This updates PR #67 on the same branch; a new PR is not needed.
 
+## Assistant appearance follow-up
+
+The elderly assistant now docks on the **right**, uses the standard screen's icon appearance, and shows **토닥 도우미** underneath. The caption stays upright when the Android artwork is mirrored and is reserved within the viewport so it does not cover bottom navigation. The web tutorial uses the same round launcher styling and right-side placement.
+
+Verified after this appearance change: Android builds/Lint and 39 JVM tests passed; all 14 screen-mode and floating-assistant instrumentation cases passed on the small API 36 emulator. All 59 web Node tests and 27 browser checks passed, including matching standard/elderly icon styling, right docking, the visible caption, its clearance above navigation, and tutorial replay. No workflow or backend files changed.
+
 ## Suggested PR
 
 **Title:** `feature: add standard and elderly screen modes for Android and web`
@@ -122,7 +128,7 @@ This updates PR #67 on the same branch; a new PR is not needed.
 - Replace the news carousel with a vertical feed and a compact today-question banner.
 - Add the selected standard layout with expandable captions, comment sheets, and News / Day / Memories navigation.
 - Keep the standard feed free of search/family filters, show icon-only post actions, and collapse captions after two rendered lines.
-- Add an elderly layout with full captions, inline comments, large actions, one bottom compose button, and a left-docked assistant.
+- Add an elderly layout with full captions, inline comments, large actions, one bottom compose button, and a right-docked assistant using the standard icon with a “토닥 도우미” caption.
 - Add calendar-based day previews and a story view with photos above the summary.
 - Add per-account client screen preferences and six-step, replayable practice using a separate virtual post.
 - Preserve the reading position when returning from comments and keep existing memory, voice, and question flows.
