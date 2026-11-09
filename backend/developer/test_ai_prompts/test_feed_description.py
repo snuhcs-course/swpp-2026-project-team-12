@@ -10,10 +10,10 @@ from django.core.files.base import ContentFile
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
 
-from integrations.ai import feed_description
+from integrations.ai import feed_description, prompts
 
 
-@override_settings(OPENAI_API_KEY="test-key", OPENAI_MODEL="test-model")
+@override_settings(OPENAI_API_KEY="test-key", SUMMARY_AI_MODEL="test-model")
 class FeedDescriptionTests(SimpleTestCase):
     def post(self, image=True, photos=None):
         files = photos if photos is not None else ([ContentFile(b"jpeg-bytes", name="photo.jpg")] if image else [])
@@ -36,7 +36,7 @@ class FeedDescriptionTests(SimpleTestCase):
         post = self.post()
         result, request = self.generate(post, SimpleNamespace(status="completed", output_text=" 상세 기록 "))
         self.assertEqual(result, "상세 기록")
-        self.assertEqual(request["instructions"], feed_description.DESCRIPTION_INSTRUCTIONS)
+        self.assertEqual(request["instructions"], prompts.POST_DESCRIPTION)
         self.assertEqual(request["model"], "test-model")
         self.assertFalse(request["store"])
         content = request["input"][0]["content"]

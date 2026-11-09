@@ -19,7 +19,7 @@ from integrations.ai import provider
 
 from .test_posts import sample_image
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 DAY = date(2026, 10, 1)
@@ -72,7 +72,7 @@ class DigestAPITests(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def upload(self, caption, image_name):
         response = self.client.post(
@@ -87,6 +87,9 @@ class DigestAPITests(TestCase):
         Post.objects.filter(pk=post.pk).update(created_at=created_at)
         post.created_at = created_at
 
+    def summary(self, text, author=None):
+        return [{"author_id": (author or self.owner).pk, "text": text}]
+
     def test_digest_waits_for_cutoff_and_caches_daily_window(self):
         late = self.upload("논문 너무 어려워 ㅠㅠ", "sample_img_2.png")
         self.set_post_time(late, at(hour=22))
@@ -95,7 +98,7 @@ class DigestAPITests(TestCase):
         self.assertFalse(Digest.objects.exists())
 
         with patch("apps.digests.services.timezone.now", return_value=at()), \
-             patch.object(provider, "summarize", return_value="정아가 독개굴을 잡았어요.") as summarize:
+             patch.object(provider, "summarize", return_value=self.summary("독개굴을 잡았어요.")) as summarize:
             first = generate_digest(self.room, DAY)
             second = generate_digest(self.room, DAY)
         self.assertEqual(first.pk, second.pk)
@@ -106,7 +109,7 @@ class DigestAPITests(TestCase):
         summarize.assert_called_once()
 
         with patch("apps.digests.services.timezone.now", return_value=at(day=date(2026, 10, 2))), \
-             patch.object(provider, "summarize", return_value="정아가 논문 때문에 힘들어해요."):
+             patch.object(provider, "summarize", return_value=self.summary("논문 때문에 힘들어해요.")):
             next_day = generate_digest(self.room, date(2026, 10, 2))
         self.assertEqual(list(next_day.posts.all()), [late])
         self.assertEqual(next_day.window_start, first.window_end)
@@ -126,7 +129,7 @@ class DigestAPITests(TestCase):
         with patch("apps.digests.services.timezone.now", return_value=at(hour=23)):
             self.assertIsNone(generate_digest(self.room, DAY))
         with patch("apps.digests.services.timezone.now", return_value=at(hour=23, minute=31)), \
-             patch.object(provider, "summarize", return_value="정아가 새 소식을 올렸어요.") as summarize:
+             patch.object(provider, "summarize", return_value=self.summary("새 소식을 올렸어요.")) as summarize:
             refreshed = generate_digest(self.room, DAY)
             generate_digest(self.room, DAY)
         self.assertEqual(refreshed.pk, empty.pk)
@@ -139,7 +142,7 @@ class DigestAPITests(TestCase):
 
     def test_completed_digest_keeps_its_original_window(self):
         with patch("apps.digests.services.timezone.now", return_value=at()), \
-             patch.object(provider, "summarize", return_value="이미 준비된 요약"):
+             patch.object(provider, "summarize", return_value=self.summary("이미 준비된 요약")):
             original = generate_digest(self.room, DAY)
         original_end = original.window_end
         self.room.digest_time = time(23, 30)
@@ -148,7 +151,7 @@ class DigestAPITests(TestCase):
              patch.object(provider, "summarize") as summarize:
             unchanged = generate_digest(self.room, DAY)
         self.assertEqual(unchanged.status, "ready")
-        self.assertEqual(unchanged.text, "이미 준비된 요약")
+        self.assertEqual(unchanged.summaries, self.summary("이미 준비된 요약"))
         self.assertEqual(unchanged.window_end, original_end)
         summarize.assert_not_called()
         print("Completed digest window preservation test pass", flush=True)
@@ -162,7 +165,7 @@ class DigestAPITests(TestCase):
         self.room.digest_time = time(22)
         self.room.save(update_fields=["digest_time"])
         with patch("apps.digests.services.timezone.now", return_value=at(hour=22, minute=1)), \
-             patch.object(provider, "summarize", return_value="다시 준비된 가족 요약") as summarize:
+             patch.object(provider, "summarize", return_value=self.summary("다시 준비된 가족 요약")) as summarize:
             cached = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.grandma_token))
             summarize.assert_not_called()
             retried = self.client.post(
@@ -171,7 +174,7 @@ class DigestAPITests(TestCase):
             )
         self.assertEqual(cached.json()["status"], "failed")
         self.assertEqual(retried.json()["status"], "ready")
-        self.assertEqual(retried.json()["text"], "다시 준비된 가족 요약")
+        self.assertEqual(retried.json()["text"], "[손녀 - 정아] 다시 준비된 가족 요약")
         self.assertEqual(Digest.objects.get(room=self.room, date=DAY).window_end, original_end)
         summarize.assert_called_once()
         print("Digest failure and explicit retry test pass", flush=True)
@@ -179,7 +182,7 @@ class DigestAPITests(TestCase):
     def test_in_progress_digest_waits_and_stale_work_retries(self):
         digest = Digest.objects.create(room=self.room, date=DAY, status="processing")
         with patch("apps.digests.services.timezone.now", return_value=at()), \
-             patch.object(provider, "summarize", return_value="새 요약") as summarize:
+             patch.object(provider, "summarize", return_value=self.summary("새 요약")) as summarize:
             self.assertEqual(generate_digest(self.room, DAY).status, "processing")
             summarize.assert_not_called()
             Digest.objects.filter(pk=digest.pk).update(updated_at=at() - timedelta(minutes=3))
@@ -191,7 +194,7 @@ class DigestAPITests(TestCase):
         late = self.upload("논문 너무 어려워 ㅠㅠ", "sample_img_2.png")
         self.set_post_time(late, at(hour=22))
         with patch("apps.digests.services.timezone.now", return_value=at()), \
-             patch.object(provider, "summarize", return_value="정아가 독개굴을 잡았어요."):
+             patch.object(provider, "summarize", return_value=self.summary("독개굴을 잡았어요.")):
             ready = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.grandma_token))
             other = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.outsider_token))
             history = self.client.get("/api/digests/history/", **self.auth(self.grandma_token))
@@ -226,7 +229,7 @@ class DigestAPITests(TestCase):
 
     def test_scheduler_once_is_repeatable(self):
         with patch("apps.digests.services.timezone.now", return_value=at()), \
-             patch.object(provider, "summarize", return_value="오늘의 소식") as summarize:
+             patch.object(provider, "summarize", return_value=self.summary("오늘의 소식")) as summarize:
             call_command("run_digest_scheduler", once=True, stdout=io.StringIO())
             call_command("run_digest_scheduler", once=True, stdout=io.StringIO())
         self.assertEqual(Digest.objects.get(room=self.room, date=DAY).status, "ready")
@@ -234,13 +237,16 @@ class DigestAPITests(TestCase):
         print("Digest scheduler repeatability test pass", flush=True)
 
     def test_ai_summary_receives_post_text_and_image(self):
-        with patch.object(provider, "answer_with_memory", return_value="가족의 하루") as answer:
-            self.assertEqual(provider.summarize([self.post]), "가족의 하루")
+        with patch.object(provider, "answer_with_memory", return_value=self.summary("가족의 하루")) as answer:
+            self.assertEqual(provider.summarize([self.post]), self.summary("가족의 하루"))
         self.assertEqual(answer.call_args.args[:2], ("digest", self.room.pk))
         self.assertEqual(json.loads(answer.call_args.args[2]), [
-            {"작성자": "정아", "원문": self.post.caption}
+            {"작성자 ID": self.owner.pk, "작성자": "정아", "게시글": [{
+                "게시글 ID": self.post.pk, "게시시각": self.post.created_at.isoformat(),
+                "원문": self.post.caption, "첨부 사진 수": 1, "전달 사진 번호": [1],
+            }]}
         ])
-        self.assertEqual(answer.call_args.args[3], [self.post.image])
+        self.assertEqual(answer.call_args.args[3], self.post.photo_files())
         print("Digest AI input test pass", flush=True)
 
     def test_summary_rejects_posts_from_different_families(self):
@@ -248,3 +254,56 @@ class DigestAPITests(TestCase):
             with self.assertRaises(provider.AIUnavailable):
                 provider.summarize([self.post, Post(room=self.other_room)])
         answer.assert_not_called()
+
+    def test_one_cached_paragraph_per_author_uses_each_viewers_relationship(self):
+        second = self.upload("점심에는 국수를 먹었어요", "sample_img_2.png")
+        self.set_post_time(second, at(hour=19))
+        third = self.upload("저녁에 산책했어요", "sample_img_1.png")
+        self.set_post_time(third, at(hour=20, minute=30))
+        grandma_post = Post.objects.create(room=self.room, author=self.grandma, caption="화분을 돌봤어요")
+        self.set_post_time(grandma_post, at(hour=20, minute=40))
+        paragraphs = self.summary("독개굴을 잡고, 국수를 먹은 뒤 산책했어요.") + self.summary("화분을 돌봤어요.", self.grandma)
+        with patch("apps.digests.services.timezone.now", return_value=at()), \
+             patch.object(provider, "summarize", return_value=paragraphs) as summarize:
+            grandma = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.grandma_token)).json()
+            owner = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.owner_token)).json()
+        self.assertEqual(grandma["text"], "[손녀 - 정아] 독개굴을 잡고, 국수를 먹은 뒤 산책했어요.\n\n[나 - 경자] 화분을 돌봤어요.")
+        self.assertEqual(owner["text"], "[나 - 정아] 독개굴을 잡고, 국수를 먹은 뒤 산책했어요.\n\n[할머니 - 경자] 화분을 돌봤어요.")
+        self.assertEqual(len(grandma["posts"]), 4)
+        self.assertEqual(Digest.objects.get(room=self.room, date=DAY).summaries, paragraphs)
+        summarize.assert_called_once()
+
+    def test_legacy_digest_rebuilds_once_without_changing_its_window(self):
+        original_end = cutoff(self.room, DAY)
+        digest = Digest.objects.create(room=self.room, date=DAY, status="ready", text="이전 게시글별 요약",
+                                       window_start=cutoff(self.room, DAY - timedelta(days=1)), window_end=original_end)
+        self.room.digest_time = time(22)
+        self.room.save(update_fields=["digest_time"])
+        with patch("apps.digests.services.timezone.now", return_value=at(hour=22, minute=1)), \
+             patch.object(provider, "summarize", return_value=self.summary("새 작성자별 요약")) as summarize:
+            upgraded = generate_digest(self.room, DAY)
+            generate_digest(self.room, DAY)
+        self.assertEqual(upgraded.pk, digest.pk)
+        self.assertEqual(upgraded.window_end, original_end)
+        self.assertEqual(upgraded.summaries, self.summary("새 작성자별 요약"))
+        self.assertEqual(upgraded.text, "")
+        summarize.assert_called_once()
+
+    def test_sons_three_posts_share_one_paragraph_and_rule_based_label(self):
+        self.post.delete()
+        son = User.objects.create(username="son", display_name="이장하", gender=User.Gender.MALE)
+        add_member(self.room, son, -1)
+        link_parent(self.room, self.owner, son)
+        for caption in ("A를 했어요", "B를 했어요", "C를 했어요"):
+            post = Post.objects.create(room=self.room, author=son, caption=caption)
+            self.set_post_time(post, at(hour=20))
+        son_token = AccessToken.issue(son)
+        text = "오늘 A를 하고, B와 C도 했어요."
+        with patch("apps.digests.services.timezone.now", return_value=at()), \
+             patch.object(provider, "summarize", return_value=self.summary(text, son)) as summarize:
+            parent = self.client.get(f"/api/digests/?date={DAY}", **self.auth(self.owner_token)).json()
+            child = self.client.get(f"/api/digests/?date={DAY}", **self.auth(son_token)).json()
+        self.assertEqual(parent["text"], f"[아들 - 이장하] {text}")
+        self.assertEqual(child["text"], f"[나 - 이장하] {text}")
+        self.assertEqual(len(parent["posts"]), 3)
+        summarize.assert_called_once()

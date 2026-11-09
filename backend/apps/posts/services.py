@@ -4,28 +4,21 @@ import logging
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.api import APIError
-from apps.families.models import Membership
 from apps.families.utils import relationship
 
-from .models import Post, PostPhoto
-
-def current_room(request):
-    membership = Membership.objects.select_related("room").filter(
-        user=request.user
-    ).order_by("joined_at", "pk").first()
-    if membership is None:
-        raise APIError("가족 방에 먼저 들어가 주세요.", 403)
-    return membership.room
+from .models import Post
 
 
 def post_for(request, pk):
-    post = Post.objects.select_related("author", "room").prefetch_related("photos").filter(
-        pk=pk, room=current_room(request)
+    # A post's own room decides access, so post URLs work without X-Family-Room.
+    post = Post.objects.select_related("author", "room").filter(
+        pk=pk, room__members__user=request.user
     ).first()
     if post is None:
         raise APIError("게시물을 찾을 수 없어요.", 404)
@@ -40,16 +33,16 @@ def serialize(post, request):
         comment_count = post.comments.count()
     def url(path):
         return origin + path if origin else request.build_absolute_uri(path)
-    images = [{"id": 0, "url": url(image_path)}] if post.image else []
-    images.extend({"id": photo.pk, "url": url(f"/api/posts/{post.pk}/photos/{photo.pk}/")}
-                  for photo in post.photos.all())
+    images = [{"id": index, "url": url(f"/api/posts/{post.pk}/images/{index}/")}
+              for index in range(len(post.images))]
     return {
         "id": post.pk,
         "author_id": post.author_id,
-        "author_name": post.author.display_name,
-        "relationship": relationship(request.user, post.author, post.room),
+        "author_name": post.author.display_name if post.kind == "news" else "토닥",
+        "relationship": relationship(request.user, post.author, post.room) if post.kind == "news" else "오늘의 질문",
+        "kind": post.kind,
         "created_at": timezone.localtime(post.created_at).isoformat(),
-        "image_url": url(image_path) if post.image else "",
+        "image_url": url(image_path) if images else "",
         "images": images,
         "image_count": len(images),
         "caption": post.caption,
@@ -58,8 +51,8 @@ def serialize(post, request):
 
 
 def prepare_image(uploaded):
-    if uploaded is None or uploaded.size > settings.MAX_UPLOAD_BYTES:
-        raise APIError("사진을 다시 확인해 주세요. 사진은 10MB까지 올릴 수 있어요.")
+    if uploaded is None:
+        raise APIError("사진을 다시 확인해 주세요.")
     try:
         with Image.open(uploaded) as image:
             if image.width * image.height > settings.MAX_IMAGE_PIXELS:
@@ -83,8 +76,6 @@ def prepare_uploads(request):
     uploads = multiples or singles
     if len(uploads) > settings.MAX_POST_IMAGES:
         raise APIError("사진은 한 번에 5장까지 올릴 수 있어요.")
-    if sum(photo.size for photo in uploads) > settings.MAX_POST_UPLOAD_BYTES:
-        raise APIError("사진의 전체 크기는 30MB까지 올릴 수 있어요.")
     return [prepare_image(photo) for photo in uploads]
 
 
@@ -95,16 +86,12 @@ def save_post(room, author, caption, images):
     created_files = []
     try:
         with transaction.atomic():
-            post = Post.objects.create(room=room, author=author, caption=caption, image="")
-            field = Post._meta.get_field("image")
-            for index, image in enumerate(images):
-                name = field.storage.save(field.generate_filename(post, image.name), image)
-                created_files.append((field.storage, name))
-                if index == 0:
-                    post.image = name
-                else:
-                    PostPhoto.objects.create(post=post, image=name, position=index)
-            post.save(update_fields=["image"])
+            paths = []
+            for image in images:
+                name = default_storage.save(timezone.localtime().strftime("posts/%Y/%m/") + image.name, image)
+                created_files.append((default_storage, name))
+                paths.append(name)
+            post = Post.objects.create(room=room, author=author, caption=caption, images=paths)
         return post
     except Exception:
         for storage, name in created_files:

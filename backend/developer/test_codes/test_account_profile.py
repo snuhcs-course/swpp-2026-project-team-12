@@ -2,7 +2,7 @@
 import json
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from unittest.mock import patch
 
@@ -14,6 +14,10 @@ from apps.digests.models import Digest
 from .family_fixtures import add_member
 
 
+@override_settings(TTS_DEFAULT_VOICE="m", TTS_VOICES={
+    "m": {"name": "남성 목소리", "voice_id": "voice-m", "description": ""},
+    "f": {"name": "여성 목소리", "voice_id": "voice-f", "description": ""},
+})
 class AccountProfileTests(TestCase):
     original = "Initial-River-34691!"
     replacement = "Sunset-Maple-63729!"
@@ -68,6 +72,30 @@ class AccountProfileTests(TestCase):
                 self.assertEqual(self.update({"name": name}).status_code, 400)
         self.user.refresh_from_db()
         self.assertEqual(self.user.display_name, "정아")
+
+    def test_tts_voice_defaults_to_male_and_can_be_changed(self):
+        self.assertEqual(self.client.get("/api/accounts/me/", **self.auth()).json()["tts_voice"], "m")
+        result = self.update({"tts_voice": "f"})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()["tts_voice"], "f")
+        self.assertNotIn("token", result.json())
+        self.user.refresh_from_db()
+        self.assertEqual((self.user.tts_voice, self.user.display_name), ("f", "정아"))
+        for voice in ("b", "", None, 1, ["m"], "male"):
+            with self.subTest(voice=voice):
+                self.assertEqual(self.update({"tts_voice": voice}).status_code, 400)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.tts_voice, "f")
+
+    def test_registration_stores_the_chosen_tts_voice(self):
+        def register(username, **extra):
+            return self.client.post("/api/accounts/register/", json.dumps({"username": username, "gender": "female", "name": "신규", "password": "Forest!Trail7346", **extra}), content_type="application/json")
+        self.assertEqual(register("female_voice", tts_voice="f").json()["tts_voice"], "f")
+        self.assertEqual(User.objects.get(username="female_voice").tts_voice, "f")
+        self.assertEqual(register("default_voice").json()["tts_voice"], "m")
+        self.assertEqual(User.objects.get(username="default_voice").tts_voice, "", "Unchosen voices follow the default")
+        self.assertEqual(register("bad_voice", tts_voice="b").status_code, 400)
+        self.assertFalse(User.objects.filter(username="bad_voice").exists())
 
     def test_relationship_related_field_is_outside_profile_edit_scope(self):
         self.assertEqual(self.update({"name": "잘못된 수정", "gender": "female"}).status_code, 400)
@@ -137,19 +165,21 @@ class AccountProfileTests(TestCase):
     def test_profile_change_invalidates_related_cached_wording(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC001", password_hash="unused", owner=self.user)
         add_member(room, self.user)
-        post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
+        post = Post.objects.create(room=room, author=self.user, images=["unused.jpg"], caption="산책")
         message = AdaptedMessage.objects.create(post=post, viewer=self.other, status="ready", text="정아 소식")
-        digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루")
+        digest = Digest.objects.create(room=room, date=timezone.localdate(), status="ready", text="정아의 하루",
+                                       summaries=[{"author_id": self.user.pk, "text": "산책했어요."}])
         digest.posts.add(post)
         self.assertEqual(self.update({"name": "새 이름"}).status_code, 200)
         message.refresh_from_db(); digest.refresh_from_db()
         self.assertEqual((message.status, message.text), ("pending", ""))
         self.assertEqual((digest.status, digest.text), ("pending", ""))
+        self.assertEqual(digest.summaries, [])
 
     def test_inflight_explanation_cannot_restore_a_previous_name(self):
         room = FamilyRoom.objects.create(name="가족", invite_code="ACC002", password_hash="unused", owner=self.user)
         add_member(room, self.user)
-        post = Post.objects.create(room=room, author=self.user, image="unused.jpg", caption="산책")
+        post = Post.objects.create(room=room, author=self.user, images=["unused.jpg"], caption="산책")
 
         def old_explanation(*args):
             self.assertEqual(self.update({"name": "새 이름"}).status_code, 200)

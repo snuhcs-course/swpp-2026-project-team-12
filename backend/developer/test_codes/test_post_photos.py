@@ -1,19 +1,21 @@
 """Offline regressions: synthetic photos, isolated storage, mocked AI."""
 import io
+import os
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
-from apps.posts.models import Post, PostPhoto
+from apps.posts.models import Post
 from integrations.ai import provider
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 def photo(color="red"):
@@ -37,8 +39,8 @@ class PostPhotoTests(TestCase):
         other = FamilyRoom.objects.create(name="다른 가족", invite_code="PHOTO2", password_hash="unused", owner=self.outsider)
         add_member(self.room, self.owner)
         add_member(other, self.outsider)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.outsider)}
+        self.auth = auth_headers(AccessToken.issue(self.owner))
+        self.other_auth = auth_headers(AccessToken.issue(self.outsider))
 
     def upload(self, colors=("red", "blue")):
         return self.client.post("/api/posts/", {"images": [photo(c) for c in colors], "caption": "공원에 갔어요"}, **self.auth)
@@ -48,24 +50,30 @@ class PostPhotoTests(TestCase):
         self.assertEqual(result.status_code, 200)
         data = result.json()
         self.assertEqual(data["image_count"], 2)
-        self.assertEqual(data["images"][0]["url"], data["image_url"])
+        self.assertTrue(data["images"][0]["url"].endswith(f"/api/posts/{data['id']}/images/0/"))
         post = Post.objects.get()
-        self.assertEqual(post.photos.get().position, 1)
+        self.assertEqual(len(post.images), 2)
+        self.assertEqual([entry["id"] for entry in data["images"]], [0, 1])
         self.assertEqual(len(post.photo_files()), 2)
         for index, image in enumerate(post.photo_files()):
-            with image.open("rb"), Image.open(image) as decoded:
+            with image.open("rb") as stream, Image.open(stream) as decoded:
                 pixel = decoded.getpixel((0, 0))
                 self.assertGreater(pixel[0 if index == 0 else 2], 240)
         feed = self.client.get("/api/posts/", **self.auth).json()["posts"][0]
         detail = self.client.get(f"/api/posts/{post.pk}/", **self.auth).json()
         self.assertEqual(feed["images"], data["images"])
         self.assertEqual(detail["images"], data["images"])
+        cover = self.client.get(f"/api/posts/{post.pk}/image/", **self.auth)
+        indexed = self.client.get(f"/api/posts/{post.pk}/images/0/", **self.auth)
+        self.assertEqual(b"".join(cover.streaming_content), b"".join(indexed.streaming_content))
+        cover.close()
+        indexed.close()
 
     def test_legacy_single_upload_still_works(self):
         result = self.client.post("/api/posts/", {"image": photo()}, **self.auth)
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json()["image_count"], 1)
-        self.assertEqual(PostPhoto.objects.count(), 0)
+        self.assertEqual(len(Post.objects.get().images), 1)
 
     def test_five_allowed_six_rejected(self):
         self.assertEqual(self.upload(("red",) * 5).status_code, 200)
@@ -88,19 +96,47 @@ class PostPhotoTests(TestCase):
         self.assertFalse(Post.objects.exists())
         self.assertFalse(any(x.is_file() for x in self.media.rglob("*")))
 
-    @override_settings(MAX_UPLOAD_BYTES=10)
-    def test_per_photo_byte_limit(self):
+    def test_large_photos_have_no_byte_limit_and_are_stored_downsized(self):
+        # Uncompressed BMPs: each one alone is over the old 10MB limit, together over the old 30MB.
+        def large(index):
+            data = io.BytesIO()
+            Image.new("RGB", (2400, 1600), (40 * index, 90, 160)).save(data, "BMP")
+            self.assertGreater(len(data.getvalue()), 10 * 1024 * 1024)
+            return SimpleUploadedFile(f"large-{index}.bmp", data.getvalue(), content_type="image/bmp")
+        result = self.client.post("/api/posts/", {"images": [large(i) for i in range(3)], "caption": "큰 사진"}, **self.auth)
+        self.assertEqual(result.status_code, 200)
+        for image in Post.objects.get().photo_files():
+            with image.open("rb") as stream, Image.open(stream) as stored:
+                self.assertEqual(stored.format, "JPEG")
+                self.assertLessEqual(max(stored.size), 1600)
+
+    @override_settings(MAX_IMAGE_PIXELS=100)
+    def test_pixel_guard_still_rejects_oversized_dimensions(self):
         self.assertEqual(self.upload().status_code, 400)
         self.assertFalse(Post.objects.exists())
 
-    @override_settings(MAX_POST_UPLOAD_BYTES=10)
-    def test_combined_byte_limit(self):
-        self.assertEqual(self.upload().status_code, 400)
-        self.assertFalse(Post.objects.exists())
+    def test_construction_photos_are_downsampled_only_when_over_the_limit(self):
+        from integrations.ai.feed_description import construction_jpeg
+        small = io.BytesIO(); Image.new("RGB", (800, 600), "orange").save(small, "JPEG", quality=88)
+        self.assertEqual(construction_jpeg(small.getvalue()), small.getvalue())
+        # Unreadable stored files are passed through instead of failing the post's construction.
+        self.assertEqual(construction_jpeg(b"not a photo"), b"not a photo")
+        # Noise defeats JPEG compression, so this 1600px photo is well over 1MB.
+        noisy = Image.frombytes("RGB", (1600, 1200), os.urandom(1600 * 1200 * 3))
+        heavy = io.BytesIO(); noisy.save(heavy, "JPEG", quality=95)
+        self.assertGreater(len(heavy.getvalue()), 1024 * 1024)
+        fitted = construction_jpeg(heavy.getvalue())
+        self.assertLessEqual(len(fitted), 1024 * 1024)
+        with Image.open(io.BytesIO(fitted)) as decoded:
+            self.assertEqual(decoded.format, "JPEG")
+            self.assertLessEqual(max(decoded.size), 1600)
+        wide = io.BytesIO(); Image.new("RGB", (3000, 1000), "green").save(wide, "PNG")
+        with Image.open(io.BytesIO(construction_jpeg(wide.getvalue()))) as decoded:
+            self.assertEqual((decoded.format, decoded.size), ("JPEG", (1600, 533)))
 
     def test_storage_failure_rolls_back_and_cleans_first_file(self):
         from apps.posts.services import prepare_image, save_post
-        storage = Post._meta.get_field("image").storage
+        storage = default_storage
         original = storage.save
         calls = 0
 
@@ -115,12 +151,11 @@ class PostPhotoTests(TestCase):
             with self.assertRaises(OSError):
                 save_post(self.room, self.owner, "테스트", [prepare_image(photo()), prepare_image(photo())])
         self.assertFalse(Post.objects.exists())
-        self.assertFalse(PostPhoto.objects.exists())
         self.assertFalse(any(x.is_file() for x in self.media.rglob("*")))
 
     def test_extra_photo_requires_auth_and_same_family(self):
         data = self.upload().json()
-        path = f"/api/posts/{data['id']}/photos/{data['images'][1]['id']}/"
+        path = f"/api/posts/{data['id']}/images/1/"
         self.assertEqual(self.client.get(path).status_code, 401)
         self.assertEqual(self.client.get(path, **self.other_auth).status_code, 404)
         response = self.client.get(path, **self.auth)
@@ -129,11 +164,27 @@ class PostPhotoTests(TestCase):
         self.assertTrue(b"".join(response.streaming_content).startswith(b"\xff\xd8"))
         response.close()
 
-    def test_extra_photo_cannot_be_read_through_another_post(self):
-        first = self.upload().json()
-        second = self.upload().json()
-        path = f"/api/posts/{second['id']}/photos/{first['images'][1]['id']}/"
-        self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
+    def test_database_failure_cleans_all_stored_files(self):
+        from apps.posts.services import prepare_image, save_post
+
+        with patch.object(Post.objects, "create", side_effect=RuntimeError("database unavailable")):
+            with self.assertRaises(RuntimeError):
+                save_post(self.room, self.owner, "소식", [prepare_image(photo()), prepare_image(photo())])
+        self.assertFalse(Post.objects.exists())
+        self.assertFalse(any(path.is_file() for path in self.media.rglob("*")))
+
+    def test_photo_indexes_are_scoped_to_their_post_and_bounds_checked(self):
+        first = self.upload(("red", "blue")).json()
+        second = self.upload(("green",)).json()
+        for path in [f"/api/posts/{second['id']}/images/1/",
+                     f"/api/posts/{first['id']}/images/2/",
+                     f"/api/posts/{first['id']}/images/-1/",
+                     f"/api/posts/{first['id']}/photos/1/"]:
+            self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
+        response = self.client.get(f"/api/posts/{second['id']}/images/0/", **self.auth)
+        with Image.open(io.BytesIO(b"".join(response.streaming_content))) as decoded:
+            self.assertGreater(decoded.getpixel((0, 0))[1], 100)
+        response.close()
 
     def test_adapt_passes_all_photos_to_existing_memory_flow(self):
         self.upload()
@@ -146,6 +197,7 @@ class PostPhotoTests(TestCase):
     def test_digest_caps_images_at_eight(self):
         self.upload(("red",) * 5)
         self.upload(("blue",) * 5)
-        with patch.object(provider, "answer_with_memory", return_value="요약") as answer:
-            self.assertEqual(provider.summarize(list(Post.objects.all())), "요약")
+        summaries = [{"author_id": self.owner.pk, "text": "요약"}]
+        with patch.object(provider, "answer_with_memory", return_value=summaries) as answer:
+            self.assertEqual(provider.summarize(list(Post.objects.all())), summaries)
         self.assertEqual(len(answer.call_args.args[3]), 8)

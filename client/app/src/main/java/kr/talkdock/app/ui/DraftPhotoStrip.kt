@@ -6,17 +6,17 @@ import android.view.Gravity
 import android.view.View
 import android.widget.*
 
-/** Figma compose screen: square attachments in one horizontal strip. */
+/** Attached-photo previews followed by a full-width chooser button. */
 class DraftPhotoStrip(
     context: Context,
     previews: List<Bitmap?>,
     large: Boolean,
     remove: (Int) -> Unit,
     choose: () -> Unit,
-) : HorizontalScrollView(context) {
+) : LinearLayout(context) {
     init {
         val ui = Ui(context)
-        isHorizontalScrollBarEnabled = false
+        orientation = VERTICAL
         val row = ui.row().apply { gravity = Gravity.TOP }
         val side = if (large) 148 else 108
         previews.forEachIndexed { index, bitmap ->
@@ -44,16 +44,14 @@ class DraftPhotoStrip(
             if (large) ui.button(column, "이 사진 빼기", false, 76) { remove(index) }
             row.addView(column, LinearLayout.LayoutParams(ui.dp(side), -2).apply { marginEnd = ui.dp(12) })
         }
-        val add = ui.column(12).apply {
-            gravity = Gravity.CENTER; background = ui.shape(ui.sky)
-            isClickable = true; isFocusable = true
-            contentDescription = if (previews.isEmpty()) "사진 추가하기" else "첨부 사진 다시 선택하기"
-            setOnClickListener { choose() }
+        if (previews.isNotEmpty()) {
+            addView(HorizontalScrollView(context).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(row)
+            }, LayoutParams(-1, -2))
         }
-        add.addView(IconView(context, "photo", ui.skyDeep), LinearLayout.LayoutParams(ui.dp(28), ui.dp(28)))
-        ui.gap(add, 8)
-        ui.label(add, if (previews.isEmpty()) "사진 추가" else "다시 선택", if (large) 20f else 14f, color = ui.skyDeep)
-        row.addView(add, LinearLayout.LayoutParams(ui.dp(side), ui.dp(side)))
-        addView(row)
+        ui.button(this, if (previews.isEmpty()) "사진 추가" else "사진 다시 선택", false, if (large) 76 else 56, choose).apply {
+            contentDescription = if (previews.isEmpty()) "사진 추가하기" else "첨부 사진 다시 선택하기"
+        }
     }
 }

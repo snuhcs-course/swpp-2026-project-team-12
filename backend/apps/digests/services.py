@@ -13,6 +13,16 @@ def cutoff(room, date):
     return timezone.make_aware(datetime.combine(date, room.digest_time))
 
 
+def render_text(digest, posts):
+    """Use the source posts' rule-based, viewer-specific names and relationships."""
+    authors = {post["author_id"]: post for post in posts}
+    return "\n\n".join(
+        f'[{author["relationship"]} - {author["author_name"]}] {summary["text"]}'
+        for summary in digest.summaries
+        if (author := authors.get(summary["author_id"])) is not None
+    )
+
+
 def generate_digest(room, date, retry=False):
     """Generate one cached digest for a room and day after its cutoff."""
     end = cutoff(room, date)
@@ -30,11 +40,14 @@ def generate_digest(room, date, retry=False):
         and obj.window_end is not None
         and obj.window_end < end
     )
+    # Older caches have no author IDs; rebuild once in the original time window.
+    upgrade = obj.status == "ready" and not obj.summaries
     if obj.status == "processing" and obj.updated_at >= reclaim_before:
         return obj
     if (
         obj.status not in {"pending", "processing"}
         and not extend_empty
+        and not upgrade
         and not (retry and obj.status == "failed")
     ):
         return obj
@@ -42,6 +55,8 @@ def generate_digest(room, date, retry=False):
     eligible = Q(status="pending") | Q(status="processing", updated_at__lt=reclaim_before)
     if extend_empty:
         eligible |= Q(status="empty", window_end__lt=end)
+    if upgrade:
+        eligible |= Q(status="ready", summaries=[])
     if retry:
         eligible |= Q(status="failed")
     claimed = Digest.objects.filter(pk=obj.pk).filter(eligible).update(status="processing", updated_at=now)
@@ -53,17 +68,18 @@ def generate_digest(room, date, retry=False):
     start = obj.window_start or (previous.window_end if previous else cutoff(room, date - timedelta(days=1)))
     end = end if extend_empty else obj.window_end or end
     posts = list(
-        room.posts.filter(created_at__gte=start, created_at__lt=end)
+        room.posts.filter(kind="news", created_at__gte=start, created_at__lt=end)
         .select_related("author")
         .order_by("created_at")
     )
     obj.window_start, obj.window_end = start, end
     obj.posts.set(posts)
     if not posts:
-        obj.status, obj.text = "empty", ""
+        obj.status, obj.text, obj.summaries = "empty", "", []
     else:
         try:
-            obj.text, obj.status = provider.summarize(posts), "ready"
+            obj.summaries = provider.summarize(posts)
+            obj.text, obj.status = "", "ready"
         except provider.AIUnavailable:
             obj.status = "failed"
     obj.save()

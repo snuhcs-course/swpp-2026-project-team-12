@@ -22,7 +22,7 @@ from integrations.speech import provider as speech_provider
 
 from .test_posts import SAMPLES_DIR, TEST_MEDIA_DIR, sample_image
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
 GRANDMA_REPORT = TEST_MEDIA_DIR / "grandma_report.html"
@@ -87,7 +87,7 @@ class VoiceReplyAPITests(TestCase):
 
     @staticmethod
     def auth(token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def json_post(self, path, data, token=None):
         return self.client.post(
@@ -107,7 +107,15 @@ class VoiceReplyAPITests(TestCase):
                 f"/api/posts/{self.post.pk}/replies/prepare/", transcript.json()
             )
         self.assertEqual(prepared.status_code, 200)
-        rewrite.assert_called_once_with("정아 고생했다고 전해줘", "정아", family_id=self.post.room_id)
+        rewrite.assert_called_once()
+        self.assertEqual(rewrite.call_args.args, ("정아 고생했다고 전해줘", "정아"))
+        context = rewrite.call_args.kwargs
+        self.assertEqual(context["family_id"], self.post.room_id)
+        self.assertEqual(context["speaker"], self.grandma.display_name)
+        self.assertEqual(context["caption"], self.post.caption)
+        # Every family name goes to the model so misheard names can be fixed without a search.
+        self.assertIn("정아", context["family_names"])
+        self.assertIn(self.grandma.display_name, context["family_names"])
         self.assertEqual(prepared.json()["converted"], "정아야, 고생 많았다.")
         self.assertEqual(prepared.json()["author_name"], "정아")
         draft = VoiceDraft.objects.get(pk=prepared.json()["id"])
@@ -196,7 +204,8 @@ class VoiceReplyAPITests(TestCase):
         self.assertCountEqual([post["id"] for post in digest["posts"]], [game_id, self.post.pk])
         self.assertTrue(digest["text"].strip())
         saved_digest = Digest.objects.get(room=self.post.room, date=digest_date)
-        self.assertEqual(saved_digest.text, digest["text"])
+        self.assertTrue(saved_digest.summaries)
+        self.assertTrue(digest["text"].startswith("[손녀 - 정아] "))
         with patch.object(ai_provider, "summarize") as summarize:
             cached = self.client.get(
                 f"/api/digests/?date={digest_date.isoformat()}", **self.auth(self.grandma_token)
@@ -227,7 +236,7 @@ class VoiceReplyAPITests(TestCase):
             )
             values = (
                 post.pk, post.room.name, post.author.display_name, post.caption,
-                post.image.name, timezone.localtime(post.created_at).isoformat(timespec="seconds"),
+                post.images[0], timezone.localtime(post.created_at).isoformat(timespec="seconds"),
                 comment.pk, comment.source,
             )
             rows.append("<tr>" + "".join(f"<td>{escape(str(value))}</td>" for value in values) + "</tr>")
@@ -325,5 +334,12 @@ class VoiceReplyAPITests(TestCase):
         self.assertEqual(answer.call_args.args[:2], ("stt_correction", self.post.room_id))
         self.assertEqual(json.loads(answer.call_args.args[2]), {
             "게시물 작성자": "정아", "인식된 말": "정아 고생했다고 전해줘"
+        })
+        with patch.object(ai_provider, "answer_with_memory", return_value="준호 고마워.") as answer:
+            ai_provider.rewrite("주노 고마워", "정아", family_id=self.post.room_id, speaker="할머니",
+                                caption="자전거 고쳤어요", family_names=["정아", "준호"])
+        self.assertEqual(json.loads(answer.call_args.args[2]), {
+            "게시물 작성자": "정아", "말하는 사람": "할머니", "게시물 원문": "자전거 고쳤어요",
+            "가족 이름 목록": ["정아", "준호"], "인식된 말": "주노 고마워",
         })
         print("Voice reply AI rewrite and failure test pass", flush=True)

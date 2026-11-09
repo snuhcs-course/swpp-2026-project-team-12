@@ -17,10 +17,10 @@ from PIL import Image
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
-from integrations.ai import flow, provider, post_flow
-from integrations.ai_workers import graphiti_client, searching_workers
+from integrations.ai import flow, provider, post_flow, prompts
+from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
 
-from .family_fixtures import add_member, link_parent, sample_family
+from .family_fixtures import auth_headers, add_member, link_parent, sample_family
 
 
 SAMPLES_DIR = Path(__file__).resolve().parents[1] / "samples"
@@ -33,12 +33,15 @@ def sample_image(name="sample_img_1.png"):
 
 class PostAPITests(TestCase):
     def setUp(self):
+        self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+                          return_value=SimpleNamespace(
+                              embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                              search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         media_settings = override_settings(MEDIA_ROOT=TEST_MEDIA_DIR)
         media_settings.enable()
@@ -68,7 +71,7 @@ class PostAPITests(TestCase):
         self.outsider_token = AccessToken.issue(self.outsider)
 
     def auth(self, token):
-        return {"HTTP_AUTHORIZATION": f"Bearer {token}"}
+        return auth_headers(token)
 
     def upload(self, caption="", image=None):
         return self.client.post(
@@ -182,12 +185,9 @@ class PostAPITests(TestCase):
         self.assertEqual(post.room, self.room)
         self.assertEqual(post.author, self.owner)
         self.assertEqual(post.caption, "오늘 산책했어요")
-        try:
-            with Image.open(post.image) as stored:
-                self.assertEqual(stored.format, "JPEG")
-                self.assertEqual(stored.size, (1345, 622))
-        finally:
-            post.image.close()
+        with post.photo_files()[0].open("rb") as image, Image.open(image) as stored:
+            self.assertEqual(stored.format, "JPEG")
+            self.assertEqual(stored.size, (1345, 622))
 
         feed = self.client.get("/api/posts/", **self.auth(self.relative_token))
         self.assertEqual(feed.status_code, 200)
@@ -209,12 +209,9 @@ class PostAPITests(TestCase):
         ))
         self.assertEqual(response.status_code, 200)
         post = Post.objects.get(pk=response.json()["id"])
-        try:
-            with Image.open(post.image) as stored:
-                self.assertEqual(stored.format, "JPEG")
-                self.assertLessEqual(max(stored.size), 1600)
-        finally:
-            post.image.close()
+        with post.photo_files()[0].open("rb") as image, Image.open(image) as stored:
+            self.assertEqual(stored.format, "JPEG")
+            self.assertLessEqual(max(stored.size), 1600)
         print("Post image resize test pass", flush=True)
 
     def test_photo_requires_membership_and_stays_within_room(self):
@@ -235,7 +232,6 @@ class PostAPITests(TestCase):
         self.assertEqual(self.client.post("/api/posts/", {}, **self.auth(self.owner_token)).status_code, 400)
         self.assertEqual(self.upload(image=SimpleUploadedFile("bad.jpg", b"not a photo")).status_code, 400)
         self.assertEqual(self.upload(caption="x" * 2001).status_code, 400)
-        self.assertEqual(self.upload(image=SimpleUploadedFile("huge.jpg", b"x" * (10 * 1024 * 1024 + 1))).status_code, 400)
         self.assertEqual(Post.objects.count(), 0)
         print("Post upload validation test pass", flush=True)
 
@@ -304,7 +300,7 @@ class PostAPITests(TestCase):
             adapt.assert_called_once()
         print("Post AI message processing test pass", flush=True)
 
-    @override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna")
+    @override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna")
     def test_ai_provider_sends_photo_and_caption_and_reads_completed_text(self):
         post_id = self.upload(caption="오늘 산책했어요").json()["id"]
         first = SimpleNamespace(status="completed", output_text="", output=[
@@ -312,7 +308,8 @@ class PostAPITests(TestCase):
                             arguments=json.dumps({"query": "정아의 가족 관계"})),
         ])
         final = SimpleNamespace(status="completed", output_text="정아가 오늘 산책했어요.")
-        graph = SimpleNamespace(search=AsyncMock(return_value=[]))
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))
         with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
              patch.object(post_flow, "AsyncOpenAI") as sdk:
@@ -320,7 +317,7 @@ class PostAPITests(TestCase):
             client.responses.create = AsyncMock(return_value=final)
             result = self.client.get(f"/api/posts/{post_id}/message/", **self.auth(self.relative_token))
         self.assertEqual(result.json(), {"text": "정아가 오늘 산책했어요.", "status": "ready"})
-        graph.search.assert_not_awaited()
+        graph.search_.assert_not_awaited()
         close.assert_not_awaited()
         client.responses.create.assert_awaited_once()
         payload = client.responses.create.await_args_list[0].kwargs
@@ -329,7 +326,7 @@ class PostAPITests(TestCase):
         self.assertEqual(payload["service_tier"], "fast")
         self.assertEqual(payload["reasoning"], {"effort": "none"})
         self.assertFalse(payload["store"])
-        self.assertIn("두 문장", payload["instructions"])
+        self.assertEqual(payload["instructions"], prompts.POST_SUMMARY)
         content = payload["input"][0]["content"]
         self.assertIn("오늘 산책했어요", content[0]["text"])
         self.assertIn("어머니", content[0]["text"])

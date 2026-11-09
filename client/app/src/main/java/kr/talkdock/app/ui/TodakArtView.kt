@@ -8,7 +8,7 @@ import android.view.View
 import android.widget.ImageView
 import com.caverock.androidsvg.SVG
 
-/** Original Figma artwork, packaged locally; never fetch images from Figma at runtime. */
+/** TalkDock character artwork packaged locally; no runtime image downloads. */
 class TodakArtView(context: Context, private val name: String, widthDp: Int = 300) : ImageView(context) {
     private val maxWidth = (widthDp * resources.displayMetrics.density).toInt()
     private val aspect = if (name == "together") 273f / 300f else 216f / 180f
@@ -24,9 +24,9 @@ class TodakArtView(context: Context, private val name: String, widthDp: Int = 30
     }
     companion object {
         private val pictures = mutableMapOf<String, Bitmap>()
-        @Synchronized private fun bitmap(context: Context, name: String): Bitmap = pictures.getOrPut(name) {
+        @Synchronized internal fun bitmap(context: Context, name: String): Bitmap = pictures.getOrPut(name) {
             context.assets.open("todak/td_art_$name.png").use { input ->
-                requireNotNull(BitmapFactory.decodeStream(input)) { "Missing original Todak artwork: $name" }
+                requireNotNull(BitmapFactory.decodeStream(input)) { "Missing Todak artwork: $name" }
             }
         }
     }
@@ -39,7 +39,7 @@ object FigmaIcons {
         val variant = if (color == android.graphics.Color.rgb(166, 78, 68)) "active" else "idle"
         val filename = when (symbol) {
             "feed", "home", "family", "settings" -> "td_icon_${if (symbol == "feed") "home" else symbol}_$variant"
-            "write", "back", "listen", "mic", "photo", "comment", "next", "close" -> "td_icon_$symbol"
+            "write", "back", "listen", "mic", "photo", "comment", "next", "close", "calendar" -> "td_icon_$symbol"
             else -> return null // Existing app-specific controls retain their native icons.
         }
         return pictures.getOrPut(filename) {

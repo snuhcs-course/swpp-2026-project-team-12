@@ -12,6 +12,7 @@ class FamilyRoom(models.Model):
     digest_time = models.TimeField(default=time(21))
     created_at = models.DateTimeField(auto_now_add=True)
     tree_version = models.PositiveIntegerField(default=0)
+    graph_synced_version = models.IntegerField(default=-1)
 
 
 class FamilyPerson(models.Model):
@@ -21,6 +22,7 @@ class FamilyPerson(models.Model):
     name = models.CharField(max_length=40, blank=True)
     gender = models.CharField(max_length=10, default="unknown")
     generation = models.IntegerField(default=0)
+    graphiti_uuid = models.UUIDField(null=True, blank=True, unique=True, editable=False)
 
 
 class ParentChild(models.Model):

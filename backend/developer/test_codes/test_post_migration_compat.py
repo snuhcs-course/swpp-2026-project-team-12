@@ -47,7 +47,9 @@ class PostMigrationCompatibilityTests(TransactionTestCase):
                 self.assertEqual(merged.get_model("posts", "Post").objects.get(pk=post.pk).description,
                                  "기존에 생성된 상세 설명" if name in {"description", "all"} else "")
                 self.assertEqual(saved.prompt_version, "previous-policy" if name in {"summary", "both", "all"} else "")
-                photos = merged.get_model("posts", "PostPhoto").objects.filter(post_id=post.pk)
-                self.assertEqual(list(photos.values_list("image", flat=True)), ["extra.jpg"] if name in {"photos", "both", "all"} else [])
-                self.assertEqual(executor.loader.graph.leaf_nodes("posts"),
-                    [("posts", "0005_merge_description_photos_summary")])
+                self.assertEqual(merged.get_model("posts", "Post").objects.get(pk=post.pk).images,
+                                 ["existing.jpg", "extra.jpg"] if name in {"photos", "both", "all"} else ["existing.jpg"])
+                self.assertNotIn("posts_postphoto", connection.introspection.table_names())
+                # Later features may add migrations; the merged posts history
+                # must still have one head rather than conflicting branches.
+                self.assertEqual(len(executor.loader.graph.leaf_nodes("posts")), 1)

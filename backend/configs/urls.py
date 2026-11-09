@@ -4,6 +4,7 @@ from django.urls import path
 from apps.accounts import views as accounts
 from apps.families import views as families
 from apps.posts import views as posts
+from apps.posts import daily_questions
 from apps.replies import views as replies
 from apps.digests import views as digests
 from apps.searching import views as searching
@@ -22,20 +23,27 @@ urlpatterns = [
     path("api/accounts/login/", accounts.login, name="account-login"),
     path("api/accounts/logout/", accounts.logout, name="account-logout"),
     path("api/accounts/me/", accounts.me, name="account-me"),
+    path("api/families/", families.rooms, name="family-rooms"),
     path("api/families/create/", families.create, name="family-create"),
     path("api/families/lookup/", families.lookup, name="family-lookup"),
     path("api/families/join/", families.join, name="family-join"),
     path("api/families/current/", families.current, name="family-current"),
     path("api/posts/", posts.feed, name="post-feed"),
+    path("api/daily-questions/today/", daily_questions.today, name="daily-question-today"),
+    path("api/daily-questions/history/", daily_questions.history, name="daily-question-history"),
+    path("api/daily-questions/<int:pk>/", daily_questions.detail, name="daily-question-detail"),
+    path("api/daily-questions/<int:pk>/answer/", daily_questions.answer, name="daily-question-answer"),
     path("api/posts/<int:pk>/", posts.detail, name="post-detail"),
     path("api/posts/<int:pk>/image/", posts.photo, name="post-image"),
-    path("api/posts/<int:pk>/photos/<int:photo_id>/", posts.extra_photo, name="post-extra-photo"),
+    path("api/posts/<int:pk>/images/<int:image_index>/", posts.photo, name="post-indexed-image"),
     path("api/posts/<int:pk>/message/", posts.message, name="post-message"),
     path("api/posts/<int:pk>/questions/", posts.question, name="post-question"),
     path("api/posts/<int:pk>/comments/", replies.text_comment, name="post-comment"),
     path("api/posts/<int:pk>/replies/prepare/", replies.prepare, name="reply-prepare"),
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),
     path("api/speech/", speech.speak, name="speech"),
+    path("api/speech/voices/", speech.voice_options, name="speech-voices"),
+    path("api/speech/voices/<str:key>/sample/", speech.voice_sample, name="speech-voice-sample"),
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),
     path("api/digests/", digests.daily, name="digest-daily"),
     path("api/digests/history/", digests.history, name="digest-history"),

@@ -48,6 +48,78 @@ python backend/manage.py run_construction_worker --family-id 12
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
 
+## Daily conversation questions
+
+The Android home has a fixed **오늘의 질문** preview bar below the header, showing
+the actual question with a speech icon and a small unread dot. Its height is
+reserved from the photo cover so captions and the reply action keep their space.
+Opening it preserves the selected family letter and scroll position.
+Closing and reopening the question also restores its unsent selection, custom
+answer, reason, tier grades and comment for the same account/server/room/question.
+The home preview resolves today's question before restoring, so a previous day's
+draft cannot appear on a new question.
+Question posts are excluded from the normal feed, its pagination,
+daily digests and Graphiti post construction.
+
+Run `python backend/manage.py migrate` after pulling this change. Each room gets
+one question per Korean calendar day on its first feed/question request.
+On SQLite, first-publication lock conflicts roll back and retry outside the
+transaction, reusing the winner's question; exhausted retries return a retryable
+503 response. This prevents duplicate questions and orphan question posts.
+The curated rotation in `backend/apps/posts/data/daily_questions.json` works without AI
+credentials or a separate scheduler. Members
+can read others' answers before participating, save or edit one answer per
+question, and continue discussing in existing text/voice comments. Answer voice
+input is transcribed into an editable draft and is never sent automatically.
+Choice, short text, mood weather and tap-to-select S/A/B/C tiers share this flow.
+Past questions remain accessible and editable from **지난 질문**.
+
+Add or edit default questions in that UTF-8 JSON array, then restart the backend.
+Each entry has `kind`, `title`, and `options`, for example:
+
+```json
+{"kind": "choice", "title": "가족과 함께하고 싶은 일은?", "options": ["산책", "영화 보기"]}
+```
+
+Supported kinds are `choice`, `text`, `weather`, and `tier`. Use `[]` for text
+questions; other kinds require 2–6 distinct options of up to 100 characters each.
+Titles must be 1–2,000 characters. **기타** is added automatically for choice/weather
+questions. The file is loaded and validated once per server process; invalid or
+empty files prevent startup with a configuration error. Array order determines
+the daily rotation, starting on 2026-10-31 and wrapping at the end. Changing the
+array length or order can change future selections; published questions and
+answers stay unchanged in the database. No database migration or APK rebuild is
+needed for edits to this file.
+
+To replace a future day's default question for all rooms, register an editorial
+template (published definitions are frozen to preserve existing answers):
+
+```powershell
+python backend/manage.py publish_daily_question --date 2026-11-01 --kind choice --title "가족과 함께하고 싶은 일은?" --options "산책" "영화 보기"
+python backend/manage.py publish_daily_question --date 2026-11-02 --kind text --title "최근 고마웠던 일은?"
+```
+
+The API is `GET /api/daily-questions/today/`, `GET /api/daily-questions/history/`
+(30 rows with `next_before` pagination), `GET /api/daily-questions/<id>/`, and
+`PUT /api/daily-questions/<id>/answer/`. The detail includes `post_id` for the
+existing comment/transcription APIs. Feed metadata contains a separate
+`daily_question` change token; opening a question clears its local unread dot,
+without requiring participation. Own answers/comments do not create new unread activity.
+
+Offline regression coverage is in `developer.test_codes.test_daily_questions`
+and Android `kr.talkdock.app.DailyQuestionTest` (both text sizes, feed restoration,
+failed-submit drafts, answer editing, persistent choices, shared comments, history and tiers).
+
+Question detail keeps all choices visible after submission, with the saved choice
+marked until **수정** opens the editor. Compact family cards emphasize each selected
+answer in a bold coral chip above its reason. Discussion uses the shared comment
+field; there are no per-answer discussion or quote controls.
+
+Choice and mood-weather questions include **기타**. Selecting it reveals an inline
+input beside the option; its required content (up to 100 characters) is stored in
+`other_text`, separately from the optional reason. Existing answers and published
+question options are preserved. Apply the new migration before deploying the API.
+
 ## Family tree data and invitation API
 
 `FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
@@ -89,11 +161,31 @@ Graphiti, processes up to 100 author/caption records in creation order, then wai
 5 seconds before checking again. Uploads do not enqueue work directly.
 Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
 
+The worker embeds each post episode's author and detailed description with the shared
+Graphiti embedder and stores it as `Episodic.content_embedding`. On each pass, it also
+fills missing embeddings on existing post episodes in batches of 100, without
+regenerating descriptions or extracting facts again. Restart the worker for each
+family after upgrading to make existing posts available to vector search.
+
+Before posts, the worker syncs confirmed family members and their relationships.
+Creation, joining, and name edits leave a pending tree version; failures retry on
+the next pass. `FamilyPerson.graphiti_uuid` keeps each member's node identity.
+An unclaimed node is reused only when its name is unique in both the room's graph
+and member list. Ambiguous names get separate nodes. Relationships have stable
+UUIDs and `family_registry_<room>_v<version>` source episodes, without creating posts.
+
 ### Search (retrieving history)
 
 Search and AI requests submit work to a shared thread pool inside the Django
 process and wait for the result. Threads are reused across families, while each
 request searches only its own family's records. No separate search command is needed.
+
+Search combines Graphiti's fact retrieval and episode full-text search with cosine
+similarity over stored post-description embeddings. Episode ranks are merged with
+RRF and limited to five results, so posts without extracted fact edges can still
+provide evidence. Query embeddings are reused for facts and episodes. Episode
+vectors are scored within the family in Neo4j, using the existing similarity
+threshold (0.6); no additional vector index or Graphiti fork is required.
 
 Family history uses `search -> LLM`. Basic post summaries use only the current
 post and photos. Additional questions use `LLM -> search -> LLM`, skipping
@@ -135,34 +227,42 @@ Family rooms use the accounts created through `/api/accounts/register/`. Creatin
 
 | Endpoint | Authentication | Request body | Result |
 | --- | --- | --- | --- |
+| `GET /api/families/` | Required | None | Lists the user's rooms as `rooms` (`id`, `name`, `is_owner`, `member_count`) in join order. |
 | `POST /api/families/create/` | Required | `room_name`, `password`, optional `digest_time` (`HH:MM`) | Creates a room and owner membership; returns `room`. |
 | `POST /api/families/lookup/` | Not required | `invite_code`, `password` | Returns room information when the invitation matches. |
-| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. |
-| `GET /api/families/current/` | Required | None | Returns the current user's family room. |
-| `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the room's digest time. |
+| `POST /api/families/join/` | Required | `invite_code`, `password`, `tree_version`, `person_id`, `additions` | Adds the current account as a member; returns `room`. Joining a room twice returns 409. |
+| `GET /api/families/current/` | Required | None | Returns the selected family room. |
+| `PATCH /api/families/current/` | Required; owner only | `digest_time` (`HH:MM`) | Changes the selected room's digest time. |
 
 Room passwords are hashed in the database. Each tree person can be claimed by one account; multiple children of the same gender are supported.
 
+An account can create and join several rooms. Room-scoped endpoints (`families/current/`, `GET`/`POST /api/posts/`, `digests/`, `searching/`, `speech/`) use the room named by the `X-Family-Room: <room id>` header and return 403 when the header is missing or names a room the account does not belong to. Endpoints under `/api/posts/<id>/` and `/api/replies/` use the post's own room and need no header.
+
 ### Post APIs
 
-All post endpoints require a bearer token and a family membership. Upload a photo with `multipart/form-data`; `caption` is optional.
+All post endpoints require a bearer token and membership in the post's room. Upload with `multipart/form-data`: a non-blank `caption`, up to five repeated `images` files, or both. The legacy single-file `image` input remains accepted; do not mix it with `images`.
 
 | Endpoint | Result |
 | --- | --- |
 | `GET /api/posts/` | Lists up to 100 posts in the current family room, newest first. |
-| `POST /api/posts/` | Creates a post from `image` and optional `caption`; returns the new post (200). |
+| `POST /api/posts/` | Creates a text-only or multi-photo post; returns the new post (200). |
 | `GET /api/posts/<id>/` | Returns a post in the current family room. |
-| `GET /api/posts/<id>/image/` | Streams its photo only to members of that room. |
+| `GET /api/posts/<id>/images/<index>/` | Streams a photo at its zero-based position only to members of that room. |
+| `GET /api/posts/<id>/image/` | Compatibility alias for the first photo; 404 for text-only posts. |
 | `GET /api/posts/<id>/message/` | Generates or returns the viewer's cached AI message from the photo and caption. |
 | `POST /api/posts/<id>/message/` | Retries a failed AI message for the same viewer. |
 | `POST /api/posts/<id>/questions/` | Answers a question about the post; JSON body: `question` (up to 1,000 characters) and optional `prior_dialogue` (up to 10 user/assistant messages, each with `role` and `text`, up to 1,000 characters). Returns `text`. |
 | `POST /api/posts/<id>/comments/` | Adds a text comment to a post in the current family room; JSON body: `{"text": "..."}` (up to 2,000 characters). |
 
-Uploads are limited to 10 MB, 20 million source pixels, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; `OPENAI_MODEL` defaults to `gpt-4.1-mini`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
+Uploads are limited to 10 MB and 20 million source pixels per photo, 30 MB combined, and 2,000 caption characters. Photos are converted to JPEG and resized to at most 1600 × 1600 pixels. Set `PUBLIC_ORIGIN` to the backend's HTTPS address when clients need absolute image URLs through a tunnel. Set `OPENAI_API_KEY` on the backend to enable AI messages; models default to `DEFAULT_AI_*` and can be overridden per feature group (`SUMMARY_AI_*`, `STT_AI_*`, `ANSWER_AI_*`, `QUERY_AI_*`, `GRAPHITI_*`); see `.env.example`. The feed includes each post's `comment_count`; post detail includes its comment list with author, relationship, text, source, and creation time.
+
+Photo paths are stored in one ordered `Post.images` JSON list. The API still returns an `images` array of `{id, url}` objects and `image_count`; each image `id` is now its position within that post, not a global photo ID. Clients must use the supplied URL. The old `/photos/<photo_id>/` route has been removed; refresh browser tabs after updating the backend and web assets together. Android already uses the supplied URLs.
+
+When upgrading from the current tree-based family schema, stop the API server and construction/digest workers, back up the database and media, then run `python backend/manage.py migrate` before restarting them. `posts.0006_post_images` collects the former cover followed by attachments ordered by `(position, id)`, removes `Post.image` and `PostPhoto`, and keeps the actual files in place. It preserves post IDs, creation times, descriptions, and cached summaries. Reversing this migration preserves file paths and order but assigns new attachment IDs. This photo migration does not require a database reset; the separate historical family-schema reset described above still applies only to slot-based databases.
 
 ### Speech API
 
-After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` on the backend; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
+After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` on the backend. The voices accounts can choose are listed once in `TTS_VOICES` in `backend/configs/settings.py`, each with a `name`, an ElevenLabs `voice_id` and a `description`; entries without a `voice_id` are not offered. `GET /api/speech/voices/` (no login) returns each offered voice's key, name and description and the default, and the apps build their choices from it, so adding a voice needs only a new `TTS_VOICES` entry. Each account may pick a voice key as `tts_voice` at registration and can change it with `PATCH /api/accounts/me/` `{"tts_voice": "<key>"}`; accounts that never chose one follow `TTS_DEFAULT_VOICE`, which must be a `TTS_VOICES` key (`manage.py check` reports it otherwise). Each voice has a preview sample reading "가족의 일상을 잇는 따뜻한 공간, 토닥" at `GET /api/speech/voices/<key>/sample/` (no login); samples live in `backend/integrations/speech/samples/` named by voice ID, so after adding a voice or changing its `voice_id`, run `python backend/manage.py generate_voice_samples` (needs `ELEVENLABS_API_KEY`) and commit the new MP3, and `/api/speech/` uses the requesting account's choice; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
 
 ### Voice Reply APIs
 
@@ -197,8 +297,8 @@ python backend/manage.py run_digest_scheduler --once
 
 ### Photos and feed
 
-- [ ] **Edit a published photo:** A post currently stores one image (`Post.image`), and there is no update API. Design and implement a way to replace or remove a photo after publication. This is separate from choosing a different photo before posting.
-- [ ] **Upload multiple photos:** Add a data model, upload API, and feed/detail navigation for multiple photos in one post.
+- [ ] **Edit a published photo:** Photos are stored in `Post.images`, and there is no update API. Design and implement a way to replace or remove a photo after publication. This is separate from choosing a different photo before posting.
+- [x] **Upload multiple photos:** Up to five ordered photos per post, with feed/detail navigation and unified path storage.
 - [ ] **Decide how photos should open and fit:** Tapping a feed photo currently opens the detail or listening screen, with no full-screen view. Compare full-screen viewing, aspect-ratio preservation, and square frames with padding on real phones.
 
 ### Older adult experience and accessibility

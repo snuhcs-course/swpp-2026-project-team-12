@@ -1,9 +1,11 @@
+from django.conf import settings
 from django.http import HttpResponse
 
 from apps.api import APIError, api, body
-from apps.posts.services import current_room, post_for
+from apps.families.services import room_for
+from apps.posts.services import post_for
 
-from . import provider
+from . import provider, voices
 
 
 @api("POST")
@@ -24,9 +26,25 @@ def transcribe(request, pk):
         raise APIError("말씀을 글로 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
 
 
+@api("GET", anonymous=True)
+def voice_options(request):
+    # Registration shows the choice too, so this list needs no login.
+    return {"voices": voices.available(), "default": settings.TTS_DEFAULT_VOICE}
+
+
+@api("GET", anonymous=True)
+def voice_sample(request, key):
+    path = voices.sample_path(key)
+    if path is None:
+        raise APIError("들어볼 수 있는 목소리 예시가 없어요.", 404)
+    response = HttpResponse(path.read_bytes(), content_type="audio/mpeg")
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
+
+
 @api("POST")
 def speak(request):
-    room = current_room(request)
+    room = room_for(request)
     raw = body(request).get("text", "")
     if not isinstance(raw, str):
         raise APIError("입력한 내용을 다시 확인해 주세요.")
@@ -34,7 +52,7 @@ def speak(request):
     if not text or len(text) > 4000:
         raise APIError("입력한 내용을 다시 확인해 주세요.")
     try:
-        audio = provider.synthesize(text, room.pk)
+        audio = provider.synthesize(text, room.pk, request.user.tts_voice)
     except provider.SpeechUnavailable as error:
         raise APIError("소리를 준비하지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
     return HttpResponse(audio, content_type="audio/mpeg")

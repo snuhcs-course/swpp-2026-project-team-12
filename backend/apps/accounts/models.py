@@ -15,6 +15,10 @@ class User(AbstractUser):
 
     display_name = models.CharField(max_length=40)
     gender = models.CharField(max_length=10, choices=Gender.choices, default=Gender.UNKNOWN)
+    # A key of settings.TTS_VOICES, validated by the account services rather than choices so
+    # the list can change without a migration. Empty means "use the current default voice";
+    # db_default keeps older inserts working.
+    tts_voice = models.CharField(max_length=32, blank=True, default="", db_default="")
 
 
 class AccessToken(models.Model):

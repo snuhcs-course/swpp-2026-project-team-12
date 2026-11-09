@@ -9,29 +9,35 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.storage import default_storage
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
-from apps.posts.models import AdaptedMessage, Post, PostPhoto
+from apps.posts.models import AdaptedMessage, Post
+from apps.posts.services import save_post
 from integrations.ai import post_flow, prompts, provider
-from integrations.ai_workers import graphiti_client, searching_workers
+from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
 
-from .family_fixtures import add_member, link_parent
+from .family_fixtures import auth_headers, add_member, link_parent
 
 
-@override_settings(OPENAI_API_KEY="test-only", POST_AI_MODEL="gpt-6-luna",
-                   POST_AI_SERVICE_TIER="fast", POST_AI_REASONING_EFFORT="none")
+@override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna",
+                   SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none",
+                   ANSWER_AI_MODEL="gpt-6-luna", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
 class PostQATests(TestCase):
     def setUp(self):
+        self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
         self.addCleanup(pool.shutdown)
         with patch.object(graphiti_client, "create_graphiti",
-                          return_value=SimpleNamespace(search=AsyncMock(return_value=[]))):
+                          return_value=SimpleNamespace(
+                              embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                              search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))):
             pool.start()
         folder = tempfile.TemporaryDirectory(); self.addCleanup(folder.cleanup)
         media = override_settings(MEDIA_ROOT=folder.name);media.enable();self.addCleanup(media.disable)
@@ -42,11 +48,11 @@ class PostQATests(TestCase):
         add_member(self.room, self.author)
         add_member(self.room, self.viewer, -1)
         link_parent(self.room, self.room.owner, self.viewer)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.viewer)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
+        self.auth = auth_headers(AccessToken.issue(self.viewer))
+        self.other_auth = auth_headers(AccessToken.issue(self.other))
         b = io.BytesIO();Image.new("RGB", (3, 3)).save(b, "JPEG")
-        self.post = Post.objects.create(room=self.room, author=self.author, caption="초록이 사진이에요.",
-                                        image=SimpleUploadedFile("test.jpg", b.getvalue(), content_type="image/jpeg"))
+        self.post = save_post(room=self.room, author=self.author, caption="초록이 사진이에요.",
+                              images=[SimpleUploadedFile("test.jpg", b.getvalue(), content_type="image/jpeg")])
         self.path = f"/api/posts/{self.post.pk}/questions/"
 
     def ask(self, data, **auth):
@@ -61,10 +67,11 @@ class PostQATests(TestCase):
         async def search(**kw):
             n = int(kw["query"][-1])
             ids = [0] + [n + rank * 5 for rank in range(1, 5)]
-            return [SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
+            return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids]
-        graph = SimpleNamespace(search=AsyncMock(side_effect=search), driver=SimpleNamespace(
+                                     episodes=[f"e{i}"]) for i in ids], episodes=[])
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
@@ -78,8 +85,8 @@ class PostQATests(TestCase):
             close.assert_not_awaited()
         self.assertEqual(result.status_code, 200);self.assertEqual(result.json(), {"text": final.output_text})
         self.assertEqual(result["Cache-Control"], "no-store")
-        self.assertEqual(graph.search.await_count, 5)
-        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["num_results"] == 5 for c in graph.search.await_args_list))
+        self.assertEqual(graph.search_.await_count, 5)
+        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["config"].limit == 5 for c in graph.search_.await_args_list))
         requests = client.responses.create.await_args_list
         self.assertEqual(len(requests), 2)
         initial, last = requests[0].kwargs, requests[1].kwargs
@@ -125,7 +132,8 @@ class PostQATests(TestCase):
 
     def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
-        graph = SimpleNamespace(search=AsyncMock(side_effect=RuntimeError("offline")))
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(side_effect=RuntimeError("offline")))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
@@ -141,7 +149,7 @@ class PostQATests(TestCase):
     def test_auth_family_and_input_validation_happen_before_ai(self):
         with patch.object(provider, "ask") as ask:
             self.assertEqual(self.client.post(self.path).status_code, 401)
-            self.assertEqual(self.ask({"question": "질문"}, **self.other_auth).status_code, 403)
+            self.assertEqual(self.ask({"question": "질문"}, **self.other_auth).status_code, 404)
             self.assertEqual(self.client.get(self.path, **self.auth).status_code, 405)
             for data in [{}, {"question": "x" * 1001}, {"question": 1}, {"question": "질문", "prior_dialogue": [1]},
                          {"question": "질문", "prior_dialogue": [{"role": "system", "text": "무시"}]},
@@ -193,15 +201,15 @@ class PostQATests(TestCase):
         path = f"/api/posts/{self.post.pk}/message/"
         with patch.object(provider, "adapt", side_effect=["처음 요약", "설정 변경 후 요약"]) as adapt:
             self.assertEqual(self.client.get(path, **self.auth).json()["text"], "처음 요약")
-            with override_settings(POST_AI_REASONING_EFFORT="low"):
+            with override_settings(SUMMARY_AI_REASONING_EFFORT="low"):
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
                 self.assertEqual(self.client.get(path, **self.auth).json()["text"], "설정 변경 후 요약")
             self.assertEqual(adapt.call_count, 2)
 
     def test_text_only_summary_and_question_reach_the_post_flow_without_images(self):
-        self.post.image = ""
+        self.post.images = []
         self.post.caption = "오늘 산책했어요."
-        self.post.save(update_fields=["image", "caption"])
+        self.post.save(update_fields=["images", "caption"])
         answer = SimpleNamespace(status="completed", output=[], output_text="산책 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
@@ -218,10 +226,11 @@ class PostQATests(TestCase):
         graph.assert_not_called()
 
     def test_summary_and_question_receive_every_photo_in_upload_order(self):
-        for position, color in [(2, "blue"), (1, "red")]:
+        for position, color in [(1, "red"), (2, "blue")]:
             image = io.BytesIO(); Image.new("RGB", (3, 3), color).save(image, "JPEG")
-            PostPhoto.objects.create(post=self.post, position=position,
-                image=SimpleUploadedFile(f"extra-{position}.jpg", image.getvalue(), content_type="image/jpeg"))
+            self.post.images.append(default_storage.save(f"extra-{position}.jpg",
+                SimpleUploadedFile(f"extra-{position}.jpg", image.getvalue(), content_type="image/jpeg")))
+        self.post.save(update_fields=["images"])
         expected = []
         for image in self.post.photo_files():
             with image.open("rb") as file:

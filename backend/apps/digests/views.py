@@ -3,14 +3,15 @@ from datetime import date, timedelta
 from django.utils import timezone
 
 from apps.api import APIError, api, body
-from apps.posts.services import current_room, serialize
+from apps.families.services import room_for
+from apps.posts.services import serialize
 
-from .services import generate_digest
+from .services import generate_digest, render_text
 
 
 @api("GET", "POST")
 def daily(request):
-    room = current_room(request)
+    room = room_for(request)
     requested = request.GET.get("date") if request.method == "GET" else body(request).get("date")
     try:
         chosen = timezone.localdate() if requested in (None, "") else date.fromisoformat(requested)
@@ -19,21 +20,21 @@ def daily(request):
     except (TypeError, ValueError) as error:
         raise APIError("날짜를 다시 확인해 주세요.") from error
     digest = generate_digest(room, chosen, retry=request.method == "POST")
+    posts = [serialize(post, request) for post in digest.posts.select_related("author")] if digest else []
     return {
         "date": chosen.isoformat(),
         "status": digest.status if digest else "pending",
-        "text": digest.text if digest else "",
+        "text": render_text(digest, posts) if digest else "",
         "digest_time": room.digest_time.strftime("%H:%M"),
-        "posts": [serialize(post, request) for post in digest.posts.select_related("author")]
-        if digest else [],
+        "posts": posts,
     }
 
 
 @api("GET")
 def history(request):
-    room = current_room(request)
+    room = room_for(request)
     dates = {timezone.localdate()}
-    for created_at in room.posts.values_list("created_at", flat=True)[:200]:
+    for created_at in room.posts.filter(kind="news").values_list("created_at", flat=True)[:200]:
         local = timezone.localtime(created_at)
         dates.add(local.date() + (timedelta(days=1) if local.time() >= room.digest_time else timedelta()))
     dates.update(room.digests.values_list("date", flat=True))

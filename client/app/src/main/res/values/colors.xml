@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="todak_background">#FFFFFF</color>
+    <color name="todak_surface">#FFFFFF</color>
+    <color name="todak_surface_muted">#F7EDDB</color>
+    <color name="todak_accent">#BE5239</color>
+    <color name="todak_accent_soft">#FAE8DC</color>
+    <color name="todak_blush">#FFEFE1</color>
+    <color name="todak_text">#442C30</color>
+    <color name="todak_text_secondary">#7C675F</color>
+    <color name="todak_text_hint">#877367</color>
+    <color name="todak_text_supporting">#68483B</color>
+    <color name="todak_border">#EEDFCC</color>
+    <color name="todak_sheet">#FFF9EE</color>
+    <color name="todak_photo_scrim">#7D37261E</color>
+    <color name="todak_overlay_scrim">#30412B22</color>
+</resources>

@@ -9,6 +9,8 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyPerson, FamilyRoom, Membership, ParentChild, Partnership
 from apps.families.utils import relationship
 
+from .family_fixtures import auth_headers
+
 
 class FamilyWorkflowTests(TestCase):
     def setUp(self):
@@ -22,7 +24,7 @@ class FamilyWorkflowTests(TestCase):
         self.root = str(self.room.people.get().pk)
 
     def post(self, path, data, token=None):
-        headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"} if token else {}
+        headers = auth_headers(token) if token else {}
         return self.client.post(path, json.dumps(data), content_type="application/json", **headers)
 
     def join(self, additions, selected, version=0, token=None):
@@ -47,7 +49,7 @@ class FamilyWorkflowTests(TestCase):
         self.assertNotIn("slot", found.json()["members"][0])
         self.assertEqual(self.post("/api/families/lookup/", {**self.invitation, "password": "bad"}).status_code, 403)
         updated = self.client.patch("/api/families/current/", json.dumps({"digest_time": "19:30"}),
-                                   content_type="application/json", HTTP_AUTHORIZATION=f"Bearer {self.owner_token}")
+                                   content_type="application/json", **auth_headers(self.owner_token))
         self.assertEqual(updated.status_code, 200)
         self.room.refresh_from_db()
         self.assertEqual(self.room.digest_time, time(19, 30))

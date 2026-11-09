@@ -5,7 +5,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class SessionStore(context: Context) {
-    private val prefs = context.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(
+        if (kr.talkdock.app.BuildConfig.DEBUG) "talkdock-session" else "talkdock-public-session", Context.MODE_PRIVATE)
     fun serverUrl(): String = prefs.getString("server", kr.talkdock.app.BuildConfig.API_URL)!!
     fun changeServer(url: String) {
         if (url != serverUrl()) prefs.edit().remove("current").remove("accounts").putString("server", url).apply()

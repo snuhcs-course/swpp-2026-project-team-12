@@ -84,20 +84,51 @@ MEDIA_URL = "/media/"
 # ============ Third-party API settings ============
 # Account and family APIs can run without AI credentials. Providers validate keys when called.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-6-luna")
-# Adopted post prompts use a direct summary and three-way QA, independently of legacy features.
-POST_AI_MODEL = os.getenv("POST_AI_MODEL", "gpt-6-luna")
-POST_AI_SERVICE_TIER = os.getenv("POST_AI_SERVICE_TIER", "fast")
-POST_AI_REASONING_EFFORT = os.getenv("POST_AI_REASONING_EFFORT", "none")
-GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", "gpt-6-luna")
+# Model groups. An unset group value uses DEFAULT_AI_*; a blank tier or effort is not sent,
+# so the API default applies.
+DEFAULT_AI_MODEL = os.getenv("DEFAULT_AI_MODEL", "gpt-6-luna")
+DEFAULT_AI_SERVICE_TIER = os.getenv("DEFAULT_AI_SERVICE_TIER", "fast")
+DEFAULT_AI_REASONING_EFFORT = os.getenv("DEFAULT_AI_REASONING_EFFORT", "none")
+# Summaries: daily digest, graph post descriptions and feed summaries.
+SUMMARY_AI_MODEL = os.getenv("SUMMARY_AI_MODEL", DEFAULT_AI_MODEL)
+SUMMARY_AI_SERVICE_TIER = os.getenv("SUMMARY_AI_SERVICE_TIER", DEFAULT_AI_SERVICE_TIER)
+SUMMARY_AI_REASONING_EFFORT = os.getenv("SUMMARY_AI_REASONING_EFFORT", DEFAULT_AI_REASONING_EFFORT)
+# Voice reply STT correction.
+STT_AI_MODEL = os.getenv("STT_AI_MODEL", DEFAULT_AI_MODEL)
+STT_AI_SERVICE_TIER = os.getenv("STT_AI_SERVICE_TIER", DEFAULT_AI_SERVICE_TIER)
+STT_AI_REASONING_EFFORT = os.getenv("STT_AI_REASONING_EFFORT", DEFAULT_AI_REASONING_EFFORT)
+# Answers: family history search and post QA, including the QA search decision.
+ANSWER_AI_MODEL = os.getenv("ANSWER_AI_MODEL", DEFAULT_AI_MODEL)
+ANSWER_AI_SERVICE_TIER = os.getenv("ANSWER_AI_SERVICE_TIER", DEFAULT_AI_SERVICE_TIER)
+ANSWER_AI_REASONING_EFFORT = os.getenv("ANSWER_AI_REASONING_EFFORT", DEFAULT_AI_REASONING_EFFORT)
+# Search decision and queries for STT correction.
+QUERY_AI_MODEL = os.getenv("QUERY_AI_MODEL", DEFAULT_AI_MODEL)
+QUERY_AI_SERVICE_TIER = os.getenv("QUERY_AI_SERVICE_TIER", DEFAULT_AI_SERVICE_TIER)
+QUERY_AI_REASONING_EFFORT = os.getenv("QUERY_AI_REASONING_EFFORT", DEFAULT_AI_REASONING_EFFORT)
+# Graphiti entity and relation extraction and reranking. Graphiti has no service tier, and a
+# blank reasoning effort keeps Graphiti's own default rather than DEFAULT_AI_REASONING_EFFORT.
+GRAPHITI_MODEL = os.getenv("GRAPHITI_MODEL", DEFAULT_AI_MODEL)
+GRAPHITI_REASONING_EFFORT = os.getenv("GRAPHITI_REASONING_EFFORT", "")
 GRAPHITI_SEARCH_WORKERS = int(os.getenv("GRAPHITI_SEARCH_WORKERS", "4"))
 NEO4J_URI = os.getenv("NEO4J_URI", "bolt://localhost:7687")
 NEO4J_USER = os.getenv("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
-ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "")
+# Voices an account can choose for TTS; a new voice only needs an entry here. The key is
+# stored on User.tts_voice, so keep keys stable. "name" and "description" are shown in the
+# apps, and "voice_id" is the ElevenLabs voice ID (not a secret). Entries without a
+# voice_id are not offered. TTS_DEFAULT_VOICE must be one of the keys; accounts that never
+# chose a voice follow it, so changing it needs no migration.
+TTS_DEFAULT_VOICE = "m1"
+TTS_VOICES = {
+    "m1": {"name": "Mr.k", "voice_id": "LKOcTG4J4tYTPR9DnLeM", "description": "차분한 남성 목소리"},
+    "m2": {"name": "Jangho", "voice_id": "UmYoqGlufKxhJ6NCx5Mv", "description": "허스키한 남성 목소리"},
+    "m3": {"name": "Jangho", "voice_id": "SWu2lWaUX4JBPKyh7h1p", "description": "친근한 남성 목소리"},
+    "f1": {"name": "Jiyoung", "voice_id": "AW5wrnG1jVizOYY7R1Oo", "description": "자연스러운 여성 목소리"},
+    "f2": {"name": "Jiyoung", "voice_id": "O2KReOFLpoR65nz6C9Se", "description": "밝고 젊은 여성 목소리"},
+}
 ELEVENLABS_TTS_MODEL = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_multilingual_v2")
-ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "scribe_v2")
+ELEVENLABS_STT_MODEL = os.getenv("ELEVENLABS_STT_MODEL", "eleven_v4")
 
 # ============ other settings ============
 LANGUAGE_CODE = "ko-kr"
@@ -106,8 +137,11 @@ USE_TZ = True
 
 DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+# Uploads have no byte limit; every photo is re-encoded to MAX_IMAGE_DIMENSION before storage.
+# MAX_IMAGE_PIXELS only guards against decompression bombs and leaves room for 48-50MP phone photos.
 MAX_POST_IMAGES = 5
-MAX_POST_UPLOAD_BYTES = 30 * 1024 * 1024
-MAX_IMAGE_PIXELS = 20_000_000
+MAX_IMAGE_PIXELS = 100_000_000
 MAX_IMAGE_DIMENSION = 1600
+# Each photo sent to graph construction is downsampled until it fits both limits.
+CONSTRUCTION_IMAGE_MAX_BYTES = 1 * 1024 * 1024
+CONSTRUCTION_IMAGE_MAX_DIMENSION = 1600

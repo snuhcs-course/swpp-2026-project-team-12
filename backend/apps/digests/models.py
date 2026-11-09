@@ -7,7 +7,8 @@ from apps.posts.models import Post
 class Digest(models.Model):
     room = models.ForeignKey(FamilyRoom, on_delete=models.CASCADE, related_name="digests")
     date = models.DateField()
-    text = models.TextField(blank=True)
+    text = models.TextField(blank=True)  # Legacy cache, rebuilt into summaries on access.
+    summaries = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=12, default="pending")
     window_start = models.DateTimeField(null=True)
     window_end = models.DateTimeField(null=True)

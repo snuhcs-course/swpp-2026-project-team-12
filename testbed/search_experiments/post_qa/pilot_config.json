@@ -1,0 +1,21 @@
+{
+  "budget": 5,
+  "repeats": 1,
+  "schedule_seed": 20261105,
+  "reranker_options": {
+    "model": "gpt-6-luna",
+    "reasoning": {
+      "effort": "none"
+    },
+    "service_tier": "fast",
+    "max_output_tokens": 4096
+  },
+  "answer_options": {
+    "model": "gpt-6-luna",
+    "reasoning": {
+      "effort": "none"
+    },
+    "service_tier": "fast",
+    "max_output_tokens": 700
+  }
+}

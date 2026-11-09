@@ -1,0 +1,23 @@
+{
+  "selection": {
+    "baseline": {
+      "correct": 37,
+      "required_recall_mean": 0.645,
+      "total_tokens_mean": 4760.31,
+      "answer_seconds_mean": 1.5059550579963252
+    },
+    "interleave": {
+      "correct": 54,
+      "required_recall_mean": 0.825,
+      "total_tokens_mean": 5085.84,
+      "answer_seconds_mean": 1.5060565820941703
+    },
+    "separate_5_5": {
+      "correct": 68,
+      "required_recall_mean": 0.965,
+      "total_tokens_mean": 6231.31,
+      "answer_seconds_mean": 1.5896238133427687
+    }
+  },
+  "prompt_candidate_correct": 54
+}

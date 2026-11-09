@@ -14,9 +14,10 @@ def create_graphiti():
     client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1)
     config = LLMConfig(api_key=settings.OPENAI_API_KEY, model=settings.GRAPHITI_MODEL,
                        small_model=settings.GRAPHITI_MODEL)
+    reasoning = {"reasoning": settings.GRAPHITI_REASONING_EFFORT} if settings.GRAPHITI_REASONING_EFFORT else {}
     return Graphiti(
         uri=settings.NEO4J_URI, user=settings.NEO4J_USER, password=settings.NEO4J_PASSWORD,
-        llm_client=OpenAIClient(config=config, client=client),
+        llm_client=OpenAIClient(config=config, client=client, **reasoning),
         embedder=OpenAIEmbedder(config=OpenAIEmbedderConfig(
             api_key=settings.OPENAI_API_KEY, embedding_model="text-embedding-3-small",
         ), client=client),

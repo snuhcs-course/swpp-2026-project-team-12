@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, patch
 from django.core.management import call_command
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -22,22 +23,22 @@ from django.utils import timezone
 
 from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom, Membership
-from apps.posts.models import Post, PostPhoto
+from apps.posts.models import Post
 from apps.searching import services
-from integrations.ai import feed_description, flow, provider
+from integrations.ai import feed_description, flow, prompts, provider, history_evidence
 from integrations.ai_workers import construction_graphiti, graphiti_client, searching_graphiti, searching_workers
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 class FamilyFixture:
     def setUp(self):
         self.user = User.objects.create_user(username="history", display_name="정아")
         self.room = FamilyRoom.objects.create(
-            owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed",
+            owner=self.user, name="정아네", invite_code="HIST01", password_hash="hashed", graph_synced_version=0,
         )
         add_member(self.room, self.user)
-        self.auth = {"HTTP_AUTHORIZATION": f"Bearer {AccessToken.issue(self.user)}"}
+        self.auth = auth_headers(AccessToken.issue(self.user))
 
     def post(self, path, data):
         return self.client.post(path, json.dumps(data), content_type="application/json", **self.auth)
@@ -49,7 +50,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         with patch.object(services, "search_history", return_value=result) as search:
             response = self.post("/api/searching/history/", {"question": " 준하의 부모 ", "family_id": 999})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), result)
+        self.assertEqual(response.json(), {**result, "evidence_posts": [], "evidence_kind": "retrieved"})
         self.assertEqual(response["Cache-Control"], "no-store")
         search.assert_called_once_with(self.room.pk, "준하의 부모")
 
@@ -79,20 +80,20 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertIn("가족 기록", failed.json()["error"])
 
     def test_construction_is_ordered_scoped_and_resumes_saved_posts(self):
-        first = Post.objects.create(room=self.room, author=self.user, caption="처음 기록", image="test.jpg")
-        second = Post.objects.create(room=self.room, author=self.user, caption="다음 기록", image="test.jpg")
-        saved = Post.objects.create(room=self.room, author=self.user, caption="저장된 기록", image="test.jpg")
+        first = Post.objects.create(room=self.room, author=self.user, caption="처음 기록", images=["test.jpg"])
+        second = Post.objects.create(room=self.room, author=self.user, caption="다음 기록", images=["test.jpg"])
+        saved = Post.objects.create(room=self.room, author=self.user, caption="저장된 기록", images=["test.jpg"])
         Post.objects.filter(pk=second.pk).update(created_at=first.created_at - timedelta(days=1))
         other = FamilyRoom.objects.create(owner=self.user, name="다른 가족", invite_code="HIST02", password_hash="hashed")
-        Post.objects.create(room=other, author=self.user, caption="다른 가족 기록", image="test.jpg")
-        records = [{"name": f"post_{saved.pk}"}]
+        Post.objects.create(room=other, author=self.user, caption="다른 가족 기록", images=["test.jpg"])
+        records = [{"name": f"post_{saved.pk}", "content": None}]
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=(records, None, None))),
         )
 
         async def save(graphiti, family_id, text, source, at):
-            records.append({"name": source})
+            records.append({"name": source, "content": None})
 
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media), \
              patch.object(feed_description, "describe_post", new=AsyncMock(return_value="상세 기록")) as describe, \
@@ -111,7 +112,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertEqual(saved.description, "")
 
     def test_construction_failure_can_be_retried(self):
-        Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
+        Post.objects.create(room=self.room, author=self.user, caption="기록", images=["test.jpg"])
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
@@ -129,7 +130,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
 
     def test_construction_creates_and_reuses_client_on_one_loop_across_polls(self):
         post = Post.objects.create(room=self.room, author=self.user, caption="기록",
-                                   description="상세 기록", image="test.jpg")
+                                   description="상세 기록", images=["test.jpg"])
         saved = []
         created = []
 
@@ -172,7 +173,7 @@ class HistoryAPITests(FamilyFixture, TestCase):
         self.assertTrue(created[0].loop.is_closed())
 
     def test_description_failure_does_not_save_memory_and_can_retry(self):
-        post = Post.objects.create(room=self.room, author=self.user, caption="기록", image="test.jpg")
+        post = Post.objects.create(room=self.room, author=self.user, caption="기록", images=["test.jpg"])
         graph = SimpleNamespace(
             build_indices_and_constraints=AsyncMock(),
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
@@ -199,11 +200,10 @@ class HistoryAPITests(FamilyFixture, TestCase):
             driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))),
         )
         with tempfile.TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
-            post = Post.objects.create(room=self.room, author=self.user, caption="여러 사진의 소식",
-                                       image=ContentFile(b"cover", name="cover.jpg"))
-            PostPhoto.objects.create(post=post, position=2, image=ContentFile(b"third", name="third.jpg"))
-            PostPhoto.objects.create(post=post, position=1, image=ContentFile(b"second", name="second.jpg"))
-            text_post = Post.objects.create(room=self.room, author=self.user, caption="글로만 남긴 소식", image="")
+            paths = [default_storage.save(name, ContentFile(content))
+                     for name, content in [("cover.jpg", b"cover"), ("second.jpg", b"second"), ("third.jpg", b"third")]]
+            post = Post.objects.create(room=self.room, author=self.user, caption="여러 사진의 소식", images=paths)
+            text_post = Post.objects.create(room=self.room, author=self.user, caption="글로만 남긴 소식", images=[])
             with patch.object(graphiti_client, "create_graphiti", return_value=graph), \
                  patch.object(graphiti_client, "close_graphiti", new=AsyncMock()), \
                  patch.object(construction_graphiti, "add_memory", new=AsyncMock()) as add, \
@@ -239,30 +239,39 @@ class HistoryAPITests(FamilyFixture, TestCase):
 
 
 class MemoryFlowTests(SimpleTestCase):
+    def setUp(self):
+        # Vector retrieval is exercised with the real adapter in test_episode_embeddings.py.
+        self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
+
     def test_two_way_retrieves_before_exactly_one_answer_call(self):
         edge = SimpleNamespace(uuid="fact", group_id="family_1", fact="준하의 부모는 수진과 도윤",
                                valid_at=timezone.now(), invalid_at=None, episodes=["episode"])
         other_edge = SimpleNamespace(**{**vars(edge), "uuid": "other", "group_id": "family_2"})
         source = {"id": "episode", "name": "post_2", "text": "엄마는 수진, 아빠는 도윤", "recorded_at": "2026-09-01"}
-        graph = SimpleNamespace(search=AsyncMock(return_value=[edge, other_edge]),
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(return_value=SimpleNamespace(edges=[edge, other_edge], episodes=[])),
                                 driver=SimpleNamespace(execute_query=AsyncMock(return_value=([source], None, None))))
-        response = SimpleNamespace(status="completed", output_text="엄마는 수진, 아빠는 도윤이에요.")
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "엄마는 수진, 아빠는 도윤이에요.", "source_episode_ids": ["episode"]}))
         with patch.object(flow, "AsyncOpenAI") as sdk:
             client = sdk.return_value.__aenter__.return_value
             client.responses.create = AsyncMock(return_value=response)
             result = asyncio.run(flow.answer_with_memory(
                 partial(searching_graphiti.search_many, graph, 1), "준하의 부모", "family_history",
             ))
-        graph.search.assert_awaited_once_with(query="준하의 부모", group_ids=["family_1"], num_results=5)
+        graph.search_.assert_awaited_once_with(query="준하의 부모", group_ids=["family_1"],
+                                             config=searching_graphiti.SEARCH_CONFIG, query_vector=[1.0, 0.0])
         self.assertEqual([fact["id"] for fact in result["memories"]], ["fact"])
         self.assertEqual(result["memories"][0]["sources"], [source])
         self.assertEqual(graph.driver.execute_query.call_args.kwargs["group_id"], "family_1")
         client.responses.create.assert_awaited_once()
         self.assertNotIn("tools", client.responses.create.call_args.kwargs)
-        self.assertEqual(client.responses.create.call_args.kwargs["instructions"], flow.HISTORY_INSTRUCTIONS)
+        self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.HISTORY_INSTRUCTIONS + history_evidence.INSTRUCTIONS)
+        self.assertEqual(result["source_episode_ids"], ["episode"])
+        self.assertEqual(client.responses.create.call_args.kwargs["text"], history_evidence.ANSWER_FORMAT)
 
     def test_no_evidence_does_not_invent_an_answer(self):
-        graph = SimpleNamespace(search=AsyncMock(return_value=[]))
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[])))
         with patch.object(flow, "AsyncOpenAI") as sdk:
             result = asyncio.run(flow.answer_with_memory(
                 partial(searching_graphiti.search_many, graph, 1), "처음 보는 사람", "family_history",
@@ -270,6 +279,54 @@ class MemoryFlowTests(SimpleTestCase):
         sdk.assert_not_called()
         self.assertEqual(result["memories"], [])
         self.assertIn("찾지 못했어요", result["text"])
+
+    def test_episode_without_edges_reaches_history_answer(self):
+        episode = SimpleNamespace(uuid="episode", group_id="family_1", name="post_20",
+                                  content="장하가 운동 사진을 올렸다.", valid_at=timezone.now())
+        graph = SimpleNamespace(
+            embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+            search_=AsyncMock(return_value=SimpleNamespace(edges=[], episodes=[episode])),
+            driver=SimpleNamespace(execute_query=AsyncMock()),
+        )
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "장하의 운동 기록을 찾았어요.", "source_episode_ids": ["episode"]}))
+        with patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=response)
+            result = asyncio.run(flow.answer_with_memory(
+                partial(searching_graphiti.search_many, graph, 1), "장하 운동", "family_history",
+            ))
+        self.assertEqual(result["text"], json.loads(response.output_text)["text"])
+        memory, = result["memories"]
+        self.assertEqual(memory["fact"], episode.content)
+        self.assertIsNone(memory["valid_at"])
+        self.assertIsNone(memory["invalid_at"])
+        self.assertEqual(memory["source_episode_ids"], [episode.uuid])
+        context = json.loads(client.responses.create.await_args.kwargs["input"])["기록"]
+        self.assertEqual(context["sources"], [{"id": episode.uuid, "name": episode.name,
+                                             "text": episode.content, "recorded_at": episode.valid_at.isoformat()}])
+        graph.driver.execute_query.assert_not_awaited()
+
+    def test_combines_edges_and_episodes_without_duplicate_or_other_family_sources(self):
+        edge = SimpleNamespace(uuid="fact", group_id="family_1", fact="장하가 운동했다.",
+                               valid_at=None, invalid_at=None, episodes=["shared", "missing"])
+        shared = SimpleNamespace(uuid="shared", group_id="family_1", name="post_20",
+                                 content="장하의 운동 기록", valid_at=timezone.now())
+        extra = SimpleNamespace(**{**vars(shared), "uuid": "extra", "name": "post_21"})
+        other = SimpleNamespace(**{**vars(shared), "uuid": "other", "group_id": "family_2"})
+        other_edge = SimpleNamespace(**{**vars(edge), "uuid": "other-fact", "group_id": "family_2"})
+        source = {"id": "missing", "name": "post_19", "text": "이전 운동 기록", "recorded_at": "2026-10-24"}
+        graph = SimpleNamespace(
+            embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+            search_=AsyncMock(return_value=SimpleNamespace(edges=[edge, other_edge], episodes=[shared, extra, other])),
+            driver=SimpleNamespace(execute_query=AsyncMock(return_value=([source], None, None))),
+        )
+        result, = asyncio.run(searching_graphiti.search_many(graph, 1, ["장하 운동"]))
+        self.assertEqual([memory["id"] for memory in result["memories"]], ["fact", "extra"])
+        self.assertEqual([source["id"] for source in result["memories"][0]["sources"]], ["shared", "missing"])
+        self.assertEqual([source["id"] for source in result["memories"][1]["sources"]], ["extra"])
+        params = graph.driver.execute_query.await_args.kwargs
+        self.assertEqual(params["group_id"], "family_1")
+        self.assertEqual(params["ids"], ["missing"])
 
     def test_three_way_searches_concurrently_and_returns_every_call_output(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i),
@@ -281,15 +338,16 @@ class MemoryFlowTests(SimpleTestCase):
             started = []
             both_started = asyncio.Event()
 
-            async def search(*, query, group_ids, num_results):
+            async def search(*, query, group_ids, config, query_vector):
                 started.append(query)
                 if len(started) == 2:
                     both_started.set()
                 await asyncio.wait_for(both_started.wait(), timeout=1)
-                return [SimpleNamespace(uuid="shared", group_id="family_1", fact="공통 근거",
-                                        valid_at=None, invalid_at=None, episodes=[])]
+                return SimpleNamespace(edges=[SimpleNamespace(uuid="shared", group_id="family_1", fact="공통 근거",
+                                        valid_at=None, invalid_at=None, episodes=[])], episodes=[])
 
-            graph = SimpleNamespace(search=AsyncMock(side_effect=search))
+            graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                    search_=AsyncMock(side_effect=search))
             with patch.object(flow, "AsyncOpenAI") as sdk:
                 client = sdk.return_value.__aenter__.return_value
                 client.responses.create = AsyncMock(side_effect=[first, final])
@@ -324,7 +382,7 @@ class MemoryFlowTests(SimpleTestCase):
             started = asyncio.Event()
             cancelled = asyncio.Event()
 
-            async def search(*, query, group_ids, num_results):
+            async def search(*, query, group_ids, config, query_vector):
                 if query == "실패":
                     await started.wait()
                     raise RuntimeError("offline")
@@ -334,7 +392,8 @@ class MemoryFlowTests(SimpleTestCase):
                 finally:
                     cancelled.set()
 
-            graph = SimpleNamespace(search=AsyncMock(side_effect=search))
+            graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                    search_=AsyncMock(side_effect=search))
             with self.assertRaises(ExceptionGroup):
                 await searching_graphiti.search_many(graph, 1, ["실패", "대기"])
             self.assertTrue(cancelled.is_set())
@@ -344,8 +403,8 @@ class MemoryFlowTests(SimpleTestCase):
     def test_three_way_can_answer_current_input_without_search(self):
         response = SimpleNamespace(status="completed", output=[], output_text="현재 입력만으로 답했어요.")
         for feature, instruction in provider.FEATURE_INSTRUCTIONS.items():
-            if feature in {"post_summary", "post_qa"}:
-                continue  # Dedicated post flow is covered in test_post_qa.py.
+            if feature in {"post_summary", "post_qa", "digest"}:
+                continue  # Post flows are covered in test_post_qa.py; digest never searches.
             with self.subTest(feature=feature), patch.object(flow, "AsyncOpenAI") as sdk:
                 search = AsyncMock()
                 client = sdk.return_value.__aenter__.return_value
@@ -356,6 +415,66 @@ class MemoryFlowTests(SimpleTestCase):
                 self.assertEqual(client.responses.create.call_args.kwargs["tool_choice"], "auto")
                 self.assertTrue(client.responses.create.call_args.kwargs["instructions"].startswith(instruction))
                 self.assertIsNone(result["query"])
+
+    @override_settings(QUERY_AI_MODEL="query-model", QUERY_AI_SERVICE_TIER="", QUERY_AI_REASONING_EFFORT="",
+                       STT_AI_MODEL="stt-model", STT_AI_SERVICE_TIER="flex", STT_AI_REASONING_EFFORT="low")
+    def test_stt_search_decision_and_answer_use_their_own_model_groups(self):
+        reasoning = SimpleNamespace(type="reasoning", id="rs_1")
+        call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="0",
+                               arguments=json.dumps({"query": "부모"}))
+        first = SimpleNamespace(status="completed", output=[reasoning, call], output_text="")
+        final = SimpleNamespace(status="completed", output_text="가족 기록을 확인했어요.")
+        with patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, final])
+            asyncio.run(flow.answer_with_memory(AsyncMock(return_value=[{"memories": []}]), "입력", "stt_correction"))
+        decision, answer = [call.kwargs for call in client.responses.create.await_args_list]
+        # Blank QUERY options are not sent.
+        self.assertEqual(decision["model"], "query-model")
+        self.assertNotIn("service_tier", decision)
+        self.assertNotIn("reasoning", decision)
+        self.assertEqual((answer["model"], answer["service_tier"], answer["reasoning"]),
+                         ("stt-model", "flex", {"effort": "low"}))
+        # Reasoning items belong to the query model, so they are not passed to another model.
+        self.assertNotIn(reasoning, answer["input"])
+        self.assertIn(call, answer["input"])
+
+    @override_settings(SUMMARY_AI_MODEL="summary-model", SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none")
+    def test_digest_answers_directly_without_search(self):
+        response = SimpleNamespace(status="completed", output=[], output_text=json.dumps({"1": "오늘 소식을 올렸어요."}))
+        search = AsyncMock()
+        with patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=response)
+            text = json.dumps([{"작성자 ID": 1, "작성자": "정아", "게시글": [{
+                "게시글 ID": 10, "원문": "오늘 소식", "전달 사진 번호": [],
+            }]}], ensure_ascii=False)
+            result = asyncio.run(flow.answer_with_memory(search, text, "digest"))
+        search.assert_not_awaited()
+        request = client.responses.create.await_args.kwargs
+        self.assertNotIn("tools", request)
+        self.assertEqual(request["instructions"], prompts.DIGEST)
+        self.assertEqual((request["model"], request["service_tier"], request["reasoning"]),
+                         ("summary-model", "fast", {"effort": "none"}))
+        self.assertEqual((result["text"], result["query"], result["memories"]), (response.output_text, None, []))
+        self.assertEqual(result["summaries"], [{"author_id": 1, "text": "오늘 소식을 올렸어요."}])
+
+    @override_settings(ANSWER_AI_MODEL="answer-model", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
+    def test_family_history_answers_with_the_answer_group(self):
+        edge = SimpleNamespace(uuid="fact", group_id="family_1", fact="준하의 부모는 수진과 도윤",
+                               valid_at=None, invalid_at=None, episodes=[])
+        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                                search_=AsyncMock(return_value=SimpleNamespace(edges=[edge], episodes=[])),
+                                driver=SimpleNamespace(execute_query=AsyncMock(return_value=([], None, None))))
+        response = SimpleNamespace(status="completed", output_text=json.dumps({"text": "수진과 도윤이에요.", "source_episode_ids": ["episode"]}))
+        with patch.object(flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=response)
+            asyncio.run(flow.answer_with_memory(
+                partial(searching_graphiti.search_many, graph, 1), "준하의 부모", "family_history"))
+        request = client.responses.create.call_args.kwargs
+        self.assertEqual((request["model"], request["service_tier"], request["reasoning"]),
+                         ("answer-model", "fast", {"effort": "none"}))
 
     def test_unknown_feature_fails_before_search_or_llm(self):
         search = AsyncMock()
@@ -378,7 +497,7 @@ class LiveHistoryTests(FamilyFixture, TestCase):
         saved_file = report_dir / "history_search_results.json"
         previous = json.loads(saved_file.read_text(encoding="utf-8"))["results"] if saved_file.exists() else []
         previous = {row["question"]: row for row in previous}
-        report = {"family_id": demo.pk, "model": settings.OPENAI_MODEL,
+        report = {"family_id": demo.pk, "model": settings.ANSWER_AI_MODEL,
                   "run_at": timezone.localtime().isoformat(), "method": "2-way", "results": []}
         original_answer = flow.answer_with_memory
 
@@ -462,7 +581,7 @@ class LiveHistoryTests(FamilyFixture, TestCase):
             {"author": "지민", "relation": "손녀", "caption": "오늘 초록이 잎을 따서 엄마 수진이 만든 파스타에 올렸어요.",
              "history_hint": "초록이는 선희가 준 바질 화분"},
         ]
-        summary_report = {"family_id": demo.pk, "model": settings.OPENAI_MODEL,
+        summary_report = {"family_id": demo.pk, "model": settings.SUMMARY_AI_MODEL,
                           "run_at": timezone.localtime().isoformat(), "method": "3-way", "results": []}
         for case in summary_cases:
             content = json.dumps({"작성자": case["author"], "관계": case["relation"], "원문": case["caption"]},

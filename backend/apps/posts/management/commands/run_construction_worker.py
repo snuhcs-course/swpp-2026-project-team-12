@@ -4,7 +4,7 @@ from apps.families.models import FamilyRoom
 
 
 class Command(BaseCommand):
-    help = "한 가족의 새 게시물을 시간순으로 Graphiti에 저장합니다."
+    help = "한 가족의 가계도와 새 게시물을 Graphiti에 저장합니다."
 
     def add_arguments(self, parser):
         parser.add_argument("--family-id", type=int, required=True)

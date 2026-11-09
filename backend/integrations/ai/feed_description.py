@@ -1,23 +1,47 @@
 """Describe a caption and all ordered post photos before graph construction."""
 
 import base64
+import io
 import json
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from openai import AsyncOpenAI
+from PIL import Image, ImageOps, UnidentifiedImageError
+
+from . import prompts
+from .options import model_options
 
 
-DESCRIPTION_INSTRUCTIONS = """
-가족 게시물을 장기 기억 그래프에 저장할 한국어 기록으로 작성한다.
-원문과 첨부된 모든 사진을 순서대로 함께 참고하여 작성자가 전하는 소식과 그 맥락을 구체적으로 설명한다.
-여러 사진 속 장면을 각각 원문과 다른 사진들을 참고해 설명을 작성한다.
-사진이 없으면 원문을 풀어서 설명한다. 은어와 모호한 대상은 근거 없이 뜻을 확정하지 않고 필요한 경우 원문 표현을 유지한다.
+def construction_jpeg(data):
+    """Return JPEG bytes within the construction byte and dimension limits, downsampling only when needed."""
+    max_bytes, max_side = settings.CONSTRUCTION_IMAGE_MAX_BYTES, settings.CONSTRUCTION_IMAGE_MAX_DIMENSION
+    try:
+        with Image.open(io.BytesIO(data)) as source:
+            if len(data) <= max_bytes and max(source.size) <= max_side and source.format == "JPEG":
+                return data
+            image = ImageOps.exif_transpose(source).convert("RGB")
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+        # An unreadable stored file is sent as before rather than failing the whole post's construction.
+        return data
+    image.thumbnail((max_side, max_side))
 
-원문을 기본 기록으로 삼고, 이미지에서 명확히 확인되는 정보로 원문의 내용을 구체화한다.
-다만, 이미지 내의 너무 자세한 텍스트는 굳이 기록할 필요 없다.
-이미지 내에서 저장할 만한 내용이 있으면 함께 기록해도 좋다.
-""".strip()
+    def encode(picture, quality):
+        output = io.BytesIO()
+        picture.save(output, format="JPEG", quality=quality, optimize=True)
+        return output.getvalue()
+
+    # Lower quality first, then shrink further; a 256px floor keeps the photo legible to the model.
+    for quality in (85, 75, 65):
+        encoded = encode(image, quality)
+        if len(encoded) <= max_bytes:
+            return encoded
+    while max(image.size) > 256:
+        image = image.resize((max(1, int(image.width * .8)), max(1, int(image.height * .8))), Image.LANCZOS)
+        encoded = encode(image, 65)
+        if len(encoded) <= max_bytes:
+            return encoded
+    return encoded
 
 
 def _description_content(post):
@@ -31,7 +55,7 @@ def _description_content(post):
         with photo.open("rb") as image:
             content.append({
                 "type": "input_image", "detail": "high",
-                "image_url": "data:image/jpeg;base64," + base64.b64encode(image.read()).decode(),
+                "image_url": "data:image/jpeg;base64," + base64.b64encode(construction_jpeg(image.read())).decode(),
             })
     return content
 
@@ -42,7 +66,7 @@ async def describe_post(post):
     content = await sync_to_async(_description_content, thread_sensitive=True)(post)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         response = await client.responses.create(
-            model=settings.OPENAI_MODEL, instructions=DESCRIPTION_INSTRUCTIONS,
+            **model_options("SUMMARY"), instructions=prompts.POST_DESCRIPTION,
             input=[{"role": "user", "content": content}],
             max_output_tokens=2000, store=False,
         )

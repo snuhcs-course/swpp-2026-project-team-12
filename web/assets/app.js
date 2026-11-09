@@ -1,25 +1,95 @@
-import { api, ApiError, hasToken, setToken, imageURL, clearImages } from './api.js';
+import { api, ApiError, registrationPayload, hasToken, setToken, setRoom, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
 import { FamilyTreeDraft } from './family-tree.js';
 import { treeMarkup, mountTree } from './family-tree-view.js';
+import { FloatingAssistant } from './floating-assistant.js';
+import { memoryEvidence } from './memory-search.js';
+import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
 const toastBox = document.querySelector('#toast');
 const busyIndicator = document.querySelector('#busy-indicator');
+const postingSuccessBox = document.querySelector('#posting-success');
+let postingSuccessTimer;
 const pendingOperations = new Set();
-const state = { user: null, room: null, posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
+const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
+const assistant = new FloatingAssistant({
+  root: document.querySelector('#assistant-root'),
+  context: () => ({
+    scope: state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null,
+    roomId: state.room?.id,
+    enabled: Boolean(state.user && state.room && currentRoute() === 'feed' && document.querySelector('#feed-list') && !modal.open),
+  }),
+  ask: ({ id, roomId, question, dialogue }) => api(`posts/${id}/questions/`, {
+    method: 'POST', room: roomId, data: { question, prior_dialogue: dialogue },
+  }),
+});
 const nav = [['feed', 'home', '가족 소식'], ['search', 'search', '추억 찾기'], ['digest', 'book', '하루 모아보기'], ['family', 'people', '우리 가족']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let previewURLs = [];
+let maintenanceNotice, reconnecting = false;
+let dailyStatus = null, dailyQuestion = null, dailyDraft = null, dailyRequest = 0, dailyHistoryRows = [];
+const dailyDrafts = new Map();
+
+window.addEventListener('server-maintenance', () => {
+  if (!maintenanceNotice) {
+    maintenanceNotice = document.createElement('dialog');
+    maintenanceNotice.className = 'maintenance-notice';
+    maintenanceNotice.setAttribute('aria-label', '잠시 이용이 어려워요');
+    maintenanceNotice.innerHTML = '<iframe src="/maintenance/" title="서비스 점검 안내"></iframe>';
+    maintenanceNotice.addEventListener('cancel', event => event.preventDefault());
+    document.body.append(maintenanceNotice);
+  }
+  stopAudio();
+  if (!maintenanceNotice.open) maintenanceNotice.showModal();
+});
+window.addEventListener('message', async event => {
+  if (!maintenanceNotice?.open || reconnecting || event.origin !== window.location.origin ||
+      event.source !== maintenanceNotice.querySelector('iframe').contentWindow ||
+      event.data !== 'talkdock-maintenance-retry') return;
+  reconnecting = true;
+  try {
+    await api('test_reply/', { room: null });
+    maintenanceNotice.close();
+    if (document.querySelector('#main.boot')) {
+      if (hasToken()) await connectSession(); else renderAuth();
+    }
+  } catch { /* Keep the notice visible until the server is reachable. */ }
+  finally { reconnecting = false; }
+});
 
 const e = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const $ = (selector, root = document) => root.querySelector(selector);
 const avatar = (name, id = 0, size = '') => `<span class="avatar tone-${Math.abs(Number(id) || 0) % 5} ${size}" aria-hidden="true">${e([...String(name || '가')][0])}</span>`;
-const brand = () => '<a class="brand" href="#/feed" aria-label="토닥 홈"><img src="/web/assets/favicon.svg" alt="" width="42" height="42"><span>토닥<small>TALK DOCK</small></span></a>';
+const brand = () => '<a class="brand" href="#/feed" aria-label="토닥 홈"><img src="/web/assets/favicon.svg?v=family-20261102" alt="" width="42" height="42"><span>토닥<small>TALK DOCK</small></span></a>';
 const button = (action, label, symbol, cls = 'button secondary', extra = '') => `<button type="button" class="${cls}" data-action="${action}" ${extra}>${symbol ? icon(symbol) : ''}${label}</button>`;
-const loading = (text = '불러오는 중이에요') => `<div class="loading" role="status"><img class="loading-mascot" src="/web/assets/todak_joy.gif" alt="" width="140" height="140"><span>${e(text)}</span></div>`;
+const character = (sad = false, classes = '') => `<span class="character-art ${sad ? 'character-sad' : 'character-boy'} ${classes}" aria-hidden="true"></span>`;
+const loading = (text = '불러오는 중이에요') => `<div class="loading" role="status">${character()}<span>${e(text)}</span></div>`;
 const errorBlock = message => `<p class="error" role="alert">${e(message)}</p>`;
+const failureContent = error => error.unavailable ? `${character(true)}<strong>잠시 이용이 어려워요</strong><span>${e(error.message)}</span>` : e(error.message || '다시 시도해 주세요.');
+const failureBlock = (error, controls = '') => error.unavailable ? `<section class="availability-notice panel" role="alert">${failureContent(error)}${controls}</section>` : `${errorBlock(error.message)}${controls}`;
+function hidePostingSuccess() {
+  clearTimeout(postingSuccessTimer);
+  postingSuccessBox.hidden = true;
+  updateBusyIndicator();
+}
+function showPostingSuccess(message) {
+  clearTimeout(postingSuccessTimer);
+  (modal.open ? modal : document.body).append(postingSuccessBox);
+  postingSuccessBox.innerHTML = `<span class="posting-success-card">${character(false, 'celebrating')}<strong>${e(message)}</strong></span>`;
+  postingSuccessBox.hidden = false;
+  updateBusyIndicator();
+  postingSuccessTimer = setTimeout(hidePostingSuccess, 3000);
+}
+function renderEntryFailure(error) {
+  app.innerHTML = `<main id="main" class="boot">${failureBlock(error, button('retry-enter', '다시 연결하기', 'refresh'))}${button('logout', '로그아웃', 'logout', 'button quiet')}</main>`;
+}
+async function connectSession() {
+  app.innerHTML = `<main id="main" class="boot">${loading('가족방에 연결하고 있어요')}</main>`;
+  try { await enterApp(); }
+  catch (error) { if (hasToken()) renderEntryFailure(error); }
+}
 const empty = (symbol, title, text, action = '') => `<div class="empty-state"><span class="empty-icon">${icon(symbol)}</span><h3>${title}</h3><p>${text}</p>${action}</div>`;
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 function dateLabel(value, full = false) {
@@ -30,9 +100,16 @@ function dateLabel(value, full = false) {
 function toast(message) {
   clearTimeout(toastTimer);
   (modal.open ? modal : document.body).append(toastBox);
+  toastBox.classList.remove('availability-toast');
   toastBox.textContent = message;
   toastBox.hidden = false;
   toastTimer = setTimeout(() => { toastBox.hidden = true; }, 5000);
+}
+function notifyFailure(error) {
+  if (!error.unavailable) return toast(error.message || '다시 시도해 주세요.');
+  toast('');
+  toastBox.classList.add('availability-toast');
+  toastBox.innerHTML = failureContent(error);
 }
 function field(label, name, type = 'text', attrs = '') {
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${attrs}></label>`;
@@ -49,9 +126,10 @@ function updateBusyIndicator() {
   // Native dialogs occupy the browser's top layer. Keep the loading card inside
   // the open dialog so AI and voice requests remain visible above its backdrop.
   (modal.open ? modal : document.body).append(busyIndicator);
-  busyIndicator.hidden = !active;
+  busyIndicator.hidden = !active || !postingSuccessBox.hidden;
 }
 function cleanupModal() {
+  captureDailyDraft(); dailyQuestion = null; dailyDraft = null; dailyRequest++;
   state.modalVersion++;
   state.detail = null;
   state.dialogue = [];
@@ -60,17 +138,20 @@ function cleanupModal() {
   previewURLs.forEach(url => URL.revokeObjectURL(url));
   previewURLs = [];
   state.files = [];
-  document.body.append(toastBox);
+  document.body.append(toastBox, postingSuccessBox);
   updateBusyIndicator();
   document.body.classList.remove('modal-open');
+  assistant.refresh();
 }
 function openModal(content, className = '') {
+  assistant.close(false);
   if (modal.open) modal.close();
   cleanupModal();
   modal.className = className;
   modal.innerHTML = content;
   modal.showModal();
   document.body.classList.add('modal-open');
+  assistant.refresh();
 }
 function modalHeading(title, eyebrow = '') {
   return `<header class="modal-heading"><div>${eyebrow ? `<p class="eyebrow">${eyebrow}</p>` : ''}<h2 id="modal-title">${title}</h2></div>${button('close-modal', '<span class="sr-only">닫기</span>', 'close', 'icon-button')}</header>`;
@@ -80,38 +161,91 @@ modal.addEventListener('click', event => { if (event.target === modal) { const r
 
 async function busy(element, task, errorTarget) {
   if (element?.disabled) return;
+  hidePostingSuccess();
+  let result;
   const original = element?.innerHTML;
   const session = state.session;
   const operation = { session, pageVersion: state.pageVersion, modalVersion: modal.contains(element) ? state.modalVersion : null };
   pendingOperations.add(operation);
   updateBusyIndicator();
-  if (element) { element.disabled = true; element.setAttribute('aria-busy', 'true'); element.innerHTML = '<img class="loading-mascot button-mascot" src="/web/assets/todak_joy.gif" alt="" width="28" height="28"><span class="sr-only">잠시만요</span>'; }
-  if (errorTarget) errorTarget.textContent = '';
-  try { await task(); }
+  if (element) { element.disabled = true; element.setAttribute('aria-busy', 'true'); element.innerHTML = `${character(false, 'button-mascot')}<span class="sr-only">잠시만요</span>`; }
+  if (errorTarget) { errorTarget.textContent = ''; errorTarget.classList.remove('availability-inline'); }
+  try { result = await task(); }
   catch (error) {
     if (session !== state.session) return;
-    if (errorTarget?.isConnected) errorTarget.textContent = error.message;
-    else toast(error.message || '다시 시도해 주세요.');
+    if (errorTarget?.isConnected) { errorTarget.innerHTML = failureContent(error); errorTarget.classList.toggle('availability-inline', Boolean(error.unavailable)); }
+    else notifyFailure(error);
   } finally {
     pendingOperations.delete(operation);
     updateBusyIndicator();
     if (element?.isConnected) { element.disabled = false; element.removeAttribute('aria-busy'); element.innerHTML = original; }
   }
+  if (result?.postingMessage && session === state.session) showPostingSuccess(result.postingMessage);
 }
 
 function resetSession() {
+  assistant.reset();
+  hidePostingSuccess();
   state.session++;
   state.pageVersion++;
   state.user = state.room = state.lookup = state.digest = null;
   state.posts = [];
+  state.rooms = [];
   setToken('');
+  setRoom(null);
   clearImages();
   stopAudio();
   if (modal.open) modal.close();
+  dailyDrafts.clear(); dailyStatus = null;
   observer?.disconnect();
   updateBusyIndicator();
 }
 window.addEventListener('session-expired', () => { resetSession(); renderAuth(); toast('로그인 시간이 만료되었어요. 다시 로그인해 주세요.'); });
+
+// The server owns the voice list, so adding a voice needs no web change.
+let voiceList = null;
+function loadVoices() {
+  voiceList ??= api('speech/voices/').catch(error => { voiceList = null; throw error; });
+  return voiceList;
+}
+// Without a real choice the field stays hidden and the server keeps its default.
+async function fillVoiceSelect(select, selected) {
+  let list;
+  try { list = await loadVoices(); } catch { return; }
+  if (!select?.isConnected || list.voices.length < 2) return;
+  const current = list.voices.some(voice => voice.key === selected) ? selected : list.default;
+  // Options show what each voice sounds like; a voice without a description shows its name.
+  const title = voice => voice.description || voice.name;
+  select.innerHTML = list.voices.map(voice => `<option value="${e(voice.key)}"${voice.key === current ? ' selected' : ''}>${e(title(voice))}</option>`).join('');
+  const field = select.closest('[data-voice-field]');
+  const note = field.querySelector('[data-voice-default]');
+  const fallback = list.voices.find(voice => voice.key === list.default) ?? list.voices[0];
+  if (note) note.textContent = `기본값: ${title(fallback)} · 계정 설정에서 언제든 바꿀 수 있어요.`;
+  const sample = field.querySelector('[data-voice-sample]');
+  sample.innerHTML = `${icon('volume')}미리 듣기`;
+  const showSample = () => { sample.hidden = !list.voices.find(voice => voice.key === select.value)?.sample; };
+  select.addEventListener('change', () => { stopAudio(); showSample(); });
+  sample.addEventListener('click', () => playVoiceSample(select.value, sample));
+  showSample();
+  field.hidden = false;
+}
+// Every voice reads the same short line, so people can compare voices before choosing.
+async function playVoiceSample(key, button) {
+  stopAudio();
+  button.disabled = true;
+  try {
+    const blob = await api(`speech/voices/${encodeURIComponent(key)}/sample/`, { binary: true });
+    audioURL = URL.createObjectURL(blob);
+    audio = new Audio(audioURL);
+    audio.addEventListener('ended', stopAudio, { once: true });
+    await audio.play();
+  } catch {
+    stopAudio();
+    toast('목소리 예시를 재생하지 못했어요. 다시 시도해 주세요.');
+  } finally {
+    button.disabled = false;
+  }
+}
 
 function renderAuth(register = false) {
   app.innerHTML = `<main id="main" class="auth-layout">
@@ -124,28 +258,85 @@ function renderAuth(register = false) {
         ${register ? field('이름', 'name', 'text', 'required maxlength="40" autocomplete="name" placeholder="가족에게 보여줄 이름"') : ''}
         ${field('아이디', 'username', 'text', 'required maxlength="150" autocomplete="username" placeholder="아이디를 입력해 주세요" autocapitalize="none"')}
         ${field('비밀번호', 'password', 'password', `required maxlength="128" ${register ? 'minlength="10"' : ''} autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
-        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
+        ${register ? field('비밀번호 확인', 'confirm_password', 'password', 'required maxlength="128" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"') : ''}
+        ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><div data-voice-field hidden><label class="field"><span>소식을 읽어 줄 목소리 (선택)</span><select name="tts_voice"></select></label><button type="button" class="button quiet compact" data-voice-sample hidden></button><p class="help" data-voice-default></p></div><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
         <p class="form-error" role="alert"></p><button class="button primary full" type="submit">${register ? '계정 만들기' : '우리 가족 만나러 가기'}${icon('arrow')}</button>
       </form><p class="auth-hint">${icon('heart')}안드로이드에서 쓰던 계정으로도 로그인할 수 있어요.</p></div></section></main>`;
+  if (register) fillVoiceSelect($('form[data-form="register"] select[name="tts_voice"]'));
+}
+
+// The last opened room is remembered per account in this browser.
+const roomKey = () => `talkdock.web.room.${state.user.user_id}`;
+function savedRoom() {
+  try { return Number(localStorage.getItem(roomKey())) || null; } catch { return null; }
+}
+function rememberRoom(id) {
+  try { if (id) localStorage.setItem(roomKey(), String(id)); else localStorage.removeItem(roomKey()); } catch { /* Storage can be blocked. */ }
 }
 
 async function enterApp() {
   const session = state.session;
   state.user = await api('accounts/me/');
   if (session !== state.session) return;
-  try { state.room = await api('families/current/'); }
-  catch (error) { if (error.status !== 403) throw error; state.room = null; }
+  const { rooms } = await api('families/');
   if (session !== state.session) return;
-  if (!state.room) return renderOnboarding();
+  state.rooms = rooms;
+  const chosen = rooms.find(room => room.id === savedRoom()) ?? (rooms.length === 1 ? rooms[0] : null);
+  if (!chosen) return renderRoomChoice();
+  await openRoom(chosen.id, { keepRoute: true });
+}
+
+function useRoom(room) {
+  if (state.room?.id !== room.id) { assistant.reset(); dailyDrafts.clear(); dailyStatus = null; }
+  state.room = room;
+  state.posts = [];
+  state.digest = state.lookup = null;
+  setRoom(room.id);
+  rememberRoom(room.id);
+  clearImages();
+}
+// Switching rooms starts at the feed; reopening the app keeps the page in the address bar.
+async function openRoom(id, { keepRoute = false } = {}) {
+  const session = state.session;
+  let room;
+  // Pass the room explicitly so requests of the room on screen keep their header until the switch completes.
+  try { room = await api('families/current/', { room: id }); }
+  catch (error) {
+    if (error.status !== 403 || session !== state.session) throw error;
+    rememberRoom(null);
+    state.room = null;
+    setRoom(null);
+    state.rooms = (await api('families/')).rooms;
+    if (session === state.session) renderRoomChoice('그 가족방에는 더 이상 들어갈 수 없어요. 다른 가족방을 골라 주세요.');
+    return;
+  }
+  if (session !== state.session) return;
+  useRoom(room);
+  if (!keepRoute) location.hash = '#/feed';
   renderShell();
   await renderPage();
 }
 
-function renderOnboarding() {
+function renderRoomChoice(message = '') {
+  const joined = state.rooms.length > 0;
   app.innerHTML = `<main id="main" class="onboarding"><header>${brand()}${button('logout', '로그아웃', 'logout', 'button quiet')}</header>
-    <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, 가족과 연결해 볼까요?</h1><p class="muted">새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.</p></div>
-    <div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
-    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div></main>`;
+    <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, ${joined ? '어느 가족방으로 갈까요?' : '가족과 연결해 볼까요?'}</h1><p class="muted">${joined ? '들어갈 가족방을 고르거나, 새 가족방을 만들고 참여할 수 있어요.' : '새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.'}</p></div>
+    ${message ? errorBlock(message) : ''}${roomList()}${roomForms()}</main>`;
+}
+function renderRooms() {
+  $('#page').innerHTML = `${pageHeading('OUR FAMILY ROOMS', '가족방', '다른 가족방을 누르면 그 가족의 소식으로 바뀌어요.')}${roomList()}${roomForms()}`;
+}
+function roomList() {
+  if (!state.rooms.length) return '';
+  return `<ul class="room-list" aria-label="내 가족방">${state.rooms.map(room => {
+    const current = room.id === state.room?.id;
+    const details = [room.is_owner ? '내가 만든 방' : '', `${room.member_count}명`].filter(Boolean).join(' · ');
+    return `<li><button type="button" class="room-card${current ? ' current' : ''}" data-action="open-room" data-id="${room.id}"${current ? ' aria-current="true"' : ''}><span class="empty-icon${current ? '' : ' sage'}">${icon('home')}</span><span class="room-card-text">${current ? '<span class="tag">지금 보는 가족방</span>' : ''}<strong>${e(room.name)}</strong><small>${details}</small></span>${icon('arrow')}</button></li>`;
+  }).join('')}</ul>`;
+}
+function roomForms() {
+  return `<div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
+    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div>`;
 }
 
 function renderJoinPreview(message = '') {
@@ -174,15 +365,16 @@ function renderShell() {
   app.innerHTML = `<div class="app-layout"><aside class="sidebar">${brand()}<div class="sidebar-label">우리의 이야기</div><nav aria-label="주 메뉴">${nav.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span>${icon('chevron', 'nav-chevron')}</a>`).join('')}</nav>
     <div class="sidebar-note">${icon('heart')}<p>자주 보지 못해도,<br>마음은 늘 가까이.</p><span>오늘도 안부를 전해 보세요.</span></div>
     <div class="sidebar-bottom"><a href="#/settings" data-nav="settings">${icon('settings')}계정 설정</a><button type="button" data-action="logout">${icon('logout')}로그아웃</button><div class="profile">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><small>@${e(state.user.username)}</small></div><span class="online-dot" title="로그인됨"></span></div></div></aside>
-    <div class="workspace"><header class="topbar"><span class="room-label">${icon('home')}<span>${e(state.room.name)}</span><span class="private-badge">가족 전용</span></span><div class="topbar-actions"><span class="today-label">${dateLabel(new Date(), false)}</span>${button('text-size', '큰 글씨', 'text', 'button quiet compact', `aria-pressed="${document.documentElement.classList.contains('large-text')}"`)}</div></header><main id="main" tabindex="-1"><div id="page"></div></main><footer class="workspace-footer"><span>토닥</span>가족의 일상을 잇는 따뜻한 공간</footer></div></div>`;
+    <div class="workspace"><header class="topbar"><a class="room-label" href="#/rooms" title="가족방 바꾸기" aria-label="${e(state.room.name)} · 가족방 바꾸기">${icon('home')}<span>${e(state.room.name)}</span><span class="private-badge">가족 전용</span>${icon('chevron', 'room-switch')}</a><div class="topbar-actions"><span class="today-label">${dateLabel(new Date(), false)}</span>${button('text-size', '큰 글씨', 'text', 'button quiet compact', `aria-pressed="${document.documentElement.classList.contains('large-text')}"`)}</div></header><main id="main" tabindex="-1"><div id="page"></div></main><footer class="workspace-footer"><span>토닥</span>가족의 일상을 잇는 따뜻한 공간</footer></div></div>`;
   window.scrollTo(0, 0);
 }
 function pageHeading(eyebrow, title, text, controls = '') {
   return `<header class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p class="muted">${text}</p></div>${controls}</header>`;
 }
-function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings'].includes(route) ? route : 'feed'; }
+function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings', 'rooms'].includes(route) ? route : 'feed'; }
 async function renderPage() {
   if (!state.room || !state.user) return;
+  assistant.refresh();
   const route = currentRoute();
   const version = ++state.pageVersion;
   updateBusyIndicator();
@@ -203,8 +395,15 @@ async function renderPage() {
       renderFamily();
     }
     if (route === 'settings') renderSettings();
+    if (route === 'rooms') {
+      page.innerHTML = loading('가족방을 불러오고 있어요');
+      const { rooms } = await api('families/');
+      if (version !== state.pageVersion) return;
+      state.rooms = rooms;
+      renderRooms();
+    }
   } catch (error) {
-    if (version === state.pageVersion) page.innerHTML = `${errorBlock(error.message)}${button('refresh-page', '다시 불러오기', 'refresh')}`;
+    if (version === state.pageVersion) page.innerHTML = failureBlock(error, button('refresh-page', '다시 불러오기', 'refresh'));
   }
 }
 window.addEventListener('hashchange', () => { if (state.room) { window.scrollTo(0, 0); renderPage(); } });
@@ -216,19 +415,103 @@ document.querySelector('.skip-link').addEventListener('click', event => {
 
 function familyRail() {
   return `<aside class="right-rail"><section class="family-rail panel"><div class="rail-icon">${icon('home')}</div><p class="eyebrow">우리만의 따뜻한 공간</p><h2>${e(state.room.name)}</h2><p class="muted">${state.room.members.length}명이 함께 이야기를 나누고 있어요.</p><div class="avatar-stack">${state.room.members.slice(0, 7).map(member => avatar(member.name, member.id)).join('')}</div><a href="#/family" class="text-link">우리 가족 보기${icon('arrow')}</a><div class="invite-row"><span>가족 초대코드</span><strong>${e(state.room.invite_code)}</strong>${button('copy-code', '<span class="sr-only">초대코드 복사</span>', 'copy', 'icon-button')}</div></section>
-    <section class="digest-rail"><span class="tag">하루를 마무리하며</span>${icon('book', 'rail-book')}<h3>오늘의 이야기를<br>한눈에 모아보세요.</h3><p>매일 ${e(state.room.digest_time)}, 가족의 소식을<br>따뜻한 요약으로 전해드려요.</p><a href="#/digest" class="text-link">하루 모아보기${icon('arrow')}</a></section><p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
+    <p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
 }
 async function renderFeed(version) {
   $('#page').innerHTML = `${pageHeading('OUR FAMILY, EVERY DAY', '우리 가족의 작은 일상', '오늘은 어떤 하루를 보내셨나요? 소소한 이야기를 들려주세요.', button('compose', '소식 남기기', 'plus', 'button primary'))}<div class="feed-layout"><section aria-label="가족 소식"><button type="button" data-action="compose" class="composer-prompt">${avatar(state.user.name, state.user.user_id)}<span>${e(state.user.name)}님, 오늘의 안부를 전해 보세요.</span>${icon('photo')}</button><div class="feed-toolbar"><h2>최근 소식 <span id="post-count"></span></h2>${button('refresh-feed', '<span class="sr-only">소식 새로고침</span>', 'refresh', 'icon-button')}</div><div class="feed-filter"><label class="search-field">${icon('search')}<input id="feed-filter" type="search" placeholder="불러온 소식에서 글·이름 찾기" aria-label="최근 소식 필터"></label><label class="sr-only" for="author-filter">작성자</label><select id="author-filter"><option value="">가족 전체</option>${state.room.members.map(member => `<option value="${member.id}">${e(member.name)}</option>`).join('')}</select></div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>${familyRail()}</div>`;
+  const entry = document.createElement('div');
+  entry.id = 'daily-entry'; entry.innerHTML = questionEntry(dailyStatus);
+  $('.feed-layout').before(entry);
   const result = await api('posts/');
   if (version !== state.pageVersion) return;
   state.posts = result.posts;
+  dailyStatus = result.daily_question || null;
+  updateDailyEntry();
+  if (!dailyStatus?.title) api('daily-questions/today/').then(question => {
+    if (version === state.pageVersion) { dailyStatus = question; updateDailyEntry(); }
+  }).catch(() => { /* The entry remains available for an explicit retry. */ });
   updateFeed();
+}
+
+function dailySeenKey() { return `talkdock.web.dailySeen:${state.user?.user_id}:${state.room?.id}`; }
+function updateDailyEntry() {
+  const target = $('#daily-entry');
+  if (!target) return;
+  const question = dailyStatus?.date === today() ? dailyStatus : null;
+  let seen;
+  try { seen = localStorage.getItem(dailySeenKey()); } catch { /* Reading remains available without storage. */ }
+  target.innerHTML = questionEntry(question, question ? seen !== questionVersion(question) : false);
+}
+function markDailySeen(question) {
+  if (question.date !== today()) return;
+  dailyStatus = question;
+  try { localStorage.setItem(dailySeenKey(), questionVersion(question)); } catch { /* Optional unread state. */ }
+  updateDailyEntry();
+}
+function dailyDraftKey() { return `${state.user?.user_id}:${state.room?.id}:${dailyQuestion?.id}`; }
+function captureDailyDraft() {
+  if (!dailyQuestion || !dailyDraft) return;
+  const form = $('[data-form="daily-answer"]', modal);
+  if (form) {
+    const values = Object.fromEntries(new FormData(form));
+    dailyDraft.choice = values.choice || '';
+    // Keep the custom draft when another option temporarily hides its field.
+    dailyDraft.other_text = form.elements.namedItem('other_text')?.value || '';
+    dailyDraft.text = values.text || '';
+    dailyDraft.tiers = Object.fromEntries(dailyQuestion.options.map((option, index) => [option, values[`tier-${index}`] || '']));
+  }
+  const comment = $('[data-form="daily-comment"] textarea', modal);
+  if (comment) dailyDraft.comment = comment.value;
+  dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+}
+function renderDailyQuestion() {
+  const target = $('#daily-content', modal);
+  if (target && dailyQuestion) target.innerHTML = questionMarkup(dailyQuestion, state.user.user_id, {
+    editing: dailyDraft.editing, draft: dailyDraft, comment: dailyDraft.comment,
+  });
+}
+async function openDailyQuestion() {
+  openModal(`${modalHeading('오늘의 질문', 'A LITTLE CONVERSATION')}<div id="daily-content"></div>`, 'daily-dialog');
+  await loadDailyQuestion();
+}
+async function loadDailyQuestion(id) {
+  captureDailyDraft();
+  const version = ++dailyRequest;
+  dailyQuestion = null; dailyDraft = null;
+  $('#daily-content', modal).innerHTML = loading('가족과 나눌 질문을 가져오고 있어요');
+  try {
+    const question = await api(`daily-questions/${id ? `${id}/` : 'today/'}`);
+    if (version !== dailyRequest || !modal.open) return;
+    dailyQuestion = question;
+    const mine = question.answers.find(answer => answer.author_id === state.user.user_id);
+    dailyDraft = dailyDrafts.get(dailyDraftKey()) || { ...mine, editing: !mine, comment: '' };
+    renderDailyQuestion(); markDailySeen(question);
+  } catch (error) {
+    if (version === dailyRequest && modal.open) $('#daily-content', modal).innerHTML = failureBlock(error,
+      button(id ? 'daily-detail' : 'daily-today', '다시 불러오기', 'refresh', 'button secondary', id ? `data-id="${Number(id)}"` : ''));
+  }
+}
+async function loadDailyHistory(before = null) {
+  captureDailyDraft();
+  const version = ++dailyRequest;
+  dailyQuestion = null; dailyDraft = null;
+  const target = $('#daily-content', modal);
+  if (!before) { dailyHistoryRows = []; target.innerHTML = loading('지난 질문을 가져오고 있어요'); }
+  try {
+    const result = await api(`daily-questions/history/${before ? `?before=${encodeURIComponent(before)}` : ''}`);
+    if (version !== dailyRequest || !modal.open) return;
+    dailyHistoryRows.push(...result.questions);
+    target.innerHTML = questionHistory(dailyHistoryRows, result.next_before);
+  } catch (error) {
+    if (version !== dailyRequest || !modal.open) return;
+    if (before) throw error;
+    target.innerHTML = failureBlock(error, button('daily-history', '다시 불러오기', 'refresh'));
+  }
 }
 function postCard(post) {
   const photos = post.images || [];
-  return `<article class="post-card"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div><span class="family-only">가족에게만</span></header>
-    ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo="${photos[0].id}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
+  return `<article class="post-card" data-post-id="${post.id}"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div><span class="family-only">가족에게만</span></header>
+    ${photos.length ? `<button type="button" class="post-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 사진과 소식 보기"><img data-post="${post.id}" data-photo-url="${e(photos[0].url)}" alt="${e(post.author_name)}님이 공유한 사진" loading="lazy">${photos.length > 1 ? `<span class="photo-count">${icon('photo')}${photos.length}</span>` : ''}</button>` : ''}
     <div class="post-body"><p class="post-caption">${e(post.caption)}</p></div><footer class="post-actions">${button('open-post', `댓글 <span>${post.comment_count}</span>`, 'comment', 'button quiet', `data-id="${post.id}"`)}${button('post-summary', 'AI로 소식 읽기', 'sparkle', 'button quiet ai-link', `data-id="${post.id}"`)}</footer></article>`;
 }
 function updateFeed() {
@@ -238,6 +521,7 @@ function updateFeed() {
   $('#post-count').textContent = `${posts.length}`;
   $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', query || author ? '일치하는 소식이 없어요' : '첫 번째 안부를 기다리고 있어요', query || author ? '검색어나 가족을 바꿔서 다시 찾아보세요.' : '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', query || author ? '' : button('compose', '첫 소식 남기기', 'plus', 'button primary'));
   hydrateImages();
+  assistant.refresh();
 }
 function hydrateImages(root = document) {
   observer ||= new IntersectionObserver(entries => {
@@ -246,7 +530,7 @@ function hydrateImages(root = document) {
   root.querySelectorAll('img[data-post]').forEach(img => observer.observe(img));
 }
 async function loadImage(img) {
-  try { const url = await imageURL(Number(img.dataset.post), Number(img.dataset.photo)); if (img.isConnected) { img.src = url; img.classList.add('loaded'); } }
+  try { const url = await imageURL(img.dataset.photoUrl); if (img.isConnected) { img.src = url; img.classList.add('loaded'); } }
   catch { if (img.isConnected) { img.alt = '사진을 불러오지 못했어요. 소식을 다시 열어 주세요.'; img.classList.add('image-failed'); } }
 }
 
@@ -258,7 +542,7 @@ async function openPost(id, summarize = false) {
     if (version !== state.modalVersion || !modal.open) return;
     state.detail = post;
     state.photoIndex = 0;
-    modal.innerHTML = `${modalHeading('소소한 하루, 다정한 이야기', 'FAMILY MOMENT')}<div class="post-detail ${post.images.length ? '' : 'text-only'}">${post.images.length ? `<section class="detail-gallery" aria-label="공유한 사진"><div id="gallery-stage"></div>${post.images.length > 1 ? `<div class="photo-thumbnails">${post.images.map((photo, index) => `<button type="button" data-action="select-photo" data-index="${index}" aria-label="${index + 1}번 사진" aria-pressed="${index === 0}"><img data-post="${post.id}" data-photo="${photo.id}" alt="${index + 1}번 사진 미리보기"></button>`).join('')}</div>` : ''}</section>` : ''}<section class="detail-conversation"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div></header><p class="detail-caption">${e(post.caption)}</p>
+    modal.innerHTML = `${modalHeading('소소한 하루, 다정한 이야기', 'FAMILY MOMENT')}<div class="post-detail ${post.images.length ? '' : 'text-only'}">${post.images.length ? `<section class="detail-gallery" aria-label="공유한 사진"><div id="gallery-stage"></div>${post.images.length > 1 ? `<div class="photo-thumbnails">${post.images.map((photo, index) => `<button type="button" data-action="select-photo" data-index="${index}" aria-label="${index + 1}번 사진" aria-pressed="${index === 0}"><img data-post="${post.id}" data-photo-url="${e(photo.url)}" alt="${index + 1}번 사진 미리보기"></button>`).join('')}</div>` : ''}</section>` : ''}<section class="detail-conversation"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div></header><p class="detail-caption">${e(post.caption)}</p>
       <section class="ai-panel"><div class="ai-heading">${icon('sparkle')}<h3>AI와 함께 읽어요</h3></div><p class="help">소식을 쉽게 풀어 읽고, 궁금한 점을 물어보세요.</p><div class="button-row">${button('summary', '소식 요약하기', 'sparkle', 'button secondary compact')}${button('summary-audio', '요약 듣기', 'volume', 'button quiet compact')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet compact', 'hidden')}</div><div id="summary-result" class="ai-result" aria-live="polite"></div><div id="question-history" class="question-history" aria-live="polite"></div><form data-form="post-question" class="inline-form"><label class="sr-only" for="post-question">이 소식에 대해 물어보기</label><input id="post-question" name="question" maxlength="1000" required placeholder="이 소식에 대해 궁금한 점은?"><button type="submit" class="icon-button send-button" aria-label="AI에게 질문하기">${icon('arrow')}</button><p class="form-error" role="alert"></p></form><p class="fine-print">AI 답변은 실제 소식과 다를 수 있어요. 중요한 내용은 가족에게 확인해 주세요.</p></section>
       <section class="comments-section"><h3>마음을 나눠요 <span id="comment-count">${post.comments.length}</span></h3><div id="comments"></div><form data-form="comment"><label class="sr-only" for="comment-text">가족에게 댓글 남기기</label><textarea id="comment-text" name="text" required maxlength="2000" rows="2" placeholder="다정한 한마디를 남겨보세요."></textarea><p class="form-error" role="alert"></p><div class="comment-submit">${button('record', '음성으로 답장', 'mic', 'button quiet compact')}<button type="submit" class="button primary compact">댓글 보내기${icon('arrow')}</button></div></form><div id="voice-panel" aria-live="polite"></div></section></section></div>`;
     renderComments();
@@ -266,14 +550,14 @@ async function openPost(id, summarize = false) {
     hydrateImages(modal);
     if (summarize) await busy($('[data-action="summary"]', modal), () => loadSummary());
   } catch (error) {
-    if (version === state.modalVersion) modal.innerHTML = `${modalHeading('소식을 불러오지 못했어요')}${errorBlock(error.message)}${button('retry-post', '다시 열기', 'refresh', 'button secondary', `data-id="${id}"`)}`;
+    if (version === state.modalVersion) modal.innerHTML = `${modalHeading('소식을 불러오지 못했어요')}${failureBlock(error, button('retry-post', '다시 열기', 'refresh', 'button secondary', `data-id="${id}"`))}`;
   }
 }
 function showPhoto(index) {
   const post = state.detail;
   if (!post || !post.images[index]) return;
   state.photoIndex = index;
-  $('#gallery-stage').innerHTML = `<img data-post="${post.id}" data-photo="${post.images[index].id}" alt="${e(post.author_name)}님이 공유한 ${index + 1}번 사진"><span class="gallery-index">${index + 1} / ${post.images.length}</span>`;
+  $('#gallery-stage').innerHTML = `<img data-post="${post.id}" data-photo-url="${e(post.images[index].url)}" alt="${e(post.author_name)}님이 공유한 ${index + 1}번 사진"><span class="gallery-index">${index + 1} / ${post.images.length}</span>`;
   modal.querySelectorAll('[data-action="select-photo"]').forEach(node => node.setAttribute('aria-pressed', Number(node.dataset.index) === index));
   loadImage($('#gallery-stage img'));
 }
@@ -307,13 +591,12 @@ async function playSpeech(text, target, valid = () => true) {
 }
 
 function openComposer() {
-  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 한 장당 10MB · 전체 30MB · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
   if (next.length > 5) return toast('사진은 최대 5장까지 선택할 수 있어요.');
   if (next.some(file => !/^image\/(jpeg|png|webp|gif|bmp)$/.test(file.type))) return toast('JPG, PNG, WebP, GIF, BMP 사진을 선택해 주세요.');
-  if (next.some(file => file.size > 10 * 1024 * 1024) || next.reduce((sum, file) => sum + file.size, 0) > 30 * 1024 * 1024) return toast('사진은 한 장당 10MB, 전체 30MB까지 올릴 수 있어요.');
   state.files = next;
   renderPreviews();
 }
@@ -324,14 +607,14 @@ function renderPreviews() {
 }
 
 function renderSearch() {
-  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p><form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form><div class="suggestions">${['최근 가족 여행 이야기 찾아줘', '가족이 함께 먹은 음식이 궁금해', '생일에 있었던 일 알려줘'].map(text => button('search-suggestion', e(text), '', 'suggestion', `data-question="${e(text)}"`)).join('')}</div></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
+  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p><form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
 }
 async function renderDigest(version) {
   $('#page').innerHTML = `${pageHeading('A DAY TO REMEMBER', '하루 모아보기', '바쁜 하루 사이 놓친 가족의 소식, 한 편의 이야기로 만나보세요.')}<div class="digest-layout"><aside class="panel date-panel"><h2>${icon('calendar')}날짜 선택</h2><label class="field"><span>한국 시간 기준</span><input id="digest-date" type="date" value="${today()}" max="${today()}" required></label><div id="digest-dates">${loading()}</div></aside><section class="panel digest-content" id="digest-result" aria-live="polite">${loading('오늘의 이야기를 모으고 있어요')}</section></div>`;
   const history = api('digests/history/').then(result => {
     if (version !== state.pageVersion) return;
     $('#digest-dates').innerHTML = `<p class="eyebrow">소식이 있는 날</p>${result.dates.map(date => `<button type="button" class="date-item ${date === today() ? 'selected' : ''}" data-action="digest-date" data-date="${date}" aria-pressed="${date === today()}">${icon('book')}${e(date)}${icon('chevron')}</button>`).join('')}`;
-  }).catch(error => { if (version === state.pageVersion) $('#digest-dates').innerHTML = errorBlock(error.message); });
+  }).catch(error => { if (version === state.pageVersion) $('#digest-dates').innerHTML = failureBlock(error); });
   await Promise.all([history, loadDigest(today(), false, version)]);
 }
 async function loadDigest(date, retry = false, version = state.pageVersion) {
@@ -351,7 +634,7 @@ async function loadDigest(date, retry = false, version = state.pageVersion) {
     else if (result.status === 'empty') content.innerHTML = header + empty('leaf', '조용히 지나간 하루예요', '이 시간대에는 가족이 남긴 소식이 없어요. 다른 날짜도 살펴보세요.');
     else if (result.status === 'failed') content.innerHTML = header + empty('book', '이야기를 모으지 못했어요', '잠시 후 다시 시도해 주세요.', button('retry-digest', '요약 다시 만들기', 'refresh'));
     else content.innerHTML = header + empty('book', result.status === 'pending' ? '이야기가 모일 시간을 기다려요' : '가족의 하루를 정리하고 있어요', result.status === 'pending' ? `한국 시간 ${e(result.digest_time)} 이후에 하루 요약을 만날 수 있어요.` : '잠시 후 새로고침해 주세요.', button('retry-digest', '다시 확인하기', 'refresh'));
-  } catch (error) { if (version === state.pageVersion && state.digestRequest === requestId) $('#digest-result').innerHTML = errorBlock(error.message) + button('retry-digest', '다시 불러오기', 'refresh'); }
+  } catch (error) { if (version === state.pageVersion && state.digestRequest === requestId) $('#digest-result').innerHTML = failureBlock(error, button('retry-digest', '다시 불러오기', 'refresh')); }
 }
 function renderFamily() {
   const owner = state.room.members.some(member => member.id === state.user.user_id && member.is_owner);
@@ -359,7 +642,8 @@ function renderFamily() {
   mountTree($('#page .family-tree-board'), new FamilyTreeDraft(state.room.tree));
 }
 function renderSettings() {
-  $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
+  $('#page').innerHTML = `${pageHeading('YOUR LITTLE SPACE', '계정 설정', '가족에게 보여줄 내 정보를 관리해요.')}<div class="settings-grid"><section class="panel"><h2>내 프로필</h2><div class="settings-profile">${avatar(state.user.name, state.user.user_id, 'large')}<div><strong>${e(state.user.name)}</strong><p class="muted">@${e(state.user.username)}</p></div></div><form data-form="profile">${field('가족에게 보여줄 이름', 'name', 'text', `value="${e(state.user.name)}" maxlength="40" required autocomplete="name"`)}<p class="form-error" role="alert"></p><button class="button primary" type="submit">이름 저장하기</button></form></section><section class="panel" data-voice-field hidden><h2>읽어 주는 목소리</h2><p class="muted">소식과 요약을 들을 때 사용할 목소리를 골라요.</p><form data-form="voice"><label class="field"><span>목소리</span><select name="tts_voice"></select></label><button type="button" class="button quiet compact" data-voice-sample hidden></button><p class="form-error" role="alert"></p><button class="button secondary" type="submit">목소리 저장하기</button></form></section><section class="panel"><h2>비밀번호 변경</h2><p class="muted">변경하면 다른 기기의 로그인은 해제돼요.</p><form data-form="password">${field('현재 비밀번호', 'current_password', 'password', 'required maxlength="128" autocomplete="current-password"')}${field('새 비밀번호', 'new_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}${field('새 비밀번호 확인', 'confirm_password', 'password', 'required minlength="10" maxlength="128" autocomplete="new-password"')}<p class="help">숫자를 포함한 10자 이상. 아이디·이름과 비슷하거나 흔한 값은 피해주세요.</p><p class="form-error" role="alert"></p><button class="button secondary" type="submit">비밀번호 변경하기</button></form></section></div>`;
+  fillVoiceSelect($('form[data-form="voice"] select[name="tts_voice"]'), state.user.tts_voice);
 }
 
 function stopRecording(discard = false) {
@@ -372,15 +656,17 @@ function stopRecording(discard = false) {
   recordingStream = null;
   recorder = null;
 }
-async function startRecording() {
+async function startRecording({ postId = state.detail?.id, purpose = null } = {}) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new ApiError('음성 답장은 localhost 또는 HTTPS에서 지원되는 브라우저로 이용해 주세요.');
   if (recorder) return;
   const version = state.modalVersion;
-  const postId = state.detail.id;
+  const questionRequest = dailyRequest;
+  const valid = () => version === state.modalVersion && (!purpose || questionRequest === dailyRequest);
+  const retryAction = purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); }
-  if (version !== state.modalVersion) { stream.getTracks().forEach(track => track.stop()); return; }
+  if (!valid()) { stream.getTracks().forEach(track => track.stop()); return; }
   const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
   if (!mimeType) { stream.getTracks().forEach(track => track.stop()); throw new ApiError('이 브라우저의 녹음 형식을 지원하지 않아요. 최신 Chrome 또는 Edge로 이용해 주세요.'); }
   let current;
@@ -391,10 +677,10 @@ async function startRecording() {
   const chunks = [];
   let bytes = 0;
   current.ondataavailable = event => { chunks.push(event.data); bytes += event.data.size; if (bytes > 4.5 * 1024 * 1024) stopRecording(); };
-  current.onerror = () => { stopRecording(true); if (version === state.modalVersion) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
+  current.onerror = () => { stopRecording(true); if (valid()) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
   current.onstop = async () => {
     stream.getTracks().forEach(track => track.stop());
-    if (version !== state.modalVersion) return;
+    if (!valid()) return;
     const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size || blob.size > 5 * 1024 * 1024) { $('#voice-panel').innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.'); return; }
     $('#voice-panel').innerHTML = loading('말씀을 글로 옮기고 있어요');
@@ -403,9 +689,17 @@ async function startRecording() {
       const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
       data.append('audio', blob, `reply.${extension}`);
       const result = await api(`posts/${postId}/replies/transcribe/`, { method: 'POST', data });
-      if (version !== state.modalVersion) return;
+      if (!valid()) return;
+      if (purpose) {
+        const field = $(`[data-form="daily-${purpose}"] textarea`, modal);
+        if (field) { field.value = result.recognized; field.focus(); }
+        if (purpose === 'answer') dailyDraft.source = 'voice';
+        captureDailyDraft();
+        $('#voice-panel').innerHTML = '<p class="help">글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.</p>';
+        return;
+      }
       $('#voice-panel').innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
-    } catch (error) { if (version === state.modalVersion) $('#voice-panel').innerHTML = errorBlock(error.message) + button('record', '다시 녹음하기', 'mic'); }
+    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, '다시 녹음하기', 'mic')); }
   };
   current.start(1000);
   recordingTimer = setTimeout(() => { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }, 120000);
@@ -413,19 +707,53 @@ async function startRecording() {
 }
 
 const formHandlers = {
+  async 'daily-answer'() {
+    captureDailyDraft();
+    const question = dailyQuestion, version = dailyRequest;
+    const payload = questionPayload(question, dailyDraft);
+    const updated = await api(`daily-questions/${question.id}/answer/`, { method: 'PUT', data: payload });
+    if (version !== dailyRequest || !modal.open) return;
+    dailyQuestion = updated;
+    const mine = updated.answers.find(answer => answer.author_id === state.user.user_id);
+    dailyDraft = { ...mine, editing: false, comment: dailyDraft.comment };
+    dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+    renderDailyQuestion(); markDailySeen(updated);
+    return { postingMessage: '답변을 남겼어요!' };
+  },
+  async 'daily-comment'(data) {
+    if (!data.text.trim() || data.text.trim().length > 2000) throw new ApiError('댓글은 1~2,000자로 적어 주세요.');
+    captureDailyDraft();
+    const question = dailyQuestion, version = dailyRequest;
+    const result = await api(`posts/${question.post_id}/comments/`, { method: 'POST', data: { text: data.text.trim() } });
+    if (version !== dailyRequest || !modal.open) return;
+    // Publication succeeded. Clear the draft even when the following read fails.
+    dailyDraft.comment = '';
+    dailyDrafts.set(dailyDraftKey(), { ...dailyDraft });
+    try {
+      const updated = await api(`daily-questions/${question.id}/`);
+      if (version !== dailyRequest || !modal.open) return;
+      dailyQuestion = updated; markDailySeen(updated);
+    } catch {
+      if (version !== dailyRequest || !modal.open) return;
+      question.comments.push({ id: result.id, author_id: state.user.user_id, author_name: state.user.name, relationship: '나', text: data.text.trim() });
+      toast('댓글은 등록됐어요. 최신 목록은 질문을 다시 열어 확인해 주세요.');
+    }
+    renderDailyQuestion();
+    return { postingMessage: '댓글을 달았어요!' };
+  },
   async login(data) {
     const result = await api('accounts/login/', { method: 'POST', data });
     setToken(result.token);
-    await enterApp();
+    await connectSession();
   },
   async register(data) {
     const result = await api('accounts/register/', { method: 'POST', data });
     setToken(result.token);
-    await enterApp();
+    await connectSession();
   },
   async 'create-room'(data) {
     const result = await api('families/create/', { method: 'POST', data });
-    state.room = result.room;
+    useRoom(result.room);
     location.hash = '#/feed';
     renderShell();
     await renderPage();
@@ -438,6 +766,7 @@ const formHandlers = {
     if (session !== state.session || !$('#join-panel')) return;
     const form = $('[data-form="lookup-room"]');
     if ($('[name="invite_code"]', form).value !== data.invite_code || $('[name="password"]', form).value !== data.password) return;
+    if (room.members.some(member => member.id === state.user.user_id)) throw new ApiError('이미 참여한 가족방이에요. 가족방 목록에서 골라 들어가 주세요.');
     state.lookup = { ...data, room, draft: new FamilyTreeDraft(room.tree) };
     renderJoinPreview();
   },
@@ -463,8 +792,7 @@ const formHandlers = {
       throw error;
     }
     if (session !== state.session) return;
-    state.lookup = null;
-    state.room = result.room;
+    useRoom(result.room);
     location.hash = '#/feed';
     renderShell();
     await renderPage();
@@ -477,9 +805,9 @@ const formHandlers = {
     state.files.forEach(file => body.append('images', file, file.name));
     await api('posts/', { method: 'POST', data: body });
     if (version === state.modalVersion) modal.close();
-    toast('가족에게 소식을 전했어요.');
     if (currentRoute() === 'feed') await renderPage();
     else location.hash = '#/feed';
+    return { postingMessage: '글 업로드가 완료됐어요.' };
   },
   async comment(data, form) {
     const version = state.modalVersion;
@@ -487,13 +815,18 @@ const formHandlers = {
     await api(`posts/${postId}/comments/`, { method: 'POST', data });
     if (version !== state.modalVersion) return;
     form.reset();
-    const result = await api(`posts/${postId}/`);
-    if (version !== state.modalVersion) return;
-    state.detail.comments = result.comments;
-    renderComments();
-    const post = state.posts.find(item => item.id === postId);
-    if (post) { post.comment_count = result.comments.length; if ($('#feed-list')) updateFeed(); }
-    toast('따뜻한 마음을 전했어요.');
+    // Publication already succeeded; a failed refresh must not invite sending twice.
+    try {
+      const result = await api(`posts/${postId}/`);
+      if (version !== state.modalVersion) return;
+      state.detail.comments = result.comments;
+      renderComments();
+      const post = state.posts.find(item => item.id === postId);
+      if (post) { post.comment_count = result.comments.length; if ($('#feed-list')) updateFeed(); }
+      const evidenceCount = $(`#search-result [data-post-id="${postId}"] .post-actions [data-action="open-post"] span`);
+      if (evidenceCount) evidenceCount.textContent = result.comments.length;
+    } catch { toast('댓글은 등록됐어요. 최신 댓글은 소식을 다시 열어 확인해 주세요.'); }
+    if (version === state.modalVersion) return { postingMessage: '댓글을 달았어요!' };
   },
   async 'post-question'(data, form) {
     const version = state.modalVersion;
@@ -505,12 +838,18 @@ const formHandlers = {
   },
   async search(data) {
     const version = state.pageVersion;
+    const session = state.session;
+    const room = state.room.id;
+    const current = () => version === state.pageVersion && session === state.session && room === state.room?.id;
     $('#search-result').innerHTML = loading('가족의 추억을 찾고 있어요');
     try {
-      const result = await api('searching/history/', { method: 'POST', data });
-      if (version !== state.pageVersion) return;
-      $('#search-result').innerHTML = `<section class="panel search-answer"><p class="eyebrow">${icon('sparkle')}토닥이 찾은 이야기</p><h2>${e(data.question)}</h2><p class="answer-text">${e(result.text)}</p><p class="help">가족 기록을 참고한 AI 답변이에요. 중요한 내용은 가족에게 확인해 주세요.</p></section>`;
-    } catch (error) { if (version === state.pageVersion) $('#search-result').innerHTML = ''; throw error; }
+      const result = await api('searching/history/', { method: 'POST', data, room });
+      if (!current()) return;
+      const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
+      if (!current()) return;
+      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p></section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(postCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      hydrateImages($('#search-result'));
+    } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
   async 'digest-time'(data) {
     state.room = await api('families/current/', { method: 'PATCH', data });
@@ -523,6 +862,11 @@ const formHandlers = {
     renderShell();
     await renderPage();
     toast('이름을 저장했어요.');
+  },
+  async voice(data) {
+    const result = await api('accounts/me/', { method: 'PATCH', data: { tts_voice: data.tts_voice } });
+    state.user = { ...state.user, ...result };
+    toast('목소리를 저장했어요.');
   },
   async password(data, form) {
     if (data.new_password !== data.confirm_password) throw new ApiError('새 비밀번호와 확인 값이 달라요.');
@@ -547,7 +891,19 @@ document.addEventListener('submit', async event => {
   const handler = formHandlers[form.dataset.form];
   if (!handler) return;
   form.dataset.pending = 'true';
-  const data = Object.fromEntries(new FormData(form));
+  let data = Object.fromEntries(new FormData(form));
+  if (form.dataset.form === 'register') {
+    try { data = registrationPayload(data); }
+    catch (error) {
+      $('.form-error', form).classList.remove('availability-inline');
+      $('.form-error', form).textContent = error.message;
+      const input = form.elements.namedItem(error.field);
+      input?.setAttribute('aria-invalid', 'true');
+      input?.focus();
+      delete form.dataset.pending;
+      return;
+    }
+  }
   try { await busy(event.submitter || $('[type="submit"]', form), () => handler(data, form), $('.form-error', form)); }
   finally { delete form.dataset.pending; }
 });
@@ -559,6 +915,19 @@ document.addEventListener('click', async event => {
   if (action === 'auth-login') return renderAuth(false);
   if (action === 'auth-register') return renderAuth(true);
   if (action === 'close-modal') return modal.close();
+  if (action === 'daily-open') return openDailyQuestion();
+  if (action === 'daily-today' || action === 'daily-detail') { stopRecording(true); return loadDailyQuestion(target.dataset.id); }
+  if (action === 'daily-history') { stopRecording(true); return loadDailyHistory(); }
+  if (action === 'daily-more') return busy(target, () => loadDailyHistory(target.dataset.before));
+  if (action === 'daily-edit' && dailyDraft) {
+    captureDailyDraft(); dailyDraft.editing = true; renderDailyQuestion();
+    captureDailyDraft(); $('[data-form="daily-answer"] input, [data-form="daily-answer"] select, [data-form="daily-answer"] textarea', modal)?.focus();
+    return;
+  }
+  if (action === 'daily-record-answer' || action === 'daily-record-comment') {
+    if (!dailyQuestion) return;
+    return busy(target, () => startRecording({ postId: dailyQuestion.post_id, purpose: action.endsWith('answer') ? 'answer' : 'comment' }));
+  }
   if (action === 'text-size') {
     const large = document.documentElement.classList.toggle('large-text');
     localStorage.setItem('talkdock.web.largeText', String(large));
@@ -571,10 +940,14 @@ document.addEventListener('click', async event => {
   if (action === 'select-photo') return showPhoto(Number(target.dataset.index));
   if (action === 'remove-photo') { state.files.splice(Number(target.dataset.index), 1); return renderPreviews(); }
   if (action === 'refresh-page' || action === 'refresh-feed') return renderPage();
+  if (action === 'open-room') {
+    const id = Number(target.dataset.id);
+    if (id === state.room?.id) { location.hash = '#/feed'; return; }
+    return busy(target, () => openRoom(id));
+  }
   if (action === 'stop-audio') return stopAudio();
   if (action === 'cancel-record') { stopRecording(true); $('#voice-panel').innerHTML = ''; return; }
   if (action === 'finish-record') { stopRecording(); return; }
-  if (action === 'search-suggestion') { $('#memory-question').value = target.dataset.question; $('#memory-question').focus(); return; }
   if (action === 'digest-date') {
     $('#digest-date').value = target.dataset.date;
     document.querySelectorAll('.date-item').forEach(node => { const selected = node === target; node.classList.toggle('selected', selected); node.setAttribute('aria-pressed', String(selected)); });
@@ -618,22 +991,41 @@ document.addEventListener('click', async event => {
       if (version !== state.modalVersion) return;
       // Remove the send button immediately: draft publication is idempotent.
       $('#voice-panel').innerHTML = '<p class="success">마음을 전했어요.</p>';
-      const post = await api(`posts/${postId}/`);
-      if (version !== state.modalVersion) return;
-      state.detail.comments = post.comments;
-      renderComments();
-      const feedPost = state.posts.find(item => item.id === postId);
-      if (feedPost) { feedPost.comment_count = post.comments.length; if ($('#feed-list')) updateFeed(); }
-      toast('음성 답장을 전했어요.');
+      try {
+        const post = await api(`posts/${postId}/`);
+        if (version !== state.modalVersion) return;
+        state.detail.comments = post.comments;
+        renderComments();
+        const feedPost = state.posts.find(item => item.id === postId);
+        if (feedPost) { feedPost.comment_count = post.comments.length; if ($('#feed-list')) updateFeed(); }
+      } catch { toast('댓글은 등록됐어요. 최신 댓글은 소식을 다시 열어 확인해 주세요.'); }
+      if (version === state.modalVersion) return { postingMessage: '댓글을 달았어요!' };
     }
   });
 });
 document.addEventListener('input', event => {
+  if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
+  if (event.target.closest('[data-form="register"]') && ['password', 'confirm_password'].includes(event.target.name)) {
+    const form = event.target.form;
+    form.querySelectorAll('[aria-invalid]').forEach(input => input.removeAttribute('aria-invalid'));
+    $('.form-error', form).textContent = '';
+  }
   if (event.target.id === 'feed-filter') updateFeed();
   if (event.target.id === 'post-caption') $('#caption-count').textContent = event.target.value.length;
   if (event.target.closest('[data-form="lookup-room"]')) { state.lookup = null; $('#join-panel').innerHTML = ''; }
 });
 document.addEventListener('change', event => {
+  if (event.target.matches('[data-form="daily-answer"] input[type="radio"]')) {
+    const form = event.target.form;
+    const other = form.elements.namedItem('other_text');
+    if (other) {
+      other.hidden = other.disabled = event.target.value !== '기타';
+      other.required = !other.hidden;
+      if (!other.hidden) other.focus();
+    }
+    form.querySelectorAll('.daily-option').forEach(row => row.classList.toggle('selected', row.querySelector('input[type="radio"]').checked));
+  }
+  if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
   if (event.target.id === 'author-filter') updateFeed();
   if (event.target.id === 'photo-input') { addFiles([...event.target.files]); event.target.value = ''; }
   if (event.target.id === 'digest-date' && event.target.validity.valid) {
@@ -653,7 +1045,6 @@ document.addEventListener('keydown', event => {
 });
 window.addEventListener('pagehide', () => { stopRecording(true); stopAudio(); clearImages(); });
 document.documentElement.classList.toggle('large-text', localStorage.getItem('talkdock.web.largeText') === 'true');
-if (hasToken()) {
-  enterApp().catch(error => { if (hasToken()) { app.innerHTML = `<main id="main" class="boot">${errorBlock(error.message)}${button('retry-enter', '다시 연결하기', 'refresh')}${button('logout', '로그아웃', 'logout', 'button quiet')}</main>`; } });
-} else renderAuth();
-document.addEventListener('click', event => { const target = event.target.closest('[data-action="retry-enter"]'); if (target) busy(target, enterApp); });
+if (hasToken()) connectSession();
+else renderAuth();
+document.addEventListener('click', event => { const target = event.target.closest('[data-action="retry-enter"]'); if (target) busy(target, connectSession); });

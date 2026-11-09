@@ -10,6 +10,8 @@ from django.conf import settings
 
 from apps.posts.models import Post
 
+from integrations.utils.family_graph import sync_family
+
 
 def run_worker(family_id, once, stdout, stderr):
     lock_dir = Path(settings.MEDIA_ROOT) / ".graphiti-workers"
@@ -45,13 +47,22 @@ def construct(family_id, once, stdout, stderr):
         try:
             runner.run(graphiti.build_indices_and_constraints())
             while True:
-                names = runner.run(episode_names(graphiti, family_id))
+                try:
+                    sync_family(graphiti, family_id, runner)
+                    names = runner.run(episode_names(graphiti, family_id))
+                except Exception as error:
+                    if once:
+                        raise RuntimeError("가족 기록 동기화에 실패했어요.") from error
+                    logging.getLogger(__name__).exception("Family graph sync or episode embedding failed")
+                    stderr.write("가족 기록 동기화 실패. 5초 후 다시 시도해요.")
+                    time.sleep(5)
+                    continue
                 completed = {
                     int(name[5:]) for name in names
                     if name.startswith("post_") and name[5:].isdigit()
                 }
-                posts = Post.objects.filter(room_id=family_id).exclude(pk__in=completed)
-                for post in posts.select_related("author").prefetch_related("photos").order_by("created_at", "pk")[:100]:
+                posts = Post.objects.filter(room_id=family_id, kind="news").exclude(pk__in=completed)
+                for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
                     try:
                         if not post.description:
                             post.description = runner.run(describe_post(post))

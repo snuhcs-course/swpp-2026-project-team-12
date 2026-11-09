@@ -18,7 +18,7 @@ from apps.posts.services import save_post
 from apps.api import APIError
 from integrations.ai import provider
 
-from .family_fixtures import add_member
+from .family_fixtures import auth_headers, add_member
 
 
 def photo():
@@ -41,8 +41,8 @@ class TextPostTests(TestCase):
         other_room = FamilyRoom.objects.create(owner=self.other, name="다른 가족", invite_code="TEXT02", password_hash="unused")
         add_member(self.room, self.owner)
         add_member(other_room, self.other)
-        self.auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.owner)}
-        self.other_auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(self.other)}
+        self.auth = auth_headers(AccessToken.issue(self.owner))
+        self.other_auth = auth_headers(AccessToken.issue(self.other))
 
     def upload(self, caption="오늘 산책을 다녀왔어요.", **files):
         return self.client.post("/api/posts/", {"caption": caption, **files}, **self.auth)
@@ -54,7 +54,7 @@ class TextPostTests(TestCase):
         self.assertEqual(data["caption"], "오늘 산책을 다녀왔어요.")
         self.assertEqual((data["image_url"], data["images"], data["image_count"]), ("", [], 0))
         post = Post.objects.get()
-        self.assertFalse(post.image)
+        self.assertEqual(post.images, [])
         self.assertEqual(post.photo_files(), [])
         self.assertFalse(any(item.is_file() for item in self.media.rglob("*")))
 
@@ -94,7 +94,7 @@ class TextPostTests(TestCase):
         detail = self.client.get(f"/api/posts/{pk}/", **self.auth)
         self.assertEqual(detail.status_code, 200)
         self.assertEqual(detail.json()["image_url"], "")
-        for path in (f"/api/posts/{pk}/image/", f"/api/posts/{pk}/photos/12345/"):
+        for path in (f"/api/posts/{pk}/image/", f"/api/posts/{pk}/images/12345/"):
             self.assertEqual(self.client.get(path, **self.auth).status_code, 404)
             self.assertEqual(self.client.get(path, **self.other_auth).status_code, 404)
             self.assertEqual(self.client.get(path).status_code, 401)
@@ -103,7 +103,7 @@ class TextPostTests(TestCase):
     def test_post_requires_login_and_family(self):
         self.assertEqual(self.client.post("/api/posts/", {"caption": "소식"}).status_code, 401)
         user = User.objects.create_user(username="text-no-room", password="Offline-Pass-789!", display_name="미가입자")
-        auth = {"HTTP_AUTHORIZATION": "Bearer " + AccessToken.issue(user)}
+        auth = auth_headers(AccessToken.issue(user))
         self.assertEqual(self.client.post("/api/posts/", {"caption": "소식"}, **auth).status_code, 403)
         self.assertFalse(Post.objects.exists())
 
@@ -136,7 +136,7 @@ class TextPostTests(TestCase):
         post = Post.objects.get()
         day = timezone.localdate() - timedelta(days=2)
         Post.objects.filter(pk=post.pk).update(created_at=timezone.make_aware(datetime.combine(day, time(12))))
-        with patch.object(provider, "answer_with_memory", return_value="가족이 산책을 다녀왔어요.") as answer:
+        with patch.object(provider, "answer_with_memory", return_value=[{"author_id": post.author_id, "text": "산책을 다녀왔어요."}]) as answer:
             response = self.client.get(f"/api/digests/?date={day.isoformat()}", **self.auth)
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json()["status"], "ready")
@@ -148,9 +148,10 @@ class TextPostTests(TestCase):
         self.upload("글만 있는 소식")
         self.upload("사진이 있는 소식", image=photo())
         posts = list(Post.objects.order_by("pk"))
-        with patch.object(provider, "answer_with_memory", return_value="하루 소식") as answer:
-            self.assertEqual(provider.summarize(posts), "하루 소식")
-        captions = [item["원문"] for item in json.loads(answer.call_args.args[2])]
+        summaries = [{"author_id": posts[0].author_id, "text": "하루 소식"}]
+        with patch.object(provider, "answer_with_memory", return_value=summaries) as answer:
+            self.assertEqual(provider.summarize(posts), summaries)
+        captions = [post["원문"] for author in json.loads(answer.call_args.args[2]) for post in author["게시글"]]
         self.assertEqual(captions, ["글만 있는 소식", "사진이 있는 소식"])
         self.assertEqual(len(answer.call_args.args[3]), 1)
         self.assertTrue(answer.call_args.args[3][0])
