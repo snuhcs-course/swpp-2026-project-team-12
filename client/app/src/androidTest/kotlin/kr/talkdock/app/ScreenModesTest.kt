@@ -27,9 +27,9 @@ class ScreenModesTest {
     private fun post(id: Int) = JSONObject().put("id", id).put("author_id", id).put("author_name", "가족$id")
         .put("relationship", "손자").put("created_at", "${date}T08:00:00+09:00")
         .put("caption", "커피와 빵으로 아침을 먹었어요. ".repeat(20)).put("images", JSONArray()).put("comment_count", 1)
-    private fun server() = MockApi { request -> jsonReply(when {
+    private fun server(posts: () -> List<JSONObject> = { (1..3).map { post(it) } }) = MockApi { request -> jsonReply(when {
         request.path == "/api/families/current/" -> family
-        request.path == "/api/posts/" -> JSONObject().put("posts", JSONArray((1..3).map { post(it) }))
+        request.path == "/api/posts/" -> JSONObject().put("posts", JSONArray(posts()))
         request.path == "/api/digests/history/" -> JSONObject().put("dates", JSONArray().put(date))
         request.path.startsWith("/api/digests/") -> JSONObject().put("status", "ready").put("date", date)
             .put("text", "[손자 - 가족1] 커피와 빵으로 아침을 드셨어요.").put("posts", JSONArray().put(post(1)))
@@ -119,7 +119,7 @@ class ScreenModesTest {
         assertEquals(writes, api.requests.count { it.method != "GET" })
     } }
 
-    @Test fun allSixPracticeStepsStayLocal() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
+    @Test fun writeAndReplyPracticeStayLocal() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
         fun views() = descendants(dialog(ui, "helpDialog")!!.window!!.decorView)
         fun step(number: Int) = ui.await { dialog(ui, "helpDialog")?.isShowing == true && views().any { it.tag == "help-step:$number" } }
         fun tap(label: String) = ui.test.runOnMainSync {
@@ -131,13 +131,38 @@ class ScreenModesTest {
             val unit = ui.activity.resources.displayMetrics.density
             scroll.scrollTo(0, (unit * 140).toInt()); scroll.scrollTo(0, (unit * 60).toInt())
         }
-        step(3); ui.screenshot("elder-practice-comments.png"); tap("댓글 달기")
-        ui.test.runOnMainSync { views().filterIsInstance<android.widget.EditText>().single().setText("연습 댓글이에요.") }
-        tap("댓글 남기기"); step(4); tap("음성으로 듣기"); tap("다음")
-        step(5); tap("오늘 가족의 하루"); tap("다음"); step(6); tap("가족 소식으로 돌아가기")
+        step(3); tap("소식 쓰기"); tap("연습 사진 추가"); tap("가족에게 전하기")
+        tap("다음"); step(4); tap("토닥 도우미"); tap("음성으로 듣기"); tap("다음")
+        step(5); tap("토닥 도우미"); tap("오늘 가족의 하루"); tap("다음")
+        step(6); tap("댓글 달기"); tap("말로 댓글 남기기")
+        ui.test.runOnMainSync { assertEquals("좋은 하루 보내세요!", views().filterIsInstance<android.widget.EditText>().single().text.toString()) }
+        tap("댓글 남기기"); tap("다음"); step(7); tap("가족 소식으로 돌아가기")
         ui.await { dialog(ui, "helpDialog") == null }
         assertTrue(api.requests.none { it.method != "GET" })
     } }
+
+    @Test fun replyPracticeWaitsForAnotherAuthorAndIsShownOnce() {
+        val available = java.util.concurrent.atomic.AtomicReference(emptyList<JSONObject>())
+        server { available.get() }.use { api -> UiHarness(api, family, large = true).use { ui ->
+            fun refresh() = ui.test.runOnMainSync { ui.activity.javaClass
+                .getDeclaredMethod("home", androidx.swiperefreshlayout.widget.SwipeRefreshLayout::class.java)
+                .apply { isAccessible = true }.invoke(ui.activity, null) }
+            ui.await { ui.has("사용 안내 1 / 6") }
+            ui.test.runOnMainSync { dialog(ui, "helpDialog")!!.dismiss() }
+            available.set(listOf(post(999)))
+            refresh()
+            ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 1 }
+            assertNull(dialog(ui, "helpDialog"))
+            available.set(listOf(post(999), post(42)))
+            // Wait for the visible feed's normal first-post check, without manual refresh.
+            ui.await(35000) { ui.has("가족 소식에 답장해 봐요.") && ui.has("가족42님의 소식") }
+            ui.test.runOnMainSync { dialog(ui, "helpDialog")!!.dismiss() }
+            refresh()
+            ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
+            assertNull(dialog(ui, "helpDialog"))
+            assertTrue(api.requests.none { it.method != "GET" })
+        } }
+    }
 
     @Test fun returningFromElderlyCommentsKeepsTheSamePostPosition() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
         ui.await { dialog(ui, "helpDialog")?.isShowing == true }

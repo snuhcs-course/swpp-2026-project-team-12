@@ -292,9 +292,10 @@ class MainActivity : ComponentActivity() {
             out.putString("treeDraft", treeDraft?.payload()?.toString())
         }
     }
-    override fun onResume() { super.onResume(); foreground = true; updateAssistantContext() }
+    override fun onResume() { super.onResume(); foreground = true; updateAssistantContext(); scheduleReplyCheck() }
     override fun onPause() {
         closeAssistantMenu()
+        guideHandler.removeCallbacks(checkForReply)
         foreground = false
         if (recorder?.active == true) {
             voiceState("말하기 시작", false)
@@ -315,6 +316,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
+        guideHandler.removeCallbacks(checkForReply)
         rememberMemories()
         if (screen == "home" && name != "home") {
             feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
@@ -1079,48 +1081,51 @@ class MainActivity : ComponentActivity() {
         if (refresh == null) navigation("토닥", name = "home")
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
-            dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
-            if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
-            feedPostTargets.clear(); feedCards.clear(); content.removeAllViews()
-            val posts = objects(data.getJSONArray("posts")).sortedWith(
-                compareByDescending<JSONObject> {
-                    runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
-                }.thenByDescending { it.optLong("id") }
-            )
-            if (posts.isEmpty()) {
-                content.addView(questionEntry()); updateDailyEntry()
-                ui.art(content, width = 220); ui.gap(content, 20)
-                heading("첫 소식을 기다리고 있어요", "짧은 한마디도 우리 가족에게는 반가운 편지가 돼요.")
-                ui.action(content, "첫 소식 쓰기", "plus", large) { composer() }
-                ui.ghost(content, "가족 초대 코드 보기") { invite() }
-                updateAssistantContext()
-                if (large && !getPreferences(MODE_PRIVATE).getBoolean("help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id"), false)) content.post { showHelp() }
-                return@async
+            displayHome(data, client)
+        }
+    }
+
+    private fun displayHome(data: JSONObject, client: ApiClient) {
+        dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
+        if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
+        feedPostTargets.clear(); feedCards.clear(); content.removeAllViews()
+        val posts = objects(data.getJSONArray("posts")).sortedWith(
+            compareByDescending<JSONObject> {
+                runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
+            }.thenByDescending { it.optLong("id") }
+        )
+        if (posts.isEmpty()) {
+            content.addView(questionEntry()); updateDailyEntry()
+            ui.art(content, width = 220); ui.gap(content, 20)
+            heading("첫 소식을 기다리고 있어요", "짧은 한마디도 우리 가족에게는 반가운 편지가 돼요.")
+            ui.action(content, "첫 소식 쓰기", "plus", large) { composer() }
+            ui.ghost(content, "가족 초대 코드 보기") { invite() }
+            updateAssistantContext()
+            offerHelp()
+            return
+        }
+        content.addView(questionEntry(), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(16) })
+        updateDailyEntry()
+        val label = ui.row()
+        label.addView(ui.text("가족의 소식", if (large) 22f else 19f, true), LinearLayout.LayoutParams(0, -2, 1f))
+        if (!large) label.addView(ui.iconButton("write", "소식 쓰기") { composer() })
+        content.addView(label); ui.gap(content, 12)
+        posts.forEach { post ->
+            val card = FeedPostCard(this, ui, post, large, ::author, ::postPhotos, postAudio(post),
+                comment = { if (large) detail(post, focusComment = true) else openComments(post) },
+                voice = { voice(post) }, open = { detail(post) })
+            feedCards.add(card); feedPostTargets.add(card to post)
+            if (large) feedCommentCache[post.optInt("id")]?.let { card.showComments(it) }
+            content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(20) })
+        }
+        content.post {
+            if (restoreFeedScroll) {
+                restoreFeedScroll = false
+                val anchor = feedCards.firstOrNull { it.post.optInt("id") == feedAnchorId }
+                pageScroll?.scrollTo(0, anchor?.let { it.top - feedAnchorOffset } ?: feedScrollY)
             }
-            content.addView(questionEntry(), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(16) })
-            updateDailyEntry()
-            val label = ui.row()
-            label.addView(ui.text("가족의 소식", if (large) 22f else 19f, true), LinearLayout.LayoutParams(0, -2, 1f))
-            if (!large) label.addView(ui.iconButton("write", "소식 쓰기") { composer() })
-            content.addView(label); ui.gap(content, 12)
-            posts.forEach { post ->
-                val card = FeedPostCard(this, ui, post, large, ::author, ::postPhotos, postAudio(post),
-                    comment = { if (large) detail(post, focusComment = true) else openComments(post) },
-                    voice = { voice(post) }, open = { detail(post) })
-                feedCards.add(card); feedPostTargets.add(card to post)
-                if (large) feedCommentCache[post.optInt("id")]?.let { card.showComments(it) }
-                content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(20) })
-            }
-            content.post {
-                if (restoreFeedScroll) {
-                    restoreFeedScroll = false
-                    val anchor = feedCards.firstOrNull { it.post.optInt("id") == feedAnchorId }
-                    pageScroll?.scrollTo(0, anchor?.let { it.top - feedAnchorOffset } ?: feedScrollY)
-                }
-                updateAssistantContext(); assistant?.refreshPosition(); loadVisibleFeedComments()
-                val key = "help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id")
-                if (large && !getPreferences(MODE_PRIVATE).getBoolean(key, false)) showHelp()
-            }
+            updateAssistantContext(); assistant?.refreshPosition(); loadVisibleFeedComments()
+            offerHelp()
         }
     }
 
@@ -1210,18 +1215,79 @@ class MainActivity : ComponentActivity() {
         refresh(); updateAssistantContext()
     }
 
-    private fun showHelp() {
+    private fun helpKey() = "help-v2:${sessions.serverUrl()}:${session?.optInt("user_id")}"
+    private fun replyKey() = "${helpKey()}:reply:${room.optInt("id")}"
+    private fun seen(key: String) = getPreferences(MODE_PRIVATE).getBoolean(key, false)
+    private fun markSeen(key: String) = getPreferences(MODE_PRIVATE).edit().putBoolean(key, true).apply()
+    private fun otherPost(posts: List<JSONObject>): JSONObject? {
+        val me = session?.optInt("user_id") ?: return null
+        return posts.firstOrNull { it.optInt("author_id") > 0 && it.optInt("author_id") != me }
+
+    }
+
+    private val guideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val checkForReply = Runnable { checkForFirstFamilyPost() }
+
+    private fun scheduleReplyCheck() {
+        guideHandler.removeCallbacks(checkForReply)
+        if (foreground && screen == "home" && large && !seen(replyKey()) && !isDestroyed)
+            guideHandler.postDelayed(checkForReply, 20_000)
+    }
+
+    private fun checkForFirstFamilyPost() {
+        if (!foreground || screen != "home" || !large || seen(replyKey())) return
+        if (busy || helpDialog != null || assistantMenu != null || assistantDialog != null ||
+            profileMenuDialog != null || calendarDialog != null || commentsDialog != null || !hasWindowFocus()) {
+            scheduleReplyCheck()
+            return
+        }
+        val client = api
+        val page = pageNumber
+        val scope = replyKey()
+        network.execute {
+            val data = runCatching { client.request("posts/") }.getOrNull()
+            runOnUiThread {
+                if (isDestroyed || page != pageNumber || scope != replyKey() || !foreground || !large) return@runOnUiThread
+                val posts = data?.optJSONArray("posts")?.let(::objects).orEmpty()
+                if (data != null && otherPost(posts) != null && !busy && hasWindowFocus() &&
+                    helpDialog == null && assistantMenu == null && !seen(scope)) {
+                    feedScrollY = pageScroll?.scrollY ?: 0
+                    val anchor = feedCards.firstOrNull { it.bottom > feedScrollY }
+                    feedAnchorId = anchor?.post?.optInt("id")
+                    feedAnchorOffset = (anchor?.top ?: 0) - feedScrollY
+                    restoreFeedScroll = true
+                    displayHome(data, client)
+                } else scheduleReplyCheck()
+            }
+        }
+    }
+
+    private fun offerHelp() {
+        if (!foreground || !large || screen != "home" || isDestroyed || helpDialog != null) return
+        val replyPost = otherPost(feedPostTargets.map { it.second })
+        if (!seen(helpKey())) openGuide(false, replyPost.takeUnless { seen(replyKey()) })
+        else if (replyPost != null && !seen(replyKey())) openGuide(true, replyPost)
+        else scheduleReplyCheck()
+    }
+
+    private fun showHelp() = openGuide(false, otherPost(feedPostTargets.map { it.second }))
+
+    private fun openGuide(replyOnly: Boolean, replyPost: JSONObject?) {
         if (helpDialog?.isShowing == true || isDestroyed) return
         closeAssistantMenu(); stopPostAudio()
         val dialog = Dialog(this); helpDialog = dialog
-        val key = "help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id")
-        dialog.setContentView(GuidedHelpView(this, ui) { dialog.dismiss() })
+        val replyScope = replyKey()
+        dialog.setContentView(GuidedHelpView(this, ui, replyPost, replyOnly, { markSeen(replyScope) }) { dialog.dismiss() })
+        if (!replyOnly) markSeen(helpKey())
         dialog.setOnDismissListener {
-            getPreferences(MODE_PRIVATE).edit().putBoolean(key, true).apply()
             if (helpDialog === dialog) helpDialog = null
+            scheduleReplyCheck()
             updateAssistantContext()
         }
-        dialog.show(); dialog.window?.apply { setLayout(-1, -1); setBackgroundDrawableResource(android.R.color.transparent) }
+        dialog.show(); dialog.window?.apply {
+            setLayout(-1, -1); setBackgroundDrawableResource(android.R.color.transparent)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
         updateAssistantContext()
     }
 

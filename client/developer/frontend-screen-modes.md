@@ -19,7 +19,7 @@ There are no backend, API schema, database, launcher artwork, or APK changes in 
 Settings retain the existing account/family controls and add explicit screen choices, family-room switching, and account switching.
 Signup can select the elderly screen. The choice is saved per account **on the current client**; it is not synchronized between devices or between Android and web.
 
-First use of the elderly screen opens six-step practice. Help reopens it later. Practice uses a separate virtual post even when the real family has posts; it does not publish posts/comments, record the microphone, or call AI/speech services. Leaving practice preserves the real reading position.
+On first use of the elderly screen, a local practice guide covers reading, composing a text or sample-photo post, Listen and Day. A pointing hand beside the mascot follows the current control. A reply lesson is offered once per account and room when the feed contains another member’s news. If that news arrives later, returning to the feed or its foreground check (every 20 seconds while waiting) opens reply practice. The voice example stays editable until the user confirms the practice reply. Help replays the guide and includes replies when eligible. Practice content is local; the feed check only reads existing news.
 
 Existing photo loading, voice recording, speech, today-question answers/results, family memory search, and server authorization are reused.
 Inline comments load when their posts enter the viewport, with at most two concurrent requests and an explicit retry on failure.

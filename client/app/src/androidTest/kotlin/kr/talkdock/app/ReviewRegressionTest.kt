@@ -104,7 +104,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     val activity: MainActivity
     init {
         // Isolate first-use state even when Linux reuses a mock server's ephemeral port.
-        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v1:") }.forEach { remove(it) } }.commit()
+        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v2:") }.forEach { remove(it) } }.commit()
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)

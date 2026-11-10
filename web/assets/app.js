@@ -24,11 +24,62 @@ function applyScreenMode() {
   document.documentElement.classList.toggle('elder-screen', Boolean(elder));
   document.documentElement.classList.toggle('large-text', Boolean(elder));
 }
+const seenGuides = new Set();
+let replyCheckTimer;
+function guideSeen(key) {
+  try { return seenGuides.has(key) || localStorage.getItem(key) === 'true'; }
+  catch { return seenGuides.has(key); }
+}
+function markGuideSeen(key) {
+  seenGuides.add(key);
+  try { localStorage.setItem(key, 'true'); } catch {}
+}
+function guideKeys() {
+  const basic = `talkdock.web.help:v2:${state.user.user_id}`;
+  return { basic, reply: `${basic}:reply:${state.room.id}` };
+}
+function otherPost(posts) {
+  return posts.find(post => Number(post.author_id) > 0 && Number(post.author_id) !== Number(state.user.user_id));
+}
+function openPractice(manual = false) {
+  const keys = guideKeys();
+  const post = otherPost(state.posts);
+  const replyPost = manual || !guideSeen(keys.reply) ? post : null;
+  const replyOnly = !manual && guideSeen(keys.basic);
+  if (help.dialog?.open || (replyOnly && !replyPost)) return;
+  if (!replyOnly) markGuideSeen(keys.basic);
+  help.open({ post: replyPost, replyOnly, onReplyShown: () => markGuideSeen(keys.reply) });
+}
 function maybeShowHelp() {
-  if (!elder || modal.open || currentRoute() !== 'feed') return;
-  const key = `talkdock.web.help:v1:${state.user.user_id}`;
-  let seen = false; try { seen = localStorage.getItem(key) === 'true'; } catch {}
-  if (!seen) help.open(() => { try { localStorage.setItem(key, 'true'); } catch {} });
+  if (elder && !document.querySelector('dialog[open]') && currentRoute() === 'feed') openPractice();
+}
+function stopReplyCheck() {
+  clearTimeout(replyCheckTimer);
+}
+function scheduleReplyCheck() {
+  stopReplyCheck();
+  if (!elder || !state.user || !state.room || currentRoute() !== 'feed' || guideSeen(guideKeys().reply)) return;
+  const version = state.pageVersion, room = state.room.id, session = state.session;
+  const current = () => version === state.pageVersion && session === state.session &&
+    state.room?.id === room && currentRoute() === 'feed' && elder;
+  const idle = () => !document.hidden && !document.querySelector('dialog[open]') && !pendingOperations.size;
+  replyCheckTimer = setTimeout(async () => {
+    if (!current() || guideSeen(guideKeys().reply)) return;
+    if (idle()) {
+      if (!otherPost(state.posts)) {
+        try {
+          const result = await api('posts/', { room });
+          if (!current()) return;
+          if (idle() && otherPost(result.posts)) {
+            state.posts = result.posts;
+            updateFeed();
+          }
+        } catch { /* A later check or feed refresh can pick up the post. */ }
+      }
+      if (current() && idle()) maybeShowHelp();
+    }
+    if (current()) scheduleReplyCheck();
+  }, 20_000);
 }
 const pendingOperations = new Set();
 const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
@@ -203,6 +254,7 @@ async function busy(element, task, errorTarget) {
 }
 
 function resetSession() {
+  stopReplyCheck(); help.dialog?.close();
   inlineComments.clear(); pendingComments.clear(); commentQueue = []; expandedPosts.clear();
   assistant.reset();
   hidePostingSuccess();
@@ -395,6 +447,7 @@ function pageHeading(eyebrow, title, text, controls = '') {
 }
 function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings', 'rooms'].includes(route) ? route : 'feed'; }
 async function renderPage() {
+  stopReplyCheck(); help.dialog?.close();
   if (!state.room || !state.user) return;
   assistant.refresh();
   const route = currentRoute();
@@ -452,7 +505,7 @@ async function renderFeed(version) {
   if (!dailyStatus?.title) api('daily-questions/today/').then(question => {
     if (version === state.pageVersion) { dailyStatus = question; updateDailyEntry(); }
   }).catch(() => { /* The entry remains available for an explicit retry. */ });
-  updateFeed(); maybeShowHelp();
+  updateFeed(); maybeShowHelp(); scheduleReplyCheck();
 }
 
 function dailySeenKey() { return `talkdock.web.dailySeen:${state.user?.user_id}:${state.room?.id}`; }
@@ -1192,7 +1245,7 @@ function openBotMenu() {
     const button=event.target.closest('[data-bot]');if(!button||button.disabled)return;
     const action=button.dataset.bot;menu.close();
     if(session!==state.session||roomId!==state.room?.id)return;
-    if(action==='help')return help.open();
+    if(action==='help')return openPractice(true);
     if(action==='memory'){location.hash='#/search';return;}
     if(action==='day'){location.hash='#/digest';return;}
     if(action==='ask'){assistant.targetId=id;assistant.open();return;}
