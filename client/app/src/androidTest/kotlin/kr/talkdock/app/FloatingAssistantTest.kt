@@ -103,7 +103,7 @@ class FloatingAssistantTest {
                 val height = views().filterIsInstance<ScrollView>().first().height
                 views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().forEach { it.minimumHeight = height }
             }
-            test.runOnMainSync { activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity).let { (it as? android.app.Dialog)?.dismiss() } }
+            test.runOnMainSync { activity.window.decorView.findViewWithTag<android.view.View>("guide-close")?.takeIf { it.isShown }?.performClick() }
 
         }
         fun views(view: View = activity.window.decorView): List<View> {

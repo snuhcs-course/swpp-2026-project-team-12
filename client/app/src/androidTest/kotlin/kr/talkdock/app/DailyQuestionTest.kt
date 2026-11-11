@@ -138,7 +138,7 @@ class DailyQuestionTest {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
                 val launched = activity!!
                 awaitUi { views(launched.window.decorView).any { it is PhotoLetterDeck || it is FeedPostCard } }
-                test.runOnMainSync { launched.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(launched).let { (it as? android.app.Dialog)?.dismiss() } }
+                test.runOnMainSync { launched.window.decorView.findViewWithTag<android.view.View>("guide-close")?.takeIf { it.isShown }?.performClick() }
                 body(launched, server)
             } finally {
                 test.runOnMainSync {

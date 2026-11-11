@@ -127,16 +127,21 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         finally { connection.disconnect() }
     }
 
-    fun speech(text: String): ByteArray {
+    fun speech(text: String, cancellation: RequestCancellation? = null, timeoutMillis: Int? = null): ByteArray {
         val connection = open(baseUrl + "speech/", "POST")
         try {
+            cancellation?.attach(connection)
+            if (timeoutMillis != null) {
+                connection.connectTimeout = timeoutMillis
+                connection.readTimeout = timeoutMillis
+            }
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray(StandardCharsets.UTF_8)) }
             if (connection.responseCode !in 200..299) response(connection)
             return connection.inputStream.use { it.readBytes() }
         } catch (error: IOException) { throw networkFailure(error) }
-        finally { connection.disconnect() }
+        finally { cancellation?.release(connection); connection.disconnect() }
     }
 
     fun maintenanceMessage(): String {

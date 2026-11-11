@@ -29,7 +29,8 @@ class ReplyAudioButton(
     large: Boolean,
     private val playLabel: String = "댓글 소리로 확인하기",
     private val stopLabel: String = "댓글 듣기 중지",
-    private val primary: Boolean = false
+    private val primary: Boolean = false,
+    private val onPlay: () -> Unit = {}
 ) : FrameLayout(activity) {
     private var request = 0
     private var active = false
@@ -88,6 +89,7 @@ class ReplyAudioButton(
     }
 
     private fun play() {
+        onPlay()
         stop(); speaker.stop()
         active = true; render(loading = true)
         val token = request

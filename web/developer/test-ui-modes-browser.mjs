@@ -26,6 +26,7 @@ const comments = [{ id:10,author_name:'김선희',relationship:'할머니',text:
 const posts = [1,2,3].map(id => ({ id, author_id:id, author_name:`가족${id}`, relationship:'손자', caption: id === 1 ? '커피와 빵으로 아침을 먹었어요. '.repeat(18) : `가족의 ${id}번째 소식이에요.`, created_at:`${day}T08:00:00+09:00`, images:[], comment_count:comments.length }));
 posts[0].images=[{id:1,url:'/api/posts/1/images/1/'},{id:2,url:'/api/posts/1/images/2/'}];
 posts[1].caption='짧은 첫째 줄\n짧은 둘째 줄\n짧은 셋째 줄';
+let feedPosts = posts;
 const question = { id:5,post_id:9,date:day,version:1,kind:'choice',title:'가족과 함께하고 싶은 활동은?',options:['산책','식사'],answers:[],comments:[] };
 await page.addInitScript(() => sessionStorage.setItem('talkdock.web.token', 'synthetic-token'));
 await page.addInitScript(() => {
@@ -45,7 +46,7 @@ await page.route('**/api/**', async route => {
   if(url.pathname==='/api/accounts/me/')data=user;
   else if(url.pathname==='/api/families/')data={rooms:[family]};
   else if(url.pathname==='/api/families/current/')data=family;
-  else if(url.pathname==='/api/posts/')data={posts,daily_question:question};
+  else if(url.pathname==='/api/posts/')data={posts:feedPosts,daily_question:question};
   else if(/^\/api\/posts\/\d+\/comments\/$/.test(url.pathname)) { const body=req.postDataJSON();comments.push({...comments[0],id:11,text:body.text});data=comments.at(-1); }
   else if(/^\/api\/posts\/\d+\/$/.test(url.pathname))data={...posts.find(p=>p.id===Number(url.pathname.split('/')[3])),comments};
   else if(url.pathname==='/api/daily-questions/today/')data=question;
@@ -63,6 +64,7 @@ try {
   await page.goto(`http://127.0.0.1:${server.address().port}/#/feed`);
   await page.locator('#feed-list .post-card').first().waitFor();
   ok(await page.locator('.screen-bottom [data-nav]').count()===3,'standard has three tabs');
+  await page.locator('#assistant-root .assistant-launcher').waitFor({state:'visible'});
   const standardLauncherLook=await launcherLook();
   ok(await page.locator('#assistant-root .assistant-launcher-label').isHidden(),'standard assistant has no visible caption');
   await page.locator('#feed-list img.loaded').first().waitFor();
@@ -94,6 +96,7 @@ try {
   await page.getByRole('button',{name:'오늘 이야기 보기',exact:true}).click();
   ok(await page.locator('.day-story-dialog .digest-text').isVisible(),'story opens after calendar preview');
   await page.getByRole('button',{name:'닫기',exact:true}).click();
+  feedPosts = [];
   await page.locator('a[aria-label="설정으로 이동"]').click();
   await page.getByRole('button',{name:'어르신 화면',exact:true}).click();
   await page.locator('.topbar .brand').click();
@@ -103,15 +106,32 @@ try {
   await page.locator('[data-help=next]').click();
   const feed=page.locator('.help-feed');await feed.hover({position:{x:40,y:70}});await page.mouse.wheel(0,220);await page.waitForTimeout(100);await page.mouse.wheel(0,-80);
   await page.getByText('사용 안내 3 / 6',{exact:true}).waitFor();
-  await page.locator('[data-help=comment]').click();
-  await page.locator('.help-comment').fill('연습 댓글');
+  await page.getByRole('button',{name:'소식 쓰기',exact:true}).last().click();
+  await page.locator('[data-help=photo]').click();
   await page.locator('.help-practice [type=submit]').click();
-  await page.getByText('사용 안내 4 / 6',{exact:true}).waitFor();
+  await page.getByText('연습 소식을 올렸어요.',{exact:true}).waitFor();
+  await page.locator('[data-help=next]').click();
   await page.locator('[data-help=bot]').click();
   await page.locator('[data-help=listen]').click();
   await page.locator('[data-help=next]').click();
   await page.locator('[data-help=bot]').click();await page.locator('[data-help=day]').click();
   await page.locator('[data-help=next]').click();await page.locator('[data-help=next]').click();
+  // A room with only the viewer's post must also keep the reply lesson pending.
+  feedPosts = [{ ...posts[0], author_id:user.user_id }];
+  await page.reload();
+  await page.locator('#feed-list .post-card').waitFor();
+  ok(await page.locator('.guided-help').count()===0,'own post does not trigger reply practice');
+  feedPosts = posts;
+  await page.getByText('가족 소식에 답장해 봐요.',{exact:true}).waitFor({timeout:35000});
+  assert.equal(await page.locator('.help-caption').textContent(),posts[0].caption);
+  await page.locator('[data-help=comment]').click();
+  await page.locator('[data-help=voice]').click();
+  ok(await page.locator('.help-comment').inputValue()==='좋은 하루 보내세요!','voice example awaits confirmation');
+  await page.locator('.help-practice [type=submit]').click();
+  await page.locator('[data-help=next]').click();await page.locator('[data-help=next]').click();
+  await page.reload();
+  await page.locator('#feed-list .post-card').first().waitFor();
+  ok(await page.locator('.guided-help').count()===0,'reply practice appears only once');
   ok(requests.filter(r=>r.method!=='GET').length===writesBefore,'help never writes real posts or comments');
   ok(await page.locator('.screen-bottom [data-action=compose]').count()===1,'elder has one bottom compose action');
   ok(await page.locator('.vertical-feed [data-action=compose]').count()===0,'no duplicate elder compose button');
@@ -121,7 +141,7 @@ try {
   ok(await page.locator('[data-comments="1"] .comment').count()>0,'elder comments visible inline');
   const bounds=await page.locator('.assistant-launcher').boundingBox();
   ok(bounds.x+bounds.width>=page.viewportSize().width-20,'elder assistant docks right');
-  ok(JSON.stringify(await launcherLook())===JSON.stringify(standardLauncherLook),'elder assistant matches the standard icon appearance');
+  assert.deepEqual(await launcherLook(), standardLauncherLook, 'elder assistant matches the standard icon appearance'); checks++;
   const label=page.locator('#assistant-root .assistant-launcher-label');
   ok(await label.isVisible() && await label.innerText()==='토닥 도우미','elder assistant shows its label');
   const labelBounds=await label.boundingBox(), bottom=await page.locator('.screen-bottom').boundingBox();

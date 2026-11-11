@@ -21,6 +21,8 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import androidx.core.view.doOnLayout
+import androidx.core.widget.doAfterTextChanged
 import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -28,6 +30,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kr.talkdock.app.data.*
 import kr.talkdock.app.device.Recorder
+import kr.talkdock.app.device.TutorialLine
+import kr.talkdock.app.device.TutorialNarrator
 import kr.talkdock.app.device.Speaker
 import kr.talkdock.app.ui.PhotoLetterDeck
 import kr.talkdock.app.ui.VoiceRecordingView
@@ -53,7 +57,7 @@ import kr.talkdock.app.ui.TodakSuccessView
 import kr.talkdock.app.ui.DailyQuestionPanel
 import kr.talkdock.app.ui.DailyQuestionEntryView
 import kr.talkdock.app.ui.FeedPostCard
-import kr.talkdock.app.ui.GuidedHelpView
+import kr.talkdock.app.ui.TutorialCue
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -104,7 +108,15 @@ class MainActivity : ComponentActivity() {
     private val feedCommentCache = mutableMapOf<Int, List<JSONObject>>()
     private val feedComments = Executors.newFixedThreadPool(2)
     private var commentsDialog: Dialog? = null
-    private var helpDialog: Dialog? = null
+    private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING }
+    private var guideStep: GuideStep? = null
+    private var guideRoom = ""
+    private var guidePostId = -1
+    private var guideCue: TutorialCue? = null
+    private var guideClose: View? = null
+    private var guideVolume: ImageButton? = null
+    private lateinit var narrator: TutorialNarrator
+    private var feedReady = false
     private var digestReturn = false
     private var feedPostId: Int? = null
     private var feedScrollY = 0
@@ -189,6 +201,10 @@ class MainActivity : ComponentActivity() {
             root.fitsSystemWindows = true
         }
         speaker = Speaker { toast(it) }
+        narrator = TutorialNarrator(this, currentClient = { api }) {
+            foreground && activePostAudio?.isPlaying != true && replyPreview?.isSelected != true &&
+                recorder?.active != true && !isFinishing && !isDestroyed
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (assistantDialog?.isShowing == true) { assistantDialog?.dismiss(); return }
@@ -216,6 +232,11 @@ class MainActivity : ComponentActivity() {
         }
         dailyVoicePurpose = state?.getString("dailyVoicePurpose")
         digestDate = state?.getString("digestDate") ?: digestDate
+        if (state != null && state.getString("guideRoom") == replyKey()) {
+            guideRoom = replyKey()
+            guideStep = state.getString("guideStep")?.let { GuideStep.valueOf(it) }
+            guidePostId = state.getInt("guidePostId", -1)
+        }
         val restoredScreen = state?.getString("screen")
         memoryTabState = matchingMemoryState(state?.getBundle("memories"))
         val restoredMemoryReturn = matchingMemoryState(state?.getBundle("memoryReturn"))
@@ -269,6 +290,9 @@ class MainActivity : ComponentActivity() {
     }
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
+        out.putString("guideRoom", guideRoom)
+        out.putString("guideStep", guideStep?.name)
+        out.putInt("guidePostId", guidePostId)
         out.putString("screen", screen); out.putString("photo", photo?.absolutePath)
         out.putStringArrayList("extraPhotos", ArrayList(extraPhotos.map { it.absolutePath }))
         out.putString("pendingPhoto", pendingPhoto?.absolutePath)
@@ -292,9 +316,17 @@ class MainActivity : ComponentActivity() {
             out.putString("treeDraft", treeDraft?.payload()?.toString())
         }
     }
-    override fun onResume() { super.onResume(); foreground = true; updateAssistantContext() }
+    override fun onResume() {
+        super.onResume()
+        foreground = true
+        updateAssistantContext()
+        if (screen == "home" && feedReady && guideCue == null) offerHelp()
+        scheduleReplyCheck()
+    }
     override fun onPause() {
+        narrator.interrupt()
         closeAssistantMenu()
+        guideHandler.removeCallbacks(checkForReply)
         foreground = false
         if (recorder?.active == true) {
             voiceState("말하기 시작", false)
@@ -303,6 +335,8 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
+        clearCue()
+        narrator.close()
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
@@ -315,6 +349,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
+        guideHandler.removeCallbacks(checkForReply)
         rememberMemories()
         if (screen == "home" && name != "home") {
             feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
@@ -325,10 +360,13 @@ class MainActivity : ComponentActivity() {
         dailyPanel?.let { dailyQuestionState = it.snapshot() }; dailyPanel = null; dailyEntry = null
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         closeAssistantMenu(); detailCard = null; detailPostAudio = null
-        assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); commentsDialog?.dismiss(); helpDialog?.dismiss()
+        assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); commentsDialog?.dismiss()
+        clearCue()
         feedCards.clear()
         assistant = null; assistantPost = null; assistantViewport = null; feedPostTargets.clear()
         stopPostAudio(); replyPreview?.stop(); replyPreview = null
+        if (name !in setOf("home", "post", "detail", "voice", "review", "roomSync")) guideStep = null
+        feedReady = false
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null; voiceControlLabel = null; voiceWave = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -354,11 +392,28 @@ class MainActivity : ComponentActivity() {
             header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
             header.addView(ui.iconButton("settings", "설정으로 이동") { if (!busy) members() })
         } else {
-            if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() })
+            if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() }.apply { tag = "guide-back" })
             header.addView(ui.text(title, if (name == "dailyQuestion" && !large) 18f else 21f, true).apply {
                 if (name == "dailyQuestion") gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(0, -2, 1f))
             if (name == "dailyQuestion") header.addView(View(this), LinearLayout.LayoutParams(ui.dp(48), 1))
+        }
+        guideClose = null
+        guideVolume = null
+        if (name in setOf("home", "detail", "post", "review", "voice")) {
+            guideVolume = ImageButton(this).apply {
+                background = ui.shape(ui.milk, 12)
+                setColorFilter(ui.ink)
+                setOnClickListener { narrator.toggle(); updateGuideVolume() }
+                visibility = View.GONE
+                header.addView(this, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)))
+            }
+            updateGuideVolume()
+            guideClose = ui.iconButton("close", "안내 닫기", ::closeGuide).apply {
+                tag = "guide-close"
+                visibility = View.GONE
+                header.addView(this)
+            }
         }
         if (name != "welcome") page.addView(header)
         val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
@@ -475,7 +530,7 @@ class MainActivity : ComponentActivity() {
 
     private fun updateAssistantContext() {
         val button = assistant ?: return
-        button.visibility = if (busy || assistantDialog != null || profileMenuDialog != null || calendarDialog != null || commentsDialog != null || helpDialog != null) View.INVISIBLE else View.VISIBLE
+        updateAssistantVisibility()
         val previousPost = assistantPost?.optInt("id")
         assistantPost = when {
             busy -> null
@@ -499,10 +554,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun updateAssistantVisibility() {
+        val guideOnScreen = guideClose?.visibility == View.VISIBLE
+        val hidden = busy || assistantDialog != null || profileMenuDialog != null || calendarDialog != null ||
+            commentsDialog != null || (guideOnScreen && assistantMenu == null)
+        assistant?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
+    }
+
     private fun closeAssistantMenu() {
         assistantShade?.let { root.removeView(it) }; assistantShade = null
         assistantMenu?.let { root.removeView(it) }
         assistantMenu = null
+        updateAssistantVisibility()
         assistant?.isSelected = false
         assistant?.let { androidx.core.view.ViewCompat.setStateDescription(it, "메뉴 닫힘") }
     }
@@ -734,6 +797,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun postingSuccess(message: String, complete: () -> Unit) {
+        narrator.interrupt()
         busy = true
         val number = pageNumber
         lateinit var cover: TodakSuccessView
@@ -1079,48 +1143,56 @@ class MainActivity : ComponentActivity() {
         if (refresh == null) navigation("토닥", name = "home")
         val client = api
         async({ client.request("posts/") }, refresh = refresh) { data ->
-            dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
-            if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
-            feedPostTargets.clear(); feedCards.clear(); content.removeAllViews()
-            val posts = objects(data.getJSONArray("posts")).sortedWith(
-                compareByDescending<JSONObject> {
-                    runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
-                }.thenByDescending { it.optLong("id") }
-            )
-            if (posts.isEmpty()) {
-                content.addView(questionEntry()); updateDailyEntry()
-                ui.art(content, width = 220); ui.gap(content, 20)
-                heading("첫 소식을 기다리고 있어요", "짧은 한마디도 우리 가족에게는 반가운 편지가 돼요.")
-                ui.action(content, "첫 소식 쓰기", "plus", large) { composer() }
-                ui.ghost(content, "가족 초대 코드 보기") { invite() }
-                updateAssistantContext()
-                if (large && !getPreferences(MODE_PRIVATE).getBoolean("help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id"), false)) content.post { showHelp() }
-                return@async
+            displayHome(data, client)
+        }
+    }
+
+    private fun displayHome(data: JSONObject, client: ApiClient) {
+        feedReady = true
+        dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
+        if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
+        feedPostTargets.clear(); feedCards.clear(); content.removeAllViews()
+        val posts = objects(data.getJSONArray("posts")).sortedWith(
+            compareByDescending<JSONObject> {
+                runCatching { OffsetDateTime.parse(it.optString("created_at")).toInstant() }.getOrDefault(java.time.Instant.MIN)
+            }.thenByDescending { it.optLong("id") }
+        )
+        if (posts.isEmpty()) {
+            content.addView(questionEntry()); updateDailyEntry()
+            ui.art(content, width = 220); ui.gap(content, 20)
+            heading("첫 소식을 기다리고 있어요", "짧은 한마디도 우리 가족에게는 반가운 편지가 돼요.")
+            ui.action(content, "첫 소식 쓰기", "plus", large) { composer() }.tag = "home-compose"
+            ui.ghost(content, "가족 초대 코드 보기") { invite() }
+            updateAssistantContext()
+            offerHelp()
+            return
+        }
+        content.addView(questionEntry(), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(16) })
+        updateDailyEntry()
+        val label = ui.row()
+        label.addView(ui.text("가족의 소식", if (large) 22f else 19f, true), LinearLayout.LayoutParams(0, -2, 1f))
+        if (!large) {
+            label.addView(ui.iconButton("write", "소식 쓰기") { composer() }.apply { tag = "home-compose" })
+        }
+        content.addView(label); ui.gap(content, 12)
+        posts.forEach { post ->
+            val card = FeedPostCard(this, ui, post, large, ::author, ::postPhotos, postAudio(post),
+                comment = { if (large) detail(post, focusComment = true) else openComments(post) },
+                voice = { voice(post) }, open = {
+                    detail(post, focusComment = guideStep == GuideStep.REPLY && guidePostId == post.optInt("id"))
+                })
+            feedCards.add(card); feedPostTargets.add(card to post)
+            if (large) feedCommentCache[post.optInt("id")]?.let { card.showComments(it) }
+            content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(20) })
+        }
+        content.post {
+            if (restoreFeedScroll) {
+                restoreFeedScroll = false
+                val anchor = feedCards.firstOrNull { it.post.optInt("id") == feedAnchorId }
+                pageScroll?.scrollTo(0, anchor?.let { it.top - feedAnchorOffset } ?: feedScrollY)
             }
-            content.addView(questionEntry(), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(16) })
-            updateDailyEntry()
-            val label = ui.row()
-            label.addView(ui.text("가족의 소식", if (large) 22f else 19f, true), LinearLayout.LayoutParams(0, -2, 1f))
-            if (!large) label.addView(ui.iconButton("write", "소식 쓰기") { composer() })
-            content.addView(label); ui.gap(content, 12)
-            posts.forEach { post ->
-                val card = FeedPostCard(this, ui, post, large, ::author, ::postPhotos, postAudio(post),
-                    comment = { if (large) detail(post, focusComment = true) else openComments(post) },
-                    voice = { voice(post) }, open = { detail(post) })
-                feedCards.add(card); feedPostTargets.add(card to post)
-                if (large) feedCommentCache[post.optInt("id")]?.let { card.showComments(it) }
-                content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = ui.dp(20) })
-            }
-            content.post {
-                if (restoreFeedScroll) {
-                    restoreFeedScroll = false
-                    val anchor = feedCards.firstOrNull { it.post.optInt("id") == feedAnchorId }
-                    pageScroll?.scrollTo(0, anchor?.let { it.top - feedAnchorOffset } ?: feedScrollY)
-                }
-                updateAssistantContext(); assistant?.refreshPosition(); loadVisibleFeedComments()
-                val key = "help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id")
-                if (large && !getPreferences(MODE_PRIVATE).getBoolean(key, false)) showHelp()
-            }
+            updateAssistantContext(); assistant?.refreshPosition(); loadVisibleFeedComments()
+            offerHelp()
         }
     }
 
@@ -1210,19 +1282,149 @@ class MainActivity : ComponentActivity() {
         refresh(); updateAssistantContext()
     }
 
-    private fun showHelp() {
-        if (helpDialog?.isShowing == true || isDestroyed) return
-        closeAssistantMenu(); stopPostAudio()
-        val dialog = Dialog(this); helpDialog = dialog
-        val key = "help-v1:" + sessions.serverUrl() + ":" + session?.optInt("user_id")
-        dialog.setContentView(GuidedHelpView(this, ui) { dialog.dismiss() })
-        dialog.setOnDismissListener {
-            getPreferences(MODE_PRIVATE).edit().putBoolean(key, true).apply()
-            if (helpDialog === dialog) helpDialog = null
-            updateAssistantContext()
+    private fun helpKey() = "help-v3:${sessions.serverUrl()}:${session?.optInt("user_id")}"
+    private fun replyKey() = "${helpKey()}:reply:${room.optInt("id")}"
+    private fun seen(key: String) = getPreferences(MODE_PRIVATE).getBoolean(key, false)
+    private fun markSeen(key: String) = getPreferences(MODE_PRIVATE).edit().putBoolean(key, true).apply()
+    private fun otherPost(posts: List<JSONObject>): JSONObject? {
+        val me = session?.optInt("user_id") ?: return null
+        return posts.firstOrNull { it.optInt("author_id") > 0 && it.optInt("author_id") != me }
+
+    }
+
+    private val guideHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val checkForReply = Runnable { checkForFirstFamilyPost() }
+
+    private fun scheduleReplyCheck() {
+        guideHandler.removeCallbacks(checkForReply)
+        if (foreground && screen == "home" && large && !seen(replyKey()) && !isDestroyed &&
+            otherPost(feedCards.map { it.post }) == null)
+            guideHandler.postDelayed(checkForReply, 20_000)
+    }
+
+    private fun checkForFirstFamilyPost() {
+        if (!foreground || screen != "home" || !large || seen(replyKey())) return
+        if (busy || assistantMenu != null || assistantDialog != null ||
+            profileMenuDialog != null || calendarDialog != null || commentsDialog != null || !hasWindowFocus()) {
+            scheduleReplyCheck()
+            return
         }
-        dialog.show(); dialog.window?.apply { setLayout(-1, -1); setBackgroundDrawableResource(android.R.color.transparent) }
-        updateAssistantContext()
+        val client = api
+        val page = pageNumber
+        val scope = replyKey()
+        network.execute {
+            val data = runCatching { client.request("posts/") }.getOrNull()
+            runOnUiThread {
+                if (isDestroyed || page != pageNumber || scope != replyKey() || !foreground || !large) return@runOnUiThread
+                val posts = data?.optJSONArray("posts")?.let(::objects).orEmpty()
+                if (data != null && otherPost(posts) != null && !busy && hasWindowFocus() &&
+                    assistantMenu == null && assistantDialog == null && profileMenuDialog == null && calendarDialog == null && commentsDialog == null && !seen(scope)) {
+                    feedScrollY = pageScroll?.scrollY ?: 0
+                    val anchor = feedCards.firstOrNull { it.bottom > feedScrollY }
+                    feedAnchorId = anchor?.post?.optInt("id")
+                    feedAnchorOffset = (anchor?.top ?: 0) - feedScrollY
+                    restoreFeedScroll = true
+                    displayHome(data, client)
+                } else scheduleReplyCheck()
+            }
+        }
+    }
+
+    private fun updateGuideVolume() {
+        guideVolume?.apply {
+            val soundOn = narrator.enabled
+            contentDescription = if (soundOn) "튜토리얼 음성 끄기" else "튜토리얼 음성 켜기"
+            setImageResource(if (soundOn) android.R.drawable.ic_lock_silent_mode_off else android.R.drawable.ic_lock_silent_mode)
+        }
+    }
+
+    private fun clearCue() {
+        narrator.clear()
+        guideCue?.clear()
+        guideCue = null
+    }
+
+    private fun closeGuide() {
+        clearCue()
+        guideStep = null
+        guideClose?.visibility = View.GONE
+        guideVolume?.visibility = View.GONE
+        updateAssistantVisibility()
+        scheduleReplyCheck()
+    }
+
+    private fun showCue(target: View, line: TutorialLine, example: String? = null,
+                        tapFirst: Boolean = false, reveal: Boolean = false) {
+        if (foreground) narrator.present(line)
+        if (guideCue?.target === target && androidx.core.view.ViewCompat.getStateDescription(target) == line.description) return
+        guideCue?.clear()
+        guideClose?.visibility = View.VISIBLE
+        guideVolume?.visibility = View.VISIBLE
+        val cue = TutorialCue(target, line.description, example, tapFirst)
+        guideCue = cue
+        updateAssistantVisibility()
+        if (reveal) target.doOnLayout {
+            if (guideCue === cue) target.requestRectangleOnScreen(
+                Rect(0, 0, target.width, minOf(target.height, ui.dp(104))), true)
+        }
+    }
+
+    private fun offerHelp(manual: Boolean = false) {
+        if (!foreground || (!large && !manual) || screen != "home" || isDestroyed) return
+        if (guideRoom != replyKey()) {
+            guideRoom = replyKey()
+            guidePostId = -1
+            guideStep = null
+        }
+        val cards = feedCards
+        val other = cards.firstOrNull { it.post.optInt("author_id") > 0 &&
+            it.post.optInt("author_id") != session?.optInt("user_id") }
+        val starting = manual || !seen(helpKey())
+        guideStep = when {
+            starting -> if (cards.isEmpty()) GuideStep.COMPOSE else GuideStep.READ
+            guideStep == GuideStep.READING -> GuideStep.COMPOSE
+            other != null && (!seen(replyKey()) || guideStep == GuideStep.REPLY) -> GuideStep.REPLY
+            guideStep == GuideStep.READ && cards.isNotEmpty() -> GuideStep.READ
+            guideStep in setOf(GuideStep.COMPOSE, GuideStep.READ) -> GuideStep.COMPOSE
+            else -> null
+        }
+        if (starting) markSeen(helpKey())
+        when (guideStep) {
+            GuideStep.READ -> showCue(cards.first(), TutorialLine.READ, reveal = true)
+            GuideStep.COMPOSE -> {
+                val bar = page.findViewWithTag<View>("elder-compose")
+                val target = bar ?: page.findViewWithTag<View>("home-compose") ?: return
+                showCue(target, TutorialLine.COMPOSE)
+            }
+            GuideStep.REPLY -> {
+                val card = other ?: return
+                guidePostId = card.post.getInt("id")
+                showCue(card, TutorialLine.REPLY, reveal = true)
+                markSeen(replyKey())
+            }
+            else -> closeGuide()
+        }
+        scheduleReplyCheck()
+    }
+
+    private fun showHelp() {
+        guideRoom = replyKey()
+        if (screen == "home") offerHelp(manual = true)
+        else if (screen == "detail") {
+            val field = content.findViewWithTag<CommentComposer>("detail-comment") ?: return
+            guideStep = GuideStep.REPLYING
+            guidePostId = selectedPost?.optInt("id") ?: -1
+            guideComment(field, reveal = true)
+        }
+    }
+
+    private fun guideComment(field: CommentComposer, reveal: Boolean = false) {
+        if (guideStep != GuideStep.REPLYING) return
+        when {
+            field.input.text.isEmpty() -> showCue(field.input, TutorialLine.COMMENT, "하고 싶은 말씀을 적어보세요", reveal = reveal)
+            field.input.text.isNotBlank() -> showCue(field.sendButton, TutorialLine.SEND_COMMENT, reveal = reveal)
+            else -> clearCue()
+        }
     }
 
     private fun digest(date: String = digestDate, retry: Boolean = false) {
@@ -1388,6 +1590,14 @@ class MainActivity : ComponentActivity() {
     }
     private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false,
                        audioAction: PostAudioAction? = null, returnToMemories: Bundle? = memoryReturn) {
+        val guidedReply = guideStep == GuideStep.REPLY && guidePostId == post.optInt("id")
+        if (large && focusComment && post.optInt("author_id") > 0 && post.optInt("author_id") != session?.optInt("user_id"))
+            markSeen(replyKey())
+        if (screen == "home") guideStep = when {
+            focusComment && (guidedReply || guideStep == GuideStep.READ) -> GuideStep.REPLYING
+            guideStep == GuideStep.READ -> GuideStep.READING
+            else -> null
+        }
         selectedPost = post
         navigation("가족의 소식", {
             if (returnToMemories != null) familyMemories(returnToMemories) else if (digestReturn) { digestReturn = false; digest() } else home()
@@ -1425,6 +1635,7 @@ class MainActivity : ComponentActivity() {
                 onVoice = { voice(data, fromDetail = true) }) { comment ->
                 if (!busy) {
                     composer.setSending(true)
+                    narrator.interrupt()
                     val body = json("text" to comment)
                     async({ client.request("posts/" + data.getInt("id") + "/comments/", "POST", body) },
                         showLoading = false,
@@ -1435,6 +1646,7 @@ class MainActivity : ComponentActivity() {
                             composer.showError(message)
                             true
                         }) {
+                        if (guideStep == GuideStep.REPLYING) closeGuide()
                         composer.input.setText("")
                         composer.setSending(false)
                         postingSuccess("댓글을 달았어요!") { detail(data) }
@@ -1442,7 +1654,12 @@ class MainActivity : ComponentActivity() {
                 }
             }
             content.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            composer.tag = "detail-comment"
             val text = composer.input
+            text.doAfterTextChanged { guideComment(composer) }
+            if (guideStep == GuideStep.REPLYING) guideComment(composer)
+            if (guideStep == GuideStep.READING)
+                page.findViewWithTag<View>("guide-back")?.let { showCue(it, TutorialLine.BACK) }
             if (focusComment) {
                 val number = pageNumber
                 text.requestFocus()
@@ -1533,6 +1750,7 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun composer() {
+        if (screen == "home" && guideStep != null) guideStep = GuideStep.WRITING
         val files = selectedPhotos()
         draftPhotoIndex = draftPhotoIndex.coerceIn(0, files.lastIndex.coerceAtLeast(0))
         navigation("소식 쓰기", { discardPhoto() }, name = "post")
@@ -1561,12 +1779,26 @@ class MainActivity : ComponentActivity() {
             if (files.isEmpty() && caption.isBlank()) { toast("글이나 사진을 하나 이상 남겨 주세요."); return@button }
             if (hasInvalidPhoto) { toast("읽을 수 없는 사진을 다시 선택해 주세요."); return@button }
             val client = api
+            narrator.interrupt()
             async({ client.uploadPost(files, caption) }, "가족에게 소식을 전하고 있어요.") {
+                if (guideStep == GuideStep.WRITING) closeGuide()
                 clearPhotoDraft(); imageLoader.clear()
                 postingSuccess("글 업로드가 완료됐어요") { home() }
             }
         }
         ui.gap(content, 16); ui.label(content, "작성한 소식은 이 가족방에만 보여요.", 14f, color = ui.muted)
+        if (guideStep == GuideStep.WRITING) {
+            fun updateWritingCue() {
+                if (guideStep != GuideStep.WRITING) return
+                guideClose?.visibility = View.VISIBLE
+                guideVolume?.visibility = View.VISIBLE
+                if (text.text.isEmpty() && files.isEmpty())
+                    showCue(text, TutorialLine.WRITE, "오늘 있었던 일을 적어보세요", tapFirst = true)
+                else clearCue()
+            }
+            updateWritingCue()
+            text.doAfterTextChanged { updateWritingCue() }
+        }
     }
     private fun localPreview(file: File): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -1608,6 +1840,7 @@ class MainActivity : ComponentActivity() {
     private fun postAudio(post: JSONObject): InlinePostAudio = InlinePostAudio(
         this, ui, post, large, api, speaker, summaries,
         activate = { audio ->
+            narrator.interrupt()
             if (activePostAudio !== audio) stopPostAudio()
             activePostAudio = audio
         },
@@ -1684,6 +1917,7 @@ class MainActivity : ComponentActivity() {
         voiceStatus?.text = if (recording == null) "조금 더 길게 다시 말씀해 주세요." else "녹음을 마쳤어요. 보낼 내용을 확인해 주세요."
     }
     private fun startVoice(post: JSONObject) {
+        narrator.interrupt()
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode); return
         }
@@ -1729,15 +1963,18 @@ class MainActivity : ComponentActivity() {
         val replyHeading = ui.row(); content.addView(replyHeading)
         replyHeading.addView(ui.text("가족에게 전할 댓글", if (large) 22f else 18f, color = ui.muted),
             LinearLayout.LayoutParams(0, -2, 1f))
-        replyHeading.addView(ReplyAudioButton(this, ui, draft.getString("converted"), api, speaker, summaries, large).also { replyPreview = it })
+        replyHeading.addView(ReplyAudioButton(this, ui, draft.getString("converted"), api, speaker, summaries, large, onPlay = narrator::interrupt).also { replyPreview = it })
         ui.gap(content, 8)
         ui.note(content, draft.getString("converted"), true); ui.gap(content, 24)
-        ui.button(content, "가족에게 보내기", height = 76) {
+        val send = ui.button(content, "가족에게 보내기", height = 76) {
             val client = api
+            narrator.interrupt()
             async({ client.request("replies/" + draft.getInt("id") + "/send/", "POST", JSONObject()) }, "가족에게 댓글을 전하고 있어요.") {
+                if (guideStep == GuideStep.REPLYING) closeGuide()
                 postingSuccess("댓글을 달았어요!") { detail(post) }
             }
         }
+        if (guideStep == GuideStep.REPLYING) showCue(send, TutorialLine.SEND_VOICE)
         ui.button(content, "다시 말하기", false, 76) { voice(post, voiceFromDetail) }
     }
     /** Calendar shortcut from the main header: any past or current day opens that day's collected posts. */

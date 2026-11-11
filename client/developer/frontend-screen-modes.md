@@ -19,14 +19,18 @@ There are no backend, API schema, database, launcher artwork, or APK changes in 
 Settings retain the existing account/family controls and add explicit screen choices, family-room switching, and account switching.
 Signup can select the elderly screen. The choice is saved per account **on the current client**; it is not synchronized between devices or between Android and web.
 
-First use of the elderly screen opens six-step practice. Help reopens it later. Practice uses a separate virtual post even when the real family has posts; it does not publish posts/comments, record the microphone, or call AI/speech services. Leaving practice preserves the real reading position.
+On Android, the elderly tutorial animates a finger on the real post card or compose button. The empty post editor shows a tap followed by a typed placeholder. Tapping another family member’s first guided card opens the real comment editor, which types a placeholder and points to Send once there is a comment. The examples only change the hint. The header close button dismisses the tutorial without editing the draft, and the assistant’s Help replays it. With system animations disabled or touch exploration on, the cues are static.
+
+The Android tutorial sends each fixed Korean prompt to the same authenticated speech endpoint used for post audio. It uses the voice currently saved on the listener’s account. The server caches by room, ElevenLabs voice ID, model, and text. A failed request or undecodable response plays the bundled fallback. The speaker beside the close button toggles tutorial audio and remembers the choice on this device. On first use with touch exploration enabled, audio starts muted. Closing the guide, starting voice input or post playback, and leaving the app stop the prompt. The eight offline fallback clips were synthesized locally with the F3 Korean voice from [Supertonic-2](https://huggingface.co/Supertone/supertonic-2).
+
+On the web, a local practice guide covers reading, composing a text or sample-photo post, Listen and Day. A pointing hand beside the mascot follows the current control. A reply lesson is offered once per account and room when the feed contains another member’s news. If that news arrives later, returning to the feed or its foreground check (every 20 seconds while waiting) opens reply practice. The voice example stays editable until the user confirms the practice reply. Help replays the guide and includes replies when eligible. Practice content is local; the feed check only reads existing news.
 
 Existing photo loading, voice recording, speech, today-question answers/results, family memory search, and server authorization are reused.
 Inline comments load when their posts enter the viewport, with at most two concurrent requests and an explicit retry on failure.
 
 ## Files
 
-- Android: `MainActivity.kt`, `FeedPostCard.kt`, `GuidedHelpView.kt`, assistant/calendar UI components, and associated instrumentation tests.
+- Android: `MainActivity.kt`, `FeedPostCard.kt`, `TutorialCue.kt`, assistant/calendar UI components, and associated instrumentation tests.
 - Web: `app.js`, `floating-assistant.js`, `ui-modes.js`, `ui-modes.css`, `guided-help.js`, `index.html`, and tests.
 - `PhotoLetterDeck` remains in use for memory evidence; it has not been removed.
 

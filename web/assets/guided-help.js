@@ -1,83 +1,143 @@
-import { icon } from './icons.js';
+// Practice sends are local. The reply lesson uses the selected family post for context.
+const lessons = {
+  intro: ['반가워요! 저는 토닥이에요.', '손가락이 가리키는 곳을 따라 해보세요.'],
+  read: ['소식을 위아래로 움직여 봐요.', '글을 아래로 내렸다가 위로 올려보세요.'],
+  write: ['가족에게 소식을 올려봐요.', '소식 쓰기를 누르고 글이나 연습 사진을 올려보세요.'],
+  listen: ['소식을 소리로 들어봐요.', '토닥 도우미에서 음성으로 듣기를 찾아보세요.'],
+  day: ['하루 소식을 찾아봐요.', '토닥 도우미에서 오늘 가족의 하루를 열어보세요.'],
+  reply: ['가족 소식에 답장해 봐요.', '댓글을 글로 쓰거나 말로 답장하는 방법을 연습해요.'],
+  end: ['잘하셨어요!', '토닥 도우미의 도움말에서 다시 연습할 수 있어요.'],
+};
+const samplePhoto = '<img class="help-picture" alt="연습 사진" src="/web/assets/assistant_character.png">';
+const button = (action, label) => `<button type="button" class="button secondary full" data-help="${action}">${label}</button>`;
 
-// A separate local practice surface; it never uses fetch, microphone APIs, or the real feed.
 export class GuidedHelp {
-  open(onFinish = () => {}) {
+  open({ post = null, replyOnly = false, onReplyShown = () => {}, onClose = () => {} } = {}) {
     if (this.dialog?.open) return;
-    this.step = 0; this.onFinish = onFinish;
-    this.dialog = document.createElement('dialog');
-    this.dialog.className = 'guided-help'; this.dialog.setAttribute('aria-label', '토닥 사용 안내');
-    this.dialog.addEventListener('close', () => { clearTimeout(this.advance); this.dialog.remove(); this.onFinish(); }, { once: true });
-    document.body.append(this.dialog); this.render(); this.dialog.showModal();
+    this.steps = replyOnly ? [] : ['intro', 'read', 'write', 'listen', 'day'];
+    if (post) this.steps.push('reply');
+    this.steps.push('end');
+    this.post = post;
+    this.onReplyShown = onReplyShown;
+    this.index = 0;
+    const dialog = document.createElement('dialog');
+    this.dialog = dialog;
+    dialog.className = 'guided-help';
+    dialog.setAttribute('aria-label', '토닥 사용 안내');
+    dialog.addEventListener('close', () => {
+      clearTimeout(this.advance);
+      dialog.remove();
+      onClose();
+    }, { once: true });
+    document.body.append(dialog);
+    dialog.showModal();
+    this.render();
   }
-  done(auto = false) {
-    if (this.completed) return;
-    this.completed = true;
-    const next = this.dialog.querySelector('[data-help="next"]'); next.disabled = false; next.textContent = '다음';
-    if (auto) { const step = this.step; this.advance = setTimeout(() => { if (this.dialog.open && this.step === step) { this.step++; this.render(); } }, 700); }
-  }
-  render() {
-    clearTimeout(this.advance); this.completed = [0, 5].includes(this.step);
-    const copy = [
-      ['반가워요! 저는 토닥이에요.', '가족의 글과 별도로 준비한 가상 소식으로 함께 연습해요.'],
-      ['소식을 위아래로 움직여 봐요.', '사진 위에서 아래로 내렸다가, 위로도 한 번 올려보세요.'],
-      ['댓글로 마음을 전해요.', '댓글 달기를 누른 뒤 글로 쓰거나 말로 남기는 방법을 연습해요.'],
-      ['소식을 소리로 들어봐요.', '도우미를 누르고 음성으로 듣기를 골라보세요.'],
-      ['하루와 추억도 여기 있어요.', '도우미를 누르고 오늘 가족의 하루를 열어보세요.'],
-      ['잘하셨어요!', '언제든 도우미의 도움말에서 다시 연습할 수 있어요. 원래 보던 소식으로 돌아갈게요.'],
-    ][this.step];
-    this.dialog.innerHTML = `<div class="help-stage"><header><strong>토닥</strong><span>연습용 소식 · 실제 가족방에 저장되지 않아요</span></header><div class="help-feed"><article class="post-card"><header class="post-author"><strong>토닥 도우미 · 연습용</strong></header><img class="help-picture" src="/web/assets/assistant_character.png" alt="연습용 소식 사진"><p class="post-body">오늘은 따뜻한 차를 마시며 쉬고 있어요.<br>가족 여러분도 좋은 하루 보내세요!</p><div class="help-practice"><button type="button" data-help="comment" class="button secondary full">${icon('comment')}댓글 달기</button></div><section class="help-sample-comments"><h3>가족의 댓글</h3><p>따뜻한 차 한 잔 좋겠어요. 좋은 하루 보내세요!</p></section>${this.step === 1 ? '<div class="help-scroll-space"><p>글과 댓글을 천천히 읽어보세요.</p></div>' : ''}</article></div><button type="button" class="help-bot assistant-launcher" data-help="bot" aria-label="토닥 도우미 열기"><span class="assistant-launcher-portrait" aria-hidden="true"><img src="/web/assets/assistant_character.png" alt=""></span><span class="assistant-launcher-mark" aria-hidden="true">${icon('sparkle')}</span><strong class="assistant-launcher-label" aria-hidden="true">토닥 도우미</strong></button><div class="help-menu" hidden></div><div class="help-shade" aria-hidden="true"></div><section class="help-coach ${[2,3,4].includes(this.step) ? 'coach-top' : ''}"><div class="help-step"><span>사용 안내 ${this.step + 1} / 6</span><button type="button" data-help="skip">나중에 보기</button></div><h2>${copy[0]}</h2><p>${copy[1]}</p><button class="button primary full" type="button" data-help="next" ${this.completed ? '' : 'disabled'}>${this.step === 5 ? '가족 소식으로 돌아가기' : this.completed ? '다음' : '직접 해보세요'}</button>${this.step ? '<button type="button" data-help="previous" class="button quiet full">이전</button>' : ''}</section></div>`;
-    const find = selector => this.dialog.querySelector(selector);
-    this.target = find([0,3,4,5].includes(this.step) ? '.help-bot' : this.step === 1 ? '.help-feed' : '[data-help="comment"]');
-    find('[data-help="skip"]').onclick = () => this.dialog.close();
-    find('[data-help="next"]').onclick = () => { if (this.step === 5) this.dialog.close(); else if (this.completed) { this.step++; this.render(); } };
-    find('[data-help="previous"]')?.addEventListener('click', () => { this.step--; this.render(); });
-    const feed = find('.help-feed'); let previous = 0, down = false;
-    feed.onscroll = () => {
-      if (this.step === 1) { if (feed.scrollTop > 80) down = true; if (down && previous - feed.scrollTop > 10) this.done(true); previous = feed.scrollTop; }
-      this.spotlight();
-    };
-    find('[data-help="comment"]').onclick = () => {
-      if (this.step !== 2) return;
-      const practice = find('.help-practice');
-      practice.innerHTML = '<form><label>연습 댓글<input class="help-comment" placeholder="따뜻한 한마디를 적어 주세요" required></label><button type="submit" class="button primary full">댓글 남기기</button><button type="button" class="button secondary full" data-help="voice">말로 댓글 남기기</button><p class="help-note" role="status"></p></form>';
-      practice.querySelector('form').onsubmit = event => { event.preventDefault(); if (practice.querySelector('input').value.trim()) { practice.querySelector('.help-note').textContent = '연습 댓글을 남겼어요!'; this.done(true); } };
-      practice.querySelector('[data-help="voice"]').onclick = () => {
-        practice.querySelector('input').value = '좋은 하루 보내세요!';
-        practice.querySelector('.help-note').textContent = '연습용 음성 예시예요. 실제 녹음은 하지 않아요.';
-        this.done(true);
-      };
-      this.target = practice; this.positionPractice();
-    };
-    find('[data-help="bot"]').onclick = () => {
-      if (![3,4].includes(this.step)) return;
-      const menu = find('.help-menu'); menu.hidden = false;
-      menu.innerHTML = `<button type="button" class="button secondary full" data-help="listen">음성으로 듣기</button><button type="button" class="button secondary full" data-help="day">오늘 가족의 하루</button>`;
-      const action = find(this.step === 3 ? '[data-help="listen"]' : '[data-help="day"]');
-      menu.querySelectorAll('button').forEach(button => { button.disabled = button !== action; });
-      action.onclick = () => {
-        menu.innerHTML = this.step === 3 ? '<p>연습용 듣기를 열었어요. 실제 소식은 소식 듣기로 들을 수 있어요.</p>' : '<h3>연습용 하루 달력</h3><div class="month-grid">'+Array.from({length:28},(_,i)=>`<span>${i+1}</span>`).join('')+'</div>';
-        this.target = menu; this.done(); this.spotlight();
-      };
-      this.target = action; this.spotlight();
-    };
-    // Allow only the highlighted practice controls and the guide itself.
-    this.dialog.onclick = event => { if (event.target === this.dialog) event.preventDefault(); };
-    requestAnimationFrame(() => this.positionPractice());
-  }
-  positionPractice() {
-    if (!this.dialog.open || !this.target) return;
-    const feed = this.dialog.querySelector('.help-feed'), coach = this.dialog.querySelector('.help-coach');
-    if (this.step === 2) {
-      const delta = this.target.getBoundingClientRect().top - coach.getBoundingClientRect().bottom - 16;
-      feed.scrollTop += delta;
+
+  point(target) {
+    if (!this.hand) {
+      this.hand = document.createElement('span');
+      this.hand.className = 'help-hand';
+      this.hand.setAttribute('aria-hidden', 'true');
+      this.hand.innerHTML = '<img src="/web/assets/assistant_character.png" alt=""><span>👉</span>';
     }
-    this.spotlight();
+    target.before(this.hand);
   }
-  spotlight() {
-    if (!this.dialog.open || !this.target?.isConnected) return;
-    const r = this.target.getBoundingClientRect(), stage = this.dialog.querySelector('.help-stage').getBoundingClientRect();
-    const shade = this.dialog.querySelector('.help-shade');
-    Object.assign(shade.style, { left: `${r.left-stage.left-5}px`, top: `${r.top-stage.top-5}px`, width: `${r.width+10}px`, height: `${r.height+10+(this.target.matches('.help-bot')?36:0)}px` });
+
+  render() {
+    clearTimeout(this.advance);
+    const lesson = this.steps[this.index];
+    const [title, instruction] = lessons[lesson];
+    const dialog = this.dialog;
+    dialog.innerHTML = `<div class="help-stage"><header><span>사용 안내 ${this.index + 1} / ${this.steps.length}</span>${button('skip', '나중에 보기')}</header>
+      <div class="help-feed"><h2>${title}</h2><p>${instruction}</p><p class="help-note">연습용 · 실제 가족방에 저장되지 않아요</p>
+      <div class="help-practice"></div></div><footer>${button('next', lesson === 'end' ? '가족 소식으로 돌아가기' : '다음')}${this.index ? button('previous','이전') : ''}</footer></div>`;
+    const find = selector => dialog.querySelector(selector);
+    const practice = find('.help-practice'), feed = find('.help-feed'), next = find('[data-help="next"]');
+    find('[data-help="skip"]').onclick = () => dialog.close();
+    const previous = find('[data-help="previous"]');
+    if (previous) previous.onclick = () => { this.index--; this.render(); };
+    next.disabled = true;
+    next.onclick = () => {
+      if (lesson === 'end') dialog.close();
+      else { this.index++; this.render(); }
+    };
+    const done = () => { next.disabled = false; this.point(next); };
+    if (lesson === 'intro' || lesson === 'end') {
+      practice.innerHTML = samplePhoto;
+      done();
+    } else if (lesson === 'read') {
+      practice.innerHTML = `<p>오늘은 따뜻한 차를 마시며 쉬고 있어요.</p>${samplePhoto}<p>가족 여러분도 좋은 하루 보내세요!</p><div class="help-scroll-space"></div>`;
+      this.point(practice.firstElementChild);
+      let previousY = 0, down = false;
+      feed.onscroll = () => {
+        if (feed.scrollTop > 48) down = true;
+        if (down && feed.scrollTop < previousY && next.disabled) {
+          done();
+          this.advance = setTimeout(() => { if (dialog.open) next.click(); }, 700);
+        }
+        previousY = feed.scrollTop;
+      };
+    } else if (lesson === 'reply' || lesson === 'write') {
+      const reply = lesson === 'reply';
+      practice.innerHTML = (reply ? '<strong class="help-author"></strong><p class="help-caption"></p>' : '') + button(reply ? 'comment' : 'compose', reply ? '댓글 달기' : '소식 쓰기');
+      if (reply) {
+        find('.help-author').textContent = `${this.post.author_name || '가족'}님의 소식`;
+        find('.help-caption').textContent = this.post.caption || '사진으로 전한 소식이에요.';
+        this.onReplyShown();
+      }
+      const open = practice.querySelector('button');
+      this.point(open);
+      open.onclick = () => this.form(practice, reply, done);
+    } else {
+      practice.innerHTML = button('bot','토닥 도우미');
+      const bot = practice.querySelector('button');
+      this.point(bot);
+      bot.onclick = () => {
+        const listen = lesson === 'listen';
+        practice.innerHTML = button(lesson, listen ? '음성으로 듣기' : '오늘 가족의 하루');
+        const action = practice.querySelector('button');
+        this.point(action);
+        action.onclick = () => {
+          practice.innerHTML = listen ? '<p>연습용 듣기를 열었어요.</p>' :
+            '<h3>연습용 하루 달력</h3><div class="month-grid">' + Array.from({length:28}, (_,i) => `<span>${i+1}</span>`).join('') + '</div>';
+          done();
+        };
+      };
+    }
+  }
+
+  form(panel, reply, done) {
+    panel.innerHTML = `<form><label>${reply ? '연습 댓글' : '연습 게시글'}<textarea class="help-comment" placeholder="여기에 적어 주세요"></textarea></label>
+      ${button(reply ? 'voice' : 'photo', reply ? '말로 댓글 남기기' : '연습 사진 추가')}<div role="status"></div>
+      <button type="submit" class="button primary full">${reply ? '댓글 남기기' : '가족에게 전하기'}</button></form>`;
+    const form = panel.querySelector('form'), input = form.querySelector('textarea');
+    const alternate = form.querySelector('[type=button]'), send = form.querySelector('[type=submit]');
+    const preview = form.querySelector('[role=status]');
+    let photo = false;
+    const update = () => {
+      send.disabled = !photo && !input.value.trim();
+      this.point(send.disabled ? input.parentElement : send);
+    };
+    alternate.onclick = () => {
+      if (reply) {
+        input.value = '좋은 하루 보내세요!';
+        preview.textContent = '음성 예시예요. 내용을 확인하고 보내세요.';
+      } else {
+        photo = true;
+        preview.innerHTML = samplePhoto;
+      }
+      alternate.disabled = true;
+      update();
+    };
+    input.oninput = update;
+    form.onsubmit = event => {
+      event.preventDefault();
+      if (send.disabled) return;
+      panel.innerHTML = `<strong>${reply ? '연습 댓글을 남겼어요.' : '연습 소식을 올렸어요.'}</strong>${photo ? samplePhoto : ''}<p></p>`;
+      panel.querySelector('p').textContent = input.value;
+      done();
+    };
+    update();
   }
 }

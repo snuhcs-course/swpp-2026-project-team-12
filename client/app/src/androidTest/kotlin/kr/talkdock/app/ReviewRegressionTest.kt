@@ -94,7 +94,8 @@ internal fun roomSummary(id: Int, name: String) =
 
 /** Starts MainActivity signed in as user 999, or signed out; [others] are extra accounts saved on the phone. */
 internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boolean = false,
-                         signedIn: Boolean = true, others: List<JSONObject> = emptyList()) : AutoCloseable {
+                         signedIn: Boolean = true, others: List<JSONObject> = emptyList(),
+                         tutorialSeen: Boolean = false) : AutoCloseable {
     val test = InstrumentationRegistry.getInstrumentation()
     private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
     private val savedPreferences = prefs.all.toMap()
@@ -104,7 +105,11 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     val activity: MainActivity
     init {
         // Isolate first-use state even when Linux reuses a mock server's ephemeral port.
-        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v1:") }.forEach { remove(it) } }.commit()
+        val guideKey = "help-v3:${api.base}:999"
+        helpPrefs.edit().apply {
+            putBoolean(guideKey, tutorialSeen)
+            room?.let { putBoolean("$guideKey:reply:${it.getInt("id")}", tutorialSeen) }
+        }.commit()
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
@@ -118,7 +123,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         fun children(root: View): List<View> = listOf(root) + if (root is ViewGroup)
             (0 until root.childCount).flatMap { children(root.getChildAt(it)) } else emptyList()
         val result = children(view).toMutableList()
-        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog", "commentsDialog", "helpDialog", "calendarDialog")) {
+        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog", "commentsDialog", "calendarDialog")) {
             val field = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }
             val dialog = field.get(activity) as? android.app.Dialog
             if (dialog?.isShowing == true) dialog.window?.decorView?.let { result.addAll(children(it)) }
@@ -174,7 +179,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         await { all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().tag == id }
     }
     fun dismissHelp() = test.runOnMainSync {
-        (activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity) as? android.app.Dialog)?.dismiss()
+        activity.window.decorView.findViewWithTag<View>("guide-close")?.takeIf { it.isShown }?.performClick()
     }
     fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }
@@ -410,10 +415,18 @@ class ReviewPhotoMemoryTest {
                 if(stable>=8 && size>0) break
                 Thread.sleep(500)
             }
+            // The fixture puts its remote photos and thumbnails in carousels. Header and
+            // assistant drawables also use bitmaps but are owned by the app.
+            fun photosIn(root: View): List<ImageView> = ui.all(root)
+                .filterIsInstance<kr.talkdock.app.ui.PhotoCarousel>()
+                .flatMap { ui.all(it).filterIsInstance<ImageView>() }
+            val feedPhotos = mutableListOf<ImageView>()
+            ui.test.runOnMainSync { feedPhotos.addAll(photosIn(ui.activity.window.decorView)) }
+            check(feedPhotos.isNotEmpty()) { "Expected photo views in the test feed" }
             val memory=Debug.MemoryInfo();Debug.getMemoryInfo(memory)
             var views=0;var allocated=0L
             ui.test.runOnMainSync {
-                for(view in ui.all().filterIsInstance<ImageView>()) {
+                for(view in feedPhotos) {
                     val drawable=view.drawable as? android.graphics.drawable.BitmapDrawable ?: continue
                     views++;allocated+=drawable.bitmap.allocationByteCount
                 }
@@ -428,7 +441,7 @@ class ReviewPhotoMemoryTest {
             assertFalse("The final offscreen post must not be downloaded before scrolling",photoPaths.any { it.startsWith("/api/photo/1/") })
             assertEquals("A page and thumbnail must share their download",photoPaths.toSet().size,photoPaths.size)
             ui.test.runOnMainSync {
-                for(view in ui.all().filterIsInstance<ImageView>().filter { it.scaleType==ImageView.ScaleType.CENTER_CROP }) {
+                for(view in feedPhotos.filter { it.scaleType==ImageView.ScaleType.CENTER_CROP }) {
                     val drawable=view.drawable as? android.graphics.drawable.BitmapDrawable ?: continue
                     assertTrue("Thumbnails must be decoded near their display size",drawable.bitmap.width <= view.width*2)
                 }
@@ -436,11 +449,13 @@ class ReviewPhotoMemoryTest {
                     .requestRectangleOnScreen(android.graphics.Rect(0, 0, 1, 250), true)
             }
             ui.await(timeout=15000) { server.paths().any { it.startsWith("/api/photo/1/") } }
-            Thread.sleep(1200)
+            ui.await(timeout=15000) {
+                val lastPost = ui.all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.getInt("id") == 1 }
+                photosIn(lastPost).any { it.drawable is android.graphics.drawable.BitmapDrawable }
+            }
             var retainedOffscreen=0
             ui.test.runOnMainSync {
-                for(view in ui.all().filterIsInstance<ImageView>()) {
-                    if(view is kr.talkdock.app.ui.TodakArtView) continue // Small shared brand artwork is not a downloaded feed photo.
+                for(view in feedPhotos) {
                     if(view.drawable !is android.graphics.drawable.BitmapDrawable) continue
                     var anchor: View=view
                     if(view.scaleType!=ImageView.ScaleType.CENTER_CROP) {
@@ -654,7 +669,7 @@ class InlinePostAudioTest {
         ui.openAssistantOption("AI 요약 보기")
     }
     @Test fun feedBotActionsUseTheSelectedPostInlineAndSummaryDoesNotStartSpeech() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
             ui.selectLetter(1)
             ui.openAssistantOption("AI 요약 보기")
             ui.await { !ui.hasPostDetail() && ui.has("사진과 글을 설명한 AI 요약") }
@@ -678,7 +693,7 @@ class InlinePostAudioTest {
                     request.path.endsWith("/message/") -> { releaseSummary.await(15, TimeUnit.SECONDS); ready() }
                     request.path == "/api/speech/" -> { releaseSpeech.await(15, TimeUnit.SECONDS); audio() }
                     else -> null
-                } }.use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+                } }.use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
                     open(ui); readSummary(ui)
                     ui.await { ui.has("가족 소식 준비중") }
                     ui.test.runOnMainSync {
@@ -705,7 +720,7 @@ class InlinePostAudioTest {
         }
     }
     @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
             open(ui)
             ui.test.runOnMainSync {
                 assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기"))
@@ -929,7 +944,7 @@ class InlinePostAudioTest {
         ui.await { ui.has("답장 확인") }
     }
     @Test fun replyReviewUsesHeadingIconForPlaybackAndKeepsSendAndRerecord() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large).use { ui ->
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
             open(ui); review(ui)
             ui.test.runOnMainSync {
                 assertTrue(ui.has("가족에게 전할 댓글")); assertTrue(ui.has("가족에게 보내기")); assertTrue(ui.has("다시 말하기"))
@@ -978,7 +993,7 @@ class InlinePostAudioTest {
         } finally { releaseSpeech.forEach { it.countDown() } }
     }
     @Test fun largeTextModeAndDigestOpenPostWithoutListeningScreen() {
-        server().use { api -> UiHarness(api, room(1, "재생"), large = true).use { ui ->
+        server().use { api -> UiHarness(api, room(1, "재생"), large = true, tutorialSeen = true).use { ui ->
             open(ui); tap(ui); ui.await { playing(ui) && panels(ui).single().isPlaying }
             tap(ui)
             ui.openDaily(); ui.await { ui.has("이날의 소식 1개") }
