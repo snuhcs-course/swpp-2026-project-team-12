@@ -104,7 +104,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     val activity: MainActivity
     init {
         // Isolate first-use state even when Linux reuses a mock server's ephemeral port.
-        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v2:") }.forEach { remove(it) } }.commit()
+        helpPrefs.edit().apply { savedHelpPreferences.keys.filter { it.startsWith("help-v3:") }.forEach { remove(it) } }.commit()
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
@@ -118,7 +118,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         fun children(root: View): List<View> = listOf(root) + if (root is ViewGroup)
             (0 until root.childCount).flatMap { children(root.getChildAt(it)) } else emptyList()
         val result = children(view).toMutableList()
-        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog", "commentsDialog", "helpDialog", "calendarDialog")) {
+        if (view === activity.window.decorView) for (name in listOf("profileMenuDialog", "assistantDialog", "commentsDialog", "calendarDialog")) {
             val field = activity.javaClass.getDeclaredField(name).apply { isAccessible = true }
             val dialog = field.get(activity) as? android.app.Dialog
             if (dialog?.isShowing == true) dialog.window?.decorView?.let { result.addAll(children(it)) }
@@ -174,7 +174,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         await { all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().tag == id }
     }
     fun dismissHelp() = test.runOnMainSync {
-        (activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity) as? android.app.Dialog)?.dismiss()
+        activity.window.decorView.findViewWithTag<View>("guide-close")?.takeIf { it.isShown }?.performClick()
     }
     fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }

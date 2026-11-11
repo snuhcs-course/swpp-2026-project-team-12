@@ -116,7 +116,7 @@ class FamilyMemorySearchTest {
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
             await { has("첫 소식을 기다리고 있어요") || views().any { it is FeedPostCard } }
-            test.runOnMainSync { activity.javaClass.getDeclaredField("helpDialog").apply { isAccessible = true }.get(activity).let { (it as? android.app.Dialog)?.dismiss() } }
+            test.runOnMainSync { activity.window.decorView.findViewWithTag<android.view.View>("guide-close")?.takeIf { it.isShown }?.performClick() }
         }
         fun views(view: View = activity.window.decorView): List<View> = listOf(view) +
             if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
