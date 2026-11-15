@@ -3,6 +3,12 @@ import java.net.URI
 
 plugins { id("com.android.application") }
 
+// Keep local/offline development usable before a Firebase project is configured.
+if (listOf("google-services.json", "src/debug/google-services.json", "src/release/google-services.json")
+        .any { file(it).isFile }) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val dotenvOrigin = providers.fileContents(rootProject.layout.projectDirectory.file("../.env"))
     .asText.orElse("").map { contents ->
         contents.lineSequence().firstOrNull { it.substringBefore('=').trim() == "PUBLIC_ORIGIN" }
@@ -77,6 +83,9 @@ tasks.register<Copy>("assembleApks") {
 }
 
 dependencies {
+    implementation("com.google.firebase:firebase-messaging:25.0.1")
+    // Play Services pulls Fragment 1.1; Activity Result requires 1.3 or later.
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("com.caverock:androidsvg-aar:1.4")
     implementation("androidx.core:core-ktx:1.10.1")
     implementation("androidx.activity:activity-ktx:1.10.1")

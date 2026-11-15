@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.replies",
     "apps.digests",
     "apps.searching",
+    "apps.notifications.apps.NotificationsConfig",
 ]
 MIDDLEWARE = []
 ROOT_URLCONF = "configs.urls"

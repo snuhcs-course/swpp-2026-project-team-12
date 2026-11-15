@@ -8,6 +8,7 @@ from apps.posts import daily_questions
 from apps.replies import views as replies
 from apps.digests import views as digests
 from apps.searching import views as searching
+from apps.notifications import views as notifications
 from integrations.speech import views as speech
 from configs import web
 
@@ -23,6 +24,7 @@ urlpatterns = [
     path("api/accounts/login/", accounts.login, name="account-login"),
     path("api/accounts/logout/", accounts.logout, name="account-logout"),
     path("api/accounts/me/", accounts.me, name="account-me"),
+    path("api/notifications/device/", notifications.device, name="push-device"),
     path("api/families/", families.rooms, name="family-rooms"),
     path("api/families/create/", families.create, name="family-create"),
     path("api/families/lookup/", families.lookup, name="family-lookup"),
