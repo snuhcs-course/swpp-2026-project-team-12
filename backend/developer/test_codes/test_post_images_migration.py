@@ -20,8 +20,15 @@ class PostImagesMigrationTests(TransactionTestCase):
         self.addCleanup(lambda: MigrationExecutor(connection).migrate(self.latest))
         executor = MigrationExecutor(connection)
         executor.migrate(self.previous)
-        state_targets = [target for target in self.latest if target[0] != "posts"] + self.previous
-        self.old_apps = executor.loader.project_state(state_targets).apps
+        # Other apps' latest leaves may depend on newer posts migrations (e.g.
+        # notifications -> posts 0008). Including those leaves would advance the
+        # historical registry while the database still has the pre-0006 schema.
+        applied = list(executor.recorder.applied_migrations())
+        self.old_apps = executor.loader.project_state(applied).apps
+        legacy_fields = {field.name for field in self.old_apps.get_model("posts", "Post")._meta.fields}
+        self.assertIn("image", legacy_fields)
+        self.assertNotIn("images", legacy_fields)
+        self.assertIn("posts_postphoto", connection.introspection.table_names())
         user = self.old_apps.get_model("accounts", "User").objects.create(username="images-migration", display_name="정아")
         room = self.old_apps.get_model("families", "FamilyRoom").objects.create(
             owner_id=user.pk, name="사진 가족", invite_code="IMGMIG", password_hash="unused")
