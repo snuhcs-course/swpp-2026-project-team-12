@@ -98,6 +98,29 @@ Firebase/Android delivery is best effort: offline devices, force-stop, notificat
 permission denial or OS power restrictions can delay or prevent display. No exact
 alarm or continuous background service is required on the phone.
 
+Notification regression tests run without Firebase credentials or external AI:
+
+```powershell
+python backend/manage.py test developer.test_codes.test_notifications developer.test_codes.test_comments developer.test_codes.test_daily_questions
+```
+
+From `client/`, run JVM tests, lint and compile the device tests with
+`./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest`.
+Android `PushNotificationTest` checks actual notification content, channels,
+private visibility, pending intents, duplicate delivery and stale-account guards.
+`DailyQuestionTest` verifies that tapping a notification opens its exact question
+and preserves the existing question screens. Run these classes on a test emulator;
+their fixtures temporarily replace session state and clear notifications.
+
+Pass instrumentation argument `pushScreenshots=true` to `PushNotificationTest` to
+capture five real notification examples in the app's external files directory
+`push-previews/`. For an explicitly selected physical phone,
+`PhoneNotificationPreviewTest` with `phonePreview=true` leaves three sample
+notifications in the shade without logging in or changing saved account state.
+That preview is skipped by default and validates display only, not remote FCM
+delivery. Manufacturer UIs can display the original launcher icon instead of the
+monochrome notification icon, so inspect the physical device for Galaxy styling.
+
 ## Daily conversation questions
 
 The Android home has a fixed **오늘의 질문** preview bar below the header, showing
