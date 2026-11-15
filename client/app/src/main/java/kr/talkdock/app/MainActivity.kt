@@ -29,6 +29,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kr.talkdock.app.data.*
+import kr.talkdock.app.notifications.PushRegistration
+import kr.talkdock.app.notifications.TodakNotifications
 import kr.talkdock.app.device.Recorder
 import kr.talkdock.app.device.TutorialLine
 import kr.talkdock.app.device.TutorialNarrator
@@ -102,6 +104,10 @@ class MainActivity : ComponentActivity() {
     private var screen = "welcome"
     private var pageNumber = 0
     private var busy = false
+    private var pendingPush: Map<String, String>? = null
+    private val pushPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        PushRegistration.sync(this)
+    }
     private var maintenanceDialog: Dialog? = null
     private var foreground = false
     private val feedCards = mutableListOf<FeedPostCard>()
@@ -186,6 +192,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         ui = Ui(this); sessions = SessionStore(this); session = sessions.current()
+        pendingPush = state?.getString("pendingPush")?.let { saved ->
+            val data = JSONObject(saved); data.keys().asSequence().associateWith { data.getString(it) }
+        } ?: if (state == null) pushData(intent) else null
+        TodakNotifications.channels(this)
         session?.optJSONObject("room")?.let { room = it }
         root = FrameLayout(this).apply { setBackgroundColor(ui.milk) }
         setContentView(root)
@@ -290,6 +300,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
+        pendingPush?.let { out.putString("pendingPush", JSONObject(it).toString()) }
         out.putString("guideRoom", guideRoom)
         out.putString("guideStep", guideStep?.name)
         out.putInt("guidePostId", guidePostId)
@@ -319,6 +330,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         foreground = true
+        PushRegistration.sync(this)
+        root.post { openPushIfReady() }
         updateAssistantContext()
         if (screen == "home" && feedReady && guideCue == null) offerHelp()
         scheduleReplyCheck()
@@ -346,6 +359,51 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
     private fun toast(message: String) = Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingPush = pushData(intent)
+        openPushIfReady()
+    }
+
+    private fun pushData(intent: Intent?): Map<String, String>? {
+        if (intent?.getBooleanExtra(TodakNotifications.EXTRA, false) != true) return null
+        return listOf("event_id", "binding", "user_id", "room_id", "post_id", "question_id", "kind")
+            .associateWith { intent.getStringExtra(it).orEmpty() }
+    }
+
+    private fun configurePush() {
+        PushRegistration.sync(this)
+        if (session == null || android.os.Build.VERSION.SDK_INT < 33 ||
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val preferences = getSharedPreferences("talkdock-push-permission", MODE_PRIVATE)
+        if (!preferences.getBoolean("asked", false)) {
+            preferences.edit().putBoolean("asked", true).apply()
+            pushPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun openPushIfReady() {
+        val data = pendingPush ?: return
+        if (busy || session == null || screen in setOf("roomSync", "login", "register", "welcome")) return
+        pendingPush = null
+        if (!TodakNotifications.matchesAccount(this, data)) return
+        val targetRoom = data["room_id"]?.toIntOrNull()?.takeIf { it > 0 } ?: return
+        val targetPost = data["post_id"]?.toIntOrNull()?.takeIf { it > 0 } ?: return
+        val targetQuestion = data["question_id"]?.toIntOrNull()?.takeIf { it > 0 }
+        val account = JSONObject(session!!.toString())
+        val client = apiClient(account.getString("token"), roomId = targetRoom)
+        async({
+            val target = client.request("families/current/")
+            val post = if (targetQuestion == null) client.request("posts/$targetPost/") else null
+            target to post
+        }, "알림의 이야기를 열고 있어요.") { (target, post) ->
+            if (room.optInt("id") != targetRoom) resetRoomState()
+            saveSession(account.put("room", target), large)
+            if (targetQuestion != null) dailyQuestions(saved = null, questionId = targetQuestion)
+            else if (post != null) detail(post, focusComment = data["kind"] == "comment")
+        }
+    }
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
@@ -471,7 +529,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun dailyQuestions(saved: Bundle? = dailyQuestionState, openToday: Boolean = false) {
+    private fun dailyQuestions(saved: Bundle? = dailyQuestionState, openToday: Boolean = false, questionId: Int? = null) {
         val restored = saved?.takeIf {
             it.getInt("userId", -1) == session?.optInt("user_id") && it.getInt("roomId", -1) == room.optInt("id", -1) &&
                 it.getString("server") == sessions.serverUrl()
@@ -491,7 +549,7 @@ class MainActivity : ComponentActivity() {
                 dailyQuestionState = dailyPanel?.snapshot(); dailyVoicePurpose = purpose
                 voice(json("id" to postId, "caption" to (dailyQuestionState?.getString("title") ?: "가족에게 들려줄 이야기를 편하게 말씀해 주세요."),
                     "author_name" to "토닥", "relationship" to "오늘의 질문", "images" to JSONArray()), true)
-            }).also { content.addView(it, LinearLayout.LayoutParams(-1, -2)) }
+            }, initialQuestionId = questionId).also { content.addView(it, LinearLayout.LayoutParams(-1, -2)) }
     }
 
     private fun openProfileMenu() {
@@ -793,6 +851,7 @@ class MainActivity : ComponentActivity() {
                             .setPositiveButton("확인", null).show()
                     }
                 })
+                root.post { openPushIfReady() }
             }
         }
     }
@@ -818,6 +877,7 @@ class MainActivity : ComponentActivity() {
             feedCommentCache.clear(); feedAnchorId = null
         }
         sessions.save(value, big); session = value; room = value.optJSONObject("room") ?: JSONObject()
+        configurePush()
         imageLoader.clear()
     }
     private fun saveRoom(value: JSONObject, big: Boolean = large, complete: () -> Unit) {
@@ -2274,6 +2334,10 @@ class MainActivity : ComponentActivity() {
             }
             ui.gap(content)
             ui.button(content, "내 계정 수정", false) { editAccount() }
+            ui.button(content, "알림 설정", false) {
+                startActivity(Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, packageName))
+            }
             val owner = objects(room.getJSONArray("members")).firstOrNull { it.getBoolean("is_owner") }
             if (owner?.getInt("id") == session?.getInt("user_id")) {
                 ui.button(content, "하루 요약 시간  ·  " + room.getString("digest_time"), false) {

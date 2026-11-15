@@ -1,6 +1,7 @@
 Django>=5.2,<5.3
 waitress>=3.0.2,<4
 Pillow>=11,<13
+firebase-admin>=7.1,<8
 graphiti-core==0.31.1
 httpx
 pytest>=9,<10

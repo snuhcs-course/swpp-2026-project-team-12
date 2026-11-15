@@ -46,6 +46,7 @@ class DailyQuestionTest {
 
     private class Server(var kind: String = "choice") : AutoCloseable {
         val socket = ServerSocket(0)
+        val requestedPaths = java.util.Collections.synchronizedList(mutableListOf<String>())
         val failAnswer = AtomicBoolean(false)
         val failComment = AtomicBoolean(false)
         val failDetailAfterComment = AtomicBoolean(false)
@@ -76,6 +77,7 @@ class DailyQuestionTest {
                     val input = BufferedInputStream(client.getInputStream())
                     val first = line(input).split(" ")
                     val method = first[0]; val path = first.getOrElse(1) { "" }
+                    requestedPaths.add(path)
                     var length = 0
                     while (true) { val header = line(input); if (header.isEmpty()) break
                         if (header.startsWith("Content-Length:", true)) length = header.substringAfter(':').trim().toInt() }
@@ -151,6 +153,30 @@ class DailyQuestionTest {
                     if (savedServer == null) remove("server") else putString("server", savedServer)
                 }.commit()
             }
+        }
+    }
+
+    @Test fun questionNotificationTapOpensExactQuestion() = withApp { activity, server ->
+        val pushPrefs = test.targetContext.getSharedPreferences("talkdock-push", Context.MODE_PRIVATE)
+        val original = pushPrefs.getString("binding", null)
+        try {
+            pushPrefs.edit().putString("binding", "navigation-test").commit()
+            if (android.os.Build.VERSION.SDK_INT >= 33) test.uiAutomation.grantRuntimePermission(
+                test.targetContext.packageName, "android.permission.POST_NOTIFICATIONS")
+            server.questionId = 42
+            val data = mapOf("event_id" to "navigation-test", "binding" to "navigation-test", "user_id" to "1",
+                "room_id" to "1", "post_id" to "301", "question_id" to "42", "kind" to "answer",
+                "title" to "할머니 경자", "body" to "오늘의 질문에 답했어요!")
+            assertTrue(kr.talkdock.app.notifications.TodakNotifications.show(test.targetContext, data))
+            val manager = test.targetContext.getSystemService(android.app.NotificationManager::class.java)
+            awaitUi { manager.activeNotifications.any { it.tag == "navigation-test" } }
+            val notification = manager.activeNotifications.single { it.tag == "navigation-test" }
+            test.runOnMainSync { notification.notification.contentIntent.send() }
+            awaitUi { views(activity.window.decorView).any { it is DailyQuestionPanel } && hasText(activity, "가족 답변 1") }
+            assertTrue(server.requestedPaths.contains("/api/daily-questions/42/"))
+        } finally {
+            pushPrefs.edit().putString("binding", original).commit()
+            test.targetContext.getSystemService(android.app.NotificationManager::class.java).cancelAll()
         }
     }
 

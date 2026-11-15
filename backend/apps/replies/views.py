@@ -12,7 +12,8 @@ from .models import Comment, VoiceDraft
 def text_comment(request, pk):
     post = post_for(request, pk)
     text = required(body(request), "text", 2000)
-    comment = Comment.objects.create(post=post, author=request.user, text=text)
+    with transaction.atomic():
+        comment = Comment.objects.create(post=post, author=request.user, text=text)
     return {"id": comment.pk}
 
 
