@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FamilyTreeDraft } from './assets/family-tree.js';
-import { familyTreeDrawing, treeMarkup } from './assets/family-tree-view.js';
+import { familyTreeDrawing, familyTreeActions, treeMarkup } from './assets/family-tree-view.js';
 
 const snapshot = () => ({
   version: 3, owner_id: '1',
@@ -63,7 +63,8 @@ test('reject invalid additions before mutating the draft', () => {
 
 test('enforce the same 200-person invitation limit as the backend and Android', () => {
   const draft = new FamilyTreeDraft(snapshot());
-  for (let index = 0; index < 200; index++) draft.add('1', 'child');
+  let parent = '1';
+  for (let index = 0; index < 200; index++) parent = draft.add(parent, 'child');
   assert.equal(draft.payload('male').additions.length, 200);
   assert.throws(() => draft.add('1', 'child'), /200/);
 });
@@ -92,22 +93,38 @@ test('read-only tree includes unclaimed people and places ancestors above childr
   assert.match(treeMarkup(draft), /아직 가입하지 않음/);
 });
 
-test('editable frontier matches Android missing parents and shared child actions', () => {
+test('family additions are contextual and earlier people keep their slots', () => {
   const draft = new FamilyTreeDraft(snapshot());
   const spouse = draft.add('1', 'spouse');
-  const drawing = familyTreeDrawing(draft, true);
-  const children = drawing.nodes.filter(node => node.action?.relation === 'child');
-  assert.equal(children.filter(node => node.action.anchor_id === '1' && node.action.co_parent_id === spouse).length, 1);
-  const child = children.find(node => node.action.co_parent_id === spouse);
-  assert.equal(drawing.parents.filter(link => link.child_id === child.id).length, 2);
-  assert.equal(drawing.nodes.filter(node => node.action?.anchor_id === '2' && node.action?.relation === 'father').length, 1);
-  assert.equal(drawing.nodes.filter(node => node.action?.anchor_id === '2' && node.action?.relation === 'mother').length, 0);
+  let before = familyTreeDrawing(draft, true);
+  for (let index = 0; index < 9; index++) {
+    draft.add('1', 'child', spouse);
+    const after = familyTreeDrawing(draft, true);
+    for (const [id, point] of before.points) {
+      assert.equal(after.points.get(id).x - after.points.get('1').x, point.x - before.points.get('1').x);
+      assert.equal(after.points.get(id).y - after.points.get('1').y, point.y - before.points.get('1').y);
+    }
+    assert.equal(after.nodes.some(node => node.action), false);
+    before = after;
+  }
+  assert.equal(familyTreeActions(draft, '1').some(action => action.relation === 'child'), false);
+  const state = JSON.stringify(draft);
+  assert.throws(() => draft.add('1', 'child', spouse), /10명/);
+  assert.equal(JSON.stringify(draft), state);
+  assert.ok(familyTreeActions(draft, '2').every(action => action.anchor_id === '2'));
+});
+
+test('a full co-parent cannot receive an eleventh child through another parent', () => {
+  const draft = new FamilyTreeDraft(snapshot());
+  const spouse = draft.add('1', 'spouse');
+  for (let index = 0; index < 10; index++) draft.add(spouse, 'child');
+  assert.throws(() => draft.add('1', 'child', spouse), /10명/);
 });
 
 test('large editable families have no overlapping node cards or missing connector endpoints', () => {
   const draft = new FamilyTreeDraft(snapshot());
   const spouse = draft.add('1', 'spouse');
-  for (let i = 0; i < 10; i++) draft.add('1', 'child', spouse);
+  for (let i = 0; i < 9; i++) draft.add('1', 'child', spouse);
   const drawing = familyTreeDrawing(draft, true);
   for (const a of drawing.nodes) for (const b of drawing.nodes) {
     if (a.id === b.id || a.generation !== b.generation) continue;

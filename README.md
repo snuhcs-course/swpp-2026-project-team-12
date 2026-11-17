@@ -212,7 +212,9 @@ question options are preserved. Apply the new migration before deploying the API
 }
 ```
 
-Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Each parent can have up to ten children; both parents' existing children count toward this limit. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+
+The Android and web invitation trees show actual people in stable grid positions. Select a person and use **+ 가족 추가** to add a parent, spouse or child. Additions preserve the current pan/zoom and earlier people's relative positions. **전체 보기** explicitly fits the tree, and the join/continue action remains below the scrollable tree. Existing trees with more than ten children remain readable; further child additions for those parents are rejected.
 
 Family migrations start directly with the tree schema. When updating an older local database that used slots, reset `backend/db.sqlite3` and run `python backend/manage.py migrate`; existing data is not imported. Parent edges always move one generation upward, and a person has at most two parents in this version. Ages are not collected, so sibling labels stay neutral instead of guessing Korean age-specific honorifics.
 

@@ -1130,48 +1130,52 @@ class MainActivity : ComponentActivity() {
     private fun tree() {
         val draft = treeDraft ?: return
         navigation("가족에서 내 자리", { cancelTree() }, name = "tree")
-        heading("가계도에서\n내 자리를 찾아보세요.", "한 손가락으로 이동하고, 두 손가락으로 확대·축소하세요. +로 빈 가족을 추가하고 내 자리를 선택해 주세요.")
+        ui.label(content, "내 자리를 선택해 주세요", if (large) 28f else 24f, true)
+        ui.gap(content, 8)
+        ui.label(content, "가족을 누른 뒤 ‘+ 가족 추가’로 연결해요.\n자녀는 부모당 10명까지 추가할 수 있어요.", if (large) 18f else 16f, color = ui.muted)
+        ui.gap(content, 12)
         val selected = ui.text("", 17f, true, ui.coralDeep)
         val next = ui.button(ui.column(), "선택한 자리로 계속하기") { profile() }
         lateinit var board: FamilyTreeView
         lateinit var undo: Button
-        fun update(focus: String? = null) {
+        fun update() {
             selected.text = if (draft.selectedId == null) "아직 내 자리를 선택하지 않았어요." else session!!.getString("name") + "님의 자리를 선택했어요."
             next.isEnabled = draft.selectedId != null; next.alpha = if (next.isEnabled) 1f else .45f
             undo.isEnabled = draft.additions.isNotEmpty(); undo.alpha = if (undo.isEnabled) 1f else .45f
-            board.render(focus)
+            board.render()
         }
         board = FamilyTreeView(this, ui, draft, session!!.getString("name"), onAdd = { action ->
             runCatching { draft.add(action.anchor, action.relation, action.coParent) }.fold({ id ->
-                update(id); toast("빈 가족을 추가했어요. 이 자리가 나라면 노드를 눌러 선택해 주세요.")
+                update(); toast("가족을 추가했어요. 빈자리가 나라면 눌러 선택해 주세요.")
             }, { toast(it.message ?: "가족을 추가하지 못했어요.") })
         }, onPerson = { id ->
             val person = draft.people.getValue(id)
-            if (person.occupied) toast("이미 가입한 가족의 자리예요.") else {
+            if (person.occupied) toast("이 가족을 기준으로 ‘+ 가족 추가’를 누를 수 있어요.") else {
                 val accountGender = session!!.optString("gender", "unknown")
                 if (person.gender != "unknown" && accountGender != "unknown" && person.gender != accountGender) {
                     toast("선택한 자리와 계정의 성별이 달라요. 다른 자리를 선택해 주세요.")
                 } else AlertDialog.Builder(this).setTitle("이 자리가 나인가요?")
                     .setMessage(session!!.getString("name") + "님의 계정 정보를 이 자리에 연결해요. 가입 완료 전까지는 저장되지 않아요.")
-                    .setPositiveButton("내 자리로 선택") { _, _ -> draft.selectedId = id; update(id) }
+                    .setPositiveButton("내 자리로 선택") { _, _ -> draft.selectedId = id; update() }
                     .setNegativeButton("닫기", null).show()
             }
         })
-        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp(440)))
+        val screenHeightDp = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt()
+        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp((screenHeightDp - if (large) 420 else 360).coerceIn(240, 440))))
         val controls = ui.row()
-        val reset = ui.button(ui.column(), "기준 인물로", false, 52) { board.centerOn(draft.ownerId) }
-        undo = ui.button(ui.column(), "추가 취소", false, 52) { draft.undo(); update(draft.selectedId ?: draft.ownerId) }
+        val reset = ui.button(ui.column(), "전체 보기", false, 52) { board.fit() }
+        undo = ui.button(ui.column(), "추가 취소", false, 52) { draft.undo(); update() }
         (reset.parent as LinearLayout).removeView(reset); (undo.parent as LinearLayout).removeView(undo)
         controls.addView(reset, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) })
         controls.addView(undo, LinearLayout.LayoutParams(0, -2, 1f)); content.addView(controls)
         ui.gap(content, 16); content.addView(selected)
-        ui.label(content, "살구색: 가입한 가족 · 흰색: 빈 가족\n형제자매는 부모의 자녀 +에서 추가할 수 있어요.", 14f, color = ui.muted)
+        ui.label(content, "한 손가락: 이동 · 두 손가락: 확대·축소\n살구색: 가입한 가족 · 흰색: 선택할 수 있는 빈 가족", 14f, color = ui.muted)
         val footer = ui.column(16).apply { background = ui.shape(ui.paper, 0) }
         (selected.parent as LinearLayout).removeView(selected); footer.addView(selected)
         (next.parent as LinearLayout).removeView(next); footer.addView(next)
         next.tag = "tree-continue"
         page.addView(footer, LinearLayout.LayoutParams(-1, -2))
-        update(draft.selectedId ?: draft.ownerId)
+        update()
     }
 
     private fun cancelTree() {

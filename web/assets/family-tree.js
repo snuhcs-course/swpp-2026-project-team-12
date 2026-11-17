@@ -9,6 +9,8 @@ export class FamilyTreeDraft {
     this.partnerships = tree.partnerships.map(link => ({ ...link }));
     this.additions = [];
     this.selectedId = null;
+    this.focusedId = tree.owner_id;
+    this.viewport = null;
   }
 
   canClaim(id, gender) {
@@ -43,6 +45,10 @@ export class FamilyTreeDraft {
       !this.coParentsOf(anchorId).includes(coParentId))) {
       throw new Error('배우자 또는 기존 공동 부모만 함께 연결할 수 있어요.');
     }
+    if (relation === 'child' && [anchorId, coParentId].filter(Boolean).some(id =>
+      this.parents.filter(link => link.parent_id === id).length >= 10)) {
+      throw new Error('한 부모의 자녀는 10명까지 추가할 수 있어요.');
+    }
     const id = `new_${this.additions.length + 1}`;
     const addition = { id, anchor_id: anchorId, relation };
     if (coParentId) addition.co_parent_id = coParentId;
@@ -68,6 +74,8 @@ export class FamilyTreeDraft {
     const restored = new FamilyTreeDraft(this.snapshot);
     this.additions.slice(0, -1).forEach(item => restored.add(item.anchor_id, item.relation, item.co_parent_id));
     restored.selectedId = restored.people.some(person => person.id === selected) ? selected : null;
+    restored.focusedId = restored.people.some(person => person.id === this.focusedId) ? this.focusedId : this.ownerId;
+    restored.viewport = this.viewport;
     Object.assign(this, restored);
   }
 }
