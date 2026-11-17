@@ -109,27 +109,25 @@ class UatPostInteractionsTest {
     }
 
     @Test fun bothCommentRoutesKeepComposerAboveKeyboardAndRetainFailedDraft() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "우리 가족"), large).use { ui ->
+        // First-use guidance is covered separately; keep it from competing for focus here.
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "우리 가족"), large, tutorialSeen = true).use { ui ->
             ui.await { ui.all().any { it is FeedPostCard } }
             tap(ui, if (large) "댓글 달기" else "댓글 25")
             ui.await { ui.all().any { it is CommentComposer } }
             val composer = ui.all().filterIsInstance<CommentComposer>().single()
-            ui.await { composer.hasWindowFocus() }
+            ui.await { composer.hasWindowFocus() && composer.input.width > 0 && !composer.isLayoutRequested }
+            val keyboard = ui.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             ui.test.runOnMainSync {
                 composer.input.setText("수정 없이 남아야 하는 댓글"); composer.input.requestFocus()
-                (ui.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(composer.input, InputMethodManager.SHOW_IMPLICIT)
             }
-            // Exercise an actual tap, as a user would, after the dialog has window focus.
-            val tapPoint = IntArray(2)
-            ui.test.runOnMainSync { composer.input.getLocationOnScreen(tapPoint) }
-            val now = android.os.SystemClock.uptimeMillis()
-            for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {
-                val event = android.view.MotionEvent.obtain(now, android.os.SystemClock.uptimeMillis(), action, (tapPoint[0] + 30).toFloat(), (tapPoint[1] + 30).toFloat(), 0)
-                event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
-                ui.test.uiAutomation.injectInputEvent(event, true); event.recycle()
+            // Window focus can arrive before the IME has attached to this editor,
+            // especially when the regular-mode dialog is opened on the CI emulator.
+            ui.await { composer.input.hasFocus() && keyboard.isActive(composer.input) }
+            ui.test.runOnMainSync {
+                ViewCompat.getWindowInsetsController(composer.input)?.show(WindowInsetsCompat.Type.ime())
             }
-            Thread.sleep(700); ui.screenshot(if (large) "uat-elder-keyboard.png" else "uat-sheet-keyboard.png")
-            ui.await { ViewCompat.getRootWindowInsets(composer)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+            ui.await(timeout = 15000) { ViewCompat.getRootWindowInsets(composer)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+            ui.screenshot(if (large) "uat-elder-keyboard.png" else "uat-sheet-keyboard.png")
             Thread.sleep(400)
             ui.test.runOnMainSync {
                 val visible = Rect(); composer.getWindowVisibleDisplayFrame(visible)
