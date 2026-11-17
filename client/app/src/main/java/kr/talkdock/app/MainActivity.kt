@@ -103,6 +103,15 @@ class MainActivity : ComponentActivity() {
     private var session: JSONObject? = null
     private var room = JSONObject()
     private var screen = "welcome"
+    private val voiceSamples = Executors.newFixedThreadPool(2)
+    private val sampleCache = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.Future<ByteArray>>()
+    private var sampleGeneration = 0
+    private var resetVoicePreview: (() -> Unit)? = null
+    private fun stopVoicePreview() {
+        sampleGeneration++
+        resetVoicePreview?.invoke()
+        speaker.stop()
+    }
     private var pageNumber = 0
     private var busy = false
     private var pendingPush: Map<String, String>? = null
@@ -114,6 +123,12 @@ class MainActivity : ComponentActivity() {
     private val feedCards = mutableListOf<FeedPostCard>()
     private val feedCommentCache = mutableMapOf<Int, List<JSONObject>>()
     private val feedComments = Executors.newFixedThreadPool(2)
+    private val feedUpdates = Executors.newSingleThreadExecutor()
+    private var feedSnapshot: JSONObject? = null
+    private var feedSnapshotScope: String? = null
+    private var feedRequest = 0
+    private fun feedScope() = "${sessions.serverUrl()}:${session?.optInt("user_id")}:${session?.optString("token")}:${room.optInt("id")}"
+    private fun clearFeedSnapshot() { feedSnapshot = null; feedSnapshotScope = null; feedRequest++ }
     private var commentsDialog: Dialog? = null
     private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING }
     private var guideStep: GuideStep? = null
@@ -348,6 +363,7 @@ class MainActivity : ComponentActivity() {
         closeAssistantMenu()
         guideHandler.removeCallbacks(checkForReply)
         foreground = false
+        stopVoicePreview()
         if (recorder?.active == true) {
             voiceState("말하기 시작", false)
             voiceStatus?.text = "녹음이 중단됐어요. 다시 말하기 시작을 눌러 주세요."
@@ -361,7 +377,8 @@ class MainActivity : ComponentActivity() {
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
         assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss()
-        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow()
+        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow(); feedUpdates.shutdownNow()
+        voiceSamples.shutdownNow(); sampleCache.clear()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
@@ -433,6 +450,7 @@ class MainActivity : ComponentActivity() {
         stopPostAudio(); replyPreview?.stop(); replyPreview = null
         if (name !in setOf("home", "post", "detail", "voice", "review", "roomSync")) guideStep = null
         feedReady = false
+        stopVoicePreview(); resetVoicePreview = null
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null; voiceControlLabel = null; voiceWave = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -883,7 +901,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun saveSession(value: JSONObject, big: Boolean) {
         if (session?.optInt("user_id") != value.optInt("user_id") || room.optInt("id", -1) != value.optJSONObject("room")?.optInt("id", -1)) {
-            feedCommentCache.clear(); feedAnchorId = null
+            feedCommentCache.clear(); feedAnchorId = null; clearFeedSnapshot()
         }
         sessions.save(value, big); session = value; room = value.optJSONObject("room") ?: JSONObject()
         configurePush()
@@ -912,7 +930,7 @@ class MainActivity : ComponentActivity() {
         dailyStatus = null; dailyQuestionState = null; dailyVoicePurpose = null; dailyPanel = null
         memoryTabState = null; memoryPanel = null; memoryReturn = null
         feedPostId = null; feedScrollY = 0; restoreFeedScroll = false
-        feedCommentCache.clear(); feedAnchorId = null
+        feedCommentCache.clear(); feedAnchorId = null; clearFeedSnapshot()
         digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     }
     /**
@@ -1000,15 +1018,44 @@ class MainActivity : ComponentActivity() {
         ui.ghost(content, "이미 계정이 있어요") { login() }
         if (sessions.all().isNotEmpty()) ui.ghost(content, "이 휴대폰의 계정으로 돌아가기") { accounts() }
     }
+    private fun inputError(input: EditText): (String?) -> Unit {
+        val message = ui.label(content, "", 18f, true, ui.coralDeep).apply {
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        input.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.isContentInvalid = message.text.isNotBlank()
+                info.error = message.text.takeIf { it.isNotBlank() }
+            }
+        }
+        fun show(text: String?) {
+            input.error = null
+            message.text = text.orEmpty()
+            message.visibility = if (text == null) View.GONE else View.VISIBLE
+            if (text != null) {
+                input.requestFocus()
+                message.post { message.requestRectangleOnScreen(Rect(0, 0, message.width, message.height), false) }
+            }
+        }
+        content.removeView(message)
+        content.addView(message, content.indexOfChild(input) + 1)
+        input.doAfterTextChanged { show(null) }
+        return ::show
+    }
+
     private fun register() {
         navigation("계정 만들기", { welcome() }, name = "register")
         heading("어떻게 불러드릴까요?", "가족에게 보일 이름을 알려주세요.")
         val name = ui.input(content, "내 이름", "예: 홍정아")
         val username = ui.input(content, "아이디", "로그인할 아이디", identifier = true)
         val password = ui.input(content, "계정 비밀번호", "숫자를 포함한 10자 이상", password = true).apply { typeface = ui.font; setHintTextColor(ui.hintGray) }
+        val passwordError = inputError(password)
         val confirmation = ui.input(content, "비밀번호 확인", "비밀번호를 한 번 더 입력해 주세요", password = true).apply {
             typeface = ui.font; setHintTextColor(ui.hintGray)
         }
+        val confirmationError = inputError(confirmation)
         ui.label(content, "성별 (필수)", 16f, true)
         val genders = Spinner(this)
         genders.contentDescription = "성별 (필수)"
@@ -1023,14 +1070,16 @@ class MainActivity : ComponentActivity() {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
             }
             if (genders.selectedItemPosition == 0) { toast("성별을 선택해 주세요."); return@button }
-            if (password.text.length !in 10..128 || password.text.none { it in '0'..'9' }) {
-                password.error = "비밀번호는 10자 이상, 숫자 포함으로 입력해 주세요. 최대 128자예요."; return@button
-            }
-            confirmation.error = null
+            val reasons = mutableListOf<String>()
+            if (password.text.length < 10) reasons.add("비밀번호는 10자 이상으로 입력해 주세요.")
+            if (password.text.length > 128) reasons.add("비밀번호는 최대 128자까지 입력할 수 있어요.")
+            if (password.text.none { it in '0'..'9' }) reasons.add("비밀번호에 숫자를 한 개 이상 포함해 주세요.")
+            if (password.text.isNotEmpty() && password.text.all { it in '0'..'9' }) reasons.add("숫자만으로는 만들 수 없어요. 문자도 함께 넣어 주세요.")
+            if (reasons.isNotEmpty()) { passwordError(reasons.joinToString("\n")); return@button }
+            passwordError(null); confirmationError(null)
             if (confirmation.text.isEmpty() || password.text.toString() != confirmation.text.toString()) {
-                confirmation.error = if (confirmation.text.isEmpty()) "비밀번호를 한 번 더 입력해 주세요."
-                    else "비밀번호가 일치하지 않아요. 다시 확인해 주세요."
-                confirmation.requestFocus()
+                confirmationError(if (confirmation.text.isEmpty()) "비밀번호를 한 번 더 입력해 주세요."
+                    else "비밀번호가 일치하지 않아요. 다시 확인해 주세요.")
                 return@button
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
@@ -1038,7 +1087,11 @@ class MainActivity : ComponentActivity() {
                 "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
             voice()?.let { data.put("tts_voice", it) }
             val client = apiClient()
-            async({ client.request("accounts/register/", "POST", data) }) {
+            async({ client.request("accounts/register/", "POST", data) }, failure = { error ->
+                if (error is ApiException && error.field == "password") {
+                    passwordError(error.message); true
+                } else false
+            }) {
                 saveSession(it, elderChoice.isChecked); roomChoice()
             }
         }
@@ -1114,7 +1167,10 @@ class MainActivity : ComponentActivity() {
         navigation("가족 방에 들어가기", { roomChoice() }, name = "join")
         ui.label(content, "초대받으셨나요?", 14f, color = ui.muted); ui.gap(content, 16)
         heading("가족이 보낸 코드를\n입력해 주세요.", "초대 코드와 가족방 비밀번호를 입력해 주세요.")
-        val code = ui.input(content, "초대코드", "예: ABC123")
+        val code = ui.input(content, "초대코드", "예: ABC123").apply {
+            filters = arrayOf(android.text.InputFilter.AllCaps())
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+        }
         val password = ui.input(content, "가족 방 비밀번호", "가족이 알려준 비밀번호", password = true)
         ui.button(content, "가족 방 확인하기") {
             if (code.text.isBlank() || password.text.isBlank()) { toast("초대코드와 비밀번호를 입력해 주세요."); return@button }
@@ -1219,8 +1275,47 @@ class MainActivity : ComponentActivity() {
         if (refresh != null) feedCommentCache.clear()
         if (refresh == null) navigation("토닥", name = "home")
         val client = api
-        async({ client.request("posts/") }, refresh = refresh) { data ->
-            displayHome(data, client)
+        val scope = feedScope()
+        val cached = feedSnapshot?.takeIf { feedSnapshotScope == scope }
+        if (cached != null && refresh == null) displayHome(JSONObject(cached.toString()), client)
+        val number = pageNumber
+        val request = ++feedRequest
+        val cover = if (cached == null && refresh == null) TodakWaitingView(this, "소식을 불러오고 있어요.") else null
+        cover?.let { root.addView(it, FrameLayout.LayoutParams(-1, -1)) }
+        refresh?.isRefreshing = true
+        feedUpdates.execute {
+            val result = runCatching { client.request("posts/") }
+            runOnUiThread {
+                cover?.let { root.removeView(it) }; refresh?.isRefreshing = false
+                if (isDestroyed || number != pageNumber || request != feedRequest || scope != feedScope()) return@runOnUiThread
+                result.fold({ data ->
+                    val changed = cached?.toString() != data.toString()
+                    feedSnapshot = JSONObject(data.toString()); feedSnapshotScope = scope
+                    // Keep a live player or open comment sheet intact; the next visit uses the fresh snapshot.
+                    if (cached == null || refresh != null || (changed && commentsDialog == null && activePostAudio?.isPlaying != true)) {
+                        if (cached != null && refresh == null) {
+                            feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
+                            feedCards.firstOrNull { it.bottom > feedScrollY }?.let {
+                                feedAnchorId = it.post.optInt("id"); feedAnchorOffset = it.top - feedScrollY
+                            }
+                        }
+                        displayHome(data, client)
+                    }
+                }, { error ->
+                    if (error is ApiException && error.isMaintenance) { showMaintenance(); return@runOnUiThread }
+                    if (error is ApiException && error.status in setOf(401, 403)) {
+                        clearFeedSnapshot(); feedCommentCache.clear()
+                        if (error.status == 401) {
+                            val username = session?.optString("username").orEmpty()
+                            val userId = session?.optInt("user_id"); val big = large
+                            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
+                            login(username, userId, big)
+                        } else roomChoice()
+                    } else if (cached != null) toast("새 소식을 불러오지 못했어요. 아래로 당겨 다시 시도해 주세요.")
+                    else feedError((error as? ApiException)?.message ?: "인터넷 연결을 확인하고 다시 시도해 주세요.")
+                })
+                root.post { openPushIfReady() }
+            }
         }
     }
 
@@ -1310,19 +1405,37 @@ class MainActivity : ComponentActivity() {
     private fun openComments(post: JSONObject) {
         if (commentsDialog != null || busy) return
         val dialog = Dialog(this); commentsDialog = dialog
-        val box = ui.column(20); val body = ui.column()
+        val box = ui.column(20).apply { setBackgroundColor(ui.paper); isClickable = true }
+        val body = ui.column(); val footer = ui.column()
+        val sheet = FrameLayout(this).apply { setOnClickListener { dialog.dismiss() } }
+        sheet.addView(box, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM))
         val header = ui.row()
         header.addView(ui.text("댓글", 23f, true), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(ui.iconButton("close", "댓글 닫기") { dialog.dismiss() }); box.addView(header)
-        box.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(-1, -2))
-        dialog.setContentView(box); dialog.setOnDismissListener {
+        box.addView(ScrollView(this).apply { addView(body); tag = "comment-list-scroll" }, LinearLayout.LayoutParams(-1, 0, 1f))
+        box.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.setContentView(sheet); dialog.setOnDismissListener {
             if (commentsDialog === dialog) commentsDialog = null
             updateAssistantContext()
         }
         dialog.show(); dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.transparent); setGravity(Gravity.BOTTOM)
-            setLayout(-1, (root.height * .75f).toInt()); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(this, false)
+            setLayout(-1, -1); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(sheet) { view, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+            val bottom = maxOf(bars.bottom, ime.bottom)
+            val height = view.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+            box.layoutParams = (box.layoutParams as FrameLayout.LayoutParams).apply {
+                this.height = minOf((height * .75f).toInt(), height - bars.top - bottom).coerceAtLeast(0)
+                bottomMargin = bottom; leftMargin = bars.left; rightMargin = bars.right
+            }
+            insets
+        }
+        sheet.post { androidx.core.view.ViewCompat.requestApplyInsets(sheet) }
         val client = api; val number = pageNumber
         fun refresh() {
             body.removeAllViews(); ui.label(body, "댓글을 가져오고 있어요.", 18f)
@@ -1346,10 +1459,12 @@ class MainActivity : ComponentActivity() {
                             composer.setSending(true)
                             async({ client.request("posts/${post.getInt("id")}/comments/", "POST", json("text" to text)) },
                                 showLoading = false, failure = { error -> composer.showError(error.message ?: "댓글을 보내지 못했어요. 다시 시도해 주세요."); true }) {
-                                if (dialog.isShowing) { toast("댓글을 달았어요!"); refresh() }
+                                if (dialog.isShowing) { composer.input.setText(""); composer.setSending(false); toast("댓글을 달았어요!"); refresh() }
                             }
                         }
-                        body.addView(composer)
+                        footer.removeAllViews(); footer.addView(composer)
+                        dialog.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+                        composer.tag = "sheet-comment"
                         post.put("comment_count", items.size)
                         feedCards.firstOrNull { it.post.optInt("id") == post.optInt("id") }?.showComments(items)
                     }, { ui.label(body, "댓글을 불러오지 못했어요.", 18f); ui.ghost(body, "다시 불러오기") { refresh() } })
@@ -1488,7 +1603,7 @@ class MainActivity : ComponentActivity() {
         guideRoom = replyKey()
         if (screen == "home") offerHelp(manual = true)
         else if (screen == "detail") {
-            val field = content.findViewWithTag<CommentComposer>("detail-comment") ?: return
+            val field = page.findViewWithTag<CommentComposer>("detail-comment") ?: return
             guideStep = GuideStep.REPLYING
             guidePostId = selectedPost?.optInt("id") ?: -1
             guideComment(field, reveal = true)
@@ -1730,7 +1845,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            content.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            val footer = ui.column(12).apply { setBackgroundColor(ui.paper) }
+            footer.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            page.addView(footer, LinearLayout.LayoutParams(-1, -2))
             composer.tag = "detail-comment"
             val text = composer.input
             text.doAfterTextChanged { guideComment(composer) }
@@ -1872,7 +1989,7 @@ class MainActivity : ComponentActivity() {
             narrator.interrupt()
             async({ client.uploadPost(files, caption) }, "가족에게 소식을 전하고 있어요.") {
                 if (guideStep == GuideStep.WRITING) closeGuide()
-                clearPhotoDraft(); imageLoader.clear()
+                clearPhotoDraft(); imageLoader.clear(); clearFeedSnapshot()
                 postingSuccess("글 업로드가 완료됐어요") { home() }
             }
         }
@@ -1958,8 +2075,8 @@ class MainActivity : ComponentActivity() {
         val sheet = ui.card(content, ui.paper, padding = 24, stroke = false)
         ui.label(sheet, post.optString("author_name") + "님에게 답장", if (large) 26f else 22f, true).gravity = Gravity.CENTER
         ui.gap(sheet, 20)
-        voiceStatus = ui.label(sheet, "편하게 말씀해 주세요", if (large) 25f else 22f, true).apply { gravity = Gravity.CENTER }
-        voiceText = ui.label(sheet, "말씀을 마친 뒤, 보낼 내용을 확인해요.", if (large) 20f else 16f, color = ui.muted).apply {
+        voiceStatus = ui.label(sheet, "버튼을 누르고 말씀해 주세요", if (large) 25f else 22f, true).apply { gravity = Gravity.CENTER }
+        voiceText = ui.label(sheet, "말하기 시작을 누르면 녹음이 시작돼요.", if (large) 20f else 16f, color = ui.muted).apply {
             gravity = Gravity.CENTER; setPadding(0, ui.dp(10), 0, ui.dp(12))
         }
         voiceWave = VoiceRecordingView(this, ui, { recorder?.active == true }, { voiceStartedAt }).also {
@@ -1988,7 +2105,7 @@ class MainActivity : ComponentActivity() {
                                 AlertDialog.Builder(this@MainActivity).setTitle(title)
                                     .setMessage(error.message ?: "말씀을 글로 바꾸지 못했어요. 다시 시도해 주세요.")
                                     .setPositiveButton(if (rerecord) "다시 말하기" else "다시 시도") { _, _ ->
-                                        if (rerecord) startVoice(post) else voiceButton?.performClick()
+                                        if (rerecord) voice(post, voiceFromDetail) else voiceButton?.performClick()
                                     }.setNegativeButton("나중에", null).show()
                                 true
                             }
@@ -2003,8 +2120,6 @@ class MainActivity : ComponentActivity() {
         }.also { sheet.addView(it, LinearLayout.LayoutParams(ui.dp(88), ui.dp(88)).apply { gravity = Gravity.CENTER_HORIZONTAL }) }
         ui.gap(sheet, 8)
         voiceControlLabel = ui.label(sheet, "말하기 시작", 17f, color = ui.muted).apply { gravity = Gravity.CENTER }
-        val number = pageNumber
-        content.post { if (number == pageNumber && foreground) startVoice(post) }
     }
     private fun voiceState(label: String, recording: Boolean) {
         voiceButton?.text = if (recording) "■" else "●"
@@ -2269,10 +2384,38 @@ class MainActivity : ComponentActivity() {
         val spinner = Spinner(this).apply { contentDescription = title }
         box.addView(spinner, LinearLayout.LayoutParams(-1, ui.dp(56)))
         var keys = emptyList<String>()
-        val preview = ui.button(box, "선택한 목소리 미리 듣기", false) {
+        val status = ui.label(box, "", 17f, color = ui.muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        lateinit var preview: Button
+        fun reset() { preview.isEnabled = true; preview.text = "선택한 목소리 미리 듣기"; status.text = "" }
+        preview = ui.button(box, "선택한 목소리 미리 듣기", false) {
             val key = keys.getOrNull(spinner.selectedItemPosition) ?: return@button
-            speaker.stop()
-            playVoiceSample(client, key)
+            stopVoicePreview()
+            resetVoicePreview = ::reset
+            val generation = sampleGeneration
+            val number = pageNumber
+            preview.isEnabled = false; status.text = "목소리 예시를 준비하고 있어요."
+            val future = cachedVoiceSample(client, key)
+            // The cache future is already queued before this waiter.
+            voiceSamples.execute {
+                val result = runCatching { future.get() }
+                if (result.isFailure) sampleCache.remove(client.baseUrl + key, future)
+                runOnUiThread {
+                    if (isDestroyed || number != pageNumber || generation != sampleGeneration || !foreground) return@runOnUiThread
+                    reset()
+                    result.fold({ bytes ->
+                        val file = File.createTempFile("voice-sample-", ".mp3", cacheDir)
+                        runCatching {
+                            file.writeBytes(bytes)
+                            status.text = "목소리 예시를 듣고 있어요."
+                            speaker.play(file, completed = { if (generation == sampleGeneration) reset() }, failed = {
+                                if (generation == sampleGeneration) status.text = "재생하지 못했어요. 미리 듣기를 다시 눌러 주세요."
+                            })
+                        }.onFailure { file.delete(); status.text = "재생하지 못했어요. 미리 듣기를 다시 눌러 주세요." }
+                    }, { status.text = "목소리 예시를 불러오지 못했어요. 미리 듣기를 다시 눌러 주세요." })
+                }
+            }
         }.apply { visibility = View.GONE }
         ui.gap(box)
         content.addView(box, LinearLayout.LayoutParams(-1, -2))
@@ -2293,8 +2436,10 @@ class MainActivity : ComponentActivity() {
                 spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, titles)
                 spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        speaker.stop()
+                        stopVoicePreview(); reset()
+                        resetVoicePreview = ::reset
                         preview.visibility = if (samples[position]) View.VISIBLE else View.GONE
+                        if (samples[position]) cachedVoiceSample(client, keys[position])
                     }
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
@@ -2306,17 +2451,11 @@ class MainActivity : ComponentActivity() {
         return { keys.getOrNull(spinner.selectedItemPosition) }
     }
 
-    /** Plays the short line every voice reads, so people can compare voices before choosing. */
-    private fun playVoiceSample(client: ApiClient, key: String) {
-        val number = pageNumber
-        network.execute {
-            val bytes = runCatching { client.voiceSample(key) }.getOrNull()
-            runOnUiThread {
-                if (isDestroyed || number != pageNumber || !foreground) return@runOnUiThread
-                if (bytes == null) { toast("목소리 예시를 재생하지 못했어요. 다시 시도해 주세요."); return@runOnUiThread }
-                val file = File.createTempFile("voice-sample-", ".mp3", cacheDir)
-                runCatching { file.writeBytes(bytes); speaker.play(file) }.onFailure { file.delete(); toast("목소리 예시를 재생하지 못했어요.") }
-            }
+    private fun cachedVoiceSample(client: ApiClient, key: String): java.util.concurrent.Future<ByteArray> {
+        val cacheKey = client.baseUrl + key
+        // Failed downloads are evicted so the next click can retry.
+        return sampleCache.computeIfAbsent(cacheKey) {
+            voiceSamples.submit<ByteArray> { client.voiceSample(key) }
         }
     }
 
