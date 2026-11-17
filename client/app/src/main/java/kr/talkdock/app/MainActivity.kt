@@ -178,14 +178,15 @@ class MainActivity : ComponentActivity() {
 
     private fun acceptPickedPhotos(uris: List<Uri>) {
         if (uris.isEmpty()) return
+        caption = captionInput?.text?.toString() ?: caption
         // Preserve the gallery's tap order all the way through multipart upload.
-        if (uris.size > 5) {
-            toast("사진은 한 번에 5장까지 선택해 주세요.")
+        if (selectedPhotos().size + uris.size > 5) {
+            toast("사진은 모두 5장까지 추가할 수 있어요. 먼저 첨부 사진을 빼 주세요.")
             return
         }
         async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.") { files ->
-            selectedPhotos().forEach { it.delete() }
-            photo = files.first(); extraPhotos.clear(); extraPhotos.addAll(files.drop(1)); draftPhotoIndex = 0; composer()
+            val combined = selectedPhotos() + files
+            photo = combined.first(); extraPhotos.clear(); extraPhotos.addAll(combined.drop(1)); composer()
         }
     }
 
@@ -1733,9 +1734,10 @@ class MainActivity : ComponentActivity() {
     }
     private fun launchPhotoChooser() {
         if (photoAttachmentSheet?.isShowing == true) return
+        if (selectedPhotos().size >= 5) { toast("사진은 5장까지 추가할 수 있어요. 먼저 첨부 사진을 빼 주세요."); return }
         caption = captionInput?.text?.toString() ?: caption
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
-        val sheet = PhotoAttachmentSheet(ui, large, selectedPhotos().isNotEmpty(),
+        val sheet = PhotoAttachmentSheet(ui, large, 5 - selectedPhotos().size,
             takePhoto = { launchCamera() }, openGallery = { launchGallery() }, choosePhotos = { acceptPickedPhotos(it) })
         photoAttachmentSheet = sheet
         sheet.setOnDismissListener { if (photoAttachmentSheet === sheet) photoAttachmentSheet = null }
@@ -1745,7 +1747,7 @@ class MainActivity : ComponentActivity() {
         // Snapshot the draft before opening the gallery, including on rotation.
         caption = captionInput?.text?.toString() ?: caption
         runCatching {
-            photoPicker.launch(Intent(this, PhotoPickerActivity::class.java))
+            photoPicker.launch(Intent(this, PhotoPickerActivity::class.java).putExtra(PhotoPickerActivity.MAX_PHOTOS, 5 - selectedPhotos().size))
         }.onFailure { toast("사진첩을 열 수 없어요.") }
     }
     private fun launchCamera() {
@@ -1765,6 +1767,7 @@ class MainActivity : ComponentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == cameraCode) {
+            caption = captionInput?.text?.toString() ?: caption
             val output = pendingPhoto; pendingPhoto = null
             if (resultCode == RESULT_OK && output != null && output.length() > 0) {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -1774,8 +1777,10 @@ class MainActivity : ComponentActivity() {
                     composer()
                     return
                 }
-                selectedPhotos().filter { it != output }.forEach { it.delete() }; extraPhotos.clear()
-                photo = output; draftPhotoIndex = 0; composer()
+                if (selectedPhotos().size >= 5) {
+                    output.delete(); toast("사진은 5장까지 추가할 수 있어요.")
+                } else if (photo == null) photo = output else extraPhotos.add(output)
+                composer()
             } else { output?.delete(); composer() }
         }
     }

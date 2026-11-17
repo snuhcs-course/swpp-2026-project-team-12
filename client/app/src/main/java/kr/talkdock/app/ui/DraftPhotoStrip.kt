@@ -50,8 +50,9 @@ class DraftPhotoStrip(
                 addView(row)
             }, LayoutParams(-1, -2))
         }
-        ui.button(this, if (previews.isEmpty()) "사진 추가" else "사진 다시 선택", false, if (large) 76 else 56, choose).apply {
-            contentDescription = if (previews.isEmpty()) "사진 추가하기" else "첨부 사진 다시 선택하기"
+        ui.button(this, if (previews.isEmpty()) "사진 추가" else "사진 더 추가", false, if (large) 76 else 56, choose).apply {
+            contentDescription = if (previews.isEmpty()) "사진 추가하기" else "사진 더 추가하기"
+            isEnabled = previews.size < 5; alpha = if (isEnabled) 1f else .45f
         }
     }
 }

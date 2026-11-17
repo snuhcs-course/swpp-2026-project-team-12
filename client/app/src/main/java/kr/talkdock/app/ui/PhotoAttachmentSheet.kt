@@ -25,7 +25,7 @@ import java.util.concurrent.Executors
 class PhotoAttachmentSheet(
     private val ui: Ui,
     private val large: Boolean,
-    private val replacing: Boolean,
+    private val remaining: Int,
     private val takePhoto: () -> Unit,
     private val openGallery: () -> Unit,
     private val choosePhotos: (List<Uri>) -> Unit,
@@ -131,7 +131,7 @@ class PhotoAttachmentSheet(
                         loadThumbnail(tile)
                     }
                     status.text = if (recent.isEmpty()) "최근 사진이 없어요. 사진을 촬영하거나 갤러리에서 골라 주세요."
-                        else if (replacing) "선택한 사진으로 첨부 사진을 바꿔요."
+                        else if (remaining < 5) "기존 사진에 ${remaining}장까지 더 추가할 수 있어요."
                         else "사진을 고른 뒤 ‘사진 추가’를 눌러 주세요."
                 }, { status.text = "최근 사진을 불러오지 못했어요. 갤러리에서 골라 주세요." })
             }
@@ -180,7 +180,7 @@ class PhotoAttachmentSheet(
     }
 
     private fun updateSelection() {
-        done.text = (if (replacing) "사진 바꾸기" else "사진 추가") + if (selected.isEmpty()) "" else " (${selected.size})"
+        done.text = "사진 추가" + if (selected.isEmpty()) "" else " (${selected.size})"
         done.isEnabled = selected.isNotEmpty(); done.alpha = if (done.isEnabled) 1f else .4f
         tiles.forEach { tile ->
             val number = selected.indexOf(tile.uri) + 1
@@ -203,7 +203,13 @@ class PhotoAttachmentSheet(
             addView(badge, LayoutParams(ui.dp(26), ui.dp(26), Gravity.TOP or Gravity.END).apply { topMargin = ui.dp(5); marginEnd = ui.dp(5) })
             image.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             badge.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            setOnClickListener { if (!selected.remove(uri)) selected.add(uri); updateSelection() }
+            setOnClickListener {
+                if (!selected.remove(uri)) {
+                    if (selected.size >= remaining) { Toast.makeText(context, "사진을 ${remaining}장 더 추가할 수 있어요.", Toast.LENGTH_SHORT).show(); return@setOnClickListener }
+                    selected.add(uri)
+                }
+                updateSelection()
+            }
             post { updateSelection() }
         }
     }
