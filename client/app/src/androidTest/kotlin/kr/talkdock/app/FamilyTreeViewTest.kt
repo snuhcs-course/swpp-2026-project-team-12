@@ -85,6 +85,21 @@ class FamilyTreeViewTest {
                 field("treeDraft", draft)
                 MainActivity::class.java.getDeclaredMethod("tree").apply { isAccessible = true }.invoke(activity)
             }
+            val continueButton = waitNode { it.text?.toString() == "선택한 자리로 계속하기" }
+            val footerBefore = Rect().also { continueButton.getBoundsInScreen(it) }
+            instrumentation.runOnMainSync {
+                fun scrolls(view: View): List<android.widget.ScrollView> =
+                    (if (view is android.widget.ScrollView) listOf(view) else emptyList()) +
+                        ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { scrolls(group.getChildAt(it)) } } ?: emptyList())
+                scrolls(activity.window.decorView).first().scrollTo(0, 1000)
+            }
+            instrumentation.waitForIdleSync()
+            val footerAfter = Rect().also { waitNode { it.text?.toString() == "선택한 자리로 계속하기" }.getBoundsInScreen(it) }
+            assertEquals("Continue must stay visible while the tree page scrolls", footerBefore, footerAfter)
+            instrumentation.runOnMainSync {
+                val content = MainActivity::class.java.getDeclaredField("pageScroll").apply { isAccessible = true }.get(activity) as android.widget.ScrollView
+                content.scrollTo(0, 0)
+            }
             val father = waitNode { it.contentDescription?.toString() == "김대협의 아버지 추가" }
             screenshot("tree-before.png")
             assertTrue(father.performAction(AccessibilityNodeInfo.ACTION_CLICK))

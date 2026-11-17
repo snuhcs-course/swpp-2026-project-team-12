@@ -552,6 +552,8 @@ a.room-label:hover > span:first-of-type { color: var(--accent); }
 .tree-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 12px 14px 0; font-size: .72rem; color: var(--muted); }
 .tree-help { padding: 0 14px 12px; }
 .tree-selection { border-radius: 10px; padding: 14px; background: var(--peach); font-size: .85rem; }
+.tree-join-footer { position: sticky; bottom: 0; z-index: 3; padding: 8px 0 max(12px, env(safe-area-inset-bottom)); background: var(--paper); border-top: 1px solid var(--line); }
+.tree-join-footer .tree-selection { margin: 0 0 8px; }
 .onboarding-grid:has(.family-tree-board) { grid-template-columns: minmax(0, 1fr); }
 .onboarding-grid:has(.family-tree-board) > section:first-child { display: none; }
 @media (max-width: 650px) { .family-tree-canvas { height: 380px; } .tree-toolbar { padding: 10px; } }

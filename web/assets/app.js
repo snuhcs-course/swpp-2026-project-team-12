@@ -419,9 +419,9 @@ function renderJoinPreview(message = '') {
   const valid = draft.canClaim(draft.selectedId, state.user.gender);
   $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">+로 가족을 연결하고, 가계도에서 내 빈자리를 눌러 주세요.</p>
     ${message ? errorBlock(message) : ''}${treeMarkup(draft, { editable: true, gender: state.user.gender, userId: state.user.user_id })}
-    <p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
+    <div class="tree-join-footer"><p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
     <div class="button-row">${button('undo-tree', '마지막 추가 취소', '', 'button secondary', draft.additions.length ? '' : 'disabled')}${button('reload-tree', '처음부터 다시', 'refresh', 'button quiet')}</div>
-    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div>`;
+    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div></div>`;
   mountTree($('#join-panel .family-tree-board'), draft, {
     editable: true,
     onPerson(id) { draft.selectedId = id; renderJoinPreview(); },

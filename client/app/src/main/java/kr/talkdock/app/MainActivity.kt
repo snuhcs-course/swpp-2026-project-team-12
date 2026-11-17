@@ -1166,7 +1166,11 @@ class MainActivity : ComponentActivity() {
         controls.addView(undo, LinearLayout.LayoutParams(0, -2, 1f)); content.addView(controls)
         ui.gap(content, 16); content.addView(selected)
         ui.label(content, "살구색: 가입한 가족 · 흰색: 빈 가족\n형제자매는 부모의 자녀 +에서 추가할 수 있어요.", 14f, color = ui.muted)
-        (next.parent as LinearLayout).removeView(next); content.addView(next)
+        val footer = ui.column(16).apply { background = ui.shape(ui.paper, 0) }
+        (selected.parent as LinearLayout).removeView(selected); footer.addView(selected)
+        (next.parent as LinearLayout).removeView(next); footer.addView(next)
+        next.tag = "tree-continue"
+        page.addView(footer, LinearLayout.LayoutParams(-1, -2))
         update(draft.selectedId ?: draft.ownerId)
     }
 
