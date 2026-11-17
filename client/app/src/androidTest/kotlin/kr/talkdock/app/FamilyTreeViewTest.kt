@@ -139,12 +139,26 @@ class FamilyTreeViewTest {
                 val content = MainActivity::class.java.getDeclaredField("pageScroll").apply { isAccessible = true }.get(activity) as android.widget.ScrollView
                 content.scrollTo(0, 0)
             }
+            fun ownerBounds(): Rect {
+                instrumentation.waitForIdleSync()
+                val result = Rect()
+                instrumentation.runOnMainSync {
+                    val world = board(activity.window.decorView)!!.getChildAt(0) as ViewGroup
+                    val owner = (0 until world.childCount).map { world.getChildAt(it) }
+                        .single { it.contentDescription == "김대협, 가입한 가족" }
+                    val location = IntArray(2); owner.getLocationOnScreen(location)
+                    result.set(location[0], location[1], location[0] + owner.width, location[1] + owner.height)
+                }
+                return result
+            }
             screenshot("tree-before.png")
-            val ownerBefore = Rect().also { waitNode { it.contentDescription?.toString() == "김대협, 가입한 가족" }.getBoundsInScreen(it) }
+            // Accessibility can retain pre-scroll bounds. Compare the actual views
+            // after the UI queue settles, keeping the exact viewport invariant.
+            val ownerBefore = ownerBounds()
             assertTrue(waitNode { it.text?.toString() == "+ 가족 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             assertTrue(waitNode { it.text?.toString() == "아버지 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
             instrumentation.waitForIdleSync()
-            val ownerAfter = Rect().also { waitNode { it.contentDescription?.toString() == "김대협, 가입한 가족" }.getBoundsInScreen(it) }
+            val ownerAfter = ownerBounds()
             assertEquals("Adding a parent must not recenter the viewport", ownerBefore, ownerAfter)
             instrumentation.runOnMainSync { board(activity.window.decorView)!!.centerOn(draft.additions.single().id) }
             val blank = waitNode { it.contentDescription?.toString() == "빈 가족, 내 자리로 선택 가능" }
