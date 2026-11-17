@@ -72,7 +72,7 @@ class InlinePostAudio(
             speaker.stop()
             active = true
             autoplayAfterSummary = true
-            updateToggle()
+            render()
         }
         else if (summaryText != null) startSpeech(summaryText!!)
         else loadSummary(false)
@@ -99,6 +99,12 @@ class InlinePostAudio(
         visibility = VISIBLE
         ui.gap(this, 12)
         summaryText?.let { ui.note(this, it, large) }
+        if (active) {
+            ui.button(this, if (summaryLoading || speechLoading) "취소" else "■ 듣기 중지", false, height()) { stop() }.apply {
+                tag = "post-audio-stop"
+                contentDescription = if (summaryLoading || speechLoading) "음성 준비 취소" else "듣기 중지"
+            }
+        }
         // A false retry flag means the server is still processing, with manual recheck available.
         if (speechLoading || summaryLoading || summaryRetry == false) {
             val stage = if (speechLoading) PostPreparationView.Stage.SPEECH else PostPreparationView.Stage.NEWS
