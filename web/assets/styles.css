@@ -646,3 +646,9 @@ input[type="password"]::placeholder { color: #9e9a91; opacity: 1; }
   .assistant-form { padding: 10px 12px 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .assistant-thinking > span, .assistant-launcher::before, .assistant-launcher::after { animation: none; } }
+
+/* Account UAT: keep guidance next to the input. */
+.field-error { display:block; color:#9c2921; font-size:1.125rem; font-weight:700; white-space:pre-line; margin-top:.5rem; }
+[aria-invalid="true"] { border:2px solid #9c2921; }
+.voice-preview-status { min-height:1.5em; }
+input[name="invite_code"] { text-transform:uppercase; }
