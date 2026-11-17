@@ -17,9 +17,12 @@ export const availabilityMessages = {
 
 // Confirmation is checked locally and never becomes part of the API payload.
 export function registrationPayload(data) {
-  if (typeof data.password !== 'string' || data.password.length < 10 || data.password.length > 128 || !/[0-9]/.test(data.password)) {
-    throw new ApiError('비밀번호는 10자 이상, 숫자 포함으로 입력해 주세요. 최대 128자예요.', 0, { field: 'password' });
-  }
+  const reasons = [];
+  if (typeof data.password !== 'string' || data.password.length < 10) reasons.push('비밀번호는 10자 이상으로 입력해 주세요.');
+  if (data.password?.length > 128) reasons.push('비밀번호는 최대 128자까지 입력할 수 있어요.');
+  if (!/[0-9]/.test(data.password || '')) reasons.push('비밀번호에 숫자를 한 개 이상 포함해 주세요.');
+  if (/^[0-9]+$/.test(data.password || '')) reasons.push('숫자만으로는 만들 수 없어요. 문자도 함께 넣어 주세요.');
+  if (reasons.length) throw new ApiError(reasons.join('\n'), 0, { field: 'password' });
   if (!data.confirm_password) throw new ApiError('비밀번호를 한 번 더 입력해 주세요.', 0, { field: 'confirm_password' });
   if (data.password !== data.confirm_password) throw new ApiError('비밀번호가 일치하지 않아요. 다시 확인해 주세요.', 0, { field: 'confirm_password' });
   const payload = { username: data.username, password: data.password, name: data.name, gender: data.gender };
@@ -62,7 +65,7 @@ export async function api(path, { method = 'GET', data, binary = false, room = r
       }
       const detail = typeof result?.error === 'string' ? result.error.trim() : '';
       const unavailable = response.status >= 500 && response.status <= 599 && !detail;
-      throw new ApiError(detail || (unavailable ? availabilityMessages.server : `요청을 처리하지 못했어요. (${response.status})`), response.status, { unavailable });
+      throw new ApiError(detail || (unavailable ? availabilityMessages.server : `요청을 처리하지 못했어요. (${response.status})`), response.status, { unavailable, field: typeof result?.field === 'string' ? result.field : null });
     }
     return binary ? await response.blob() : await response.json().catch(() => {
       throw new ApiError('서버 응답을 확인하지 못했어요. 다시 시도해 주세요.');

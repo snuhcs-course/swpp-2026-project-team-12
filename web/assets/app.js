@@ -1,3 +1,4 @@
+import { VoicePreview } from './voice-preview.js';
 import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore } from './ui-modes.js';
 import { GuidedHelp } from './guided-help.js';
 import { api, ApiError, registrationPayload, hasToken, setToken, setRoom, imageURL, clearImages } from './api.js';
@@ -98,6 +99,7 @@ const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['sea
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let recordingRequest = 0;
 let previewURLs = [];
+let voicePreview = null;
 let maintenanceNotice, reconnecting = false;
 let dailyStatus = null, dailyQuestion = null, dailyDraft = null, dailyRequest = 0, dailyHistoryRows = [];
 const dailyDrafts = new Map();
@@ -184,7 +186,22 @@ function notifyFailure(error) {
 function field(label, name, type = 'text', attrs = '') {
   return `<label class="field"><span>${label}</span><input name="${name}" type="${type}" ${attrs}></label>`;
 }
+function showFieldError(form, error) {
+  const input = form?.elements.namedItem(error.field);
+  if (!input) return false;
+  let message = input.parentElement.querySelector('.field-error');
+  if (!message) {
+    message = document.createElement('span'); message.className = 'field-error';
+    message.id = `error-${form.dataset.form}-${input.name}`; message.setAttribute('role', 'alert');
+    input.after(message);
+  }
+  message.textContent = error.message;
+  input.setAttribute('aria-invalid', 'true'); input.setAttribute('aria-describedby', message.id);
+  input.focus(); input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  return true;
+}
 function stopAudio() {
+  voicePreview?.cancel();
   if (audio) { audio.pause(); audio = null; }
   if (audioURL) { URL.revokeObjectURL(audioURL); audioURL = null; }
   document.querySelectorAll('[data-action="stop-audio"]').forEach(node => { node.hidden = true; });
@@ -244,6 +261,7 @@ async function busy(element, task, errorTarget) {
   try { result = await task(); }
   catch (error) {
     if (session !== state.session) return;
+    if (error.field && showFieldError(errorTarget?.closest('form'), error)) return;
     if (errorTarget?.isConnected) { errorTarget.innerHTML = failureContent(error); errorTarget.classList.toggle('availability-inline', Boolean(error.unavailable)); }
     else notifyFailure(error);
   } finally {
@@ -296,31 +314,39 @@ async function fillVoiceSelect(select, selected) {
   if (note) note.textContent = `기본값: ${title(fallback)} · 계정 설정에서 언제든 바꿀 수 있어요.`;
   const sample = field.querySelector('[data-voice-sample]');
   sample.innerHTML = `${icon('volume')}미리 듣기`;
-  const showSample = () => { sample.hidden = !list.voices.find(voice => voice.key === select.value)?.sample; };
-  select.addEventListener('change', () => { stopAudio(); showSample(); });
-  sample.addEventListener('click', () => playVoiceSample(select.value, sample));
-  showSample();
-  field.hidden = false;
+  const status = document.createElement('p');
+  status.className = 'help voice-preview-status'; status.setAttribute('role', 'status'); sample.after(status);
+  let player = null, url = null;
+  const stop = () => { player?.pause(); player = null; if (url) URL.revokeObjectURL(url); url = null; };
+  const preview = new VoicePreview({
+    load: key => api(`speech/voices/${encodeURIComponent(key)}/sample/`, { binary: true }),
+    current: key => select.isConnected && select.value === key && !document.hidden,
+    status: text => { if (select.isConnected) status.textContent = text; },
+    stop,
+    play: async (blob, ended) => {
+      url = URL.createObjectURL(blob); player = new Audio(url);
+      const activePlayer = player;
+      player.addEventListener('ended', () => { if (player === activePlayer) { stop(); ended(); } }, { once: true });
+      player.addEventListener('error', () => {
+        if (player === activePlayer) { stop(); status.textContent = '재생하지 못했어요. 미리 듣기를 다시 눌러 주세요.'; }
+      }, { once: true });
+      await player.play();
+    },
+  });
+  voicePreview?.cancel(); voicePreview = preview;
+  const showSample = () => {
+    preview.cancel();
+    sample.hidden = !list.voices.find(voice => voice.key === select.value)?.sample;
+    if (!sample.hidden) preview.preload(select.value);
+  };
+  select.addEventListener('change', showSample);
+  sample.addEventListener('click', () => { stopAudio(); preview.preview(select.value); });
+  showSample(); field.hidden = false;
 }
-// Every voice reads the same short line, so people can compare voices before choosing.
-async function playVoiceSample(key, button) {
-  stopAudio();
-  button.disabled = true;
-  try {
-    const blob = await api(`speech/voices/${encodeURIComponent(key)}/sample/`, { binary: true });
-    audioURL = URL.createObjectURL(blob);
-    audio = new Audio(audioURL);
-    audio.addEventListener('ended', stopAudio, { once: true });
-    await audio.play();
-  } catch {
-    stopAudio();
-    toast('목소리 예시를 재생하지 못했어요. 다시 시도해 주세요.');
-  } finally {
-    button.disabled = false;
-  }
-}
+document.addEventListener('visibilitychange', () => { if (document.hidden) voicePreview?.cancel(); });
 
 function renderAuth(register = false) {
+  stopAudio();
   app.innerHTML = `<main id="main" class="auth-layout">
     <section class="auth-story">${brand()}<div class="story-copy"><p class="eyebrow">마음이 닿는 곳, 토닥</p><h1>작은 일상이 모여,<br>우리의 이야기가 돼요.</h1><p>멀리 있어도 가까이.<br>사진 한 장, 따뜻한 한마디로 안부를 나눠요.</p></div>
       <div class="story-art" aria-hidden="true"><div class="art-sun"></div><div class="art-window"><div class="art-hill"></div><div class="art-hill second"></div><span class="art-heart">${icon('heart')}</span></div><div class="art-note">${icon('leaf')}오늘도, 함께라서 좋은 날</div><div class="art-stamp">우리 가족의<br>소중한 순간들</div></div>
@@ -330,7 +356,7 @@ function renderAuth(register = false) {
       <form data-form="${register ? 'register' : 'login'}">
         ${register ? field('이름', 'name', 'text', 'required maxlength="40" autocomplete="name" placeholder="가족에게 보여줄 이름"') : ''}
         ${field('아이디', 'username', 'text', 'required maxlength="150" autocomplete="username" placeholder="아이디를 입력해 주세요" autocapitalize="none"')}
-        ${field('비밀번호', 'password', 'password', `required maxlength="128" ${register ? 'minlength="10"' : ''} autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
+        ${field('비밀번호', 'password', 'password', `required maxlength="128"  autocomplete="${register ? 'new-password' : 'current-password'}" placeholder="${register ? '숫자를 포함한 10자 이상' : '비밀번호를 입력해 주세요'}"`)}
         ${register ? field('비밀번호 확인', 'confirm_password', 'password', 'required maxlength="128" autocomplete="new-password" placeholder="비밀번호를 한 번 더 입력해 주세요"') : ''}
         ${register ? '<label class="screen-choice"><input type="checkbox" name="screen_mode" value="elder">어르신 화면으로 시작하기</label>' : ''}
         ${register ? '<label class="field"><span>가족 관계 표시에 사용할 성별</span><select name="gender" required><option value="">성별을 선택해 주세요</option><option value="female">여성</option><option value="male">남성</option></select></label><div data-voice-field hidden><label class="field"><span>소식을 읽어 줄 목소리 (선택)</span><select name="tts_voice"></select></label><button type="button" class="button quiet compact" data-voice-sample hidden></button><p class="help" data-voice-default></p></div><p class="help">비밀번호는 숫자를 포함해 10자 이상으로 만들어 주세요. 아이디·이름과 비슷하거나 흔한 값, 숫자만으로는 만들 수 없어요.</p>' : ''}
@@ -393,6 +419,7 @@ async function openRoom(id, { keepRoute = false } = {}) {
 }
 
 function renderRoomChoice(message = '') {
+  stopAudio();
   const joined = state.rooms.length > 0;
   app.innerHTML = `<main id="main" class="onboarding"><header>${brand()}${button('logout', '로그아웃', 'logout', 'button quiet')}</header>
     <div class="onboarding-intro"><p class="eyebrow">우리 가족, 여기서 만나요</p><h1>${e(state.user.name)}님, ${joined ? '어느 가족방으로 갈까요?' : '가족과 연결해 볼까요?'}</h1><p class="muted">${joined ? '들어갈 가족방을 고르거나, 새 가족방을 만들고 참여할 수 있어요.' : '새로운 가족방을 만들거나, 가족에게 받은 초대코드로 참여하세요.'}</p></div>
@@ -411,7 +438,7 @@ function roomList() {
 }
 function roomForms() {
   return `<div class="onboarding-grid"><section class="panel"><span class="empty-icon">${icon('home')}</span><h2>가족방 만들기</h2><p class="muted">우리 가족의 첫 이야기를 시작해요.</p><form data-form="create-room">${field('가족방 이름', 'room_name', 'text', 'required maxlength="60" placeholder="예: 행복이 피어나는 우리 집"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="new-password"')}${field('하루 요약 시간 (한국 시간)', 'digest_time', 'time', 'required value="21:00"')}<p class="form-error" role="alert"></p><button type="submit" class="button primary full">새 가족방 만들기${icon('plus')}</button></form></section>
-    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div>`;
+    <section class="panel"><span class="empty-icon sage">${icon('people')}</span><h2>초대받은 가족방에 참여</h2><p class="muted">초대코드와 가족방 비밀번호를 입력해 주세요.</p><form data-form="lookup-room">${field('초대코드', 'invite_code', 'text', 'required maxlength="8" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="6자리 초대코드"')}${field('가족방 비밀번호', 'password', 'password', 'required maxlength="128" autocomplete="off"')}<p class="form-error" role="alert"></p><button type="submit" class="button secondary full">가족방 확인하기${icon('arrow')}</button></form><div id="join-panel"></div></section></div>`;
 }
 
 function renderJoinPreview(message = '') {
@@ -1076,6 +1103,12 @@ const formHandlers = {
   },
 };
 
+document.addEventListener('invalid', event => {
+  const input = event.target;
+  if (input.closest('form[data-form]')) showFieldError(input.form, { field: input.name, message:
+    input.validity.valueMissing ? '이 항목을 입력해 주세요.' : input.validationMessage });
+}, true);
+
 document.addEventListener('submit', async event => {
   const form = event.target.closest('form[data-form]');
   if (!form) return;
@@ -1088,11 +1121,7 @@ document.addEventListener('submit', async event => {
   if (form.dataset.form === 'register') {
     try { data = registrationPayload(data); }
     catch (error) {
-      $('.form-error', form).classList.remove('availability-inline');
-      $('.form-error', form).textContent = error.message;
-      const input = form.elements.namedItem(error.field);
-      input?.setAttribute('aria-invalid', 'true');
-      input?.focus();
+      showFieldError(form, error);
       delete form.dataset.pending;
       return;
     }
@@ -1228,12 +1257,14 @@ document.addEventListener('click', async event => {
 });
 document.addEventListener('input', event => {
   if (event.target.closest('[data-form^="daily-"]')) captureDailyDraft();
-  if (event.target.closest('[data-form="register"]') && ['password', 'confirm_password'].includes(event.target.name)) {
-    const form = event.target.form;
-    form.querySelectorAll('[aria-invalid]').forEach(input => input.removeAttribute('aria-invalid'));
-    $('.form-error', form).textContent = '';
+  if (event.target.name === 'invite_code') {
+    const input = event.target, start = input.selectionStart, end = input.selectionEnd;
+    input.value = input.value.toUpperCase(); input.setSelectionRange(start, end);
   }
-  if (event.target.id === 'post-caption') $('#caption-count').textContent = event.target.value.length;
+  if (event.target.matches('input')) {
+    event.target.removeAttribute('aria-invalid'); event.target.removeAttribute('aria-describedby');
+    event.target.parentElement.querySelector('.field-error')?.remove();
+  }
   if (event.target.closest('[data-form="lookup-room"]')) { state.lookup = null; $('#join-panel').innerHTML = ''; }
 });
 document.addEventListener('change', event => {

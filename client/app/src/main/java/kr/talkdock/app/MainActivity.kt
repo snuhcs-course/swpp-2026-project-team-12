@@ -103,6 +103,15 @@ class MainActivity : ComponentActivity() {
     private var session: JSONObject? = null
     private var room = JSONObject()
     private var screen = "welcome"
+    private val voiceSamples = Executors.newFixedThreadPool(2)
+    private val sampleCache = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.Future<ByteArray>>()
+    private var sampleGeneration = 0
+    private var resetVoicePreview: (() -> Unit)? = null
+    private fun stopVoicePreview() {
+        sampleGeneration++
+        resetVoicePreview?.invoke()
+        speaker.stop()
+    }
     private var pageNumber = 0
     private var busy = false
     private var pendingPush: Map<String, String>? = null
@@ -348,6 +357,7 @@ class MainActivity : ComponentActivity() {
         closeAssistantMenu()
         guideHandler.removeCallbacks(checkForReply)
         foreground = false
+        stopVoicePreview()
         if (recorder?.active == true) {
             voiceState("말하기 시작", false)
             voiceStatus?.text = "녹음이 중단됐어요. 다시 말하기 시작을 눌러 주세요."
@@ -362,6 +372,7 @@ class MainActivity : ComponentActivity() {
         closeAssistantMenu()
         assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss()
         stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow()
+        voiceSamples.shutdownNow(); sampleCache.clear()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
     }
@@ -433,6 +444,7 @@ class MainActivity : ComponentActivity() {
         stopPostAudio(); replyPreview?.stop(); replyPreview = null
         if (name !in setOf("home", "post", "detail", "voice", "review", "roomSync")) guideStep = null
         feedReady = false
+        stopVoicePreview(); resetVoicePreview = null
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null; voiceControlLabel = null; voiceWave = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -1000,15 +1012,44 @@ class MainActivity : ComponentActivity() {
         ui.ghost(content, "이미 계정이 있어요") { login() }
         if (sessions.all().isNotEmpty()) ui.ghost(content, "이 휴대폰의 계정으로 돌아가기") { accounts() }
     }
+    private fun inputError(input: EditText): (String?) -> Unit {
+        val message = ui.label(content, "", 18f, true, ui.coralDeep).apply {
+            visibility = View.GONE
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        input.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: android.view.accessibility.AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.isContentInvalid = message.text.isNotBlank()
+                info.error = message.text.takeIf { it.isNotBlank() }
+            }
+        }
+        fun show(text: String?) {
+            input.error = null
+            message.text = text.orEmpty()
+            message.visibility = if (text == null) View.GONE else View.VISIBLE
+            if (text != null) {
+                input.requestFocus()
+                message.post { message.requestRectangleOnScreen(Rect(0, 0, message.width, message.height), false) }
+            }
+        }
+        content.removeView(message)
+        content.addView(message, content.indexOfChild(input) + 1)
+        input.doAfterTextChanged { show(null) }
+        return ::show
+    }
+
     private fun register() {
         navigation("계정 만들기", { welcome() }, name = "register")
         heading("어떻게 불러드릴까요?", "가족에게 보일 이름을 알려주세요.")
         val name = ui.input(content, "내 이름", "예: 홍정아")
         val username = ui.input(content, "아이디", "로그인할 아이디", identifier = true)
         val password = ui.input(content, "계정 비밀번호", "숫자를 포함한 10자 이상", password = true).apply { typeface = ui.font; setHintTextColor(ui.hintGray) }
+        val passwordError = inputError(password)
         val confirmation = ui.input(content, "비밀번호 확인", "비밀번호를 한 번 더 입력해 주세요", password = true).apply {
             typeface = ui.font; setHintTextColor(ui.hintGray)
         }
+        val confirmationError = inputError(confirmation)
         ui.label(content, "성별 (필수)", 16f, true)
         val genders = Spinner(this)
         genders.contentDescription = "성별 (필수)"
@@ -1023,14 +1064,16 @@ class MainActivity : ComponentActivity() {
                 toast("아이디, 비밀번호, 이름을 입력해 주세요."); return@button
             }
             if (genders.selectedItemPosition == 0) { toast("성별을 선택해 주세요."); return@button }
-            if (password.text.length !in 10..128 || password.text.none { it in '0'..'9' }) {
-                password.error = "비밀번호는 10자 이상, 숫자 포함으로 입력해 주세요. 최대 128자예요."; return@button
-            }
-            confirmation.error = null
+            val reasons = mutableListOf<String>()
+            if (password.text.length < 10) reasons.add("비밀번호는 10자 이상으로 입력해 주세요.")
+            if (password.text.length > 128) reasons.add("비밀번호는 최대 128자까지 입력할 수 있어요.")
+            if (password.text.none { it in '0'..'9' }) reasons.add("비밀번호에 숫자를 한 개 이상 포함해 주세요.")
+            if (password.text.isNotEmpty() && password.text.all { it in '0'..'9' }) reasons.add("숫자만으로는 만들 수 없어요. 문자도 함께 넣어 주세요.")
+            if (reasons.isNotEmpty()) { passwordError(reasons.joinToString("\n")); return@button }
+            passwordError(null); confirmationError(null)
             if (confirmation.text.isEmpty() || password.text.toString() != confirmation.text.toString()) {
-                confirmation.error = if (confirmation.text.isEmpty()) "비밀번호를 한 번 더 입력해 주세요."
-                    else "비밀번호가 일치하지 않아요. 다시 확인해 주세요."
-                confirmation.requestFocus()
+                confirmationError(if (confirmation.text.isEmpty()) "비밀번호를 한 번 더 입력해 주세요."
+                    else "비밀번호가 일치하지 않아요. 다시 확인해 주세요.")
                 return@button
             }
             if (name.text.toString().trim().length > 40) { name.error = "이름은 40자까지 입력해 주세요."; return@button }
@@ -1038,7 +1081,11 @@ class MainActivity : ComponentActivity() {
                 "name" to name.text.toString().trim(), "gender" to listOf("", "male", "female")[genders.selectedItemPosition])
             voice()?.let { data.put("tts_voice", it) }
             val client = apiClient()
-            async({ client.request("accounts/register/", "POST", data) }) {
+            async({ client.request("accounts/register/", "POST", data) }, failure = { error ->
+                if (error is ApiException && error.field == "password") {
+                    passwordError(error.message); true
+                } else false
+            }) {
                 saveSession(it, elderChoice.isChecked); roomChoice()
             }
         }
@@ -1114,7 +1161,10 @@ class MainActivity : ComponentActivity() {
         navigation("가족 방에 들어가기", { roomChoice() }, name = "join")
         ui.label(content, "초대받으셨나요?", 14f, color = ui.muted); ui.gap(content, 16)
         heading("가족이 보낸 코드를\n입력해 주세요.", "초대 코드와 가족방 비밀번호를 입력해 주세요.")
-        val code = ui.input(content, "초대코드", "예: ABC123")
+        val code = ui.input(content, "초대코드", "예: ABC123").apply {
+            filters = arrayOf(android.text.InputFilter.AllCaps())
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+        }
         val password = ui.input(content, "가족 방 비밀번호", "가족이 알려준 비밀번호", password = true)
         ui.button(content, "가족 방 확인하기") {
             if (code.text.isBlank() || password.text.isBlank()) { toast("초대코드와 비밀번호를 입력해 주세요."); return@button }
@@ -2269,10 +2319,38 @@ class MainActivity : ComponentActivity() {
         val spinner = Spinner(this).apply { contentDescription = title }
         box.addView(spinner, LinearLayout.LayoutParams(-1, ui.dp(56)))
         var keys = emptyList<String>()
-        val preview = ui.button(box, "선택한 목소리 미리 듣기", false) {
+        val status = ui.label(box, "", 17f, color = ui.muted).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        lateinit var preview: Button
+        fun reset() { preview.isEnabled = true; preview.text = "선택한 목소리 미리 듣기"; status.text = "" }
+        preview = ui.button(box, "선택한 목소리 미리 듣기", false) {
             val key = keys.getOrNull(spinner.selectedItemPosition) ?: return@button
-            speaker.stop()
-            playVoiceSample(client, key)
+            stopVoicePreview()
+            resetVoicePreview = ::reset
+            val generation = sampleGeneration
+            val number = pageNumber
+            preview.isEnabled = false; status.text = "목소리 예시를 준비하고 있어요."
+            val future = cachedVoiceSample(client, key)
+            // The cache future is already queued before this waiter.
+            voiceSamples.execute {
+                val result = runCatching { future.get() }
+                if (result.isFailure) sampleCache.remove(client.baseUrl + key, future)
+                runOnUiThread {
+                    if (isDestroyed || number != pageNumber || generation != sampleGeneration || !foreground) return@runOnUiThread
+                    reset()
+                    result.fold({ bytes ->
+                        val file = File.createTempFile("voice-sample-", ".mp3", cacheDir)
+                        runCatching {
+                            file.writeBytes(bytes)
+                            status.text = "목소리 예시를 듣고 있어요."
+                            speaker.play(file, completed = { if (generation == sampleGeneration) reset() }, failed = {
+                                if (generation == sampleGeneration) status.text = "재생하지 못했어요. 미리 듣기를 다시 눌러 주세요."
+                            })
+                        }.onFailure { file.delete(); status.text = "재생하지 못했어요. 미리 듣기를 다시 눌러 주세요." }
+                    }, { status.text = "목소리 예시를 불러오지 못했어요. 미리 듣기를 다시 눌러 주세요." })
+                }
+            }
         }.apply { visibility = View.GONE }
         ui.gap(box)
         content.addView(box, LinearLayout.LayoutParams(-1, -2))
@@ -2293,8 +2371,10 @@ class MainActivity : ComponentActivity() {
                 spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, titles)
                 spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
                     override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                        speaker.stop()
+                        stopVoicePreview(); reset()
+                        resetVoicePreview = ::reset
                         preview.visibility = if (samples[position]) View.VISIBLE else View.GONE
+                        if (samples[position]) cachedVoiceSample(client, keys[position])
                     }
                     override fun onNothingSelected(parent: AdapterView<*>?) {}
                 }
@@ -2306,17 +2386,11 @@ class MainActivity : ComponentActivity() {
         return { keys.getOrNull(spinner.selectedItemPosition) }
     }
 
-    /** Plays the short line every voice reads, so people can compare voices before choosing. */
-    private fun playVoiceSample(client: ApiClient, key: String) {
-        val number = pageNumber
-        network.execute {
-            val bytes = runCatching { client.voiceSample(key) }.getOrNull()
-            runOnUiThread {
-                if (isDestroyed || number != pageNumber || !foreground) return@runOnUiThread
-                if (bytes == null) { toast("목소리 예시를 재생하지 못했어요. 다시 시도해 주세요."); return@runOnUiThread }
-                val file = File.createTempFile("voice-sample-", ".mp3", cacheDir)
-                runCatching { file.writeBytes(bytes); speaker.play(file) }.onFailure { file.delete(); toast("목소리 예시를 재생하지 못했어요.") }
-            }
+    private fun cachedVoiceSample(client: ApiClient, key: String): java.util.concurrent.Future<ByteArray> {
+        val cacheKey = client.baseUrl + key
+        // Failed downloads are evicted so the next click can retry.
+        return sampleCache.computeIfAbsent(cacheKey) {
+            voiceSamples.submit<ByteArray> { client.voiceSample(key) }
         }
     }
 
