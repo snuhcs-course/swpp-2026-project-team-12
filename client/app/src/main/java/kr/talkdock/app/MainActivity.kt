@@ -53,6 +53,7 @@ import kr.talkdock.app.ui.PhotoAttachmentSheet
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.ViewportPhotoLoader
 import kr.talkdock.app.ui.DraftPhotoStrip
+import kr.talkdock.app.ui.PostVoiceInput
 import kr.talkdock.app.ui.TodakArtView
 import kr.talkdock.app.ui.TodakWaitingView
 import kr.talkdock.app.ui.TodakSuccessView
@@ -147,6 +148,8 @@ class MainActivity : ComponentActivity() {
     private var photoAttachmentSheet: PhotoAttachmentSheet? = null
     private var caption = ""
     private var captionInput: EditText? = null
+    private var postVoiceInput: PostVoiceInput? = null
+    private var postVoiceText = ""
     private var draftPhotoIndex = 0
     private var recognized = ""
     private var voiceFromDetail = false
@@ -229,6 +232,7 @@ class MainActivity : ComponentActivity() {
         extraPhotos.addAll(state?.getStringArrayList("extraPhotos").orEmpty().map { File(it) }.filter { it.exists() })
         pendingPhoto = state?.getString("pendingPhoto")?.let { File(it) }
         caption = state?.getString("caption", "") ?: ""
+        postVoiceText = state?.getString("postVoiceText", "") ?: ""
         draftPhotoIndex = state?.getInt("draftPhotoIndex") ?: 0
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
         feedPostId = state?.getInt("feedPostId", -1)?.takeIf { it > 0 }
@@ -309,6 +313,7 @@ class MainActivity : ComponentActivity() {
         out.putStringArrayList("extraPhotos", ArrayList(extraPhotos.map { it.absolutePath }))
         out.putString("pendingPhoto", pendingPhoto?.absolutePath)
         out.putString("caption", captionInput?.text?.toString() ?: caption)
+        out.putString("postVoiceText", postVoiceText)
         out.putInt("draftPhotoIndex", draftPhotoIndex)
         out.putString("post", selectedPost?.toString())
         out.putInt("feedPostId", feedPostId ?: -1)
@@ -338,6 +343,7 @@ class MainActivity : ComponentActivity() {
         scheduleReplyCheck()
     }
     override fun onPause() {
+        postVoiceInput?.pauseRecording()
         narrator.interrupt()
         closeAssistantMenu()
         guideHandler.removeCallbacks(checkForReply)
@@ -408,6 +414,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
+        postVoiceInput?.close(); postVoiceInput = null
         guideHandler.removeCallbacks(checkForReply)
         rememberMemories()
         if (screen == "home" && name != "home") {
@@ -1787,7 +1794,7 @@ class MainActivity : ComponentActivity() {
     private fun selectedPhotos(): List<File> = listOfNotNull(photo) + extraPhotos
     private fun clearPhotoDraft() {
         selectedPhotos().forEach { it.delete() }
-        photo = null; extraPhotos.clear(); caption = ""; draftPhotoIndex = 0
+        photo = null; extraPhotos.clear(); caption = ""; postVoiceText = ""; draftPhotoIndex = 0
     }
     private fun copyGalleryPhotos(uris: List<Uri>): List<File> {
         val directory = File(filesDir, "camera").apply { mkdirs() }
@@ -1824,6 +1831,15 @@ class MainActivity : ComponentActivity() {
         val text = ui.input(content, "가족에게 전할 이야기", "오늘은 어떤 하루였나요?\n가족에게 전하고 싶은 이야기를 적어보세요.", multiline = true, initial = caption)
         text.layoutParams = text.layoutParams.apply { height = ui.dp(if (large) 220 else 180) }
         captionInput = text
+        postVoiceInput = PostVoiceInput(ui, large, api, summaries,
+            requestPermission = { narrator.interrupt(); requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode) },
+            initial = postVoiceText, remember = { postVoiceText = it },
+            beforeRecording = { narrator.interrupt(); speaker.stop() }, insert = { recognizedText ->
+                val combined = listOf(text.text.toString().trimEnd(), recognizedText).filter { it.isNotBlank() }.joinToString("\n")
+                if (combined.length > 2000) false else {
+                    text.setText(combined); text.setSelection(combined.length); caption = combined; true
+                }
+            }).also { content.addView(it) }
         val previews = files.map { localPreview(it) }
         val hasInvalidPhoto = previews.any { it == null }
         content.addView(DraftPhotoStrip(this, previews, large,
@@ -2000,7 +2016,8 @@ class MainActivity : ComponentActivity() {
     override fun onRequestPermissionsResult(code: Int, permissions: Array<String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
         if (code == microphoneCode) {
-            if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "voice" && foreground) selectedPost?.let { startVoice(it) }
+            if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "post" && foreground) postVoiceInput?.start()
+            else if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "voice" && foreground) selectedPost?.let { startVoice(it) }
             else { voiceStatus?.text = "말로 답장하려면 마이크 사용을 허용해 주세요."; toast("앱 설정에서 마이크 사용을 허용할 수 있어요.") }
         }
     }

@@ -723,7 +723,7 @@ async function playSpeech(text, target, valid = () => true) {
 }
 
 function openComposer() {
-  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><button type="button" data-action="record-post" class="button secondary">${icon('mic')}말로 쓰기</button><div id="voice-panel" aria-live="polite"></div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
@@ -829,8 +829,8 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
   if (recorder) return;
   const version = state.modalVersion;
   const questionRequest = dailyRequest;
-  const valid = () => version === state.modalVersion && (!purpose || questionRequest === dailyRequest);
-  const retryAction = purpose ? `daily-record-${purpose}` : 'record';
+  const valid = () => version === state.modalVersion && (!purpose || purpose === 'post' || questionRequest === dailyRequest);
+  const retryAction = purpose === 'post' ? 'record-post' : purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); }
@@ -856,8 +856,12 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
       const data = new FormData();
       const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
       data.append('audio', blob, `reply.${extension}`);
-      const result = await api(`posts/${postId}/replies/transcribe/`, { method: 'POST', data });
+      const result = await api(purpose === 'post' ? 'speech/transcribe/' : `posts/${postId}/replies/transcribe/`, { method: 'POST', data });
       if (!valid()) return;
+      if (purpose === 'post') {
+        $('#voice-panel').innerHTML = `<label class="field"><span>말씀하신 내용 · 고친 뒤 글에 넣어 주세요</span><textarea data-post-voice maxlength="2000" rows="3">${e(result.recognized)}</textarea></label>${button('post-voice-insert', '글에 넣기', 'plus', 'button secondary')}`;
+        return;
+      }
       if (purpose) {
         const field = $(`[data-form="daily-${purpose}"] textarea`, modal);
         if (field) { field.value = result.recognized; field.focus(); }
@@ -1137,6 +1141,16 @@ document.addEventListener('click', async event => {
     return busy(target, () => openRoom(id));
   }
   if (action === 'stop-audio') return stopAudio();
+  if (action === 'record-post') return busy(target, () => startRecording({ purpose: 'post' }));
+  if (action === 'post-voice-insert') {
+    const field = $('#post-caption'), transcript = $('[data-post-voice]')?.value.trim() || '';
+    if (!transcript) return toast('넣을 내용을 입력해 주세요.');
+    const text = [field.value.trimEnd(), transcript].filter(Boolean).join('\n');
+    if (text.length > 2000) return toast('소식은 모두 2,000자까지 쓸 수 있어요. 내용을 줄여 주세요.');
+    field.value = text; field.dispatchEvent(new Event('input', { bubbles: true }));
+    $('#voice-panel').innerHTML = '<p class="help">글에 넣었어요. 내용을 확인한 뒤 가족에게 전해 주세요.</p>';
+    return;
+  }
   if (action === 'cancel-record') { stopRecording(true); $('#voice-panel').innerHTML = ''; return; }
   if (action === 'finish-record') { stopRecording(); return; }
   if (action === 'digest-date') {

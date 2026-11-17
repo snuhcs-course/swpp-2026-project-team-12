@@ -11,6 +11,16 @@ from . import provider, voices
 @api("POST")
 def transcribe(request, pk):
     post_for(request, pk)
+    return transcribe_audio(request)
+
+
+@api("POST")
+def transcribe_post(request):
+    room_for(request)
+    return transcribe_audio(request)
+
+
+def transcribe_audio(request):
     audio = request.FILES.get("audio")
     if not audio or audio.size > 5 * 1024 * 1024:
         raise APIError("짧게 녹음한 음성을 다시 올려 주세요. 음성은 5MB까지 사용할 수 있어요.")
