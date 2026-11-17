@@ -50,18 +50,31 @@ export function familyTreeDrawing(draft, editable = false) {
     height: Math.max(300, ...[...points.values()].map(point => point.y + 90)) };
 }
 
+export function familyTreeConnection(drawing, first, second) {
+  const a = drawing.points.get(first), b = drawing.points.get(second);
+  const obstructed = [...drawing.points].some(([id, point]) => id !== first && id !== second &&
+    point.y === a.y && point.x > Math.min(a.x, b.x) && point.x < Math.max(a.x, b.x));
+  if (!obstructed) return [a, b];
+  // Route below the cards (bottom +65), within the gap before the next row (top +154).
+  const corridor = Math.max(a.y, b.y) + 84;
+  return [a, { x: a.x, y: corridor }, { x: b.x, y: corridor }, b];
+}
+
 export function treeMarkup(draft, { editable = false, gender, userId, members = [] } = {}) {
   const drawing = familyTreeDrawing(draft, editable);
-  const line = (a, b, cls = '') => `<path class="${cls}" d="M${a.x},${a.y} L${b.x},${b.y}"/>`;
-  let edges = drawing.pairs.map(pair => line(drawing.points.get(pair.first_id), drawing.points.get(pair.second_id), 'tree-spouse-line')).join('');
+  const route = (points, cls = '') => `<path class="${cls}" d="${points.map((point, index) => `${index ? 'L' : 'M'}${point.x},${point.y}`).join(' ')}"/>`;
+  let edges = drawing.pairs.map(pair => route(familyTreeConnection(drawing, pair.first_id, pair.second_id), 'tree-spouse-line')).join('');
   const grouped = new Map();
-  drawing.parents.forEach(link => { if (!grouped.has(link.child_id)) grouped.set(link.child_id, []); grouped.get(link.child_id).push(drawing.points.get(link.parent_id)); });
-  grouped.forEach((parents, child) => {
+  drawing.parents.forEach(link => { if (!grouped.has(link.child_id)) grouped.set(link.child_id, []); grouped.get(link.child_id).push(link.parent_id); });
+  grouped.forEach((ids, child) => {
+    const parents = ids.map(id => drawing.points.get(id));
     const childPoint = drawing.points.get(child);
     const center = parents.reduce((sum, point) => sum + point.x, 0) / parents.length;
-    const junction = (parents[0].y + childPoint.y) / 2;
-    edges += line({ x: Math.min(...parents.map(p => p.x)), y: parents[0].y }, { x: Math.max(...parents.map(p => p.x)), y: parents[0].y });
-    edges += `<path d="M${center},${parents[0].y} V${junction} H${childPoint.x} V${childPoint.y}"/>`;
+    const connection = familyTreeConnection(drawing, ids[0], ids.at(-1));
+    const parentY = Math.max(...connection.map(point => point.y));
+    const junction = (parentY + childPoint.y) / 2;
+    edges += route(connection);
+    edges += `<path d="M${center},${parentY} V${junction} H${childPoint.x} V${childPoint.y}"/>`;
   });
   const cards = drawing.nodes.map((node, index) => {
     const point = drawing.points.get(node.id);

@@ -9,6 +9,18 @@ data class TreeDrawing(val nodes: List<TreeDisplayNode>, val parents: List<TreeP
 
 /** Each person occupies a fixed grid slot. Appending relatives never reflows earlier people. */
 object FamilyTreeLayout {
+    fun connection(drawing: TreeDrawing, first: String, second: String): List<TreePoint> {
+        val a = drawing.points.getValue(first); val b = drawing.points.getValue(second)
+        val obstructed = drawing.points.any { (id, point) ->
+            id != first && id != second && point.y == a.y && point.x > minOf(a.x, b.x) && point.x < maxOf(a.x, b.x)
+        }
+        if (!obstructed) return listOf(a, b)
+        // Same-generation spouses/co-parents use the gap below their cards. The
+        // larger web card extends 65 units below its center; the next row starts at 154.
+        val corridor = maxOf(a.y, b.y) + 84f
+        return listOf(a, TreePoint(a.x, corridor), TreePoint(b.x, corridor), b)
+    }
+
     fun actions(draft: FamilyTreeDraft, anchor: String): List<TreeAction> {
         val result = mutableListOf<TreeAction>()
         val parents = draft.parentsOf(anchor).map { draft.people.getValue(it) }

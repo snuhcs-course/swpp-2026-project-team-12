@@ -147,6 +147,51 @@ try {
   await page.evaluate(() => window.__heStopTask);
   assert.equal(await page.locator('#voice-panel').textContent(), ''); checks++;
   assert.equal(await page.evaluate(() => window.__heRecorders.filter(item => item.state === 'recording').length), 0); checks++;
+  await page.locator('dialog[open]').evaluate(dialog => dialog.close());
+  // Check the actual SVG, including the shared-parent branch after this couple has a child.
+  for (const sharedChild of [false, true]) {
+    const clear = await page.evaluate(async sharedChild => {
+      const { FamilyTreeDraft } = await import('/web/assets/family-tree.js');
+      const { familyTreeDrawing, treeMarkup } = await import('/web/assets/family-tree-view.js');
+      const draft = new FamilyTreeDraft({ version: 0, owner_id: '1', people: [
+        { id: '1', name: '부모', gender: 'unknown', generation: 0, user_id: 1 },
+      ], parents: [], partnerships: [] });
+      const children = Array.from({ length: 3 }, () => draft.add('1', 'child'));
+      children.forEach((id, index) => { draft.people.find(person => person.id === id).name = ['첫째', '둘째', '셋째'][index]; });
+      const spouse = draft.add(children[0], 'spouse');
+      draft.people.find(person => person.id === spouse).name = '배우자';
+      const grandchild = sharedChild ? draft.add(children[0], 'child', spouse) : null;
+      document.querySelector('#page').innerHTML = treeMarkup(draft);
+      const drawing = familyTreeDrawing(draft);
+      const svg = document.querySelector('.family-tree-canvas');
+      const paths = [svg.querySelector('.tree-spouse-line')];
+      if (grandchild) {
+        const target = drawing.points.get(grandchild);
+        const branch = [...svg.querySelectorAll('path')].find(path => {
+          const point = path.getPointAtLength(path.getTotalLength());
+          return Math.abs(point.x - target.x) < .01 && Math.abs(point.y - target.y) < .01;
+        });
+        if (!branch) return false;
+        paths.push(branch);
+      }
+      const obstacles = children.slice(1).map(id => {
+        const index = drawing.nodes.findIndex(node => node.id === id);
+        const card = svg.querySelector(`[data-tree-index="${index}"]`).parentElement;
+        const x = Number(card.getAttribute('x')), y = Number(card.getAttribute('y'));
+        return { left: x - 2, right: x + Number(card.getAttribute('width')) + 2,
+          top: y - 2, bottom: y + Number(card.getAttribute('height')) + 2 };
+      });
+      return paths.every(path => {
+        if (!path) return false;
+        for (let distance = 0; distance <= path.getTotalLength(); distance += 2) {
+          const point = path.getPointAtLength(distance);
+          if (obstacles.some(box => point.x >= box.left && point.x <= box.right && point.y >= box.top && point.y <= box.bottom)) return false;
+        }
+        return true;
+      });
+    }, sharedChild);
+    assert.equal(clear, true, 'Rendered spouse/shared-parent connections must avoid unrelated sibling cards'); checks++;
+  }
   assert.ok(!requests.some(request => request.path === '/api/posts/' && request.method === 'POST')); checks++;
   assert.deepEqual(errors, []); checks++;
   console.log(JSON.stringify({ checks, errors }));

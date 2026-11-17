@@ -5,6 +5,35 @@ import org.junit.Test
 import org.json.JSONObject
 
 class FamilyTreeLayoutTest {
+    @Test fun spouseAddedAfterThreeSiblingsDoesNotConnectThroughAnotherPerson() {
+        val draft = FamilyTreeDraft(JSONObject("""{"version":0,"owner_id":"1","people":[
+            {"id":"1","name":"부모","gender":"male","generation":0,"user_id":1}],"parents":[],"partnerships":[]}"""))
+        val children = List(3) { draft.add("1", "child") }
+        val before = FamilyTreeLayout.drawing(draft)
+        val spouse = draft.add(children.first(), "spouse")
+        for (editable in listOf(false, true)) {
+            val drawing = FamilyTreeLayout.drawing(draft, editable)
+            val route = FamilyTreeLayout.connection(drawing, children.first(), spouse)
+            assertEquals(drawing.points.getValue(children.first()), route.first())
+            assertEquals(drawing.points.getValue(spouse), route.last())
+            drawing.nodes.filter { it.id !in setOf(children.first(), spouse) }.forEach { node ->
+                val p = drawing.points.getValue(node.id)
+                // Cover the larger web card too, so both clients follow the same clear route.
+                val left = p.x - 60f; val right = p.x + 60f; val top = p.y - 55f; val bottom = p.y + 69f
+                route.zipWithNext().forEach { (a, b) ->
+                    val crosses = if (a.y == b.y) a.y in top..bottom && maxOf(a.x, b.x) >= left && minOf(a.x, b.x) <= right
+                        else a.x in left..right && maxOf(a.y, b.y) >= top && minOf(a.y, b.y) <= bottom
+                    assertFalse("Spouse connection crosses unrelated person ${node.id}", crosses)
+                }
+            }
+            val oldOrigin = before.points.getValue("1"); val newOrigin = drawing.points.getValue("1")
+            before.points.forEach { (id, p) ->
+                val next = drawing.points.getValue(id)
+                assertEquals(p.x - oldOrigin.x, next.x - newOrigin.x, .01f)
+                assertEquals(p.y - oldOrigin.y, next.y - newOrigin.y, .01f)
+            }
+        }
+    }
     @Test fun addingTenChildrenKeepsEarlierRelativePositionsAndUsesContextualActions() {
         val draft = FamilyTreeDraft(JSONObject("""{"version":0,"owner_id":"1","people":[
             {"id":"1","name":"부모","gender":"male","generation":0,"user_id":1}],"parents":[],"partnerships":[]}"""))

@@ -32,17 +32,18 @@ class FamilyTreeView(context: Context, private val ui: Ui, private val draft: Fa
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             fun line(x1: Float, y1: Float, x2: Float, y2: Float) = canvas.drawLine(px(x1), px(y1), px(x2), px(y2), linePaint)
+            fun route(points: List<TreePoint>) = points.zipWithNext().forEach { (a, b) -> line(a.x, a.y, b.x, b.y) }
             drawing.pairs.forEach {
-                val a = drawing.points.getValue(it.first); val b = drawing.points.getValue(it.second)
-                line(a.x, a.y, b.x, b.y)
+                route(FamilyTreeLayout.connection(drawing, it.first, it.second))
             }
             drawing.parents.groupBy { it.child }.map { (child, links) -> links.map { it.parent }.sorted() to child }
                 .groupBy({ it.first }, { it.second }).forEach { (parents, children) ->
                     val pp = parents.map { drawing.points.getValue(it) }
                     val cp = children.map { drawing.points.getValue(it) }
                     val center = pp.map { it.x }.average().toFloat()
-                    val parentY = pp.first().y
-                    line(pp.minOf { it.x }, parentY, pp.maxOf { it.x }, parentY)
+                    val connection = FamilyTreeLayout.connection(drawing, parents.first(), parents.last())
+                    route(connection)
+                    val parentY = connection.maxOf { it.y }
                     val junction = (parentY + cp.first().y) / 2f
                     line(center, parentY, center, junction)
                     line(minOf(center, cp.minOf { it.x }), junction, maxOf(center, cp.maxOf { it.x }), junction)

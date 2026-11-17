@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FamilyTreeDraft } from './assets/family-tree.js';
-import { familyTreeDrawing, familyTreeActions, treeMarkup } from './assets/family-tree-view.js';
+import { familyTreeDrawing, familyTreeActions, familyTreeConnection, treeMarkup } from './assets/family-tree-view.js';
 
 const snapshot = () => ({
   version: 3, owner_id: '1',
@@ -140,4 +140,32 @@ test('tree cards escape names supplied by accounts', () => {
   const html = treeMarkup(draft);
   assert.ok(!html.includes('<img'));
   assert.match(html, /&lt;img/);
+});
+
+test('a spouse added after three siblings never connects through another person', () => {
+  const draft = new FamilyTreeDraft(snapshot());
+  draft.add('1', 'child'); draft.add('1', 'child');
+  const before = familyTreeDrawing(draft);
+  const spouse = draft.add('2', 'spouse');
+  for (const editable of [false, true]) {
+    const drawing = familyTreeDrawing(draft, editable);
+    const route = familyTreeConnection(drawing, '2', spouse);
+    assert.deepEqual(route[0], drawing.points.get('2'));
+    assert.deepEqual(route.at(-1), drawing.points.get(spouse));
+    for (const node of drawing.nodes.filter(node => node.id !== '2' && node.id !== spouse)) {
+      const p = drawing.points.get(node.id);
+      // Include the complete rendered web card and a margin for the connector stroke.
+      const left = p.x - 60, right = p.x + 60, top = p.y - 55, bottom = p.y + 69;
+      for (let index = 1; index < route.length; index++) {
+        const a = route[index - 1], b = route[index];
+        const crosses = a.y === b.y ? a.y >= top && a.y <= bottom && Math.max(a.x, b.x) >= left && Math.min(a.x, b.x) <= right :
+          a.x >= left && a.x <= right && Math.max(a.y, b.y) >= top && Math.min(a.y, b.y) <= bottom;
+        assert.equal(crosses, false, `Spouse connection crosses unrelated person ${node.id}`);
+      }
+    }
+    for (const [id, p] of before.points) {
+      assert.equal(drawing.points.get(id).x - drawing.points.get('1').x, p.x - before.points.get('1').x);
+      assert.equal(drawing.points.get(id).y - drawing.points.get('1').y, p.y - before.points.get('1').y);
+    }
+  }
 });
