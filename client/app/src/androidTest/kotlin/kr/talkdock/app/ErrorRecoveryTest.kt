@@ -17,7 +17,7 @@ class ErrorRecoveryTest {
     private fun nodes(root: AccessibilityNodeInfo?): List<AccessibilityNodeInfo> = if (root == null) emptyList() else
         listOf(root) + (0 until root.childCount).flatMap { nodes(root.getChild(it)) }
 
-    @Test fun voiceErrorNamesTheActionAndCanRestartRecordingDirectly() {
+    @Test fun voiceErrorReturnsToAnExplicitRecordingStart() {
         val family = room(1, "따뜻한 우리 가족")
         MockApi { request -> when (request.path) {
             "/api/families/current/" -> jsonReply(family)
@@ -31,6 +31,11 @@ class ErrorRecoveryTest {
                 MainActivity::class.java.getDeclaredMethod("voice", JSONObject::class.java, Boolean::class.javaPrimitiveType)
                     .apply { isAccessible = true }.invoke(ui.activity, post, false)
             }
+            ui.await { ui.has("버튼을 누르고 말씀해 주세요") }
+            ui.test.runOnMainSync {
+                assertFalse(ui.has("듣고 있어요"))
+                ui.all().first { it.contentDescription == "말하기 시작" }.performClick()
+            }
             ui.await { ui.has("듣고 있어요") }
             Thread.sleep(1000)
             ui.test.runOnMainSync {
@@ -42,6 +47,11 @@ class ErrorRecoveryTest {
             ui.screenshot("he-error-voice.png")
             val retry = nodes(ui.test.uiAutomation.rootInActiveWindow).single { it.text?.toString() == "다시 말하기" }
             assertTrue(retry.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            ui.await { ui.has("버튼을 누르고 말씀해 주세요") }
+            ui.test.runOnMainSync {
+                assertFalse(ui.has("듣고 있어요"))
+                ui.all().first { it.contentDescription == "말하기 시작" }.performClick()
+            }
             ui.await { ui.has("듣고 있어요") }
             assertFalse("Rerecording removes the rejected audio", audio.exists())
             assertFalse(api.requests.any { it.path == "/api/posts/" && it.method == "POST" })
