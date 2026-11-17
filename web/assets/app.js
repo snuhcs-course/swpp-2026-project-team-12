@@ -96,6 +96,7 @@ const assistant = new FloatingAssistant({
 });
 const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['search', 'search', '추억']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
+let recordingRequest = 0;
 let previewURLs = [];
 let maintenanceNotice, reconnecting = false;
 let dailyStatus = null, dailyQuestion = null, dailyDraft = null, dailyRequest = 0, dailyHistoryRows = [];
@@ -136,8 +137,8 @@ const button = (action, label, symbol, cls = 'button secondary', extra = '') => 
 const character = (sad = false, classes = '') => `<span class="character-art ${sad ? 'character-sad' : 'character-boy'} ${classes}" aria-hidden="true"></span>`;
 const loading = (text = '불러오는 중이에요') => `<div class="loading" role="status">${character()}<span>${e(text)}</span></div>`;
 const errorBlock = message => `<p class="error" role="alert">${e(message)}</p>`;
-const failureContent = error => error.unavailable ? `${character(true)}<strong>잠시 이용이 어려워요</strong><span>${e(error.message)}</span>` : e(error.message || '다시 시도해 주세요.');
-const failureBlock = (error, controls = '') => error.unavailable ? `<section class="availability-notice panel" role="alert">${failureContent(error)}${controls}</section>` : `${errorBlock(error.message)}${controls}`;
+const failureContent = error => error.unavailable ? `${character(true)}<strong>잠시 후 다시 시도해 주세요</strong><span>${e(error.message)}</span>` : e(error.message || '다시 시도해 주세요.');
+const failureBlock = (error, controls = '', title = '입력한 내용을 확인해 주세요') => error.unavailable ? `<section class="availability-notice panel" role="alert">${failureContent(error)}${controls}</section>` : `<section class="error" role="alert"><strong>${e(title)}</strong><p>${e(error.message)}</p>${controls}</section>`;
 function hidePostingSuccess() {
   clearTimeout(postingSuccessTimer);
   postingSuccessBox.hidden = true;
@@ -417,14 +418,14 @@ function renderJoinPreview(message = '') {
   const { room, draft } = state.lookup;
   const selected = draft.people.find(person => person.id === draft.selectedId);
   const valid = draft.canClaim(draft.selectedId, state.user.gender);
-  $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">+로 가족을 연결하고, 가계도에서 내 빈자리를 눌러 주세요.</p>
+  $('#join-panel').innerHTML = `<div class="join-preview"><h3>${e(room.name)}</h3><p class="muted">가족을 누른 뒤 관계를 골라 추가하세요. 내 빈자리를 선택하면 아래 버튼으로 참여할 수 있어요.</p>
     ${message ? errorBlock(message) : ''}${treeMarkup(draft, { editable: true, gender: state.user.gender, userId: state.user.user_id })}
-    <p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
+    <div class="tree-join-footer"><p class="tree-selection" role="status">${valid ? `선택한 내 자리: ${e(selected.name || state.user.name)}` : '성별이 맞는 빈자리를 선택해 주세요. 가입한 가족은 선택할 수 없어요.'}</p>
     <div class="button-row">${button('undo-tree', '마지막 추가 취소', '', 'button secondary', draft.additions.length ? '' : 'disabled')}${button('reload-tree', '처음부터 다시', 'refresh', 'button quiet')}</div>
-    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div>`;
+    <form data-form="join-room"><input type="hidden" name="person_id" value="${e(draft.selectedId || '')}"><p class="form-error" role="alert"></p><button type="submit" class="button primary full" ${valid ? '' : 'disabled'}>이 자리로 가족방에 참여하기${icon('arrow')}</button></form></div></div>`;
   mountTree($('#join-panel .family-tree-board'), draft, {
     editable: true,
-    onPerson(id) { draft.selectedId = id; renderJoinPreview(); },
+    onPerson(id) { draft.focusedId = id; if (draft.canClaim(id, state.user.gender)) draft.selectedId = id; renderJoinPreview(); },
     onAdd(action) {
       try {
         draft.add(action.anchor_id, action.relation, action.co_parent_id);
@@ -723,7 +724,7 @@ async function playSpeech(text, target, valid = () => true) {
 }
 
 function openComposer() {
-  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><button type="button" data-action="record-post" class="button secondary">${icon('mic')}말로 쓰기</button><div id="voice-panel" aria-live="polite"></div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
@@ -816,24 +817,27 @@ function renderSettings() {
 
 function stopRecording(discard = false) {
   clearTimeout(recordingTimer);
-  if (recorder && recorder.state !== 'inactive') {
-    if (discard) recorder.onstop = null;
-    recorder.stop();
-  }
-  recordingStream?.getTracks().forEach(track => track.stop());
+  if (discard) recordingRequest++;
+  const current = recorder, stream = recordingStream;
   recordingStream = null;
   recorder = null;
+  if (current && current.state !== 'inactive') {
+    if (discard) current.onstop = null;
+    current.stop();
+  }
+  stream?.getTracks().forEach(track => track.stop());
 }
 async function startRecording({ postId = state.detail?.id, purpose = null } = {}) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new ApiError('음성 답장은 localhost 또는 HTTPS에서 지원되는 브라우저로 이용해 주세요.');
   if (recorder) return;
+  const request = ++recordingRequest;
   const version = state.modalVersion;
   const questionRequest = dailyRequest;
-  const valid = () => version === state.modalVersion && (!purpose || questionRequest === dailyRequest);
-  const retryAction = purpose ? `daily-record-${purpose}` : 'record';
+  const valid = () => request === recordingRequest && version === state.modalVersion && (!purpose || purpose === 'post' || questionRequest === dailyRequest);
+  const retryAction = purpose === 'post' ? 'record-post' : purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); }
+  catch { if (valid()) throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); else return; }
   if (!valid()) { stream.getTracks().forEach(track => track.stop()); return; }
   const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
   if (!mimeType) { stream.getTracks().forEach(track => track.stop()); throw new ApiError('이 브라우저의 녹음 형식을 지원하지 않아요. 최신 Chrome 또는 Edge로 이용해 주세요.'); }
@@ -844,10 +848,22 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
   recordingStream = stream;
   const chunks = [];
   let bytes = 0;
-  current.ondataavailable = event => { chunks.push(event.data); bytes += event.data.size; if (bytes > 4.5 * 1024 * 1024) stopRecording(); };
-  current.onerror = () => { stopRecording(true); if (valid()) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
+  current.ondataavailable = event => {
+    if (!valid()) return;
+    chunks.push(event.data); bytes += event.data.size;
+    if (bytes > 4.5 * 1024 * 1024 && recorder === current) stopRecording();
+  };
+  current.onerror = () => {
+    if (!valid()) return;
+    stopRecording(true);
+    $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.');
+  };
   current.onstop = async () => {
     stream.getTracks().forEach(track => track.stop());
+    if (recorder === current) {
+      clearTimeout(recordingTimer);
+      recorder = null; recordingStream = null;
+    }
     if (!valid()) return;
     const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size || blob.size > 5 * 1024 * 1024) { $('#voice-panel').innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.'); return; }
@@ -856,8 +872,12 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
       const data = new FormData();
       const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
       data.append('audio', blob, `reply.${extension}`);
-      const result = await api(`posts/${postId}/replies/transcribe/`, { method: 'POST', data });
+      const result = await api(purpose === 'post' ? 'speech/transcribe/' : `posts/${postId}/replies/transcribe/`, { method: 'POST', data });
       if (!valid()) return;
+      if (purpose === 'post') {
+        $('#voice-panel').innerHTML = `<label class="field"><span>말씀하신 내용 · 고친 뒤 글에 넣어 주세요</span><textarea data-post-voice maxlength="2000" rows="3">${e(result.recognized)}</textarea></label>${button('post-voice-insert', '글에 넣기', 'plus', 'button secondary')}`;
+        return;
+      }
       if (purpose) {
         const field = $(`[data-form="daily-${purpose}"] textarea`, modal);
         if (field) { field.value = result.recognized; field.focus(); }
@@ -867,10 +887,12 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
         return;
       }
       $('#voice-panel').innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
-    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, '다시 녹음하기', 'mic')); }
+    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, error.status >= 500 ? '다시 시도하기' : '다시 녹음하기', 'mic'), error.status >= 500 ? '잠시 후 다시 시도해 주세요' : '다시 말해 주세요'); }
   };
   current.start(1000);
-  recordingTimer = setTimeout(() => { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }, 120000);
+  recordingTimer = setTimeout(() => {
+    if (valid() && recorder === current) { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }
+  }, 120000);
   $('#voice-panel').innerHTML = `<div class="recording-status"><span class="recording-dot"></span><span>녹음 중이에요 · 최대 2분</span>${button('finish-record', '녹음 마치기', 'stop', 'button primary compact')}${button('cancel-record', '취소', '', 'button quiet compact')}</div>`;
 }
 
@@ -1137,6 +1159,16 @@ document.addEventListener('click', async event => {
     return busy(target, () => openRoom(id));
   }
   if (action === 'stop-audio') return stopAudio();
+  if (action === 'record-post') return busy(target, () => startRecording({ purpose: 'post' }));
+  if (action === 'post-voice-insert') {
+    const field = $('#post-caption'), transcript = $('[data-post-voice]')?.value.trim() || '';
+    if (!transcript) return toast('넣을 내용을 입력해 주세요.');
+    const text = [field.value.trimEnd(), transcript].filter(Boolean).join('\n');
+    if (text.length > 2000) return toast('소식은 모두 2,000자까지 쓸 수 있어요. 내용을 줄여 주세요.');
+    field.value = text; field.dispatchEvent(new Event('input', { bubbles: true }));
+    $('#voice-panel').innerHTML = '<p class="help">글에 넣었어요. 내용을 확인한 뒤 가족에게 전해 주세요.</p>';
+    return;
+  }
   if (action === 'cancel-record') { stopRecording(true); $('#voice-panel').innerHTML = ''; return; }
   if (action === 'finish-record') { stopRecording(); return; }
   if (action === 'digest-date') {

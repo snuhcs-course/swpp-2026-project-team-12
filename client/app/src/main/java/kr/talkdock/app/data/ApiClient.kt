@@ -93,6 +93,9 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
     fun transcribe(postId: Int, audio: File): JSONObject =
         multipart("posts/$postId/replies/transcribe/", "audio", "recording.m4a", "audio/mp4", audio, emptyMap())
 
+    fun transcribePost(audio: File): JSONObject =
+        multipart("speech/transcribe/", "audio", "recording.m4a", "audio/mp4", audio, emptyMap())
+
     private fun multipart(path: String, field: String, filename: String, type: String, file: File, values: Map<String, String>): JSONObject {
         return multipartParts(path, listOf(UploadPart(field, filename, type, file)), values)
     }

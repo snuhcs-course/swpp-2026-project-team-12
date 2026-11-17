@@ -11,6 +11,7 @@ from ..models import FamilyPerson, FamilyRoom, Membership, ParentChild, Partners
 
 CONFLICT = "가계도가 변경되었거나 선택한 자리에 다른 가족이 가입했어요. 최신 가계도에서 다시 진행해 주세요."
 MAX_ADDITIONS = 200
+MAX_CHILDREN = 10
 
 
 def tree_data(room):
@@ -103,6 +104,11 @@ def add_person(people, room, addition):
         if co_parent.generation != anchor.generation or not (partnered or shared_child):
             raise APIError("배우자 또는 기존 공동 부모만 함께 연결할 수 있어요.")
     gender = {"father": "male", "mother": "female"}.get(relation, "unknown")
+    if relation == "child" and any(
+        ParentChild.objects.filter(parent=parent).count() >= MAX_CHILDREN
+        for parent in (anchor, co_parent) if parent is not None
+    ):
+        raise APIError("한 부모의 자녀는 10명까지 추가할 수 있어요.")
     if relation in ("father", "mother", "parent"):
         parents = list(FamilyPerson.objects.filter(child_links__child=anchor))
         if len(parents) >= 2 or (gender != "unknown" and any(p.gender == gender for p in parents)):

@@ -53,6 +53,7 @@ import kr.talkdock.app.ui.PhotoAttachmentSheet
 import kr.talkdock.app.ui.PhotoCarousel
 import kr.talkdock.app.ui.ViewportPhotoLoader
 import kr.talkdock.app.ui.DraftPhotoStrip
+import kr.talkdock.app.ui.PostVoiceInput
 import kr.talkdock.app.ui.TodakArtView
 import kr.talkdock.app.ui.TodakWaitingView
 import kr.talkdock.app.ui.TodakSuccessView
@@ -147,6 +148,8 @@ class MainActivity : ComponentActivity() {
     private var photoAttachmentSheet: PhotoAttachmentSheet? = null
     private var caption = ""
     private var captionInput: EditText? = null
+    private var postVoiceInput: PostVoiceInput? = null
+    private var postVoiceText = ""
     private var draftPhotoIndex = 0
     private var recognized = ""
     private var voiceFromDetail = false
@@ -178,14 +181,15 @@ class MainActivity : ComponentActivity() {
 
     private fun acceptPickedPhotos(uris: List<Uri>) {
         if (uris.isEmpty()) return
+        caption = captionInput?.text?.toString() ?: caption
         // Preserve the gallery's tap order all the way through multipart upload.
-        if (uris.size > 5) {
-            toast("사진은 한 번에 5장까지 선택해 주세요.")
+        if (selectedPhotos().size + uris.size > 5) {
+            toast("사진은 모두 5장까지 추가할 수 있어요. 먼저 첨부 사진을 빼 주세요.")
             return
         }
         async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.") { files ->
-            selectedPhotos().forEach { it.delete() }
-            photo = files.first(); extraPhotos.clear(); extraPhotos.addAll(files.drop(1)); draftPhotoIndex = 0; composer()
+            val combined = selectedPhotos() + files
+            photo = combined.first(); extraPhotos.clear(); extraPhotos.addAll(combined.drop(1)); composer()
         }
     }
 
@@ -228,6 +232,7 @@ class MainActivity : ComponentActivity() {
         extraPhotos.addAll(state?.getStringArrayList("extraPhotos").orEmpty().map { File(it) }.filter { it.exists() })
         pendingPhoto = state?.getString("pendingPhoto")?.let { File(it) }
         caption = state?.getString("caption", "") ?: ""
+        postVoiceText = state?.getString("postVoiceText", "") ?: ""
         draftPhotoIndex = state?.getInt("draftPhotoIndex") ?: 0
         selectedPost = state?.getString("post")?.let { JSONObject(it) }
         feedPostId = state?.getInt("feedPostId", -1)?.takeIf { it > 0 }
@@ -308,6 +313,7 @@ class MainActivity : ComponentActivity() {
         out.putStringArrayList("extraPhotos", ArrayList(extraPhotos.map { it.absolutePath }))
         out.putString("pendingPhoto", pendingPhoto?.absolutePath)
         out.putString("caption", captionInput?.text?.toString() ?: caption)
+        out.putString("postVoiceText", postVoiceText)
         out.putInt("draftPhotoIndex", draftPhotoIndex)
         out.putString("post", selectedPost?.toString())
         out.putInt("feedPostId", feedPostId ?: -1)
@@ -337,6 +343,7 @@ class MainActivity : ComponentActivity() {
         scheduleReplyCheck()
     }
     override fun onPause() {
+        postVoiceInput?.pauseRecording()
         narrator.interrupt()
         closeAssistantMenu()
         guideHandler.removeCallbacks(checkForReply)
@@ -407,6 +414,7 @@ class MainActivity : ComponentActivity() {
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
     private fun objects(array: JSONArray): List<JSONObject> = (0 until array.length()).map { array.getJSONObject(it) }
     private fun navigation(title: String, back: (() -> Unit)? = null, name: String) {
+        postVoiceInput?.close(); postVoiceInput = null
         guideHandler.removeCallbacks(checkForReply)
         rememberMemories()
         if (screen == "home" && name != "home") {
@@ -845,8 +853,9 @@ class MainActivity : ComponentActivity() {
                             ui.button(content, "다시 연결하기") { recreate() }
                             return@runOnUiThread
                         }
-                        val title = if (error is ApiException && (error.status in 500..599 || error.cause is java.io.IOException))
-                            "잠시 이용이 어려워요" else "다시 확인해 주세요"
+                        val title = ApiFailureMessages.actionTitle(screen, (error as? ApiException)?.status ?: 0,
+                            connection = error is java.io.IOException || error.cause is java.io.IOException,
+                            timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
                         AlertDialog.Builder(this).setTitle(title).setMessage(message)
                             .setPositiveButton("확인", null).show()
                     }
@@ -1122,44 +1131,52 @@ class MainActivity : ComponentActivity() {
     private fun tree() {
         val draft = treeDraft ?: return
         navigation("가족에서 내 자리", { cancelTree() }, name = "tree")
-        heading("가계도에서\n내 자리를 찾아보세요.", "한 손가락으로 이동하고, 두 손가락으로 확대·축소하세요. +로 빈 가족을 추가하고 내 자리를 선택해 주세요.")
+        ui.label(content, "내 자리를 선택해 주세요", if (large) 28f else 24f, true)
+        ui.gap(content, 8)
+        ui.label(content, "가족을 누른 뒤 ‘+ 가족 추가’로 연결해요.\n자녀는 부모당 10명까지 추가할 수 있어요.", if (large) 18f else 16f, color = ui.muted)
+        ui.gap(content, 12)
         val selected = ui.text("", 17f, true, ui.coralDeep)
         val next = ui.button(ui.column(), "선택한 자리로 계속하기") { profile() }
         lateinit var board: FamilyTreeView
         lateinit var undo: Button
-        fun update(focus: String? = null) {
+        fun update() {
             selected.text = if (draft.selectedId == null) "아직 내 자리를 선택하지 않았어요." else session!!.getString("name") + "님의 자리를 선택했어요."
             next.isEnabled = draft.selectedId != null; next.alpha = if (next.isEnabled) 1f else .45f
             undo.isEnabled = draft.additions.isNotEmpty(); undo.alpha = if (undo.isEnabled) 1f else .45f
-            board.render(focus)
+            board.render()
         }
         board = FamilyTreeView(this, ui, draft, session!!.getString("name"), onAdd = { action ->
             runCatching { draft.add(action.anchor, action.relation, action.coParent) }.fold({ id ->
-                update(id); toast("빈 가족을 추가했어요. 이 자리가 나라면 노드를 눌러 선택해 주세요.")
+                update(); toast("가족을 추가했어요. 빈자리가 나라면 눌러 선택해 주세요.")
             }, { toast(it.message ?: "가족을 추가하지 못했어요.") })
         }, onPerson = { id ->
             val person = draft.people.getValue(id)
-            if (person.occupied) toast("이미 가입한 가족의 자리예요.") else {
+            if (person.occupied) toast("이 가족을 기준으로 ‘+ 가족 추가’를 누를 수 있어요.") else {
                 val accountGender = session!!.optString("gender", "unknown")
                 if (person.gender != "unknown" && accountGender != "unknown" && person.gender != accountGender) {
                     toast("선택한 자리와 계정의 성별이 달라요. 다른 자리를 선택해 주세요.")
                 } else AlertDialog.Builder(this).setTitle("이 자리가 나인가요?")
                     .setMessage(session!!.getString("name") + "님의 계정 정보를 이 자리에 연결해요. 가입 완료 전까지는 저장되지 않아요.")
-                    .setPositiveButton("내 자리로 선택") { _, _ -> draft.selectedId = id; update(id) }
+                    .setPositiveButton("내 자리로 선택") { _, _ -> draft.selectedId = id; update() }
                     .setNegativeButton("닫기", null).show()
             }
         })
-        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp(440)))
+        val screenHeightDp = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt()
+        content.addView(board, LinearLayout.LayoutParams(-1, ui.dp((screenHeightDp - if (large) 420 else 360).coerceIn(240, 440))))
         val controls = ui.row()
-        val reset = ui.button(ui.column(), "기준 인물로", false, 52) { board.centerOn(draft.ownerId) }
-        undo = ui.button(ui.column(), "추가 취소", false, 52) { draft.undo(); update(draft.selectedId ?: draft.ownerId) }
+        val reset = ui.button(ui.column(), "전체 보기", false, 52) { board.fit() }
+        undo = ui.button(ui.column(), "추가 취소", false, 52) { draft.undo(); update() }
         (reset.parent as LinearLayout).removeView(reset); (undo.parent as LinearLayout).removeView(undo)
         controls.addView(reset, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) })
         controls.addView(undo, LinearLayout.LayoutParams(0, -2, 1f)); content.addView(controls)
         ui.gap(content, 16); content.addView(selected)
-        ui.label(content, "살구색: 가입한 가족 · 흰색: 빈 가족\n형제자매는 부모의 자녀 +에서 추가할 수 있어요.", 14f, color = ui.muted)
-        (next.parent as LinearLayout).removeView(next); content.addView(next)
-        update(draft.selectedId ?: draft.ownerId)
+        ui.label(content, "한 손가락: 이동 · 두 손가락: 확대·축소\n살구색: 가입한 가족 · 흰색: 선택할 수 있는 빈 가족", 14f, color = ui.muted)
+        val footer = ui.column(16).apply { background = ui.shape(ui.paper, 0) }
+        (selected.parent as LinearLayout).removeView(selected); footer.addView(selected)
+        (next.parent as LinearLayout).removeView(next); footer.addView(next)
+        next.tag = "tree-continue"
+        page.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        update()
     }
 
     private fun cancelTree() {
@@ -1733,9 +1750,10 @@ class MainActivity : ComponentActivity() {
     }
     private fun launchPhotoChooser() {
         if (photoAttachmentSheet?.isShowing == true) return
+        if (selectedPhotos().size >= 5) { toast("사진은 5장까지 추가할 수 있어요. 먼저 첨부 사진을 빼 주세요."); return }
         caption = captionInput?.text?.toString() ?: caption
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(root.windowToken, 0)
-        val sheet = PhotoAttachmentSheet(ui, large, selectedPhotos().isNotEmpty(),
+        val sheet = PhotoAttachmentSheet(ui, large, 5 - selectedPhotos().size,
             takePhoto = { launchCamera() }, openGallery = { launchGallery() }, choosePhotos = { acceptPickedPhotos(it) })
         photoAttachmentSheet = sheet
         sheet.setOnDismissListener { if (photoAttachmentSheet === sheet) photoAttachmentSheet = null }
@@ -1745,7 +1763,7 @@ class MainActivity : ComponentActivity() {
         // Snapshot the draft before opening the gallery, including on rotation.
         caption = captionInput?.text?.toString() ?: caption
         runCatching {
-            photoPicker.launch(Intent(this, PhotoPickerActivity::class.java))
+            photoPicker.launch(Intent(this, PhotoPickerActivity::class.java).putExtra(PhotoPickerActivity.MAX_PHOTOS, 5 - selectedPhotos().size))
         }.onFailure { toast("사진첩을 열 수 없어요.") }
     }
     private fun launchCamera() {
@@ -1765,6 +1783,7 @@ class MainActivity : ComponentActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == cameraCode) {
+            caption = captionInput?.text?.toString() ?: caption
             val output = pendingPhoto; pendingPhoto = null
             if (resultCode == RESULT_OK && output != null && output.length() > 0) {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -1774,15 +1793,17 @@ class MainActivity : ComponentActivity() {
                     composer()
                     return
                 }
-                selectedPhotos().filter { it != output }.forEach { it.delete() }; extraPhotos.clear()
-                photo = output; draftPhotoIndex = 0; composer()
+                if (selectedPhotos().size >= 5) {
+                    output.delete(); toast("사진은 5장까지 추가할 수 있어요.")
+                } else if (photo == null) photo = output else extraPhotos.add(output)
+                composer()
             } else { output?.delete(); composer() }
         }
     }
     private fun selectedPhotos(): List<File> = listOfNotNull(photo) + extraPhotos
     private fun clearPhotoDraft() {
         selectedPhotos().forEach { it.delete() }
-        photo = null; extraPhotos.clear(); caption = ""; draftPhotoIndex = 0
+        photo = null; extraPhotos.clear(); caption = ""; postVoiceText = ""; draftPhotoIndex = 0
     }
     private fun copyGalleryPhotos(uris: List<Uri>): List<File> {
         val directory = File(filesDir, "camera").apply { mkdirs() }
@@ -1819,6 +1840,15 @@ class MainActivity : ComponentActivity() {
         val text = ui.input(content, "가족에게 전할 이야기", "오늘은 어떤 하루였나요?\n가족에게 전하고 싶은 이야기를 적어보세요.", multiline = true, initial = caption)
         text.layoutParams = text.layoutParams.apply { height = ui.dp(if (large) 220 else 180) }
         captionInput = text
+        postVoiceInput = PostVoiceInput(ui, large, api, summaries,
+            requestPermission = { narrator.interrupt(); requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode) },
+            initial = postVoiceText, remember = { postVoiceText = it },
+            beforeRecording = { narrator.interrupt(); speaker.stop() }, insert = { recognizedText ->
+                val combined = listOf(text.text.toString().trimEnd(), recognizedText).filter { it.isNotBlank() }.joinToString("\n")
+                if (combined.length > 2000) false else {
+                    text.setText(combined); text.setSelection(combined.length); caption = combined; true
+                }
+            }).also { content.addView(it) }
         val previews = files.map { localPreview(it) }
         val hasInvalidPhoto = previews.any { it == null }
         content.addView(DraftPhotoStrip(this, previews, large,
@@ -1947,7 +1977,22 @@ class MainActivity : ComponentActivity() {
                     if (audio == null) toast("조금 더 길게 다시 말씀해 주세요.")
                     else {
                         val client = api
-                        async({ client.transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.") {
+                        async({ client.transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.", failure = { error ->
+                            val status = (error as? ApiException)?.status ?: 0
+                            if (status in setOf(401, 403, 404) || (error as? ApiException)?.isMaintenance == true) false
+                            else {
+                                val rerecord = status in setOf(400, 413, 415, 422)
+                                val title = ApiFailureMessages.actionTitle("voice", status,
+                                    connection = error is java.io.IOException || error.cause is java.io.IOException,
+                                    timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
+                                AlertDialog.Builder(this@MainActivity).setTitle(title)
+                                    .setMessage(error.message ?: "말씀을 글로 바꾸지 못했어요. 다시 시도해 주세요.")
+                                    .setPositiveButton(if (rerecord) "다시 말하기" else "다시 시도") { _, _ ->
+                                        if (rerecord) startVoice(post) else voiceButton?.performClick()
+                                    }.setNegativeButton("나중에", null).show()
+                                true
+                            }
+                        }) {
                             recognized = it.getString("recognized"); voiceText?.text = recognized
                             voiceStatus?.text = "이렇게 들었어요."
                             audio.delete(); recording = null; prepareVoice(post)
@@ -1995,7 +2040,8 @@ class MainActivity : ComponentActivity() {
     override fun onRequestPermissionsResult(code: Int, permissions: Array<String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
         if (code == microphoneCode) {
-            if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "voice" && foreground) selectedPost?.let { startVoice(it) }
+            if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "post" && foreground) postVoiceInput?.start()
+            else if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "voice" && foreground) selectedPost?.let { startVoice(it) }
             else { voiceStatus?.text = "말로 답장하려면 마이크 사용을 허용해 주세요."; toast("앱 설정에서 마이크 사용을 허용할 수 있어요.") }
         }
     }

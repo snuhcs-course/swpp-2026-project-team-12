@@ -103,6 +103,47 @@ class PostComposerTest {
         } }
     }
 
+    @Test fun cameraAndGalleryAppendInOrderWithoutLosingTheDraftAndStopAtFive() {
+        feedApi().use { api -> UiHarness(api, room(1, "사진 함께 보내기"), tutorialSeen = true).use { ui ->
+            ui.openComposer()
+            ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("찍은 사진과 지난 사진을 함께 보내요") }
+            fun capture(name: String): File {
+                val file = ui.draftFile(name, jpeg(Color.CYAN))
+                ui.test.runOnMainSync {
+                    MainActivity::class.java.getDeclaredField("pendingPhoto").apply { isAccessible = true }.set(ui.activity, file)
+                    val code = MainActivity::class.java.getDeclaredField("cameraCode").apply { isAccessible = true }.getInt(ui.activity)
+                    MainActivity::class.java.getDeclaredMethod("onActivityResult", Int::class.javaPrimitiveType,
+                        Int::class.javaPrimitiveType, android.content.Intent::class.java).apply { isAccessible = true }
+                        .invoke(ui.activity, code, Activity.RESULT_OK, null)
+                }
+                return file
+            }
+            val first = capture("he-camera-first.jpg")
+            val sources = (1..3).map { File(ui.activity.cacheDir, "he-gallery-$it.jpg").apply { writeBytes(jpeg(Color.GREEN)) } }
+            try {
+                ui.test.runOnMainSync {
+                    MainActivity::class.java.getDeclaredMethod("acceptPickedPhotos", List::class.java).apply { isAccessible = true }
+                        .invoke(ui.activity, sources.map { Uri.fromFile(it) })
+                }
+                ui.await { ui.has("사진 4 / 5장") }
+                val last = capture("he-camera-last.jpg")
+                ui.await { ui.has("사진 5 / 5장") }
+                ui.test.runOnMainSync {
+                    assertTrue(first.exists()); assertTrue(last.exists())
+                    assertEquals("찍은 사진과 지난 사진을 함께 보내요", ui.all().filterIsInstance<EditText>().single().text.toString())
+                    assertFalse(ui.all().first { it.contentDescription == "사진 더 추가하기" }.isEnabled)
+                    assertEquals(first, MainActivity::class.java.getDeclaredField("photo").apply { isAccessible = true }.get(ui.activity))
+                    MainActivity::class.java.getDeclaredMethod("acceptPickedPhotos", List::class.java).apply { isAccessible = true }
+                        .invoke(ui.activity, listOf(Uri.fromFile(sources.first())))
+                }
+                android.os.SystemClock.sleep(4000) // Clear any preceding validation toast for the review image.
+                ui.screenshot("he-mixed-photos.png")
+                ui.click("가족에게 전하기"); ui.await(12000) { api.uploads().size == 1 }
+                assertEquals(5, Regex("filename=\"photo-\\d+\\.jpg\"").findAll(api.uploads().single().body).count())
+            } finally { sources.forEach { it.delete() } }
+        } }
+    }
+
     @Test fun leavingAWrittenDraftAsksBeforeDiscarding() {
         feedApi().use { api -> UiHarness(api, room(1, "글쓰기 가족")).use { ui ->
             ui.openComposer()
@@ -129,7 +170,7 @@ class PostComposerTest {
             }
             ui.attach(listOf(first, rotated)); ui.await { ui.has("사진 2 / 5장") }
             ui.test.runOnMainSync {
-                assertTrue(ui.has("사진 다시 선택"))
+                assertTrue(ui.has("사진 더 추가"))
                 val preview = ui.all().first { it.contentDescription?.toString() == "첨부 사진 2" } as ImageView
                 val bitmap = (preview.drawable as BitmapDrawable).bitmap
                 assertTrue("EXIF orientation 6 must be shown upright", bitmap.height > bitmap.width)
@@ -248,14 +289,14 @@ class PostComposerTest {
             try {
                 ui.attach(listOf(file))
                 ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("아직 쓰고 있는 이야기") }
-                ui.clickDescription("첨부 사진 다시 선택하기"); ui.tapText("닫기")
+                ui.clickDescription("사진 더 추가하기"); ui.tapText("닫기")
                 ui.test.runOnMainSync {
                     assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString())
                     assertTrue(ui.has("사진 1 / 5장"))
                 }
                 val monitor = ui.test.addMonitor(IntentFilter(MediaStore.ACTION_IMAGE_CAPTURE), Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null), true)
                 try {
-                    ui.clickDescription("첨부 사진 다시 선택하기"); ui.awaitText("최근 사진")
+                    ui.clickDescription("사진 더 추가하기"); ui.awaitText("최근 사진")
                     ui.test.runOnMainSync { assertTrue(windowViews().first { it.contentDescription == "사진 촬영하기" }.performClick()) }
                     ui.await { monitor.hits == 1 && windowText("최근 사진") == null && ui.has("사진 1 / 5장") }
                     ui.test.runOnMainSync { assertEquals("아직 쓰고 있는 이야기", ui.all().filterIsInstance<EditText>().single().text.toString()) }

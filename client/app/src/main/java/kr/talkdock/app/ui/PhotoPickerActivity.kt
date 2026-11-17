@@ -30,8 +30,12 @@ import java.util.concurrent.Future
 
 /** Local gallery with explicit selection order; no network or server dependency. */
 class PhotoPickerActivity : ComponentActivity() {
-    companion object { const val RESULT_URIS = "talkdock.selectedPhotos" }
-    private val selection = PhotoSelection()
+    companion object {
+        const val RESULT_URIS = "talkdock.selectedPhotos"
+        const val MAX_PHOTOS = "talkdock.maxPhotos"
+    }
+    private val limit by lazy { intent.getIntExtra(MAX_PHOTOS, 5).coerceIn(1, 5) }
+    private val selection by lazy { PhotoSelection(limit) }
     private val media = mutableListOf<Media>()
     private val queries = Executors.newSingleThreadExecutor()
     private val thumbnails = Executors.newFixedThreadPool(3)
@@ -123,7 +127,7 @@ class PhotoPickerActivity : ComponentActivity() {
             stretchMode = GridView.STRETCH_COLUMN_WIDTH; clipToPadding = false
             adapter = this@PhotoPickerActivity.adapter
             setOnItemClickListener { _, _, position, _ ->
-                if (!selection.tap(media[position].uri)) toast("사진은 최대 5장까지 선택할 수 있어요.")
+                if (!selection.tap(media[position].uri)) toast("사진은 ${limit}장까지 선택할 수 있어요.")
                 renderSelection()
             }
             setOnScrollListener(object : AbsListView.OnScrollListener {
@@ -236,7 +240,7 @@ class PhotoPickerActivity : ComponentActivity() {
                     }
                     status.text = when {
                         media.isEmpty() -> "보여줄 사진이 없어요. 휴대폰에 사진을 저장하거나 접근할 사진을 추가해 주세요."
-                        selection.isMultiple() -> "누른 순서대로 최대 5장 · 다시 누르면 선택 취소"
+                        selection.isMultiple() -> "누른 순서대로 최대 ${limit}장 · 다시 누르면 선택 취소"
                         else -> "한 장을 골라 주세요. 여러 장은 ‘선택’을 눌러 주세요."
                     }
                     renderSelection()
@@ -261,7 +265,7 @@ class PhotoPickerActivity : ComponentActivity() {
         val selected = selection.getSelected()
         toggle.text = if (selection.isMultiple()) "취소" else "선택"
         toggle.contentDescription = if (selection.isMultiple()) "여러 장 선택 끄기. 미리보기 사진 한 장을 남겨요" else "여러 장 선택 켜기"
-        count.text = if (selection.isMultiple()) "${selected.size} / 5" else ""
+        count.text = if (selection.isMultiple()) "${selected.size} / $limit" else ""
         next.isEnabled = selected.isNotEmpty(); next.alpha = if (next.isEnabled) 1f else 0.4f
         next.text = if (selection.isMultiple() && selected.isNotEmpty()) "다음 (${selected.size})" else "다음"
         previewHint.visibility = if (selection.getPreview() == null) View.VISIBLE else View.GONE
@@ -286,7 +290,7 @@ class PhotoPickerActivity : ComponentActivity() {
         }
         if (::adapter.isInitialized) adapter.notifyDataSetChanged()
         if (::status.isInitialized && media.isNotEmpty()) status.text = if (selection.isMultiple())
-            "누른 순서대로 최대 5장 · 다시 누르면 선택 취소" else "한 장을 골라 주세요. 여러 장은 ‘선택’을 눌러 주세요."
+            "누른 순서대로 최대 ${limit}장 · 다시 누르면 선택 취소" else "한 장을 골라 주세요. 여러 장은 ‘선택’을 눌러 주세요."
     }
 
     private fun finishSelection() {
