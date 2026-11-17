@@ -13,7 +13,7 @@ import java.io.FileNotFoundException
 import java.net.SocketTimeoutException
 
 class ApiException(message: String, val status: Int = 0, cause: Throwable? = null,
-                   val isMaintenance: Boolean = false) : Exception(message, cause)
+                   val isMaintenance: Boolean = false, val field: String? = null) : Exception(message, cause)
 
 /** A single request's connection, so leaving a slow AI screen also releases its worker. */
 class RequestCancellation {
@@ -197,7 +197,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             val message = json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
             val maintenance = code == 503 && json?.optString("code") == "maintenance"
             if (maintenance) onMaintenance?.invoke()
-            throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance)
+            throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance, field = json?.optString("field")?.takeIf { it.isNotBlank() })
         }
         return json ?: throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
     }
