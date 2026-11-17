@@ -653,3 +653,18 @@ input[type="password"]::placeholder { color: #9e9a91; opacity: 1; }
   .assistant-form { padding: 10px 12px 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .assistant-thinking > span, .assistant-launcher::before, .assistant-launcher::after { animation: none; } }
+
+/* Account UAT: keep guidance next to the input. */
+.field-error { display:block; color:#9c2921; font-size:1.125rem; font-weight:700; white-space:pre-line; margin-top:.5rem; }
+[aria-invalid="true"] { border:2px solid #9c2921; }
+.voice-preview-status { min-height:1.5em; }
+input[name="invite_code"] { text-transform:uppercase; }
+
+/* Reply controls stay reachable while the conversation scrolls. */
+.post-dialog[open] { display: flex; flex-direction: column; overflow: hidden; top: calc(var(--post-viewport-top, 0px) + 28px); bottom: auto; margin: 0 auto; height: min(880px, calc(var(--post-viewport-height, 100dvh) - 56px)); max-height: calc(var(--post-viewport-height, 100dvh) - 56px); }
+.post-dialog > .modal-heading { flex: 0 0 auto; position: static; }
+.post-scroll { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.post-reply-footer { flex: 0 0 auto; padding-top: 12px; border-top: 1px solid var(--line); background: var(--paper); }
+.post-reply-footer #voice-panel { max-height: 28dvh; overflow-y: auto; }
+.feed-audio-summary { padding: 16px; border-top: 1px solid var(--line); }
+.feed-audio-summary p { white-space: pre-wrap; overflow-wrap: anywhere; }
