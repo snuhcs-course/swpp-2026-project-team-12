@@ -339,6 +339,15 @@ When upgrading from the current tree-based family schema, stop the API server an
 
 After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` on the backend. The voices accounts can choose are listed once in `TTS_VOICES` in `backend/configs/settings.py`, each with a `name`, an ElevenLabs `voice_id` and a `description`; entries without a `voice_id` are not offered. `GET /api/speech/voices/` (no login) returns each offered voice's key, name and description and the default, and the apps build their choices from it, so adding a voice needs only a new `TTS_VOICES` entry. Each account may pick a voice key as `tts_voice` at registration and can change it with `PATCH /api/accounts/me/` `{"tts_voice": "<key>"}`; accounts that never chose one follow `TTS_DEFAULT_VOICE`, which must be a `TTS_VOICES` key (`manage.py check` reports it otherwise). Each voice has a preview sample reading "가족의 일상을 잇는 따뜻한 공간, 토닥" at `GET /api/speech/voices/<key>/sample/` (no login); samples live in `backend/integrations/speech/samples/` named by voice ID, so after adding a voice or changing its `voice_id`, run `python backend/manage.py generate_voice_samples` (needs `ELEVENLABS_API_KEY`) and commit the new MP3, and `/api/speech/` uses the requesting account's choice; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
 
+`POST /api/speech/transcribe/` accepts the same audio formats and 5 MB limit as
+reply transcription, with a bearer token and `X-Family-Room` membership. It
+returns `recognized` text without creating a post, comment or voice draft.
+Android and web **말로 쓰기** let the user edit this transcript and explicitly
+insert it into the existing post caption with **글에 넣기**. The combined caption
+remains limited to 2,000 characters and is published only by the normal send
+action. Leaving the Android editor cancels recording/transcription and cleans
+its temporary audio.
+
 ### Voice Reply APIs
 
 Voice replies use three authenticated requests for a post in the user's family room:

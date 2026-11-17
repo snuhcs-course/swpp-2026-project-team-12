@@ -136,6 +136,7 @@ class PostComposerTest {
                     MainActivity::class.java.getDeclaredMethod("acceptPickedPhotos", List::class.java).apply { isAccessible = true }
                         .invoke(ui.activity, listOf(Uri.fromFile(sources.first())))
                 }
+                android.os.SystemClock.sleep(4000) // Clear any preceding validation toast for the review image.
                 ui.screenshot("he-mixed-photos.png")
                 ui.click("가족에게 전하기"); ui.await(12000) { api.uploads().size == 1 }
                 assertEquals(5, Regex("filename=\"photo-\\d+\\.jpg\"").findAll(api.uploads().single().body).count())

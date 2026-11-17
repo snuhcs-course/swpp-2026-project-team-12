@@ -332,6 +332,9 @@ class ScreenModesTest {
         ui.await { ui.guideVisible() }
         ui.dismissHelp()
         ui.await { ui.has("댓글을 불러오지 못했어요.") && ui.has("댓글 다시 불러오기") }
-        assertTrue(api.requests.none { it.method != "GET" && it.path != "/api/speech/" })
+        // Startup may refresh this login's FCM device registration. Neither that nor
+        // tutorial speech publishes a post or comment while a comment read fails.
+        val mutations = api.requests.filter { it.method != "GET" && it.path !in setOf("/api/speech/", "/api/notifications/device/") }
+        assertTrue("Unexpected mutations: ${mutations.map { it.method + " " + it.path }}", mutations.isEmpty())
     } }
 }

@@ -853,8 +853,9 @@ class MainActivity : ComponentActivity() {
                             ui.button(content, "다시 연결하기") { recreate() }
                             return@runOnUiThread
                         }
-                        val title = if (error is ApiException && (error.status in 500..599 || error.cause is java.io.IOException))
-                            "잠시 이용이 어려워요" else "다시 확인해 주세요"
+                        val title = ApiFailureMessages.actionTitle(screen, (error as? ApiException)?.status ?: 0,
+                            connection = error is java.io.IOException || error.cause is java.io.IOException,
+                            timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
                         AlertDialog.Builder(this).setTitle(title).setMessage(message)
                             .setPositiveButton("확인", null).show()
                     }
@@ -1976,7 +1977,22 @@ class MainActivity : ComponentActivity() {
                     if (audio == null) toast("조금 더 길게 다시 말씀해 주세요.")
                     else {
                         val client = api
-                        async({ client.transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.") {
+                        async({ client.transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.", failure = { error ->
+                            val status = (error as? ApiException)?.status ?: 0
+                            if (status in setOf(401, 403, 404) || (error as? ApiException)?.isMaintenance == true) false
+                            else {
+                                val rerecord = status in setOf(400, 413, 415, 422)
+                                val title = ApiFailureMessages.actionTitle("voice", status,
+                                    connection = error is java.io.IOException || error.cause is java.io.IOException,
+                                    timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
+                                AlertDialog.Builder(this@MainActivity).setTitle(title)
+                                    .setMessage(error.message ?: "말씀을 글로 바꾸지 못했어요. 다시 시도해 주세요.")
+                                    .setPositiveButton(if (rerecord) "다시 말하기" else "다시 시도") { _, _ ->
+                                        if (rerecord) startVoice(post) else voiceButton?.performClick()
+                                    }.setNegativeButton("나중에", null).show()
+                                true
+                            }
+                        }) {
                             recognized = it.getString("recognized"); voiceText?.text = recognized
                             voiceStatus?.text = "이렇게 들었어요."
                             audio.delete(); recording = null; prepareVoice(post)

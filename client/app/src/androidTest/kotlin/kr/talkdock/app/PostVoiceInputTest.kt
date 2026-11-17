@@ -55,7 +55,7 @@ class PostVoiceInputTest {
         } }.use { api -> UiHarness(api, family, tutorialSeen = true).use { ui ->
             ui.await { ui.has("첫 소식을 기다리고 있어요") }; ui.click("첫 소식 쓰기")
             ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("작성 중인 글") }
-            transcribe(ui); ui.await { ui.has("짧게 다시 말해 주세요.") }
+            transcribe(ui); ui.await { ui.has("다시 말해 주세요\n짧게 다시 말해 주세요.") }
             ui.test.runOnMainSync {
                 assertEquals("작성 중인 글", ui.all().filterIsInstance<EditText>().single().text.toString())
                 assertTrue(ui.all().filterIsInstance<android.widget.Button>().single { it.text == "말로 쓰기" }.isEnabled)

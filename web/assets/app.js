@@ -136,8 +136,8 @@ const button = (action, label, symbol, cls = 'button secondary', extra = '') => 
 const character = (sad = false, classes = '') => `<span class="character-art ${sad ? 'character-sad' : 'character-boy'} ${classes}" aria-hidden="true"></span>`;
 const loading = (text = '불러오는 중이에요') => `<div class="loading" role="status">${character()}<span>${e(text)}</span></div>`;
 const errorBlock = message => `<p class="error" role="alert">${e(message)}</p>`;
-const failureContent = error => error.unavailable ? `${character(true)}<strong>잠시 이용이 어려워요</strong><span>${e(error.message)}</span>` : e(error.message || '다시 시도해 주세요.');
-const failureBlock = (error, controls = '') => error.unavailable ? `<section class="availability-notice panel" role="alert">${failureContent(error)}${controls}</section>` : `${errorBlock(error.message)}${controls}`;
+const failureContent = error => error.unavailable ? `${character(true)}<strong>잠시 후 다시 시도해 주세요</strong><span>${e(error.message)}</span>` : e(error.message || '다시 시도해 주세요.');
+const failureBlock = (error, controls = '', title = '입력한 내용을 확인해 주세요') => error.unavailable ? `<section class="availability-notice panel" role="alert">${failureContent(error)}${controls}</section>` : `<section class="error" role="alert"><strong>${e(title)}</strong><p>${e(error.message)}</p>${controls}</section>`;
 function hidePostingSuccess() {
   clearTimeout(postingSuccessTimer);
   postingSuccessBox.hidden = true;
@@ -871,7 +871,7 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
         return;
       }
       $('#voice-panel').innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
-    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, '다시 녹음하기', 'mic')); }
+    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, error.status >= 500 ? '다시 시도하기' : '다시 녹음하기', 'mic'), error.status >= 500 ? '잠시 후 다시 시도해 주세요' : '다시 말해 주세요'); }
   };
   current.start(1000);
   recordingTimer = setTimeout(() => { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }, 120000);

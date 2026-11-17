@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.view.View
 import android.widget.*
 import kr.talkdock.app.data.ApiClient
+import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.ApiFailureMessages
 import kr.talkdock.app.device.Recorder
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -21,6 +23,7 @@ class PostVoiceInput(
     private val toggle: Button
     private var recorder: Recorder? = null
     private var task: Future<*>? = null
+    private var pendingAudio: File? = null
     private var epoch = 0
     private var stopped = false
     private var preview: EditText? = null
@@ -60,6 +63,7 @@ class PostVoiceInput(
     }
 
     private fun transcribe(audio: File) {
+        pendingAudio = audio
         val request = ++epoch
         toggle.isEnabled = false; status.text = "말씀을 글로 바꾸고 있어요."
         task = executor.submit {
@@ -68,7 +72,12 @@ class PostVoiceInput(
             post {
                 if (stopped || request != epoch) return@post
                 toggle.isEnabled = true
-                result.fold({ showReview(it) }, { status.text = it.message ?: "다시 말하기를 눌러 녹음해 주세요." })
+                result.fold({ showReview(it) }, {
+                    status.text = ApiFailureMessages.actionTitle("voice", (it as? ApiException)?.status ?: 0,
+                        connection = it is java.io.IOException || it.cause is java.io.IOException,
+                        timedOut = it is java.net.SocketTimeoutException || it.cause is java.net.SocketTimeoutException) +
+                        "\n" + (it.message ?: "말로 쓰기를 눌러 녹음해 주세요.")
+                })
             }
         }
     }
@@ -102,6 +111,6 @@ class PostVoiceInput(
         }
     }
 
-    fun close() { stopped = true; epoch++; recorder?.close(); task?.cancel(true) }
+    fun close() { stopped = true; epoch++; recorder?.close(); task?.cancel(true); pendingAudio?.delete(); pendingAudio = null }
     override fun onDetachedFromWindow() { close(); super.onDetachedFromWindow() }
 }
