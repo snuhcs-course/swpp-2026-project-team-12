@@ -7,9 +7,10 @@ from apps.accounts.models import AccessToken
 
 
 class APIError(Exception):
-    def __init__(self, message, status=400):
+    def __init__(self, message, status=400, *, field=None):
         self.message = message
         self.status = status
+        self.field = field
 
 
 def api(*methods, anonymous=False):
@@ -33,7 +34,10 @@ def api(*methods, anonymous=False):
                 result = view(request, *args, **kwargs)
                 response = result if hasattr(result, "status_code") else JsonResponse(result)
             except APIError as error:
-                response = JsonResponse({"error": error.message}, status=error.status)
+                payload = {"error": error.message}
+                if error.field:
+                    payload["field"] = error.field
+                response = JsonResponse(payload, status=error.status)
             if "Cache-Control" not in response:
                 response["Cache-Control"] = "no-store"
             return response
