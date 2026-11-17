@@ -28,17 +28,20 @@ try {
     { id: '1', name: '준하', gender: 'male', generation: 0, user_id: 1 },
   ], parents: [], partnerships: [] } };
   let transcriptions = 0;
+  let deferTranscription = false, nextDeferred;
   await page.addInitScript(() => {
     sessionStorage.setItem('talkdock.web.token', 'synthetic-he-token');
     Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) } });
+    window.__heRecorders = [];
     window.MediaRecorder = class {
+      constructor() { window.__heRecorders.push(this); }
       static isTypeSupported() { return true; }
       state = 'inactive';
       start() { this.state = 'recording'; }
       stop() {
         this.state = 'inactive';
         this.ondataavailable?.({ data: new Blob(['test audio'], { type: 'audio/webm' }) });
-        this.onstop?.();
+        window.__heStopTask = this.onstop?.();
       }
     };
   });
@@ -54,6 +57,7 @@ try {
     else if (pathname === '/api/speech/voices/') data = { voices: [] };
     else if (pathname === '/api/speech/transcribe/') {
       transcriptions++;
+      if (deferTranscription) { nextDeferred(route); return; }
       if (transcriptions === 1) {
         await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ error: '짧게 다시 말해 주세요.' }) });
         return;
@@ -113,6 +117,36 @@ try {
   assert.equal(await page.locator('#post-caption').inputValue(), '가족 여러분 안녕하세요.\n오늘 함께 산책했어요.'); checks++;
   assert.equal(await page.locator('#photo-previews .preview').count(), 1); checks++;
   assert.ok(requests.filter(request => request.path === '/api/speech/transcribe/').every(request => request.room === '77')); checks++;
+  // Reproduce a previous response arriving while the next microphone session is active.
+  deferTranscription = true;
+  const finishDeferred = async () => {
+    const pending = new Promise(resolve => { nextDeferred = resolve; });
+    await page.locator('[data-action="finish-record"]').click();
+    return pending;
+  };
+  for (const status of [200, 400]) {
+    await page.locator('[data-action="record-post"]').first().click();
+    const oldRequest = await finishDeferred();
+    await page.locator('[data-action="record-post"]').first().click();
+    assert.equal(await page.evaluate(() => window.__heRecorders.filter(item => item.state === 'recording').length), 1); checks++;
+    await oldRequest.fulfill({ status, contentType: 'application/json', body: JSON.stringify(status === 200 ? { recognized: '이전 녹음' } : { error: '이전 녹음 오류' }) });
+    await page.evaluate(() => window.__heStopTask);
+    assert.equal(await page.locator('[data-action="finish-record"]').count(), 1, 'A stale transcript/error must not replace the new recording controls'); checks++;
+    assert.equal(await page.locator('[data-action="cancel-record"]').count(), 1); checks++;
+    assert.equal(await page.locator('[data-post-voice]').count(), 0); checks++;
+    const newRequest = await finishDeferred();
+    await newRequest.fulfill({ contentType: 'application/json', body: JSON.stringify({ recognized: '새 녹음' }) });
+    await page.evaluate(() => window.__heStopTask);
+    assert.equal(await page.locator('[data-post-voice]').inputValue(), '새 녹음'); checks++;
+  }
+  await page.locator('[data-action="record-post"]').first().click();
+  const cancelledRequest = await finishDeferred();
+  await page.locator('[data-action="record-post"]').first().click();
+  await page.locator('[data-action="cancel-record"]').click();
+  await cancelledRequest.fulfill({ contentType: 'application/json', body: JSON.stringify({ recognized: '취소한 녹음' }) });
+  await page.evaluate(() => window.__heStopTask);
+  assert.equal(await page.locator('#voice-panel').textContent(), ''); checks++;
+  assert.equal(await page.evaluate(() => window.__heRecorders.filter(item => item.state === 'recording').length), 0); checks++;
   assert.ok(!requests.some(request => request.path === '/api/posts/' && request.method === 'POST')); checks++;
   assert.deepEqual(errors, []); checks++;
   console.log(JSON.stringify({ checks, errors }));

@@ -96,6 +96,7 @@ const assistant = new FloatingAssistant({
 });
 const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['search', 'search', '추억']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
+let recordingRequest = 0;
 let previewURLs = [];
 let maintenanceNotice, reconnecting = false;
 let dailyStatus = null, dailyQuestion = null, dailyDraft = null, dailyRequest = 0, dailyHistoryRows = [];
@@ -816,24 +817,27 @@ function renderSettings() {
 
 function stopRecording(discard = false) {
   clearTimeout(recordingTimer);
-  if (recorder && recorder.state !== 'inactive') {
-    if (discard) recorder.onstop = null;
-    recorder.stop();
-  }
-  recordingStream?.getTracks().forEach(track => track.stop());
+  if (discard) recordingRequest++;
+  const current = recorder, stream = recordingStream;
   recordingStream = null;
   recorder = null;
+  if (current && current.state !== 'inactive') {
+    if (discard) current.onstop = null;
+    current.stop();
+  }
+  stream?.getTracks().forEach(track => track.stop());
 }
 async function startRecording({ postId = state.detail?.id, purpose = null } = {}) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new ApiError('음성 답장은 localhost 또는 HTTPS에서 지원되는 브라우저로 이용해 주세요.');
   if (recorder) return;
+  const request = ++recordingRequest;
   const version = state.modalVersion;
   const questionRequest = dailyRequest;
-  const valid = () => version === state.modalVersion && (!purpose || purpose === 'post' || questionRequest === dailyRequest);
+  const valid = () => request === recordingRequest && version === state.modalVersion && (!purpose || purpose === 'post' || questionRequest === dailyRequest);
   const retryAction = purpose === 'post' ? 'record-post' : purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
-  catch { throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); }
+  catch { if (valid()) throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); else return; }
   if (!valid()) { stream.getTracks().forEach(track => track.stop()); return; }
   const mimeType = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type));
   if (!mimeType) { stream.getTracks().forEach(track => track.stop()); throw new ApiError('이 브라우저의 녹음 형식을 지원하지 않아요. 최신 Chrome 또는 Edge로 이용해 주세요.'); }
@@ -844,10 +848,22 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
   recordingStream = stream;
   const chunks = [];
   let bytes = 0;
-  current.ondataavailable = event => { chunks.push(event.data); bytes += event.data.size; if (bytes > 4.5 * 1024 * 1024) stopRecording(); };
-  current.onerror = () => { stopRecording(true); if (valid()) $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.'); };
+  current.ondataavailable = event => {
+    if (!valid()) return;
+    chunks.push(event.data); bytes += event.data.size;
+    if (bytes > 4.5 * 1024 * 1024 && recorder === current) stopRecording();
+  };
+  current.onerror = () => {
+    if (!valid()) return;
+    stopRecording(true);
+    $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.');
+  };
   current.onstop = async () => {
     stream.getTracks().forEach(track => track.stop());
+    if (recorder === current) {
+      clearTimeout(recordingTimer);
+      recorder = null; recordingStream = null;
+    }
     if (!valid()) return;
     const blob = new Blob(chunks, { type: mimeType });
     if (!blob.size || blob.size > 5 * 1024 * 1024) { $('#voice-panel').innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.'); return; }
@@ -874,7 +890,9 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
     } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, error.status >= 500 ? '다시 시도하기' : '다시 녹음하기', 'mic'), error.status >= 500 ? '잠시 후 다시 시도해 주세요' : '다시 말해 주세요'); }
   };
   current.start(1000);
-  recordingTimer = setTimeout(() => { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }, 120000);
+  recordingTimer = setTimeout(() => {
+    if (valid() && recorder === current) { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }
+  }, 120000);
   $('#voice-panel').innerHTML = `<div class="recording-status"><span class="recording-dot"></span><span>녹음 중이에요 · 최대 2분</span>${button('finish-record', '녹음 마치기', 'stop', 'button primary compact')}${button('cancel-record', '취소', '', 'button quiet compact')}</div>`;
 }
 
