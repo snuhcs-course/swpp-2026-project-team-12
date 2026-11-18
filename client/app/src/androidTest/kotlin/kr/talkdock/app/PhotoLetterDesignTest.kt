@@ -104,7 +104,7 @@ class PhotoLetterDesignTest {
         } }
     }
 
-    @Test fun voiceReplyStartsOnlyAfterTheExplicitReplyActionAndBackCancelsIt() {
+    @Test fun voiceReplyWaitsForStartAfterOpeningAndBackCancelsIt() {
         val test = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
         test.uiAutomation.grantRuntimePermission(test.targetContext.packageName, android.Manifest.permission.RECORD_AUDIO)
         server().use { api -> UiHarness(api, room(77, "우리 가족")).use { ui ->
@@ -115,12 +115,17 @@ class PhotoLetterDesignTest {
                 val card = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 1 }
                 ui.all(card).single { it.contentDescription == "말로 댓글" }.performClick()
             }
+            ui.await { ui.has("버튼을 누르고 말씀해 주세요") }
+            val field = ui.activity.javaClass.getDeclaredField("recorder").apply { isAccessible = true }
+            ui.test.runOnMainSync {
+                assertNull("Opening the reply must not start the microphone", field.get(ui.activity))
+                ui.all().single { it.contentDescription == "말하기 시작" }.performClick()
+            }
             ui.await { ui.has("듣고 있어요") && ui.all().any { it.contentDescription == "말하기 마치기" } }
             ui.screenshot("vertical-feed-voice.png")
             ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
             ui.await { ui.all().any { it is FeedPostCard } }
             assertTrue("Cancelling a voice draft must not upload or send it", api.paths().none { it.contains("transcribe") || it.contains("replies") })
-            val field = ui.activity.javaClass.getDeclaredField("recorder").apply { isAccessible = true }
             ui.test.runOnMainSync { assertNull(field.get(ui.activity)) }
         } }
     }

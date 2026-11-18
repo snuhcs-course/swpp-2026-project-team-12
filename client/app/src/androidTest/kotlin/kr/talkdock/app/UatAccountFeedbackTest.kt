@@ -1,5 +1,6 @@
 package kr.talkdock.app
 
+import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.TextView
@@ -9,6 +10,8 @@ import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class UatAccountFeedbackTest {
@@ -58,25 +61,49 @@ class UatAccountFeedbackTest {
     }
 
     @Test fun changingVoiceDiscardsThePreviousSampleWhileItIsLoading() {
+        val sampleStarted = CountDownLatch(1)
+        val releaseSample = CountDownLatch(1)
+        val voiceTitle = "소식을 읽어 줄 목소리 (선택)"
         MockApi { request -> when (request.path) {
             "/api/speech/voices/" -> jsonReply(JSONObject().put("default", "a").put("voices", JSONArray()
                 .put(JSONObject().put("key", "a").put("name", "목소리 A").put("sample", true))
                 .put(JSONObject().put("key", "b").put("name", "목소리 B").put("sample", false))))
-            "/api/speech/voices/a/sample/" -> { Thread.sleep(1000); Reply("not-audio".toByteArray(), 200) }
+            "/api/speech/voices/a/sample/" -> {
+                sampleStarted.countDown()
+                check(releaseSample.await(15, TimeUnit.SECONDS)) { "Sample response was not released by the test" }
+                Reply("not-audio".toByteArray(), 200)
+            }
             else -> jsonReply(JSONObject())
         } }.use { api -> UiHarness(api, null, signedIn = false).use { ui ->
-            ui.await { ui.has("토닥 시작하기") }; ui.click("토닥 시작하기")
-            ui.await { ui.all().filterIsInstance<Spinner>().any { it.contentDescription == "소식을 읽어 줄 목소리 (선택)" && it.isShown } }
-            ui.click("선택한 목소리 미리 듣기")
-            ui.await { ui.has("목소리 예시를 준비하고 있어요.") }
-            ui.test.runOnMainSync { ui.all().filterIsInstance<Spinner>().last().setSelection(1) }
-            Thread.sleep(1500); ui.test.waitForIdleSync()
-            assertFalse(ui.has("목소리 예시를 듣고 있어요."))
-            assertFalse(ui.has("재생하지 못했어요. 미리 듣기를 다시 눌러 주세요."))
-            ui.test.runOnMainSync { ui.all().filterIsInstance<Spinner>().last().setSelection(0) }
-            ui.click("선택한 목소리 미리 듣기")
-            Thread.sleep(300)
-            assertEquals(1, synchronized(api.requests) { api.requests.count { it.path == "/api/speech/voices/a/sample/" } })
+            fun previewReady() = ui.all().filterIsInstance<Button>().any {
+                it.text.toString() == "선택한 목소리 미리 듣기" && it.isShown && it.isEnabled
+            }
+            fun voiceSpinner() = ui.all().filterIsInstance<Spinner>().single { it.contentDescription == voiceTitle }
+            fun selectVoice(position: Int) = ui.test.runOnMainSync { voiceSpinner().setSelection(position) }
+            try {
+                ui.await { ui.has("토닥 시작하기") }; ui.click("토닥 시작하기")
+                // The spinner becomes visible before its selection callback can
+                // finish. Wait for the preview button, which that callback reveals.
+                ui.await { previewReady() }
+                assertTrue("The selected sample should be prefetched", sampleStarted.await(6, TimeUnit.SECONDS))
+                ui.click("선택한 목소리 미리 듣기")
+                // Prefetch may already have started long before this click on CI.
+                // Hold the response until B is selected so loading cannot disappear.
+                ui.await { ui.has("목소리 예시를 준비하고 있어요.") }
+                selectVoice(1)
+                ui.await { voiceSpinner().selectedItemPosition == 1 && !previewReady() &&
+                    !ui.has("목소리 예시를 준비하고 있어요.") }
+                releaseSample.countDown()
+                Thread.sleep(1500); ui.test.waitForIdleSync()
+                assertFalse(ui.has("목소리 예시를 듣고 있어요."))
+                assertFalse(ui.has("재생하지 못했어요. 미리 듣기를 다시 눌러 주세요."))
+                selectVoice(0)
+                ui.await { previewReady() }
+                ui.click("선택한 목소리 미리 듣기")
+                // Invalid audio deliberately exposes completion of the cached retry.
+                ui.await { ui.has("재생하지 못했어요. 미리 듣기를 다시 눌러 주세요.") }
+                assertEquals(1, synchronized(api.requests) { api.requests.count { it.path == "/api/speech/voices/a/sample/" } })
+            } finally { releaseSample.countDown() }
         } }
     }
 }

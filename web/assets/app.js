@@ -98,6 +98,17 @@ const assistant = new FloatingAssistant({
 const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['search', 'search', '추억']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let recordingRequest = 0;
+let audioGeneration = 0;
+function updatePostViewport() {
+  const viewport = window.visualViewport;
+  document.documentElement.style.setProperty('--post-viewport-height', `${viewport?.height || innerHeight}px`);
+  document.documentElement.style.setProperty('--post-viewport-top', `${viewport?.offsetTop || 0}px`);
+  document.documentElement.style.setProperty('--post-viewport-bottom', `${Math.max(0, innerHeight - (viewport?.height || innerHeight) - (viewport?.offsetTop || 0))}px`);
+}
+window.visualViewport?.addEventListener('resize', updatePostViewport);
+window.visualViewport?.addEventListener('scroll', updatePostViewport);
+window.addEventListener('resize', updatePostViewport);
+updatePostViewport();
 let previewURLs = [];
 let voicePreview = null;
 let maintenanceNotice, reconnecting = false;
@@ -201,9 +212,11 @@ function showFieldError(form, error) {
   return true;
 }
 function stopAudio() {
+  audioGeneration++;
   voicePreview?.cancel();
   if (audio) { audio.pause(); audio = null; }
   if (audioURL) { URL.revokeObjectURL(audioURL); audioURL = null; }
+  document.querySelectorAll('.feed-audio-summary[data-preparing]').forEach(node => { node.hidden = true; });
   document.querySelectorAll('[data-action="stop-audio"]').forEach(node => { node.hidden = true; });
   document.querySelectorAll('[data-action="feed-stop-listen"]').forEach(node => { node.dataset.action = 'feed-listen'; node.innerHTML = icon('volume') + feedListenLabel(); node.setAttribute('aria-label','소식 듣기'); });
 }
@@ -703,8 +716,13 @@ async function openPost(id, summarize = false) {
     state.detail = post;
     state.photoIndex = 0;
     modal.innerHTML = `${modalHeading('소소한 하루, 다정한 이야기', 'FAMILY MOMENT')}<div class="post-detail ${post.images.length ? '' : 'text-only'}">${post.images.length ? `<section class="detail-gallery" aria-label="공유한 사진"><div id="gallery-stage"></div>${post.images.length > 1 ? `<div class="photo-thumbnails">${post.images.map((photo, index) => `<button type="button" data-action="select-photo" data-index="${index}" aria-label="${index + 1}번 사진" aria-pressed="${index === 0}"><img data-post="${post.id}" data-photo-url="${e(photo.url)}" alt="${index + 1}번 사진 미리보기"></button>`).join('')}</div>` : ''}</section>` : ''}<section class="detail-conversation"><header class="post-author">${avatar(post.author_name, post.author_id)}<div><strong>${e(post.author_name)}</strong><span class="relationship">${e(post.relationship)}</span><time datetime="${e(post.created_at)}">${dateLabel(post.created_at, true)}</time></div></header><p class="detail-caption">${e(post.caption)}</p>
-      <section class="ai-panel"><div class="ai-heading">${icon('sparkle')}<h3>AI와 함께 읽어요</h3></div><p class="help">소식을 쉽게 풀어 읽고, 궁금한 점을 물어보세요.</p><div class="button-row">${button('summary', '소식 요약하기', 'sparkle', 'button secondary compact')}${button('summary-audio', '요약 듣기', 'volume', 'button quiet compact')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet compact', 'hidden')}</div><div id="summary-result" class="ai-result" aria-live="polite"></div><div id="question-history" class="question-history" aria-live="polite"></div><form data-form="post-question" class="inline-form"><label class="sr-only" for="post-question">이 소식에 대해 물어보기</label><input id="post-question" name="question" maxlength="1000" required placeholder="이 소식에 대해 궁금한 점은?"><button type="submit" class="icon-button send-button" aria-label="AI에게 질문하기">${icon('arrow')}</button><p class="form-error" role="alert"></p></form><p class="fine-print">AI 답변은 실제 소식과 다를 수 있어요. 중요한 내용은 가족에게 확인해 주세요.</p></section>
+      <section class="ai-panel"><div class="ai-heading">${icon('sparkle')}<h3>AI와 함께 읽어요</h3></div><p class="help">소식을 쉽게 풀어 읽고, 궁금한 점을 물어보세요.</p><div class="button-row">${button('summary', '소식 요약하기', 'sparkle', 'button secondary compact')}${button('summary-audio', '요약 듣기', 'volume', 'button quiet compact')}</div><div id="summary-result" class="ai-result" aria-live="polite"></div>${button('stop-audio', '듣기 중지', 'stop', 'button quiet compact', 'hidden')}<div id="question-history" class="question-history" aria-live="polite"></div><form data-form="post-question" class="inline-form"><label class="sr-only" for="post-question">이 소식에 대해 물어보기</label><input id="post-question" name="question" maxlength="1000" required placeholder="이 소식에 대해 궁금한 점은?"><button type="submit" class="icon-button send-button" aria-label="AI에게 질문하기">${icon('arrow')}</button><p class="form-error" role="alert"></p></form><p class="fine-print">AI 답변은 실제 소식과 다를 수 있어요. 중요한 내용은 가족에게 확인해 주세요.</p></section>
       <section class="comments-section"><h3>마음을 나눠요 <span id="comment-count">${post.comments.length}</span></h3><div id="comments"></div><form data-form="comment"><label class="sr-only" for="comment-text">가족에게 댓글 남기기</label><textarea id="comment-text" name="text" required maxlength="2000" rows="2" placeholder="다정한 한마디를 남겨보세요."></textarea><p class="form-error" role="alert"></p><div class="comment-submit">${button('record', '음성으로 답장', 'mic', 'button quiet compact')}<button type="submit" class="button primary compact">댓글 보내기${icon('arrow')}</button></div></form><div id="voice-panel" aria-live="polite"></div></section></section></div>`;
+    // Keep the reply controls outside the scrolling post and comment history.
+    const scroller = document.createElement('div'); scroller.className = 'post-scroll';
+    const footer = document.createElement('div'); footer.className = 'post-reply-footer';
+    const detail = $('.post-detail', modal); detail.before(scroller); scroller.append(detail);
+    footer.append($('form[data-form="comment"]', modal), $('#voice-panel', modal)); modal.append(footer);
     renderComments();
     if (post.images.length) showPhoto(0);
     hydrateImages(modal);
@@ -736,18 +754,41 @@ async function loadSummary() {
   else if (result.status === 'failed') throw new ApiError('AI 요약을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.');
   else { target.textContent = '요약을 준비하고 있어요. 잠시 후 요약 버튼을 다시 눌러 주세요.'; }
 }
-async function playSpeech(text, target, valid = () => true) {
+function audioControl(target, preparing = true) {
+  if (!target?.isConnected) return;
+  target.hidden = false;
+  target.innerHTML = icon('stop') + (preparing ? '취소' : '듣기 중지');
+  target.setAttribute('aria-label', preparing ? '음성 준비 취소' : '듣기 중지');
+}
+async function playSpeech(text, target, valid = () => true, generation = null) {
   if (!text) throw new ApiError('먼저 요약을 불러와 주세요.');
+  if (generation === null) { stopAudio(); generation = audioGeneration; }
+  const current = () => generation === audioGeneration && valid();
+  if (!current()) return;
+  audioControl(target);
+  try {
+    const blob = await api('speech/', { method: 'POST', data: { text }, binary: true });
+    if (!current()) return;
+    audioURL = URL.createObjectURL(blob);
+    const player = new Audio(audioURL); audio = player;
+    player.addEventListener('ended', () => { if (current()) stopAudio(); }, { once: true });
+    player.addEventListener('error', () => { if (current()) { stopAudio(); toast('음성을 재생하지 못했어요. 다시 시도해 주세요.'); } }, { once: true });
+    try { await player.play(); }
+    catch { if (current()) throw new ApiError('재생이 차단되었어요. 듣기 버튼을 다시 눌러 주세요.'); }
+    if (current()) audioControl(target, false);
+  } catch (error) { if (current()) { stopAudio(); throw error; } }
+}
+async function listenToSummary() {
   stopAudio();
-  const blob = await api('speech/', { method: 'POST', data: { text }, binary: true });
-  if (!valid()) return;
-  audioURL = URL.createObjectURL(blob);
-  audio = new Audio(audioURL);
-  audio.addEventListener('ended', stopAudio, { once: true });
-  audio.addEventListener('error', () => { stopAudio(); toast('음성을 재생하지 못했어요. 다시 시도해 주세요.'); }, { once: true });
-  try { await audio.play(); }
-  catch { stopAudio(); throw new ApiError('재생이 차단되었어요. 듣기 버튼을 다시 눌러 주세요.'); }
-  if (target?.isConnected) target.hidden = false;
+  const generation = audioGeneration, version = state.modalVersion;
+  const valid = () => generation === audioGeneration && version === state.modalVersion && modal.open;
+  const control = $('[data-action="stop-audio"]', modal); audioControl(control);
+  try {
+    if (!state.detail.summary) await loadSummary();
+    if (!valid()) return;
+    if (state.detail?.summary) await playSpeech(state.detail.summary, control, valid, generation);
+    else stopAudio();
+  } catch (error) { if (valid()) { stopAudio(); toast(error.message); } }
 }
 
 function openComposer() {
@@ -817,18 +858,25 @@ function refreshPostComments(id, comments) {
   const target=card.querySelector('.feed-inline-comments > div');if(target)target.innerHTML=inlineCommentMarkup(comments);
 }
 async function listenToPost(id, target) {
-  const session=state.session, room=state.room.id, version=state.pageVersion;
-  let playing = false;
-  await busy(target,async()=>{
-    const result=await api(`posts/${id}/message/`,{method:'POST',room});
-    if(session!==state.session || room!==state.room?.id || version!==state.pageVersion)return;
-    if(result.status!=='ready')throw new ApiError(result.status==='failed'?'소식을 읽을 준비를 하지 못했어요. 다시 시도해 주세요.':'소식을 읽을 준비 중이에요. 잠시 후 다시 눌러 주세요.');
-    await playSpeech(result.text,null,()=>session===state.session&&room===state.room?.id&&version===state.pageVersion);
-    playing = Boolean(audio && !audio.paused);
-  });
-  if (playing && target.isConnected && session===state.session && room===state.room?.id && version===state.pageVersion) {
-    target.innerHTML=icon('stop')+feedListenLabel(true);target.setAttribute('aria-label','듣기 중지');target.dataset.action='feed-stop-listen';
-  }
+  stopAudio();
+  const generation = audioGeneration, session = state.session, room = state.room.id, version = state.pageVersion;
+  const valid = () => generation === audioGeneration && session === state.session && room === state.room?.id && version === state.pageVersion;
+  const card = target.closest('.post-card') || document.querySelector(`#feed-list .post-card[data-post-id="${id}"]`);
+  if (!card) return;
+  let panel = card.querySelector('.feed-audio-summary');
+  if (!panel) { panel = document.createElement('section'); panel.className = 'feed-audio-summary'; card.append(panel); }
+  panel.hidden = false; panel.dataset.preparing = 'true';
+  panel.innerHTML = `<p aria-live="polite">요약을 준비하고 있어요.</p>${button('stop-audio', '취소', 'stop', 'button quiet compact')}`;
+  const control = $('[data-action="stop-audio"]', panel); audioControl(control);
+  target.dataset.action = 'feed-stop-listen'; target.innerHTML = icon('stop') + '취소'; target.setAttribute('aria-label', '음성 준비 취소');
+  try {
+    const result = await api(`posts/${id}/message/`, { method:'POST', room });
+    if (!valid()) return;
+    if (result.status !== 'ready') throw new ApiError(result.status === 'failed' ? '소식을 읽을 준비를 하지 못했어요. 다시 시도해 주세요.' : '소식을 읽을 준비 중이에요. 잠시 후 다시 눌러 주세요.');
+    delete panel.dataset.preparing; $('p', panel).textContent = result.text;
+    await playSpeech(result.text, control, valid, generation);
+    if (valid() && audio && !audio.paused) { target.innerHTML = icon('stop') + feedListenLabel(true); target.setAttribute('aria-label','듣기 중지'); }
+  } catch (error) { if (valid()) { delete panel.dataset.preparing; $('p', panel).textContent = error.message; stopAudio(); } }
 }
 
 function renderFamily() {
@@ -1099,7 +1147,7 @@ const formHandlers = {
     const version = state.modalVersion;
     const draft = await api(`posts/${state.detail.id}/replies/prepare/`, { method: 'POST', data });
     if (version !== state.modalVersion) return;
-    $('#voice-panel').innerHTML = `<div class="voice-review"><span class="tag">보내기 전 마지막 확인</span><h4>이렇게 마음을 전할까요?</h4><p class="voice-draft">${e(draft.converted)}</p><p class="help">아래 버튼을 누르면 이 글이 가족 댓글로 전송돼요.</p><div class="button-row">${button('send-voice', '이대로 답장 보내기', 'arrow', 'button primary', `data-id="${draft.id}"`)}${button('cancel-record', '취소', '', 'button quiet')}</div></div>`;
+    $('#voice-panel').innerHTML = `<div class="voice-review"><span class="tag">보내기 전 마지막 확인</span><h4>이렇게 마음을 전할까요?</h4><p class="voice-draft">${e(draft.converted)}</p><p class="help">아래 버튼을 누르면 이 글이 가족 댓글로 전송돼요.</p><div class="button-row">${button('send-voice', '이대로 답장 보내기', 'arrow', 'button primary', `data-id="${draft.id}"`)}${button('reply-rerecord', '다시 말하기', 'mic', 'button quiet')}</div></div>`;
   },
 };
 
@@ -1152,7 +1200,7 @@ document.addEventListener('click', async event => {
     await openPost(Number(target.dataset.id));
     if (!state.detail || state.detail.id !== Number(target.dataset.id)) return;
     if (action !== 'elder-comment') { modal.classList.add('comments-only'); $('#modal-title').textContent = '댓글'; }
-    if (action === 'feed-voice') return busy(target, () => startRecording());
+    if (action === 'feed-voice') { $('#voice-panel').innerHTML = `<p class="help">버튼을 누르고 말씀해 주세요.</p>${button('record', '말하기 시작', 'mic', 'button primary compact')}`; return; }
     const field = $('#comment-text', modal); field?.scrollIntoView({ block: 'nearest' }); field?.focus({ preventScroll: true }); return;
   }
   if (action === 'feed-stop-listen') { stopAudio(); target.dataset.action='feed-listen'; target.innerHTML=icon('volume')+feedListenLabel();target.setAttribute('aria-label','소식 듣기'); return; }
@@ -1188,6 +1236,7 @@ document.addEventListener('click', async event => {
     return busy(target, () => openRoom(id));
   }
   if (action === 'stop-audio') return stopAudio();
+  if (action === 'summary-audio') return listenToSummary();
   if (action === 'record-post') return busy(target, () => startRecording({ purpose: 'post' }));
   if (action === 'post-voice-insert') {
     const field = $('#post-caption'), transcript = $('[data-post-voice]')?.value.trim() || '';
@@ -1198,6 +1247,7 @@ document.addEventListener('click', async event => {
     $('#voice-panel').innerHTML = '<p class="help">글에 넣었어요. 내용을 확인한 뒤 가족에게 전해 주세요.</p>';
     return;
   }
+  if (action === 'reply-rerecord') { stopRecording(true); $('#voice-panel').innerHTML = `<p class="help">버튼을 누르고 말씀해 주세요.</p>${button('record', '말하기 시작', 'mic', 'button primary compact')}`; return; }
   if (action === 'cancel-record') { stopRecording(true); $('#voice-panel').innerHTML = ''; return; }
   if (action === 'finish-record') { stopRecording(); return; }
   if (action === 'digest-date') {
@@ -1224,11 +1274,6 @@ document.addEventListener('click', async event => {
       else toast(`초대코드: ${state.room.invite_code} · 코드를 직접 복사해 주세요.`);
     }
     if (action === 'summary') await loadSummary();
-    if (action === 'summary-audio') {
-      const version = state.modalVersion;
-      if (!state.detail.summary) await loadSummary();
-      if (version === state.modalVersion && state.detail?.summary) await playSpeech(state.detail.summary, $('[data-action="stop-audio"]', modal), () => version === state.modalVersion);
-    }
     if (action === 'digest-audio') {
       const version = state.pageVersion;
       const digest = state.digest;
@@ -1300,7 +1345,7 @@ function openBotMenu() {
   const id = assistant.targetId, roomId = state.room?.id, session = state.session;
   const menu = document.createElement('dialog'); menu.className = 'bot-menu-dialog';
   menu.setAttribute('aria-label', '토닥 도우미 메뉴');
-  const rows = [['ask','comment','이 소식 물어보기',true],['listen','volume','음성으로 듣기',true],['summary','sparkle','AI 요약 보기',true],['memory','search','가족 추억 찾기',false],['day','calendar','오늘 가족의 하루',false],['help','book','도움말',false]];
+  const rows = [['ask','comment','이 소식 물어보기',true],['listen','volume',document.querySelector(`#feed-list [data-action="feed-stop-listen"][data-id="${id}"]`) ? '듣기 중지' : '음성으로 듣기',true],['summary','sparkle','AI 요약 보기',true],['memory','search','가족 추억 찾기',false],['day','calendar','오늘 가족의 하루',false],['help','book','도움말',false]];
   menu.innerHTML = `<header><h2>무엇을 도와드릴까요?</h2><button type="button" class="icon-button" data-bot="close" aria-label="도우미 메뉴 닫기">${icon('close')}</button></header>${rows.map(([action,symbol,label,needsPost])=>`<button type="button" data-bot="${action}" ${needsPost&&id===null?'disabled':''}>${icon(symbol)}<span>${label}</span>${icon('chevron')}</button>`).join('')}`;
   document.body.append(menu); menu.showModal();
   menu.addEventListener('close',()=>menu.remove(),{once:true});
@@ -1312,6 +1357,7 @@ function openBotMenu() {
     if(action==='memory'){location.hash='#/search';return;}
     if(action==='day'){location.hash='#/digest';return;}
     if(action==='ask'){assistant.targetId=id;assistant.open();return;}
+    if(action==='listen' && document.querySelector(`#feed-list [data-action="feed-stop-listen"][data-id="${id}"]`))return stopAudio();
     if(action==='listen')return listenToPost(id,document.querySelector(`#feed-list [data-action="feed-listen"][data-id="${id}"]`)||button);
     if(action==='summary')return openPost(id,true);
   };

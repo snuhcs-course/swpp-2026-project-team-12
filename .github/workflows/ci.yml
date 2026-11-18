@@ -160,6 +160,7 @@ jobs:
           # "System UI isn't responding" dialogs on the software-rendered emulator cover the app under test.
           script: |
             adb shell settings put global hide_error_dialogs 1
+            adb shell settings put secure show_ime_with_hard_keyboard 1
             adb shell settings put global window_animation_scale 1
             adb shell settings put global transition_animation_scale 1
             adb shell settings put global animator_duration_scale 1

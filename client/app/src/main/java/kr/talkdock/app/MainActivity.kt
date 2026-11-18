@@ -123,6 +123,12 @@ class MainActivity : ComponentActivity() {
     private val feedCards = mutableListOf<FeedPostCard>()
     private val feedCommentCache = mutableMapOf<Int, List<JSONObject>>()
     private val feedComments = Executors.newFixedThreadPool(2)
+    private val feedUpdates = Executors.newSingleThreadExecutor()
+    private var feedSnapshot: JSONObject? = null
+    private var feedSnapshotScope: String? = null
+    private var feedRequest = 0
+    private fun feedScope() = "${sessions.serverUrl()}:${session?.optInt("user_id")}:${session?.optString("token")}:${room.optInt("id")}"
+    private fun clearFeedSnapshot() { feedSnapshot = null; feedSnapshotScope = null; feedRequest++ }
     private var commentsDialog: Dialog? = null
     private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING }
     private var guideStep: GuideStep? = null
@@ -371,7 +377,7 @@ class MainActivity : ComponentActivity() {
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
         assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss()
-        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow()
+        stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow(); feedUpdates.shutdownNow()
         voiceSamples.shutdownNow(); sampleCache.clear()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
         super.onDestroy()
@@ -895,7 +901,7 @@ class MainActivity : ComponentActivity() {
     }
     private fun saveSession(value: JSONObject, big: Boolean) {
         if (session?.optInt("user_id") != value.optInt("user_id") || room.optInt("id", -1) != value.optJSONObject("room")?.optInt("id", -1)) {
-            feedCommentCache.clear(); feedAnchorId = null
+            feedCommentCache.clear(); feedAnchorId = null; clearFeedSnapshot()
         }
         sessions.save(value, big); session = value; room = value.optJSONObject("room") ?: JSONObject()
         configurePush()
@@ -924,7 +930,7 @@ class MainActivity : ComponentActivity() {
         dailyStatus = null; dailyQuestionState = null; dailyVoicePurpose = null; dailyPanel = null
         memoryTabState = null; memoryPanel = null; memoryReturn = null
         feedPostId = null; feedScrollY = 0; restoreFeedScroll = false
-        feedCommentCache.clear(); feedAnchorId = null
+        feedCommentCache.clear(); feedAnchorId = null; clearFeedSnapshot()
         digestDate = LocalDate.now(ZoneId.of("Asia/Seoul")).toString()
     }
     /**
@@ -1269,8 +1275,47 @@ class MainActivity : ComponentActivity() {
         if (refresh != null) feedCommentCache.clear()
         if (refresh == null) navigation("토닥", name = "home")
         val client = api
-        async({ client.request("posts/") }, refresh = refresh) { data ->
-            displayHome(data, client)
+        val scope = feedScope()
+        val cached = feedSnapshot?.takeIf { feedSnapshotScope == scope }
+        if (cached != null && refresh == null) displayHome(JSONObject(cached.toString()), client)
+        val number = pageNumber
+        val request = ++feedRequest
+        val cover = if (cached == null && refresh == null) TodakWaitingView(this, "소식을 불러오고 있어요.") else null
+        cover?.let { root.addView(it, FrameLayout.LayoutParams(-1, -1)) }
+        refresh?.isRefreshing = true
+        feedUpdates.execute {
+            val result = runCatching { client.request("posts/") }
+            runOnUiThread {
+                cover?.let { root.removeView(it) }; refresh?.isRefreshing = false
+                if (isDestroyed || number != pageNumber || request != feedRequest || scope != feedScope()) return@runOnUiThread
+                result.fold({ data ->
+                    val changed = cached?.toString() != data.toString()
+                    feedSnapshot = JSONObject(data.toString()); feedSnapshotScope = scope
+                    // Keep a live player or open comment sheet intact; the next visit uses the fresh snapshot.
+                    if (cached == null || refresh != null || (changed && commentsDialog == null && activePostAudio?.isPlaying != true)) {
+                        if (cached != null && refresh == null) {
+                            feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
+                            feedCards.firstOrNull { it.bottom > feedScrollY }?.let {
+                                feedAnchorId = it.post.optInt("id"); feedAnchorOffset = it.top - feedScrollY
+                            }
+                        }
+                        displayHome(data, client)
+                    }
+                }, { error ->
+                    if (error is ApiException && error.isMaintenance) { showMaintenance(); return@runOnUiThread }
+                    if (error is ApiException && error.status in setOf(401, 403)) {
+                        clearFeedSnapshot(); feedCommentCache.clear()
+                        if (error.status == 401) {
+                            val username = session?.optString("username").orEmpty()
+                            val userId = session?.optInt("user_id"); val big = large
+                            sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
+                            login(username, userId, big)
+                        } else roomChoice()
+                    } else if (cached != null) toast("새 소식을 불러오지 못했어요. 아래로 당겨 다시 시도해 주세요.")
+                    else feedError((error as? ApiException)?.message ?: "인터넷 연결을 확인하고 다시 시도해 주세요.")
+                })
+                root.post { openPushIfReady() }
+            }
         }
     }
 
@@ -1360,19 +1405,37 @@ class MainActivity : ComponentActivity() {
     private fun openComments(post: JSONObject) {
         if (commentsDialog != null || busy) return
         val dialog = Dialog(this); commentsDialog = dialog
-        val box = ui.column(20); val body = ui.column()
+        val box = ui.column(20).apply { setBackgroundColor(ui.paper); isClickable = true }
+        val body = ui.column(); val footer = ui.column()
+        val sheet = FrameLayout(this).apply { setOnClickListener { dialog.dismiss() } }
+        sheet.addView(box, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM))
         val header = ui.row()
         header.addView(ui.text("댓글", 23f, true), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(ui.iconButton("close", "댓글 닫기") { dialog.dismiss() }); box.addView(header)
-        box.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(-1, -2))
-        dialog.setContentView(box); dialog.setOnDismissListener {
+        box.addView(ScrollView(this).apply { addView(body); tag = "comment-list-scroll" }, LinearLayout.LayoutParams(-1, 0, 1f))
+        box.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.setContentView(sheet); dialog.setOnDismissListener {
             if (commentsDialog === dialog) commentsDialog = null
             updateAssistantContext()
         }
         dialog.show(); dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.transparent); setGravity(Gravity.BOTTOM)
-            setLayout(-1, (root.height * .75f).toInt()); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(this, false)
+            setLayout(-1, -1); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(sheet) { view, insets ->
+            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+            val bottom = maxOf(bars.bottom, ime.bottom)
+            val height = view.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
+            box.layoutParams = (box.layoutParams as FrameLayout.LayoutParams).apply {
+                this.height = minOf((height * .75f).toInt(), height - bars.top - bottom).coerceAtLeast(0)
+                bottomMargin = bottom; leftMargin = bars.left; rightMargin = bars.right
+            }
+            insets
+        }
+        sheet.post { androidx.core.view.ViewCompat.requestApplyInsets(sheet) }
         val client = api; val number = pageNumber
         fun refresh() {
             body.removeAllViews(); ui.label(body, "댓글을 가져오고 있어요.", 18f)
@@ -1396,10 +1459,12 @@ class MainActivity : ComponentActivity() {
                             composer.setSending(true)
                             async({ client.request("posts/${post.getInt("id")}/comments/", "POST", json("text" to text)) },
                                 showLoading = false, failure = { error -> composer.showError(error.message ?: "댓글을 보내지 못했어요. 다시 시도해 주세요."); true }) {
-                                if (dialog.isShowing) { toast("댓글을 달았어요!"); refresh() }
+                                if (dialog.isShowing) { composer.input.setText(""); composer.setSending(false); toast("댓글을 달았어요!"); refresh() }
                             }
                         }
-                        body.addView(composer)
+                        footer.removeAllViews(); footer.addView(composer)
+                        dialog.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
+                        composer.tag = "sheet-comment"
                         post.put("comment_count", items.size)
                         feedCards.firstOrNull { it.post.optInt("id") == post.optInt("id") }?.showComments(items)
                     }, { ui.label(body, "댓글을 불러오지 못했어요.", 18f); ui.ghost(body, "다시 불러오기") { refresh() } })
@@ -1538,7 +1603,7 @@ class MainActivity : ComponentActivity() {
         guideRoom = replyKey()
         if (screen == "home") offerHelp(manual = true)
         else if (screen == "detail") {
-            val field = content.findViewWithTag<CommentComposer>("detail-comment") ?: return
+            val field = page.findViewWithTag<CommentComposer>("detail-comment") ?: return
             guideStep = GuideStep.REPLYING
             guidePostId = selectedPost?.optInt("id") ?: -1
             guideComment(field, reveal = true)
@@ -1780,7 +1845,9 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            content.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            val footer = ui.column(12).apply { setBackgroundColor(ui.paper) }
+            footer.addView(composer, LinearLayout.LayoutParams(-1, -2))
+            page.addView(footer, LinearLayout.LayoutParams(-1, -2))
             composer.tag = "detail-comment"
             val text = composer.input
             text.doAfterTextChanged { guideComment(composer) }
@@ -1922,7 +1989,7 @@ class MainActivity : ComponentActivity() {
             narrator.interrupt()
             async({ client.uploadPost(files, caption) }, "가족에게 소식을 전하고 있어요.") {
                 if (guideStep == GuideStep.WRITING) closeGuide()
-                clearPhotoDraft(); imageLoader.clear()
+                clearPhotoDraft(); imageLoader.clear(); clearFeedSnapshot()
                 postingSuccess("글 업로드가 완료됐어요") { home() }
             }
         }
@@ -2008,8 +2075,8 @@ class MainActivity : ComponentActivity() {
         val sheet = ui.card(content, ui.paper, padding = 24, stroke = false)
         ui.label(sheet, post.optString("author_name") + "님에게 답장", if (large) 26f else 22f, true).gravity = Gravity.CENTER
         ui.gap(sheet, 20)
-        voiceStatus = ui.label(sheet, "편하게 말씀해 주세요", if (large) 25f else 22f, true).apply { gravity = Gravity.CENTER }
-        voiceText = ui.label(sheet, "말씀을 마친 뒤, 보낼 내용을 확인해요.", if (large) 20f else 16f, color = ui.muted).apply {
+        voiceStatus = ui.label(sheet, "버튼을 누르고 말씀해 주세요", if (large) 25f else 22f, true).apply { gravity = Gravity.CENTER }
+        voiceText = ui.label(sheet, "말하기 시작을 누르면 녹음이 시작돼요.", if (large) 20f else 16f, color = ui.muted).apply {
             gravity = Gravity.CENTER; setPadding(0, ui.dp(10), 0, ui.dp(12))
         }
         voiceWave = VoiceRecordingView(this, ui, { recorder?.active == true }, { voiceStartedAt }).also {
@@ -2038,7 +2105,7 @@ class MainActivity : ComponentActivity() {
                                 AlertDialog.Builder(this@MainActivity).setTitle(title)
                                     .setMessage(error.message ?: "말씀을 글로 바꾸지 못했어요. 다시 시도해 주세요.")
                                     .setPositiveButton(if (rerecord) "다시 말하기" else "다시 시도") { _, _ ->
-                                        if (rerecord) startVoice(post) else voiceButton?.performClick()
+                                        if (rerecord) voice(post, voiceFromDetail) else voiceButton?.performClick()
                                     }.setNegativeButton("나중에", null).show()
                                 true
                             }
@@ -2053,8 +2120,6 @@ class MainActivity : ComponentActivity() {
         }.also { sheet.addView(it, LinearLayout.LayoutParams(ui.dp(88), ui.dp(88)).apply { gravity = Gravity.CENTER_HORIZONTAL }) }
         ui.gap(sheet, 8)
         voiceControlLabel = ui.label(sheet, "말하기 시작", 17f, color = ui.muted).apply { gravity = Gravity.CENTER }
-        val number = pageNumber
-        content.post { if (number == pageNumber && foreground) startVoice(post) }
     }
     private fun voiceState(label: String, recording: Boolean) {
         voiceButton?.text = if (recording) "■" else "●"

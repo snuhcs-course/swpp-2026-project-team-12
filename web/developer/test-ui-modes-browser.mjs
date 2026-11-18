@@ -78,7 +78,7 @@ try {
   await page.locator('#feed-list [data-action="expand-post"]').first().click();
   ok(await firstCaption.evaluate(el=>!el.classList.contains('caption-clamped')),'long caption expands');
   await page.locator('[data-action=feed-listen]').first().click();
-  await page.getByRole('button',{name:'듣기 중지',exact:true}).waitFor();
+  await page.locator('[data-action=feed-stop-listen][aria-label="듣기 중지"]').waitFor();
   ok(await page.locator('[data-action=feed-stop-listen]').count()===1,'listen button exposes stop after loading');
   await page.locator('[data-action=feed-stop-listen]').click();
   ok(await page.locator('[data-action=feed-stop-listen]').count()===0,'stop restores the listen action');

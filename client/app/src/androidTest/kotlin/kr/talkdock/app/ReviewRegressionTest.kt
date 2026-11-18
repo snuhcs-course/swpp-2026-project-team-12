@@ -99,7 +99,9 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     val test = InstrumentationRegistry.getInstrumentation()
     private val prefs = test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE)
     private val savedPreferences = prefs.all.toMap()
-    private val helpPrefs = test.targetContext.getSharedPreferences("MainActivity", Context.MODE_PRIVATE)
+    // Activity.getPreferences uses getLocalClassName, including the full name for applicationIdSuffix builds.
+    private val helpPrefs = test.targetContext.getSharedPreferences(
+        MainActivity::class.java.name.removePrefix("${test.targetContext.packageName}."), Context.MODE_PRIVATE)
     private val savedHelpPreferences = helpPrefs.all.toMap()
     private var selectedFeedId: Int? = null
     val activity: MainActivity

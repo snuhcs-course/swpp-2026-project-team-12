@@ -197,6 +197,15 @@ question options are preserved. Apply the new migration before deploying the API
 
 `FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
 
+Labels summarize lineage, maternal/paternal aunts and uncles, cousins, and common
+in-laws (for example `외할머니`, `이모`, `장모`, `며느리`, `사돈`). Known spouse gender
+uses `남편` or `아내`; unknown gender stays neutral. Shared children alone establish
+`공동 부모`, without creating or assuming a partnership. Their ancestors can therefore
+appear as `공동 부모의 외할머니`; an explicit partnership instead gives `아내의 외할머니`.
+Blood paths take precedence over indirect partner/co-parent shortcuts, and equal
+paths are resolved consistently regardless of input order. Very complex affinity
+chains use `인척` or `공동 부모 쪽 가족` instead of unbounded possessive labels.
+
 `POST /api/families/lookup/` returns the room and `tree` snapshot (`version`, `owner_id`, `people`, `parents`, `partnerships`). Person IDs are strings. To join, submit the invitation credentials and the snapshot version, selected person, and sequential additions:
 
 ```json

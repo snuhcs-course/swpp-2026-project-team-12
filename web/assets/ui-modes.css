@@ -24,7 +24,7 @@
 .feed-inline-comments { padding: 12px 22px 24px; }
 .feed-inline-comments .comment { padding: 15px 0; }
 .feed-inline-comments .comment p { white-space: pre-wrap; overflow-wrap: anywhere; }
-.comments-only { position: fixed; top: auto; bottom: 0; width: min(760px, 100%); max-width: 100%; max-height: 78dvh; margin: 0 auto; border-radius: 26px 26px 0 0; }
+.post-dialog.comments-only { position: fixed; top: auto; bottom: var(--post-viewport-bottom, 0px); width: min(760px, 100%); max-width: 100%; max-height: min(78dvh, calc(var(--post-viewport-height, 100dvh) - 24px)); margin: 0 auto; border-radius: 26px 26px 0 0; }
 .comments-only .post-detail { display: block; }
 .comments-only .detail-gallery, .comments-only .detail-caption, .comments-only .detail-conversation > .post-author, .comments-only .ai-panel { display: none; }
 .comments-only .detail-conversation { padding: 0; }
