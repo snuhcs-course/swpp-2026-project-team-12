@@ -1079,13 +1079,15 @@ class CommentComposerTest {
     }
     @Test fun failedSendKeepsExactDraftAndRetryPublishesItOnce() {
         val draft = "  오늘도 고마워요!\n내일 또 만나요 😊  "
+        val reject = CountDownLatch(1)
         var attempts = 0
         val comments = JSONArray()
         server { request -> when {
             request.path == "/api/posts/1/comments/" -> {
-                Thread.sleep(400)
-                if (++attempts == 1) jsonReply(JSONObject().put("error", "테스트 전송 실패"), 503)
-                else {
+                if (++attempts == 1) {
+                    reject.await(12, TimeUnit.SECONDS)
+                    jsonReply(JSONObject().put("error", "테스트 전송 실패"), 503)
+                } else {
                     comments.put(JSONObject().put("id", 1).put("author_name", "나").put("relationship", "나")
                         .put("text", JSONObject(request.body).getString("text")))
                     jsonReply(JSONObject().put("id", 1), 201)
@@ -1096,14 +1098,16 @@ class CommentComposerTest {
         } }.use { api -> UiHarness(api, room(1, "댓글")).use { ui ->
             open(ui)
             ui.test.runOnMainSync { composer(ui).input.setText(draft); composer(ui).sendButton.performClick() }
-            ui.await { api.paths().contains("/api/posts/1/comments/") }
-            ui.test.runOnMainSync {
-                val c = composer(ui)
-                assertFalse(c.sendButton.isEnabled); assertFalse(c.input.isEnabled)
-                assertTrue(ui.has("댓글 전송 중"))
-                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
-                c.sendButton.performClick() // Even a forced second click cannot enqueue another POST.
-            }
+            try {
+                ui.await { api.paths().contains("/api/posts/1/comments/") }
+                ui.test.runOnMainSync {
+                    val c = composer(ui)
+                    assertFalse(c.sendButton.isEnabled); assertFalse(c.input.isEnabled)
+                    assertTrue(ui.has("댓글 전송 중"))
+                    assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+                    c.sendButton.performClick() // Even a forced second click cannot enqueue another POST.
+                }
+            } finally { reject.countDown() }
             ui.await { ui.has("테스트 전송 실패") }
             ui.test.runOnMainSync {
                 val c = composer(ui)
@@ -1232,20 +1236,23 @@ class PostQuestionUiTest {
     }
 
     @Test fun failedQuestionKeepsDraftAndCanRetryWithoutDuplicatesOrFailedHistory() {
+        val reject = CountDownLatch(1)
         var count = 0
         server { request -> if (request.path.endsWith("/questions/")) {
-            Thread.sleep(400)
-            if (++count == 1) jsonReply(JSONObject().put("error", "질문 테스트 오류"), 503)
-            else jsonReply(JSONObject().put("text", "다시 확인한 답변"))
+            if (++count == 1) {
+                reject.await(12, TimeUnit.SECONDS)
+                jsonReply(JSONObject().put("error", "질문 테스트 오류"), 503)
+            } else jsonReply(JSONObject().put("text", "다시 확인한 답변"))
         } else null }.use { api -> UiHarness(api, room(1, "질문")).use { ui ->
             open(ui); ask(ui, "그 카페는 어디예요?")
-            ui.await { api.paths().any { it.endsWith("/questions/") } }
-            ui.test.runOnMainSync {
-                assertFalse(panel(ui).composer.sendButton.isEnabled)
-                assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
-                assertTrue("AI requests must not add a page-wide wait overlay", ui.all().none { it is kr.talkdock.app.ui.TodakWaitingView })
-                panel(ui).composer.sendButton.performClick()
-            }
+            try {
+                ui.await { api.paths().any { it.endsWith("/questions/") } }
+                ui.test.runOnMainSync {
+                    assertFalse(panel(ui).composer.sendButton.isEnabled)
+                    assertTrue("AI requests must not add a page-wide wait overlay", ui.all().none { it is kr.talkdock.app.ui.TodakWaitingView })
+                    panel(ui).composer.sendButton.performClick()
+                }
+            } finally { reject.countDown() }
             ui.await { ui.has("질문 테스트 오류") }
             ui.test.runOnMainSync { assertEquals("그 카페는 어디예요?", panel(ui).composer.input.text.toString()) }
             ask(ui, "그 카페는 어디예요?"); ui.await { ui.has("다시 확인한 답변") }
