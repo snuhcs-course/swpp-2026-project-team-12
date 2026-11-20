@@ -96,7 +96,7 @@ class PostComposerTest {
             ui.click("가족에게 전하기")
             assertTrue("An empty post must not be sent", api.uploads().isEmpty())
             ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("  오늘은 공원을 산책했어요  ") }
-            ui.click("가족에게 전하기"); ui.await(12000) { ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("가족에게 전하기"); ui.await(12000) { api.uploads().size == 1 }
             val upload = api.uploads().single()
             assertEquals("1", upload.room)
             assertTrue("The caption is trimmed", upload.body.contains("\r\n\r\n오늘은 공원을 산책했어요\r\n"))
@@ -177,7 +177,7 @@ class PostComposerTest {
             }
             ui.clickDescription("1번째 사진 빼기"); ui.await { ui.has("사진 1 / 5장") }
             assertFalse("A removed photo is deleted from the draft folder", first.exists())
-            ui.click("가족에게 전하기"); ui.await(12000) { ui.has("첫 소식을 기다리고 있어요") }
+            ui.click("가족에게 전하기"); ui.await(12000) { api.uploads().size == 1 && !rotated.exists() }
             val body = api.uploads().single().body
             assertEquals(1, Regex("filename=\"photo-\\d+\\.jpg\"").findAll(body).count())
             assertFalse("Uploaded drafts are cleaned up", rotated.exists())

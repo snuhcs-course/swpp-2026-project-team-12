@@ -27,6 +27,7 @@ import androidx.core.content.FileProvider
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.ViewModelProvider
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import kr.talkdock.app.data.*
 import kr.talkdock.app.notifications.PushRegistration
@@ -56,7 +57,7 @@ import kr.talkdock.app.ui.DraftPhotoStrip
 import kr.talkdock.app.ui.PostVoiceInput
 import kr.talkdock.app.ui.TodakArtView
 import kr.talkdock.app.ui.TodakWaitingView
-import kr.talkdock.app.ui.TodakSuccessView
+import kr.talkdock.app.ui.PostingStatusView
 import kr.talkdock.app.ui.DailyQuestionPanel
 import kr.talkdock.app.ui.DailyQuestionEntryView
 import kr.talkdock.app.ui.FeedPostCard
@@ -130,6 +131,13 @@ class MainActivity : ComponentActivity() {
     private fun feedScope() = "${sessions.serverUrl()}:${session?.optInt("user_id")}:${session?.optString("token")}:${room.optInt("id")}"
     private fun clearFeedSnapshot() { feedSnapshot = null; feedSnapshotScope = null; feedRequest++ }
     private var commentsDialog: Dialog? = null
+    private lateinit var outgoing: OutgoingPosts
+    private var pagePostingStatus: PostingStatusView? = null
+    private var sheetPostingStatus: PostingStatusView? = null
+    private class CommentTarget(val postId: Int, val composer: CommentComposer, val update: (List<JSONObject>) -> Unit)
+    private var commentTarget: CommentTarget? = null
+    private val commentRefreshes = mutableMapOf<Int, Int>()
+    private var commentRefresh = 0
     private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING }
     private var guideStep: GuideStep? = null
     private var guideRoom = ""
@@ -211,6 +219,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
         ui = Ui(this); sessions = SessionStore(this); session = sessions.current()
+        outgoing = ViewModelProvider(this)[OutgoingPosts::class.java]
+        outgoing.onChange = ::updatePosting
         pendingPush = state?.getString("pendingPush")?.let { saved ->
             val data = JSONObject(saved); data.keys().asSequence().associateWith { data.getString(it) }
         } ?: if (state == null) pushData(intent) else null
@@ -317,6 +327,7 @@ class MainActivity : ComponentActivity() {
                 } else restoreScreen()
             }
         }
+        updatePosting()
     }
     override fun onSaveInstanceState(out: Bundle) {
         super.onSaveInstanceState(out)
@@ -371,12 +382,13 @@ class MainActivity : ComponentActivity() {
         super.onPause(); stopPostAudio(); replyPreview?.stop(); speaker.stop(); recorder?.cancel()
     }
     override fun onDestroy() {
+        outgoing.onChange = null
         clearCue()
         narrator.close()
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
         maintenanceDialog?.dismiss(); maintenanceDialog = null
         closeAssistantMenu()
-        assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss()
+        assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); calendarDialog?.dismiss(); commentsDialog?.dismiss()
         stopPostAudio(); replyPreview?.stop(); summaries.shutdownNow(); questions.shutdownNow(); feedComments.shutdownNow(); feedUpdates.shutdownNow()
         voiceSamples.shutdownNow(); sampleCache.clear()
         speaker.close(); recorder?.close(); recording?.delete(); network.shutdownNow(); imageLoader.close()
@@ -434,15 +446,11 @@ class MainActivity : ComponentActivity() {
         postVoiceInput?.close(); postVoiceInput = null
         guideHandler.removeCallbacks(checkForReply)
         rememberMemories()
-        if (screen == "home" && name != "home") {
-            feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
-            feedCards.firstOrNull { it.bottom > feedScrollY }?.let {
-                feedAnchorId = it.post.optInt("id"); feedAnchorOffset = it.top - feedScrollY
-            }
-        }
+        if (screen == "home" && name != "home") rememberFeedScroll()
         dailyPanel?.let { dailyQuestionState = it.snapshot() }; dailyPanel = null; dailyEntry = null
         photoAttachmentSheet?.dismiss(); photoAttachmentSheet = null
-        closeAssistantMenu(); detailCard = null; detailPostAudio = null
+        closeAssistantMenu(); detailCard = null; detailPostAudio = null; commentTarget = null
+        sheetPostingStatus = null
         assistantDialog?.dismiss(); profileMenuDialog?.dismiss(); commentsDialog?.dismiss()
         clearCue()
         feedCards.clear()
@@ -500,6 +508,14 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (name != "welcome") page.addView(header)
+        pagePostingStatus = if (postingScope() != null && name !in setOf("welcome", "login", "register", "roomSync")) {
+            newPostingStatus().also {
+                page.addView(it, LinearLayout.LayoutParams(-1, -2).apply {
+                    marginStart = ui.dp(16); marginEnd = ui.dp(16)
+                })
+                it.bind(currentUploads())
+            }
+        } else null
         val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
         pageScroll = scroll
         if (name == "home") scroll.setOnScrollChangeListener { _, _, _, _, _ ->
@@ -835,9 +851,9 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, complete: (T) -> Unit) {
-        if (busy) { refresh?.isRefreshing = false; return }
-        busy = true
+    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, blockNavigation: Boolean = true, complete: (T) -> Unit) {
+        if (blockNavigation && busy) { refresh?.isRefreshing = false; return }
+        if (blockNavigation) busy = true
         val number = pageNumber
         val cover = if (refresh == null && showLoading) TodakWaitingView(this, message) else null
         if (cover != null) root.addView(cover, FrameLayout.LayoutParams(-1, -1))
@@ -845,7 +861,7 @@ class MainActivity : ComponentActivity() {
         network.execute {
             val result = runCatching { work() }
             runOnUiThread {
-                busy = false
+                if (blockNavigation) busy = false
                 if (cover != null) root.removeView(cover)
                 refresh?.isRefreshing = false
                 if (isDestroyed || number != pageNumber) return@runOnUiThread
@@ -882,17 +898,96 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private fun postingSuccess(message: String, complete: () -> Unit) {
-        narrator.interrupt()
-        busy = true
-        val number = pageNumber
-        lateinit var cover: TodakSuccessView
-        cover = TodakSuccessView(this, message) {
-            root.removeView(cover)
-            busy = false
-            if (!isDestroyed && number == pageNumber) complete()
+    private fun postingScope(): PostingScope? {
+        val user = session?.optInt("user_id") ?: return null
+        val family = room.optInt("id").takeIf { it > 0 } ?: return null
+        return PostingScope(sessions.serverUrl(), user, family)
+    }
+
+    private fun postingClient() = ApiClient(session?.optString("token").orEmpty(), sessions.serverUrl(), postingScope()?.roomId)
+    private fun currentUploads() = postingScope()?.let(outgoing::inScope).orEmpty()
+
+    private fun newPostingStatus() = PostingStatusView(ui, large,
+        retry = { if (it.scope == postingScope()) outgoing.retry(it, postingClient()) },
+        dismiss = outgoing::dismiss)
+
+    private fun updatePosting() {
+        val scope = postingScope()
+        val items = currentUploads()
+        pagePostingStatus?.bind(items)
+        sheetPostingStatus?.bind(items)
+        commentTarget?.let { target ->
+            val upload = items.lastOrNull { it.postId == target.postId && it.kind == OutgoingPosts.Kind.TEXT_COMMENT }
+            if (upload != null) {
+                if (target.composer.input.text.isEmpty()) target.composer.input.setText(upload.text)
+                if (upload.running) target.composer.setSending(true, showProgress = false)
+                else upload.error?.let { error ->
+                    val message = if ((error as? ApiException)?.status == 401)
+                        "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요."
+                    else (error as? ApiException)?.message ?: "댓글을 보내지 못했어요. 작성한 내용은 유지돼요. 다시 시도해 주세요."
+                    target.composer.showError(message)
+                }
+            }
         }
-        root.addView(cover, FrameLayout.LayoutParams(-1, -1))
+        outgoing.takeCompleted().forEach { (upload, response) ->
+            if (scope != upload.scope) return@forEach
+            if (upload.kind == OutgoingPosts.Kind.POST) {
+                if (screen == "home") loadFeed(background = true)
+                else if (feedSnapshotScope == feedScope() && response.optInt("id") > 0) {
+                    feedSnapshot?.let { snapshot ->
+                        val posts = objects(snapshot.getJSONArray("posts")).filter { it.optInt("id") != response.optInt("id") }
+                        snapshot.put("posts", JSONArray((listOf(response) + posts).take(100)))
+                    }
+                }
+            } else {
+                val postId = upload.postId ?: return@forEach
+                val target = commentTarget?.takeIf { it.postId == postId }
+                if (target != null && upload.kind == OutgoingPosts.Kind.TEXT_COMMENT) {
+                    if (target.composer.input.text.toString() == upload.text) target.composer.input.setText("")
+                    target.composer.setSending(false)
+                }
+                if (guideStep == GuideStep.REPLYING && selectedPost?.optInt("id") == postId) closeGuide()
+                refreshPostedComments(postId, scope)
+            }
+        }
+    }
+
+    private fun textComment(postId: Int, text: String) {
+        val scope = postingScope() ?: return
+        val previous = currentUploads().lastOrNull { it.postId == postId && it.kind == OutgoingPosts.Kind.TEXT_COMMENT }
+        if (previous?.running == true) return
+        narrator.interrupt()
+        if (previous?.text == text) {
+            outgoing.retry(previous, postingClient())
+            return
+        }
+        previous?.let(outgoing::dismiss)
+        val body = json("text" to text)
+        outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.TEXT_COMMENT, text, postId) { client, _ ->
+            client.request("posts/$postId/comments/", "POST", body)
+        }, postingClient())
+    }
+
+    private fun refreshPostedComments(postId: Int, scope: PostingScope) {
+        feedCommentCache.remove(postId)
+        val request = ++commentRefresh
+        commentRefreshes[postId] = request
+        val client = postingClient()
+        feedComments.execute {
+            val result = runCatching { objects(client.request("posts/$postId/").getJSONArray("comments")) }
+            runOnUiThread {
+                if (isDestroyed || commentRefreshes[postId] != request || postingScope() != scope) return@runOnUiThread
+                result.getOrNull()?.let { items ->
+                    feedCommentCache[postId] = items
+                    feedCards.firstOrNull { it.post.optInt("id") == postId }?.showComments(items)
+                    commentTarget?.takeIf { it.postId == postId }?.update?.invoke(items)
+                }
+            }
+        }
+    }
+    private fun latestComments(postId: Int, revision: Int?, comments: List<JSONObject>): List<JSONObject> {
+        if (revision != commentRefreshes[postId]) feedCommentCache[postId]?.let { return it }
+        return comments
     }
     private fun remotePhoto(view: ImageView, post: JSONObject, url: String = post.getString("image_url"), thumbnail: Boolean = false) {
         if (view.contentDescription?.toString()?.startsWith("사진 ") != true)
@@ -1271,16 +1366,20 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private fun home(refresh: SwipeRefreshLayout? = null) {
+    private fun home(refresh: SwipeRefreshLayout? = null) = loadFeed(refresh)
+
+    private fun loadFeed(refresh: SwipeRefreshLayout? = null, background: Boolean = false, afterSubmit: Boolean = false) {
         if (refresh != null) feedCommentCache.clear()
-        if (refresh == null) navigation("토닥", name = "home")
+        if (refresh == null && !background) navigation("토닥", name = "home")
         val client = api
         val scope = feedScope()
         val cached = feedSnapshot?.takeIf { feedSnapshotScope == scope }
-        if (cached != null && refresh == null) displayHome(JSONObject(cached.toString()), client)
+        if (cached != null && refresh == null && !background) displayHome(JSONObject(cached.toString()), client)
+        if (afterSubmit && cached != null) return
         val number = pageNumber
         val request = ++feedRequest
-        val cover = if (cached == null && refresh == null) TodakWaitingView(this, "소식을 불러오고 있어요.") else null
+        val cover = if (cached == null && refresh == null && !background && !afterSubmit)
+            TodakWaitingView(this, "소식을 불러오고 있어요.") else null
         cover?.let { root.addView(it, FrameLayout.LayoutParams(-1, -1)) }
         refresh?.isRefreshing = true
         feedUpdates.execute {
@@ -1293,12 +1392,7 @@ class MainActivity : ComponentActivity() {
                     feedSnapshot = JSONObject(data.toString()); feedSnapshotScope = scope
                     // Keep a live player or open comment sheet intact; the next visit uses the fresh snapshot.
                     if (cached == null || refresh != null || (changed && commentsDialog == null && activePostAudio?.isPlaying != true)) {
-                        if (cached != null && refresh == null) {
-                            feedScrollY = pageScroll?.scrollY ?: 0; restoreFeedScroll = true
-                            feedCards.firstOrNull { it.bottom > feedScrollY }?.let {
-                                feedAnchorId = it.post.optInt("id"); feedAnchorOffset = it.top - feedScrollY
-                            }
-                        }
+                        if (cached != null && refresh == null) rememberFeedScroll()
                         displayHome(data, client)
                     }
                 }, { error ->
@@ -1317,6 +1411,14 @@ class MainActivity : ComponentActivity() {
                 root.post { openPushIfReady() }
             }
         }
+    }
+
+    private fun rememberFeedScroll() {
+        feedScrollY = pageScroll?.scrollY ?: 0
+        restoreFeedScroll = true
+        val anchor = feedCards.firstOrNull { feedScrollY > 0 && it.bottom > feedScrollY }
+        feedAnchorId = anchor?.post?.optInt("id")
+        feedAnchorOffset = anchor?.let { it.top - feedScrollY } ?: 0
     }
 
     private fun displayHome(data: JSONObject, client: ApiClient) {
@@ -1387,12 +1489,15 @@ class MainActivity : ComponentActivity() {
             val visible = Rect()
             if (!card.getGlobalVisibleRect(visible) || !visible.intersect(viewport)) return@forEach
             card.commentsLoading = true
+            val postId = card.post.getInt("id")
+            val revision = commentRefreshes[postId]
             feedComments.execute {
-                val result = runCatching { objects(client.request("posts/${card.post.getInt("id")}/").getJSONArray("comments")) }
+                val result = runCatching { objects(client.request("posts/$postId/").getJSONArray("comments")) }
                 runOnUiThread {
                     if (isDestroyed || number != pageNumber || !card.isAttachedToWindow) return@runOnUiThread
-                    result.fold({ items ->
-                        feedCommentCache[card.post.getInt("id")] = items; card.showComments(items)
+                    result.fold({ comments ->
+                        val items = latestComments(postId, revision, comments)
+                        feedCommentCache[postId] = items; card.showComments(items)
                     }, {
                         card.commentsFailed { loadVisibleFeedComments() }
                     })
@@ -1412,11 +1517,16 @@ class MainActivity : ComponentActivity() {
         val header = ui.row()
         header.addView(ui.text("댓글", 23f, true), LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(ui.iconButton("close", "댓글 닫기") { dialog.dismiss() }); box.addView(header)
+        val status = newPostingStatus().also { sheetPostingStatus = it; box.addView(it); it.bind(currentUploads()) }
         box.addView(ScrollView(this).apply { addView(body); tag = "comment-list-scroll" }, LinearLayout.LayoutParams(-1, 0, 1f))
         box.addView(footer, LinearLayout.LayoutParams(-1, -2))
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         dialog.setContentView(sheet); dialog.setOnDismissListener {
             if (commentsDialog === dialog) commentsDialog = null
+            if (sheetPostingStatus === status) {
+                sheetPostingStatus = null
+                commentTarget = null
+            }
             updateAssistantContext()
         }
         dialog.show(); dialog.window?.apply {
@@ -1437,36 +1547,37 @@ class MainActivity : ComponentActivity() {
         }
         sheet.post { androidx.core.view.ViewCompat.requestApplyInsets(sheet) }
         val client = api; val number = pageNumber
+        val postId = post.getInt("id")
         fun refresh() {
             body.removeAllViews(); ui.label(body, "댓글을 가져오고 있어요.", 18f)
+            val revision = commentRefreshes[postId]
             feedComments.execute {
                 val result = runCatching {
-                    val data = client.request("posts/${post.getInt("id")}/")
+                    val data = client.request("posts/$postId/")
                     data to objects(data.getJSONArray("comments"))
                 }
                 runOnUiThread {
                     if (isDestroyed || number != pageNumber || !dialog.isShowing) return@runOnUiThread
                     body.removeAllViews()
-                    result.fold({ (data, items) ->
-                        if (items.isEmpty()) ui.label(body, "첫 댓글을 남겨 주세요.", 18f, color = ui.muted)
-                        items.forEach { item ->
-                            ui.gap(body, 12); ui.label(body, item.optString("author_name"), 17f, true)
-                            ui.label(body, item.optString("text"), 18f); ui.line(body)
-                        }
-                        lateinit var composer: CommentComposer
-                        composer = CommentComposer(this, ui, large, title = "", compact = true,
-                            onVoice = { dialog.dismiss(); voice(data) }) { text ->
-                            composer.setSending(true)
-                            async({ client.request("posts/${post.getInt("id")}/comments/", "POST", json("text" to text)) },
-                                showLoading = false, failure = { error -> composer.showError(error.message ?: "댓글을 보내지 못했어요. 다시 시도해 주세요."); true }) {
-                                if (dialog.isShowing) { composer.input.setText(""); composer.setSending(false); toast("댓글을 달았어요!"); refresh() }
+                    result.fold({ (data, comments) ->
+                        fun showComments(comments: List<JSONObject>) {
+                            body.removeAllViews()
+                            if (comments.isEmpty()) ui.label(body, "첫 댓글을 남겨 주세요.", 18f, color = ui.muted)
+                            comments.forEach { item ->
+                                ui.gap(body, 12); ui.label(body, item.optString("author_name"), 17f, true)
+                                ui.label(body, item.optString("text"), 18f); ui.line(body)
                             }
+                            post.put("comment_count", comments.size)
+                            feedCards.firstOrNull { it.post.optInt("id") == postId }?.showComments(comments)
                         }
+                        val composer = CommentComposer(this, ui, large, title = "", compact = true,
+                            onVoice = { dialog.dismiss(); voice(data) }) { text -> textComment(postId, text) }
                         footer.removeAllViews(); footer.addView(composer)
                         dialog.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
                         composer.tag = "sheet-comment"
-                        post.put("comment_count", items.size)
-                        feedCards.firstOrNull { it.post.optInt("id") == post.optInt("id") }?.showComments(items)
+                        showComments(latestComments(postId, revision, comments))
+                        commentTarget = CommentTarget(postId, composer, ::showComments)
+                        updatePosting()
                     }, { ui.label(body, "댓글을 불러오지 못했어요.", 18f); ui.ghost(body, "다시 불러오기") { refresh() } })
                 }
             }
@@ -1781,7 +1892,8 @@ class MainActivity : ComponentActivity() {
         row.addView(labels, LinearLayout.LayoutParams(0, -2, 1f)); parent.addView(row); ui.gap(parent, 14)
     }
     private fun detail(post: JSONObject, focusComment: Boolean = false, focusQuestion: Boolean = false,
-                       audioAction: PostAudioAction? = null, returnToMemories: Bundle? = memoryReturn) {
+                       audioAction: PostAudioAction? = null, returnToMemories: Bundle? = memoryReturn,
+                       afterSubmit: Boolean = false) {
         val guidedReply = guideStep == GuideStep.REPLY && guidePostId == post.optInt("id")
         if (large && focusComment && post.optInt("author_id") > 0 && post.optInt("author_id") != session?.optInt("user_id"))
             markSeen(replyKey())
@@ -1796,7 +1908,9 @@ class MainActivity : ComponentActivity() {
         }, name = "detail")
         memoryReturn = returnToMemories
         val client = api
-        async({ client.request("posts/" + post.getInt("id") + "/") }) { data ->
+        val postId = post.getInt("id")
+        val revision = commentRefreshes[postId]
+        async({ client.request("posts/$postId/") }, showLoading = !afterSubmit, blockNavigation = !afterSubmit) { data ->
             selectedPost = data
             val card = ui.card(content)
             detailCard = card
@@ -1811,46 +1925,36 @@ class MainActivity : ComponentActivity() {
                 null -> Unit
             }
             if (focusQuestion) card.post { openAssistantConversation(data, client) }
-            val comments = objects(data.getJSONArray("comments"))
-            feedCommentCache[data.getInt("id")] = comments
-            ui.gap(content, 24); ui.label(content, "댓글 ${comments.size}", if (large) 24f else 20f, true); ui.gap(content, 20)
-            if (comments.isEmpty()) { ui.label(content, "첫 댓글을 남겨 주세요.", 17f, color = ui.muted); ui.gap(content, 16) }
-            comments.forEach { c ->
-                val bubble = ui.card(content, ui.blush, stroke = false)
-                ui.label(bubble, c.getString("author_name") + " · " + c.getString("relationship"), 16f, true, ui.coralDeep)
-                ui.gap(bubble, 8); ui.label(bubble, c.getString("text"), if (large) 23f else 18f)
-                ui.gap(content, 12)
-            }
-            ui.gap(content, 12)
-            lateinit var composer: CommentComposer
-            composer = CommentComposer(this, ui, large, title = "", hintText = "댓글 남기기", compact = true,
-                onVoice = { voice(data, fromDetail = true) }) { comment ->
-                if (!busy) {
-                    composer.setSending(true)
-                    narrator.interrupt()
-                    val body = json("text" to comment)
-                    async({ client.request("posts/" + data.getInt("id") + "/comments/", "POST", body) },
-                        showLoading = false,
-                        failure = { error ->
-                            val message = if (error is ApiException && error.status == 401)
-                                "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요."
-                            else (error as? ApiException)?.message ?: "댓글을 보내지 못했어요. 작성한 내용은 유지돼요. 다시 시도해 주세요."
-                            composer.showError(message)
-                            true
-                        }) {
-                        if (guideStep == GuideStep.REPLYING) closeGuide()
-                        composer.input.setText("")
-                        composer.setSending(false)
-                        postingSuccess("댓글을 달았어요!") { detail(data) }
-                    }
+            val commentList = ui.column().also { content.addView(it) }
+            fun showComments(comments: List<JSONObject>) {
+                commentList.removeAllViews()
+                feedCommentCache[postId] = comments
+                ui.gap(commentList, 24)
+                ui.label(commentList, "댓글 ${comments.size}", if (large) 24f else 20f, true)
+                ui.gap(commentList, 20)
+                if (comments.isEmpty()) {
+                    ui.label(commentList, "첫 댓글을 남겨 주세요.", 17f, color = ui.muted)
+                    ui.gap(commentList, 16)
+                }
+                comments.forEach { c ->
+                    val bubble = ui.card(commentList, ui.blush, stroke = false)
+                    ui.label(bubble, c.getString("author_name") + " · " + c.getString("relationship"), 16f, true, ui.coralDeep)
+                    ui.gap(bubble, 8); ui.label(bubble, c.getString("text"), if (large) 23f else 18f)
+                    ui.gap(commentList, 12)
                 }
             }
+            showComments(latestComments(postId, revision, objects(data.getJSONArray("comments"))))
+            ui.gap(content, 12)
+            val composer = CommentComposer(this, ui, large, title = "", hintText = "댓글 남기기", compact = true,
+                onVoice = { voice(data, fromDetail = true) }) { comment -> textComment(postId, comment) }
             val footer = ui.column(12).apply { setBackgroundColor(ui.paper) }
             footer.addView(composer, LinearLayout.LayoutParams(-1, -2))
             page.addView(footer, LinearLayout.LayoutParams(-1, -2))
             composer.tag = "detail-comment"
             val text = composer.input
             text.doAfterTextChanged { guideComment(composer) }
+            commentTarget = CommentTarget(postId, composer, ::showComments)
+            updatePosting()
             if (guideStep == GuideStep.REPLYING) guideComment(composer)
             if (guideStep == GuideStep.READING)
                 page.findViewWithTag<View>("guide-back")?.let { showCue(it, TutorialLine.BACK) }
@@ -1920,6 +2024,9 @@ class MainActivity : ComponentActivity() {
     private fun selectedPhotos(): List<File> = listOfNotNull(photo) + extraPhotos
     private fun clearPhotoDraft() {
         selectedPhotos().forEach { it.delete() }
+        resetPhotoDraft()
+    }
+    private fun resetPhotoDraft() {
         photo = null; extraPhotos.clear(); caption = ""; postVoiceText = ""; draftPhotoIndex = 0
     }
     private fun copyGalleryPhotos(uris: List<Uri>): List<File> {
@@ -1981,17 +2088,20 @@ class MainActivity : ComponentActivity() {
         ui.label(content, "사진 ${files.size} / 5장", 14f, color = ui.muted)
         ui.gap(content, 12)
         ui.button(content, "가족에게 전하기", height = if (large) 76 else 56) {
-            caption = text.text.toString().trim()
-            if (caption.length > 2000) { toast("이야기는 2,000자까지 남길 수 있어요."); return@button }
-            if (files.isEmpty() && caption.isBlank()) { toast("글이나 사진을 하나 이상 남겨 주세요."); return@button }
+            if (captionInput !== text) return@button
+            val draft = text.text.toString().trim()
+            if (draft.length > 2000) { toast("이야기는 2,000자까지 남길 수 있어요."); return@button }
+            if (files.isEmpty() && draft.isBlank()) { toast("글이나 사진을 하나 이상 남겨 주세요."); return@button }
             if (hasInvalidPhoto) { toast("읽을 수 없는 사진을 다시 선택해 주세요."); return@button }
-            val client = api
+            val scope = postingScope() ?: return@button
             narrator.interrupt()
-            async({ client.uploadPost(files, caption) }, "가족에게 소식을 전하고 있어요.") {
-                if (guideStep == GuideStep.WRITING) closeGuide()
-                clearPhotoDraft(); imageLoader.clear(); clearFeedSnapshot()
-                postingSuccess("글 업로드가 완료됐어요") { home() }
-            }
+            if (guideStep == GuideStep.WRITING) closeGuide()
+            resetPhotoDraft()
+            outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.POST, draft,
+                thumbnail = previews.firstOrNull(), files = files) { client, progress ->
+                client.uploadPost(files, draft, progress)
+            }, postingClient())
+            loadFeed(afterSubmit = true)
         }
         ui.gap(content, 16); ui.label(content, "작성한 소식은 이 가족방에만 보여요.", 14f, color = ui.muted)
         if (guideStep == GuideStep.WRITING) {
@@ -2188,12 +2298,16 @@ class MainActivity : ComponentActivity() {
         ui.gap(content, 8)
         ui.note(content, draft.getString("converted"), true); ui.gap(content, 24)
         val send = ui.button(content, "가족에게 보내기", height = 76) {
-            val client = api
+            if (screen != "review") return@button
+            val scope = postingScope() ?: return@button
+            val draftId = draft.getInt("id")
             narrator.interrupt()
-            async({ client.request("replies/" + draft.getInt("id") + "/send/", "POST", JSONObject()) }, "가족에게 댓글을 전하고 있어요.") {
-                if (guideStep == GuideStep.REPLYING) closeGuide()
-                postingSuccess("댓글을 달았어요!") { detail(post) }
-            }
+            if (guideStep == GuideStep.REPLYING) closeGuide()
+            outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.VOICE_REPLY, draft.getString("converted"),
+                post.getInt("id")) { client, _ ->
+                client.request("replies/$draftId/send/", "POST", JSONObject())
+            }, postingClient())
+            detail(post, afterSubmit = true)
         }
         if (guideStep == GuideStep.REPLYING) showCue(send, TutorialLine.SEND_VOICE)
         ui.button(content, "다시 말하기", false, 76) { voice(post, voiceFromDetail) }

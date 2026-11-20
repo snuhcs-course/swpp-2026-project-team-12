@@ -53,12 +53,15 @@ class ApiRoundTripTest {
             context.resources.openRawResource(R.drawable.family).use { source ->
                 photo.outputStream().use { source.copyTo(it) }
             }
-            val uploaded = memberInRoom.upload(photo, "학교에서 점심 먹었어요")
+            val progress = mutableListOf<Int>()
+            val uploaded = memberInRoom.uploadPost(listOf(photo), "학교에서 점심 먹었어요", progress::add)
+            assertEquals(100, progress.last())
             val id = uploaded.getInt("id")
             val feed = elder.request("posts/").getJSONArray("posts").getJSONObject(0)
             assertEquals(id, feed.getInt("id"))
             assertEquals("학교에서 점심 먹었어요", feed.getString("caption"))
             assertEquals("손자", feed.getString("relationship"))
+            assertEquals(1, feed.getJSONArray("images").length())
             val image = elder.image(feed.getString("image_url"))
             assertTrue(image.size > 100)
             assertEquals(0xff.toByte(), image[0]); assertEquals(0xd8.toByte(), image[1])

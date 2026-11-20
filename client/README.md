@@ -84,10 +84,14 @@ Run the local-server regression tests (generated WAV audio, no AI/TTS API calls)
 ## Comment input
 
 Post detail uses a compact multiline comment field with a microphone when empty and a Send arrow when text is entered (48dp, or 64dp in large-text mode). The input reserves space beside the controls and scrolls into view above the software keyboard; Enter inserts a newline. Blank input and pending submissions disable
-Send. A local progress indicator replaces the full-screen wait overlay.
-Only an accepted submission clears the input and refreshes the comment list.
-HTTP, network, and expired-login errors stay below the input and preserve the
-exact draft for editing or retry; voice commenting starts from the input microphone.
+Send. The posting card stays visible when you leave the comment screen. An accepted
+submission clears its input and refreshes the comment list in place. HTTP, network,
+and expired-login errors preserve the exact draft for editing or retry. Voice
+commenting starts from the input microphone.
+
+Sending a post opens the feed immediately. The posting card shows how much of the
+request has been uploaded and indicates when the server is confirming publication.
+The same card tracks text comments and reviewed voice replies while you use the app.
 
 `CommentComposerTest` verifies both text sizes, whitespace-only input, multiline
 content, duplicate-click protection, draft retention after failure, retry with

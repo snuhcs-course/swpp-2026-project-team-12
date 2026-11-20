@@ -1100,7 +1100,7 @@ class CommentComposerTest {
             ui.test.runOnMainSync {
                 val c = composer(ui)
                 assertFalse(c.sendButton.isEnabled); assertFalse(c.input.isEnabled)
-                assertTrue(ui.all().filterIsInstance<android.widget.ProgressBar>().any { it.visibility == View.VISIBLE })
+                assertTrue(ui.has("댓글 전송 중"))
                 assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
                 c.sendButton.performClick() // Even a forced second click cannot enqueue another POST.
             }
@@ -1114,8 +1114,6 @@ class CommentComposerTest {
             ui.screenshot("comment-send-failure.png")
             assertEquals(1, api.paths().count { it == "/api/posts/1/comments/" })
             ui.test.runOnMainSync { composer(ui).sendButton.performClick() }
-            ui.await { ui.has("댓글을 달았어요!") }
-            ui.test.runOnMainSync { assertEquals("", composer(ui).input.text.toString()) }
             ui.await { ui.has(draft) && ui.has("댓글 1") }
             ui.test.runOnMainSync { assertEquals("", composer(ui).input.text.toString()); assertFalse(composer(ui).sendButton.isEnabled) }
             val sends = api.requests.filter { it.path == "/api/posts/1/comments/" }
