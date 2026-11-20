@@ -147,13 +147,17 @@ class UatPostInteractionsTest {
 
     @Test fun visibleCancelPreventsLateSummaryFromStartingSpeech() {
         val gate = CountDownLatch(1)
-        server { r -> if (r.path.endsWith("/message/")) { gate.await(8, TimeUnit.SECONDS); jsonReply(JSONObject().put("status", "ready").put("text", "늦게 도착한 요약")) } else null }
+        server { r -> if (r.path.endsWith("/message/")) { gate.await(12, TimeUnit.SECONDS); jsonReply(JSONObject().put("status", "ready").put("text", "늦게 도착한 요약")) } else null }
             .use { api -> UiHarness(api, room(1, "우리 가족")).use { ui ->
                 ui.openCurrentPost()
                 ui.test.runOnMainSync { ui.all().filterIsInstance<InlinePostAudio>().single().togglePlayback() }
-                ui.await { ui.all().any { it.tag == "post-audio-stop" } }
-                ui.screenshot("uat-summary-cancel.png")
-                tap(ui, "음성 준비 취소"); gate.countDown(); Thread.sleep(500)
+                try {
+                    // The loading animation can keep instrumentation from ever observing an idle frame.
+                    ui.await { api.paths().any { it.endsWith("/message/") } &&
+                        ui.all().any { it.tag == "post-audio-stop" && it.isShown } }
+                    tap(ui, "음성 준비 취소")
+                } finally { gate.countDown() }
+                Thread.sleep(500)
                 ui.test.runOnMainSync { assertFalse(ui.all().filterIsInstance<InlinePostAudio>().single().isPlaying) }
                 assertFalse(api.paths().contains("/api/speech/"))
             } }
