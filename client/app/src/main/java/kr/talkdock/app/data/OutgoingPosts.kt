@@ -76,11 +76,14 @@ internal class OutgoingPosts : ViewModel() {
         }
     }
 
+    fun takeFailed(upload: Upload): Boolean {
+        if (upload.running || upload.error == null || !uploads.remove(upload)) return false
+        onChange?.invoke()
+        return true
+    }
+
     fun dismiss(upload: Upload) {
-        if (!upload.running && uploads.remove(upload)) {
-            upload.files.forEach { it.delete() }
-            onChange?.invoke()
-        }
+        if (takeFailed(upload)) upload.files.forEach { it.delete() }
     }
 
     override fun onCleared() {

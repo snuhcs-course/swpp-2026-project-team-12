@@ -909,7 +909,22 @@ class MainActivity : ComponentActivity() {
 
     private fun newPostingStatus() = PostingStatusView(ui, large,
         retry = { if (it.scope == postingScope()) outgoing.retry(it, postingClient()) },
+        editPost = ::editFailedPost,
         dismiss = outgoing::dismiss)
+
+    private fun editFailedPost(upload: OutgoingPosts.Upload) {
+        if (upload.scope != postingScope() || upload.kind != OutgoingPosts.Kind.POST) return
+        if (selectedPhotos().isNotEmpty() || (captionInput?.text?.toString() ?: caption).isNotBlank() || postVoiceText.isNotBlank()) {
+            toast("지금 쓰는 소식을 마친 뒤 수정해 주세요.")
+            return
+        }
+        if (!outgoing.takeFailed(upload)) return
+        resetPhotoDraft()
+        caption = upload.text
+        photo = upload.files.firstOrNull()
+        extraPhotos.addAll(upload.files.drop(1))
+        composer()
+    }
 
     private fun updatePosting() {
         val scope = postingScope()
