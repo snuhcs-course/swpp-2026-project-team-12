@@ -153,7 +153,7 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          # PostingFeedbackTest verifies character motion and requires enabled animators.
+          # Several UI tests verify motion and require enabled animators.
           disable-animations: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           working-directory: client

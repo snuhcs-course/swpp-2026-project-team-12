@@ -68,8 +68,11 @@ class ErrorRecoveryTest {
             ui.await { ui.has("첫 소식을 기다리고 있어요") }; ui.click("첫 소식 쓰기")
             ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText("가족에게 전할 이야기") }
             ui.click("가족에게 전하기")
-            ui.await { nodes(ui.test.uiAutomation.rootInActiveWindow).any { it.text?.toString() == "소식 내용을 확인해 주세요" } }
-            assertTrue(nodes(ui.test.uiAutomation.rootInActiveWindow).single { it.text?.toString() == "확인" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            ui.await { ui.has("소식 내용을 확인해 주세요") && ui.has("이야기를 조금 줄여 주세요.") }
+            assertTrue(ui.has("첫 소식을 기다리고 있어요"))
+            assertFalse(ui.all().any { it is kr.talkdock.app.ui.TodakWaitingView })
+            ui.click("수정하기")
+            ui.await { ui.has("가족에게 전하기") }
             ui.test.runOnMainSync { assertEquals("가족에게 전할 이야기", ui.all().filterIsInstance<EditText>().single().text.toString()) }
         } }
     }
