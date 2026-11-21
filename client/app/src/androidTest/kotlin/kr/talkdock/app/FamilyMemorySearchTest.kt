@@ -79,6 +79,7 @@ class FamilyMemorySearchTest {
                         "/api/families/current/" -> Reply(family.toString())
                         "/api/posts/" -> Reply(JSONObject().put("posts", posts).toString())
                         "/api/digests/history/" -> Reply("{\"dates\":[]}")
+                        "/api/notifications/device/" -> Reply("{}")
                         else -> respond(request)
                     }
                     fun absolutePhotoUrls(value: Any?) {

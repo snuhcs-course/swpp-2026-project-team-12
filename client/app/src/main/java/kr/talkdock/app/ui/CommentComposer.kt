@@ -112,10 +112,10 @@ class CommentComposer(
         sendButton.alpha = if (sendButton.isEnabled) 1f else 0.35f
     }
 
-    fun setSending(value: Boolean) {
+    fun setSending(value: Boolean, showProgress: Boolean = true) {
         sending = value
         input.isEnabled = !value
-        progress.visibility = if (value) VISIBLE else GONE
+        progress.visibility = if (value && showProgress) VISIBLE else GONE
         if (value) error.visibility = GONE
         updateButton()
     }

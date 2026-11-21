@@ -290,7 +290,7 @@ class ScreenModesTest {
             ui.test.runOnMainSync { ui.all().single { it.contentDescription == "댓글 보내기" }.performClick() }
             ui.await { api.requests.count { it.method == "POST" && it.path == "/api/posts/42/comments/" } == 1 }
             ui.await(10000) { api.paths().count { it == "/api/posts/42/" } > detailReads &&
-                ui.hasPostDetail() && ui.all().none { it is kr.talkdock.app.ui.TodakSuccessView } }
+                ui.hasPostDetail() && ui.all().none { it.tag == "posting-status" && it.isShown } }
             ui.test.runOnMainSync { ui.all().single { it.contentDescription == "이전 화면" }.performClick() }
             ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
             assertTrue(!ui.guideVisible())

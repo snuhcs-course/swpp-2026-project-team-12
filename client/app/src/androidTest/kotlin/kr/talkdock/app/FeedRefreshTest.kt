@@ -91,6 +91,13 @@ class FeedRefreshTest {
                             }
                             return@use
                         }
+                        if (path != "/api/posts/" || !requestLine.startsWith("GET ")) {
+                            socket.getOutputStream().apply {
+                                write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".toByteArray())
+                                flush()
+                            }
+                            return@use
+                        }
                         requests.incrementAndGet()
                         val response = responses.poll(5, TimeUnit.SECONDS) ?: error("Unexpected feed request")
                         response.gate?.await(5, TimeUnit.SECONDS)
