@@ -202,7 +202,7 @@ class ScreenModesTest {
                     ui.await { ui.cue("안내: 소식 쓰기") && ui.playing() != null }
                     ui.toggle("튜토리얼 음성 끄기")
                     ui.await { ui.playing() == null && ui.cue("안내: 소식 쓰기") }
-                    ui.click("소식 쓰기")
+                    ui.click("첫 소식 쓰기")
                     ui.await { ui.cue("안내: 소식 입력") && ui.editor().hint == "오늘 있었던 일을 적어보세요" }
                     assertFalse(settings.getBoolean("enabled", true))
                     ui.test.runOnMainSync { assertNull(ui.playing()) }

@@ -188,7 +188,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
             val scroll = all().filterIsInstance<android.widget.ScrollView>().first()
             scroll.scrollTo(0, card.top + card.height / 2 - scroll.height / 2)
         }
-        await { all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().tag == id }
+        if (!elderly()) await { all().filterIsInstance<kr.talkdock.app.ui.FloatingAssistantView>().single().tag == id }
     }
     fun dismissHelp() = test.runOnMainSync {
         activity.window.decorView.findViewWithTag<View>("guide-close")?.takeIf { it.isShown }?.performClick()

@@ -112,7 +112,8 @@ class UatPostInteractionsTest {
         // First-use guidance is covered separately; keep it from competing for focus here.
         for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "우리 가족"), large, tutorialSeen = true).use { ui ->
             ui.await { ui.all().any { it is FeedPostCard } }
-            tap(ui, if (large) "댓글 달기" else "댓글 25")
+            // The elderly detail screen keeps its composer outside the history; 댓글 달기 itself replies in the card.
+            if (large) ui.openCurrentPost() else tap(ui, "댓글 25")
             ui.await { ui.all().any { it is CommentComposer } }
             val composer = ui.all().filterIsInstance<CommentComposer>().single()
             ui.await { composer.hasWindowFocus() && composer.input.width > 0 && !composer.isLayoutRequested }

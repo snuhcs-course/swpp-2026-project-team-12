@@ -1753,10 +1753,15 @@ class MainActivity : ComponentActivity() {
                 showCue(card.replyAction ?: card, TutorialLine.ELDER_LISTEN_COMMENT, reveal = true)
             }
             GuideStep.ASK -> {
-                val ask = cards.firstOrNull { it.post.optInt("id") == guidePostId }?.findViewWithTag<View>("post-audio-ask")
-                // A redrawn feed has no summary open; move on to writing rather than loop back.
-                if (ask != null) showCue(ask, TutorialLine.ELDER_ASK, reveal = true)
-                else { guideStep = GuideStep.COMPOSE; offerHelp(); return }
+                val card = cards.firstOrNull { it.post.optInt("id") == guidePostId }
+                val ask = card?.findViewWithTag<View>("post-audio-ask")
+                when {
+                    ask != null -> showCue(ask, TutorialLine.ELDER_ASK, reveal = true)
+                    // Still preparing the summary: wait, the button is pointed at as soon as it is drawn.
+                    card?.audio?.visibility == View.VISIBLE -> Unit
+                    // A redrawn feed has no summary open; move on to writing rather than loop back.
+                    else -> { guideStep = GuideStep.COMPOSE; offerHelp(); return }
+                }
             }
             GuideStep.COMPOSE -> {
                 val top = page.findViewWithTag<View>("elder-compose")
