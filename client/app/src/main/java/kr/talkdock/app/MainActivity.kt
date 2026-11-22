@@ -16,6 +16,7 @@ import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
@@ -149,7 +150,8 @@ class MainActivity : ComponentActivity() {
     private var guideRoom = ""
     private var guidePostId = -1
     private var guideCue: TutorialCue? = null
-    private var guideClose: View? = null
+    private var guideHelp: View? = null
+    private var guideControls: LinearLayout? = null
     private var guideVolume: ImageButton? = null
     private lateinit var narrator: TutorialNarrator
     private var feedReady = false
@@ -485,39 +487,48 @@ class MainActivity : ComponentActivity() {
                 setImageResource(R.drawable.todak_logo); adjustViewBounds = true; contentDescription = "토닥"
             }, LinearLayout.LayoutParams(ui.dp(58), ui.dp(52)))
             val heading = ui.column().apply { setPadding(ui.dp(12), 0, ui.dp(8), 0) }
-            ui.label(heading, "토닥", if (large) 28f else 25f, true)
-            ui.label(heading, room.optString("name"), if (large) 16f else 14f, color = ui.muted)
+            val brand = ui.label(heading, "토닥", if (large) 28f else 25f, true)
+            val family = ui.label(heading, room.optString("name"), if (large) 16f else 14f, color = ui.muted)
+            for (label in listOf(brand, family)) {
+                label.maxLines = 1
+                label.ellipsize = TextUtils.TruncateAt.END
+            }
             header.addView(heading, LinearLayout.LayoutParams(0, -2, 1f))
-            // One help button on every elderly tab; it starts the guide for the tab it is pressed on.
-            if (large) header.addView(elderHelpButton(), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
-            header.addView(ui.iconButton("settings", "설정으로 이동") { if (!busy) members() })
         } else {
             if (back != null) header.addView(ui.iconButton("back", "이전 화면") { back() }.apply { tag = "guide-back" })
             header.addView(ui.text(title, if (name == "dailyQuestion" && !large) 18f else 21f, true).apply {
                 if (name == "dailyQuestion") gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(0, -2, 1f))
             if (name == "dailyQuestion") header.addView(View(this), LinearLayout.LayoutParams(ui.dp(48), 1))
-            // Without the assistant, the elderly detail screen offers its reply guidance here.
-            if (large && name == "detail") header.addView(elderHelpButton(), LinearLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
         }
-        guideClose = null
+        guideHelp = if (large && (mainPage || name == "detail")) elderHelpButton() else null
+        val helpSlot = guideHelp?.let { help ->
+            FrameLayout(this).apply {
+                addView(help, FrameLayout.LayoutParams(-2, -2).apply { marginEnd = ui.dp(8) })
+                header.addView(this, LinearLayout.LayoutParams(-2, -2))
+            }
+        }
+        if (mainPage) header.addView(ui.iconButton("settings", "설정으로 이동") { if (!busy) members() })
+        if (name != "welcome") page.addView(header)
+        guideControls = null
         guideVolume = null
         if (name in setOf("home", "detail", "post", "review", "voice") || (large && name in setOf("digest", "memories"))) {
+            val controls = ui.row().apply { visibility = View.GONE }
+            guideControls = controls
             guideVolume = ImageButton(this).apply {
                 background = ui.shape(ui.milk, 12)
                 setColorFilter(ui.ink)
                 setOnClickListener { narrator.toggle(); updateGuideVolume() }
-                visibility = View.GONE
-                header.addView(this, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)))
+                controls.addView(this, LinearLayout.LayoutParams(ui.dp(48), ui.dp(48)))
             }
             updateGuideVolume()
-            guideClose = ui.iconButton("close", "안내 닫기", ::closeGuide).apply {
-                tag = "guide-close"
-                visibility = View.GONE
-                header.addView(this)
+            controls.addView(ui.iconButton("close", "안내 닫기", ::closeGuide).apply { tag = "guide-close" })
+            if (helpSlot != null) {
+                helpSlot.addView(controls, FrameLayout.LayoutParams(-2, -2))
+            } else {
+                header.addView(controls)
             }
         }
-        if (name != "welcome") page.addView(header)
         pagePostingStatus = if (postingScope() != null && name !in setOf("welcome", "login", "register", "roomSync")) {
             newPostingStatus().also {
                 page.addView(it, LinearLayout.LayoutParams(-1, -2).apply {
@@ -675,7 +686,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateAssistantVisibility() {
-        val guideOnScreen = guideClose?.visibility == View.VISIBLE
+        val guideOnScreen = guideControls?.visibility == View.VISIBLE
         val hidden = busy || assistantDialog != null || profileMenuDialog != null || calendarDialog != null ||
             commentsDialog != null || (guideOnScreen && assistantMenu == null)
         assistant?.visibility = if (hidden) View.INVISIBLE else View.VISIBLE
@@ -1692,12 +1703,16 @@ class MainActivity : ComponentActivity() {
         guideCue = null
     }
 
+    private fun setGuideControlsVisible(visible: Boolean) {
+        guideControls?.visibility = if (visible) View.VISIBLE else View.GONE
+        guideHelp?.visibility = if (visible) View.GONE else View.VISIBLE
+    }
+
     private fun closeGuide() {
         clearCue()
         guideStep = null
         tabTour = null
-        guideClose?.visibility = View.GONE
-        guideVolume?.visibility = View.GONE
+        setGuideControlsVisible(false)
         updateAssistantVisibility()
         scheduleReplyCheck()
     }
@@ -1707,8 +1722,7 @@ class MainActivity : ComponentActivity() {
         if (foreground) narrator.present(line)
         if (guideCue?.target === target && androidx.core.view.ViewCompat.getStateDescription(target) == line.description) return
         guideCue?.clear()
-        guideClose?.visibility = View.VISIBLE
-        guideVolume?.visibility = View.VISIBLE
+        setGuideControlsVisible(true)
         val cue = TutorialCue(target, line.description, example, tapFirst)
         guideCue = cue
         updateAssistantVisibility()
@@ -1765,7 +1779,7 @@ class MainActivity : ComponentActivity() {
             }
             GuideStep.COMPOSE -> {
                 val top = page.findViewWithTag<View>("elder-compose")
-                if (top != null) showCue(top, TutorialLine.ELDER_COMPOSE)
+                if (top != null) showCue(top, TutorialLine.ELDER_COMPOSE, reveal = true)
                 else showCue(page.findViewWithTag<View>("home-compose") ?: return, TutorialLine.COMPOSE)
             }
             GuideStep.REPLY -> {
@@ -2305,8 +2319,7 @@ class MainActivity : ComponentActivity() {
         if (guideStep == GuideStep.WRITING) {
             fun updateWritingCue() {
                 if (guideStep != GuideStep.WRITING) return
-                guideClose?.visibility = View.VISIBLE
-                guideVolume?.visibility = View.VISIBLE
+                setGuideControlsVisible(true)
                 if (text.text.isEmpty() && files.isEmpty())
                     showCue(text, TutorialLine.WRITE, "오늘 있었던 일을 적어보세요", tapFirst = true)
                 else clearCue()
