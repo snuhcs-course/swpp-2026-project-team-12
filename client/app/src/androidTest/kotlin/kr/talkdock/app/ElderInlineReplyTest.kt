@@ -14,6 +14,8 @@ import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** Elderly mode listens and replies inside the feed card without opening another screen. */
 @RunWith(AndroidJUnit4::class)
@@ -37,13 +39,16 @@ class ElderInlineReplyTest {
         repeat(samples) { bytes.putShort(0) }
         return Reply(bytes.array(), type = "audio/wav")
     }
-    private fun server(summary: JSONObject = JSONObject().put("status", "ready").put("text", "지우가 공원에서 단풍을 봤대요.")) =
+    private fun server(
+        summary: JSONObject = JSONObject().put("status", "ready").put("text", "지우가 공원에서 단풍을 봤대요."),
+        beforeSummary: (Request) -> Unit = {},
+    ) =
         MockApi { r -> when {
             r.path == "/api/families/current/" -> jsonReply(room(1, "우리 가족"))
             r.path == "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(post(1)).put(post(2))))
             r.path.matches(Regex("/api/posts/\\d+/")) -> jsonReply(detail(r.path.split('/')[3].toInt()))
             r.path == "/api/posts/1/comments/" -> { sentComments.add(JSONObject(r.body).getString("text")); jsonReply(JSONObject().put("id", 9)) }
-            r.path.endsWith("/message/") -> jsonReply(summary)
+            r.path.endsWith("/message/") -> { beforeSummary(r); jsonReply(summary) }
             r.path.endsWith("/replies/transcribe/") -> jsonReply(JSONObject().put("recognized", "단풍 예쁘다"))
             r.path.endsWith("/replies/prepare/") -> jsonReply(JSONObject().put("id", 55).put("recognized", "단풍 예쁘다")
                 .put("converted", "지우야, 단풍이 참 예쁘구나!"))
@@ -135,13 +140,30 @@ class ElderInlineReplyTest {
         }
     }
 
-    @Test fun listeningClosesAnOpenReplyOnAnyCard() = server().use { api ->
-        UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = true).use { ui ->
-            ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
-            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
-            ui.tapIn(2, "소식 듣기"); ui.await { ui.panel(1) == null }
-            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
-            ui.tapIn(1, "소식 듣기"); ui.await { ui.panel(1) == null }
+    @Test fun listeningClosesAnOpenReplyOnAnyCard() {
+        val secondSummaryRequested = CountDownLatch(1)
+        val releaseSecondSummary = CountDownLatch(1)
+        server(beforeSummary = { request ->
+            if (request.path == "/api/posts/2/message/") {
+                secondSummaryRequested.countDown()
+                releaseSecondSummary.await(10, TimeUnit.SECONDS)
+            }
+        }).use { api ->
+            UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = true).use { ui ->
+                try {
+                    ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
+                    ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
+                    ui.tapIn(2, "소식 듣기"); ui.await { ui.panel(1) == null }
+                    assertTrue(secondSummaryRequested.await(10, TimeUnit.SECONDS))
+                    ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
+                    ui.test.runOnMainSync {
+                        assertFalse("Opening a reply stops the other card's pending playback", ui.card(2).audio.isPlaying)
+                    }
+                } finally {
+                    releaseSecondSummary.countDown()
+                }
+                ui.tapIn(1, "소식 듣기"); ui.await { ui.panel(1) == null }
+            }
         }
     }
 

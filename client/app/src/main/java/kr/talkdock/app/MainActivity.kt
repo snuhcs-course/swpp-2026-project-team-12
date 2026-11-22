@@ -2372,7 +2372,8 @@ class MainActivity : ComponentActivity() {
         feedCards.filter { it !== card && it.replyOpen }.forEach { it.hideReply() }
         val post = card.post
         val tour = guideStep == GuideStep.LISTEN_COMMENT && guidePostId == post.optInt("id")
-        // Replying moves on from listening: stop it and fold away the summary shown above.
+        // Cancel playback on another card so its pending summary cannot close this reply.
+        if (activePostAudio !== card.audio) stopPostAudio()
         // During the elderly guide the summary stays, because 소식 물어보기 below it comes next.
         if (!tour) card.audio.dismiss()
         if (post.optInt("author_id") > 0 && post.optInt("author_id") != session?.optInt("user_id")) markSeen(replyKey())

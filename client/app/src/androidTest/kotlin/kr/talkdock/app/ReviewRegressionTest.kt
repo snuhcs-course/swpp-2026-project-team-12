@@ -24,7 +24,7 @@ import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.net.ServerSocket
 import java.net.SocketException
-import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -40,7 +40,7 @@ internal fun jsonReply(value: JSONObject, status: Int = 200) = Reply(value.toStr
 internal class MockApi(private val rooms: ((Request) -> Reply)? = null, private val respond: (Request) -> Reply) : AutoCloseable {
     private val socket = ServerSocket(0)
     val base = "http://127.0.0.1:${socket.localPort}/api/"
-    val requests = Collections.synchronizedList(mutableListOf<Request>())
+    val requests = CopyOnWriteArrayList<Request>()
     private val worker = Thread {
         while (!socket.isClosed) {
             try {
@@ -85,7 +85,7 @@ internal class MockApi(private val rooms: ((Request) -> Reply)? = null, private 
         val room = JSONObject(String(current.body, Charsets.UTF_8))
         return jsonReply(JSONObject().put("rooms", JSONArray().put(roomSummary(room.getInt("id"), room.getString("name")))))
     }
-    fun paths(): List<String> = synchronized(requests) { requests.map { it.path } }
+    fun paths(): List<String> = requests.map { it.path }
     override fun close() { socket.close(); worker.join(1000) }
 }
 
