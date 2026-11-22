@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore } from './assets/ui-modes.js';
+import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore, replyPrompt, withReplyPrompt } from './assets/ui-modes.js';
 test('screen choices belong to each account and never use age or another account choice', () => {
   const data = new Map(); const storage={getItem:key=>data.get(key),setItem:(key,value)=>data.set(key,value)};
   assert.equal(readMode(storage,1),'standard');
@@ -27,4 +27,17 @@ test('caption expansion follows measured two-line overflow and preserves elderly
   assert.equal(captionNeedsMore(60,60,false),false);
   assert.equal(captionNeedsMore(0,0,false),false);
   assert.equal(captionNeedsMore(60.5,60,false),false);
+});
+test('elderly listening ends with a rule-based reply prompt for the author relationship', () => {
+  const post = (relationship, extra = {}) => ({ author_id: 1, author_name: '준하', relationship, ...extra });
+  assert.equal(replyPrompt(post('손자'), 7), '손자의 소식에 답장해 보시는 건 어떨까요?');
+  assert.equal(replyPrompt(post('가족'), 7), '준하님의 소식에 답장해 보시는 건 어떨까요?');
+  assert.equal(replyPrompt(post('인척', { author_name: '' }), 7), null);
+  assert.equal(replyPrompt(post('나', { author_id: 7 }), 7), null);
+  assert.equal(replyPrompt(post('손자', { author_id: 7 }), 7), null);
+  assert.equal(replyPrompt(post('오늘의 질문'), 7), null);
+  const closing = '손자의 소식에 답장해 보시는 건 어떨까요?';
+  assert.equal(withReplyPrompt('산책했대요.', closing), `산책했대요. ${closing}`);
+  assert.equal(withReplyPrompt('공원 산책', closing), `공원 산책. ${closing}`);
+  assert.equal(withReplyPrompt('산책했대요.', null), '산책했대요.');
 });

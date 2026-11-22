@@ -22,7 +22,20 @@ enum class TutorialLine(val description: String, val spokenText: String, val cli
     REPLY("안내: 가족 글에 답장하기", "가족의 새 소식이에요. 이 글을 눌러 답장해 보세요.", R.raw.guide_reply_post),
     COMMENT("안내: 댓글 입력", "가족에게 하고 싶은 말씀을 여기에 적어 보세요.", R.raw.guide_comment),
     SEND_COMMENT("안내: 댓글 보내기", "댓글을 보내려면 오른쪽 화살표를 눌러 주세요.", R.raw.guide_send_comment),
-    SEND_VOICE("안내: 가족에게 보내기", "내용을 확인하셨으면 가족에게 보내기를 누르세요.", R.raw.guide_send_voice)
+    SEND_VOICE("안내: 가족에게 보내기", "내용을 확인하셨으면 가족에게 보내기를 누르세요.", R.raw.guide_send_voice),
+    // Elderly screen. Offline clips: ElevenLabs default voice (m1), same model and speed as the server.
+    ELDER_COMPOSE("안내: 소식 쓰기", "맨 위의 가족에게 소식 남기기를 눌러 보세요.", R.raw.guide_elder_compose),
+    ELDER_REPLY("안내: 가족 글에 답장하기", "가족의 새 소식이에요. 댓글 달기를 눌러 답장해 보세요.", R.raw.guide_elder_reply),
+    // Elderly first guide: listen, reply, ask, then write.
+    ELDER_LISTEN("안내: 소식 듣기", "소식 듣기를 누르면 가족 소식을 읽어 드려요.", R.raw.guide_elder_listen),
+    ELDER_LISTEN_COMMENT("안내: 댓글 달기", "들은 소식에 답장하고 싶으면 댓글 달기를 눌러 보세요.", R.raw.guide_elder_listen_comment),
+    ELDER_ASK("안내: 소식 물어보기", "궁금한 점이 있으면 소식 물어보기를 눌러 토닥이에게 물어보세요.", R.raw.guide_elder_ask),
+    // Elderly tabs, on the first visit: each step moves on when its button is pressed.
+    ELDER_DAY("안내: 오늘 하루", "이야기 듣기를 누르면 가족의 하루를 들려 드려요.", R.raw.guide_elder_day),
+    ELDER_DAY_PREVIOUS("안내: 지난 날 보기", "전날을 누르면 지난 날의 이야기도 볼 수 있어요.", R.raw.guide_elder_day_previous),
+    ELDER_MEMORY_EXAMPLE("안내: 예시로 물어보기", "예시 질문을 누르면 바로 가족의 추억을 찾아 드려요.", R.raw.guide_elder_memory_example),
+    ELDER_MEMORY_LISTEN("안내: 답변 듣기", "답변 듣기를 누르면 찾은 답을 읽어 드려요.", R.raw.guide_elder_memory_listen),
+    ELDER_MEMORY("안내: 가족 추억", "다음에는 말로 물어보기를 누르고 궁금한 것을 직접 말씀해 보세요.", R.raw.guide_elder_memory_voice),
 }
 
 /** The server resolves the signed-in listener's voice. Bundled clips keep the guide audible offline. */

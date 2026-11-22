@@ -1,5 +1,5 @@
 import { VoicePreview } from './voice-preview.js';
-import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore } from './ui-modes.js';
+import { readMode, writeMode, calendarDays, koreanDay, captionNeedsMore, replyPrompt, withReplyPrompt } from './ui-modes.js';
 import { GuidedHelp } from './guided-help.js';
 import { api, ApiError, registrationPayload, hasToken, setToken, setRoom, imageURL, clearImages } from './api.js';
 import { icon } from './icons.js';
@@ -49,7 +49,7 @@ function openPractice(manual = false) {
   const replyOnly = !manual && guideSeen(keys.basic);
   if (help.dialog?.open || (replyOnly && !replyPost)) return;
   if (!replyOnly) markGuideSeen(keys.basic);
-  help.open({ post: replyPost, replyOnly, onReplyShown: () => markGuideSeen(keys.reply) });
+  help.open({ post: replyPost, replyOnly, elder, onReplyShown: () => markGuideSeen(keys.reply) });
 }
 function maybeShowHelp() {
   if (elder && !document.querySelector('dialog[open]') && currentRoute() === 'feed') openPractice();
@@ -63,7 +63,8 @@ function scheduleReplyCheck() {
   const version = state.pageVersion, room = state.room.id, session = state.session;
   const current = () => version === state.pageVersion && session === state.session &&
     state.room?.id === room && currentRoute() === 'feed' && elder;
-  const idle = () => !document.hidden && !document.querySelector('dialog[open]') && !pendingOperations.size;
+  const idle = () => !document.hidden && !document.querySelector('dialog[open]') && !pendingOperations.size &&
+    !document.querySelector('#feed-list .elder-reply');
   replyCheckTimer = setTimeout(async () => {
     if (!current() || guideSeen(guideKeys().reply)) return;
     if (idle()) {
@@ -89,7 +90,8 @@ const assistant = new FloatingAssistant({
   context: () => ({
     scope: state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null,
     roomId: state.room?.id,
-    enabled: Boolean(state.user && state.room && currentRoute() === 'feed' && document.querySelector('#feed-list') && !modal.open),
+    // The elderly screen reaches every feature from the card or the bottom tabs instead.
+    enabled: Boolean(!elder && state.user && state.room && currentRoute() === 'feed' && document.querySelector('#feed-list') && !modal.open),
   }),
   ask: ({ id, roomId, question, dialogue }) => api(`posts/${id}/questions/`, {
     method: 'POST', room: roomId, data: { question, prior_dialogue: dialogue },
@@ -98,6 +100,7 @@ const assistant = new FloatingAssistant({
 const nav = [['feed', 'home', '소식'], ['digest', 'calendar', '하루'], ['search', 'search', '추억']];
 let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingTimer;
 let recordingRequest = 0;
+let elderRecording = false;
 let audioGeneration = 0;
 function updatePostViewport() {
   const viewport = window.visualViewport;
@@ -478,8 +481,9 @@ function renderJoinPreview(message = '') {
 
 function renderShell() {
   applyScreenMode();
-  const bottom = elder ? button('compose', '소식 쓰기', 'plus', 'button primary elder-compose') : nav.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span></a>`).join('');
-  app.innerHTML = `<div class="app-layout screen-layout"><div class="workspace"><header class="topbar">${brand()}<div class="current-family">${e(state.room.name)}</div><a class="icon-button" href="#/settings" aria-label="설정으로 이동">${icon('settings')}</a></header><main id="main" tabindex="-1"><div id="page"></div></main><nav class="screen-bottom" aria-label="${elder ? '소식 작성' : '주 메뉴'}">${bottom}</nav></div></div>`;
+  const tabs = elder ? [['feed', 'home', '소식'], ['digest', 'calendar', '오늘 하루'], ['search', 'search', '가족 추억']] : nav;
+  const bottom = tabs.map(([key, symbol, label]) => `<a href="#/${key}" data-nav="${key}">${icon(symbol)}<span>${label}</span></a>`).join('');
+  app.innerHTML = `<div class="app-layout screen-layout"><div class="workspace"><header class="topbar">${brand()}<div class="current-family">${e(state.room.name)}</div>${elder ? button('elder-help', '도움말', '', 'button quiet compact elder-help', 'aria-label="도움말 보기"') : ''}<a class="icon-button" href="#/settings" aria-label="설정으로 이동">${icon('settings')}</a></header><main id="main" tabindex="-1"><div id="page"></div></main><nav class="screen-bottom" aria-label="주 메뉴">${bottom}</nav></div></div>`;
   window.scrollTo(0, 0);
 }
 
@@ -488,7 +492,9 @@ function pageHeading(eyebrow, title, text, controls = '') {
 }
 function currentRoute() { const route = location.hash.replace(/^#\/?/, '').split('?')[0]; return ['feed', 'search', 'digest', 'family', 'settings', 'rooms'].includes(route) ? route : 'feed'; }
 async function renderPage() {
-  stopReplyCheck(); help.dialog?.close();
+  stopReplyCheck(); help.dialog?.close(); endTabTour();
+  if (elderRecording && recorder) stopRecording(true);
+  elderRecording = false;
   if (!state.room || !state.user) return;
   assistant.refresh();
   const route = currentRoute();
@@ -534,7 +540,7 @@ function familyRail() {
     <p class="rail-caption">${icon('leaf')}평범한 하루도, 함께라서 특별하니까.</p></aside>`;
 }
 async function renderFeed(version) {
-  $('#page').innerHTML = `<section class="vertical-feed" aria-label="가족 소식"><div class="feed-toolbar"><h2>가족의 소식 <span id="post-count"></span></h2>${elder ? '' : button('compose', '소식 쓰기', 'plus', 'button quiet compact')}</div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>`;
+  $('#page').innerHTML = `<section class="vertical-feed" aria-label="가족 소식">${elder ? button('compose', '가족에게 소식 남기기', 'plus', 'button primary full elder-compose') : ''}<div class="feed-toolbar"><h2>가족의 소식 <span id="post-count"></span></h2>${elder ? '' : button('compose', '소식 쓰기', 'plus', 'button quiet compact')}</div><div id="feed-list">${loading('가족의 이야기를 가져오고 있어요')}</div></section>`;
   const entry = document.createElement('div');
   entry.id = 'daily-entry'; entry.innerHTML = questionEntry(dailyStatus);
   $('.vertical-feed').before(entry);
@@ -643,6 +649,39 @@ function postCard(post) {
     ${elder ? caption + actions : actions + caption}
     ${elder ? `<section class="feed-inline-comments" aria-label="${e(post.author_name)}님의 소식에 달린 댓글" data-comments="${post.id}"><h3>가족의 댓글</h3><div>${inlineComments.has(post.id) ? inlineCommentMarkup(inlineComments.get(post.id)) : '<p class="muted">댓글을 불러올게요.</p>'}</div></section>` : ''}</article>`;
 }
+/** Elderly feed: replying happens inside the card, without opening the post dialog. */
+function elderReplyMarkup(post) {
+  return `<section class="elder-reply" data-reply="${post.id}" aria-label="${e(post.author_name)}님에게 답장"><div class="elder-reply-heading"><h3>${e(post.author_name)}님에게 답장</h3>${button('elder-reply-close', '<span class="sr-only">답장 닫기</span>', 'close', 'icon-button', `data-id="${post.id}" aria-label="답장 닫기"`)}</div><div class="elder-reply-voice">${elderVoiceIdle(post.id)}</div><form data-form="elder-reply" data-id="${post.id}"><label class="field"><span>글로 쓰셔도 돼요</span><textarea name="text" rows="3" maxlength="2000" placeholder="하고 싶은 말씀을 적어보세요"></textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">댓글 보내기</button></form></section>`;
+}
+function elderVoiceIdle(id) { return button('elder-reply-record', '말로 답하기', 'mic', 'button primary full', `data-id="${id}"`); }
+function closeElderReply(panel) {
+  if (!panel) return;
+  if (elderRecording && recorder) stopRecording(true);
+  elderRecording = false;
+  panel.remove();
+}
+function toggleElderReply(id) {
+  const card = document.querySelector(`#feed-list .post-card[data-post-id="${id}"]`), post = state.posts.find(item => item.id === id);
+  if (!card || !post) return;
+  const open = card.querySelector('.elder-reply');
+  document.querySelectorAll('#feed-list .elder-reply').forEach(closeElderReply);
+  if (open) return;
+  // Replying moves on from listening: stop it and fold away the summary shown above.
+  stopAudio();
+  card.querySelectorAll('.feed-audio-summary').forEach(panel => { panel.hidden = true; });
+  const comments = card.querySelector('.feed-inline-comments');
+  if (comments) comments.insertAdjacentHTML('beforebegin', elderReplyMarkup(post)); else card.insertAdjacentHTML('beforeend', elderReplyMarkup(post));
+  if (post.author_id !== state.user.user_id) markGuideSeen(guideKeys().reply);
+  card.querySelector('.elder-reply')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+async function reloadInlineComments(id) {
+  try {
+    const result = await api(`posts/${id}/`);
+    inlineComments.set(id, result.comments);
+    const post = state.posts.find(item => item.id === id); if (post) post.comment_count = result.comments.length;
+    refreshPostComments(id, result.comments);
+  } catch { toast('댓글은 등록됐어요. 최신 댓글은 잠시 후 다시 확인해 주세요.'); }
+}
 function observeInlineComments() {
   if (!elder) return;
   inlineObserver?.disconnect();
@@ -675,6 +714,9 @@ function drainInlineComments() {
 
 function updateFeed() {
   const posts = state.posts;
+  // Re-rendering drops open reply panels; never keep the microphone running behind them.
+  if (elderRecording && recorder) stopRecording(true);
+  elderRecording = false;
   $('#post-count').textContent = `${posts.length}`;
   $('#feed-list').innerHTML = posts.length ? posts.map(postCard).join('') : empty('heart', '첫 번째 안부를 기다리고 있어요', '사진 한 장도, 짧은 글 한 줄도 좋아요. 가족에게 오늘을 전해 보세요.', button('compose', '첫 소식 남기기', 'plus', 'button primary'));
   observeCaptionOverflow();
@@ -760,6 +802,8 @@ function audioControl(target, preparing = true) {
   target.innerHTML = icon('stop') + (preparing ? '취소' : '듣기 중지');
   target.setAttribute('aria-label', preparing ? '음성 준비 취소' : '듣기 중지');
 }
+/** Elderly screen: after the post is read, gently suggest replying to that family member. Spoken only. */
+function spokenPost(text, post) { return elder ? withReplyPrompt(text, replyPrompt(post, state.user?.user_id)) : text; }
 async function playSpeech(text, target, valid = () => true, generation = null) {
   if (!text) throw new ApiError('먼저 요약을 불러와 주세요.');
   if (generation === null) { stopAudio(); generation = audioGeneration; }
@@ -786,7 +830,7 @@ async function listenToSummary() {
   try {
     if (!state.detail.summary) await loadSummary();
     if (!valid()) return;
-    if (state.detail?.summary) await playSpeech(state.detail.summary, control, valid, generation);
+    if (state.detail?.summary) await playSpeech(spokenPost(state.detail.summary, state.detail), control, valid, generation);
     else stopAudio();
   } catch (error) { if (valid()) { stopAudio(); toast(error.message); } }
 }
@@ -807,11 +851,90 @@ function renderPreviews() {
   $('#photo-previews').innerHTML = state.files.map((file, index) => `<div class="preview"><img src="${previewURLs[index]}" alt="${e(file.name)}"><button type="button" data-action="remove-photo" data-index="${index}" class="icon-button" aria-label="${e(file.name)} 제외">${icon('close')}</button><span>${e(file.name)}</span></div>`).join('');
 }
 
+/**
+ * Three elderly memory examples. The first names the family member who posted most recently,
+ * by the viewer-side relationship the server already resolved (or their name when that is generic).
+ */
+function memoryExamples() {
+  const generic = new Set(['가족', '인척', '공동 부모 쪽 가족']);
+  const subject = state.posts.map(post => {
+    const relation = (post.relationship || '').trim(), name = (post.author_name || '').trim();
+    if (post.author_id === state.user?.user_id || relation === '나' || relation === '오늘의 질문') return null;
+    return relation && !generic.has(relation) ? relation : name || null;
+  }).find(Boolean);
+  const first = subject ? `${subject}${topicParticle(subject)} 요즘 어떻게 지내?` : '가족들은 요즘 어떻게 지내?';
+  return [first, '지난 명절에 가족끼리 뭐 했었지?', '최근에 가족 중에 생일이나 기념일이 있었어?'];
+}
+/** 은/는 by the final consonant of the last Hangul syllable. */
+function topicParticle(word) {
+  const code = word.charCodeAt(word.length - 1) - 0xAC00;
+  return code >= 0 && code < 11172 && code % 28 ? '은' : '는';
+}
+/**
+ * Elderly tabs run a short hands-on tour once, on the first visit: a hand points at the real button
+ * and each step moves on when that button is pressed.
+ */
+let tabTour = null, tourTarget = null, tourHand = null, tourFrame = 0;
+const TAB_TOUR = {
+  'day-listen': ['이야기 듣기를 누르면 가족의 하루를 들려 드려요.', '[data-action="digest-audio"]'],
+  'day-previous': ['◀ 전날을 누르면 지난 날의 이야기도 볼 수 있어요.', '[data-action="elder-day-step"][data-step="-1"]'],
+  'memory-example': ['예시 질문을 누르면 바로 가족의 추억을 찾아 드려요.', '[data-action="memory-example"]'],
+  'memory-listen': ['답변이 나오면 답변 듣기를 눌러 찾은 답을 들어 보세요.', '[data-action="memory-audio"]'],
+  'memory-voice': ['다음에는 말로 물어보기를 누르고 궁금한 것을 직접 말씀해 보세요.', '[data-action="memory-voice"]'],
+};
+function startTabTour(tab) {
+  if (!elder || !state.user) return false;
+  const key = `${guideKeys().basic}:tab:${tab}`;
+  if (guideSeen(key)) return false;
+  markGuideSeen(key);
+  return true;
+}
+function tourStep(step) {
+  tabTour = step;
+  const [text, selector] = TAB_TOUR[step];
+  let box = $('#page .tab-hint');
+  if (!box) {
+    $('#page').insertAdjacentHTML('afterbegin', `<aside class="tab-hint" role="status" aria-live="polite"><p></p>${button('tab-hint-close', '안내 닫기', '', 'button quiet compact')}</aside>`);
+    box = $('#page .tab-hint');
+  }
+  $('p', box).textContent = text;
+  pointAt($(selector));
+}
+function endTabTour() { tabTour = null; $('#page .tab-hint')?.remove(); pointAt(null); }
+function pointAt(target) {
+  cancelAnimationFrame(tourFrame);
+  tourTarget?.classList.remove('tour-target'); tourTarget = target || null;
+  if (!target) { tourHand?.remove(); tourHand = null; return; }
+  target.classList.add('tour-target');
+  if (!tourHand) {
+    tourHand = document.createElement('span'); tourHand.className = 'tour-hand'; tourHand.setAttribute('aria-hidden', 'true');
+    tourHand.innerHTML = '<img src="/web/assets/assistant_character.png" alt=""><span>👆</span>';
+    document.body.append(tourHand);
+  }
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  const follow = () => {
+    if (!tourTarget?.isConnected) { pointAt(null); return; }
+    const rect = tourTarget.getBoundingClientRect();
+    tourHand.style.left = `${Math.round(rect.right - 56)}px`; tourHand.style.top = `${Math.round(rect.bottom - 18)}px`;
+    tourFrame = requestAnimationFrame(follow);
+  };
+  follow();
+}
+function memoryVoiceIdle(message = '') {
+  return `${button('memory-voice', '말로 물어보기', 'mic', 'button primary full')}${message ? `<p class="form-error" role="alert">${e(message)}</p>` : ''}`;
+}
 function renderSearch() {
-  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p><form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
+  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p>${elder ? `<div class="memory-examples"><div class="memory-voice" aria-live="polite">${memoryVoiceIdle()}</div><h3>이렇게 물어보세요</h3>${memoryExamples().map(q => button('memory-example', e(q), '', 'button secondary full', `data-question="${e(q)}"`)).join('')}<p class="muted">글로 물어보셔도 돼요</p></div>` : ''}<form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
+  if (startTabTour('search')) tourStep('memory-example');
 }
 async function renderDigest(version) {
   selectedDigestDate ||= today(); digestMonth ||= new Date(`${selectedDigestDate.slice(0, 7)}-01T00:00:00Z`);
+  if (elder) {
+    $('#page').innerHTML = `<section class="day-page elder-day"><h1>우리 가족의 하루</h1><p class="muted">가족이 보낸 하루 이야기를 들어 보세요.</p><input id="digest-date" type="date" value="${selectedDigestDate}" max="${today()}" hidden><div class="elder-day-steps">${button('elder-day-step', '◀ 전날', '', 'button secondary', 'data-step="-1" aria-label="전날 이야기"')}${button('elder-day-step', '다음 날 ▶', '', 'button secondary', `data-step="1" aria-label="다음 날 이야기" ${selectedDigestDate >= today() ? 'disabled' : ''}`)}</div><div id="digest-result" aria-live="polite"></div></section>`;
+    await loadDigest(selectedDigestDate, false, version);
+    if (version === state.pageVersion && startTabTour('digest')) tourStep($('[data-action="digest-audio"]') ? 'day-listen' : 'day-previous');
+    return;
+  }
   $('#page').innerHTML = `<section class="day-page"><h1>우리 가족의 하루</h1><p class="muted">달력에서 함께한 날을 골라 보세요.</p><input id="digest-date" type="date" value="${selectedDigestDate}" max="${today()}" hidden><section class="panel month-calendar" aria-label="날짜 선택"><div class="month-heading">${button('day-prev', '<span class="sr-only">이전 달</span>', 'chevron', 'icon-button previous-month')}<h2 id="month-title"></h2>${button('day-next', '<span class="sr-only">다음 달</span>', 'chevron', 'icon-button')}</div><div class="month-weekdays" aria-hidden="true">${['일','월','화','수','목','금','토'].map(day=>`<span>${day}</span>`).join('')}</div><div id="month-grid" class="month-grid"></div></section><section id="digest-result" aria-live="polite">${loading('이날의 소식을 가져오고 있어요')}</section></section>`;
   renderMonth();
   api('digests/history/').then(result => { if (version === state.pageVersion) { digestDates = result.dates; renderMonth(); } }).catch(() => {});
@@ -843,8 +966,15 @@ async function loadDigest(date, retry = false, version = state.pageVersion) {
     state.digest={...result,posts};
     const pictures=posts.map(post=>`<button type="button" class="day-photo" data-action="open-post" data-id="${post.id}" aria-label="${e(post.author_name)}님의 소식 보기">${post.images?.[0]?`<img data-post="${post.id}" data-photo-url="${e(post.images[0].url)}" alt="${e(post.author_name)}님의 사진">`:`<span>${icon('text')}<span class="sr-only">글로 전한 소식</span></span>`}</button>`).join('');
     $('#digest-result').innerHTML=`<h2>${e(dateLabel(date+'T12:00:00+09:00'))}의 소식 ${posts.length}개</h2>${posts.length?`<div class="day-photos">${pictures}</div>`:empty('leaf','이날은 아직 올라온 소식이 없어요','다른 날짜를 골라보세요.')}<div class="day-actions">${button('digest-story','오늘 이야기 보기','book','button secondary full')}${button('digest-audio','오늘 이야기 듣기','volume','button secondary full',result.status==='ready'?'':'disabled')}${button('stop-audio','듣기 중지','stop','button quiet','hidden')}</div>${result.status!=='ready'?`<p class="help">${result.status==='pending'?`${e(result.digest_time||state.room.digest_time)}에 하루 요약이 도착해요.`:result.status==='processing'?'하루 요약을 준비하고 있어요.':result.status==='failed'?'하루 요약을 준비하지 못했어요.':'소식이 모이면 하루 이야기를 들을 수 있어요.'}</p>${['failed','processing'].includes(result.status)?button('retry-digest','다시 준비하기','refresh','button quiet'):''}`:''}`;
+    if (elder) $('#digest-result').innerHTML = elderDayMarkup(date, result, pictures, posts.length);
     hydrateImages($('#digest-result'));
   } catch(error) { if (version===state.pageVersion && state.digestRequest===requestId) $('#digest-result').innerHTML=failureBlock(error,button('retry-digest','다시 불러오기','refresh')); }
+}
+function elderDayMarkup(date, result, pictures, count) {
+  const day = date === today() ? '오늘' : dateLabel(date + 'T12:00:00+09:00');
+  const ready = result.status === 'ready';
+  const waiting = result.status === 'pending' ? `오늘 ${e(result.digest_time || state.room.digest_time)}에 하루 이야기가 도착해요.` : result.status === 'empty' ? '이날은 가족이 남긴 소식이 없어요.' : '하루 이야기가 준비되면 들을 수 있어요.';
+  return `<h2 class="elder-day-title">${e(day)}의 이야기</h2><div class="day-actions">${ready ? `${button('digest-audio', `${e(day)} 이야기 듣기`, 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : `<p class="help">${waiting}</p>`}${button('digest-story', '글로 읽기', 'book', 'button secondary full')}</div>${count ? `<h3>${e(day)} 올라온 소식 ${count}개</h3><div class="day-photos">${pictures}</div>` : ''}`;
 }
 function showDigestStory() {
   const digest=state.digest;if(!digest)return;
@@ -859,24 +989,49 @@ function refreshPostComments(id, comments) {
 }
 async function listenToPost(id, target) {
   stopAudio();
+  // Listening moves on from replying: close any reply area left open in the feed.
+  document.querySelectorAll('#feed-list .elder-reply').forEach(closeElderReply);
   const generation = audioGeneration, session = state.session, room = state.room.id, version = state.pageVersion;
   const valid = () => generation === audioGeneration && session === state.session && room === state.room?.id && version === state.pageVersion;
   const card = target.closest('.post-card') || document.querySelector(`#feed-list .post-card[data-post-id="${id}"]`);
   if (!card) return;
   let panel = card.querySelector('.feed-audio-summary');
-  if (!panel) { panel = document.createElement('section'); panel.className = 'feed-audio-summary'; card.append(panel); }
+  if (!panel) {
+    panel = document.createElement('section'); panel.className = 'feed-audio-summary';
+    // Elderly cards read top to bottom: what was heard, the reply, then the family's comments.
+    const anchor = elder && (card.querySelector('.elder-reply') || card.querySelector('.feed-inline-comments'));
+    if (anchor) anchor.before(panel); else card.append(panel);
+  }
   panel.hidden = false; panel.dataset.preparing = 'true';
-  panel.innerHTML = `<p aria-live="polite">요약을 준비하고 있어요.</p>${button('stop-audio', '취소', 'stop', 'button quiet compact')}`;
+  panel.innerHTML = `<p aria-live="polite">요약을 준비하고 있어요.</p>${button('stop-audio', '취소', 'stop', 'button quiet compact')}${elder ? `<div class="feed-ask" hidden><p class="feed-ask-hint">이 소식 관련해서 궁금한 점을 토닥이에게 물어보세요!</p>${button('post-ask', '소식 물어보기', 'sparkle', 'button primary full', `data-id="${id}"`)}</div>` : ''}`;
+  // Elderly screen: after listening, questions about this post start right here.
+  const showAsk = () => { const ask = $('.feed-ask', panel); if (ask) ask.hidden = false; };
   const control = $('[data-action="stop-audio"]', panel); audioControl(control);
   target.dataset.action = 'feed-stop-listen'; target.innerHTML = icon('stop') + '취소'; target.setAttribute('aria-label', '음성 준비 취소');
+  const post = state.posts.find(item => item.id === id), caption = post?.caption?.trim();
+  let summarized = false;
   try {
     const result = await api(`posts/${id}/message/`, { method:'POST', room });
     if (!valid()) return;
     if (result.status !== 'ready') throw new ApiError(result.status === 'failed' ? '소식을 읽을 준비를 하지 못했어요. 다시 시도해 주세요.' : '소식을 읽을 준비 중이에요. 잠시 후 다시 눌러 주세요.');
-    delete panel.dataset.preparing; $('p', panel).textContent = result.text;
-    await playSpeech(result.text, control, valid, generation);
+    summarized = true;
+    delete panel.dataset.preparing; $('p', panel).textContent = result.text; showAsk();
+    await playSpeech(spokenPost(result.text, post), control, valid, generation);
     if (valid() && audio && !audio.paused) { target.innerHTML = icon('stop') + feedListenLabel(true); target.setAttribute('aria-label','듣기 중지'); }
-  } catch (error) { if (valid()) { delete panel.dataset.preparing; $('p', panel).textContent = error.message; stopAudio(); } }
+  } catch (error) {
+    if (!valid()) return;
+    delete panel.dataset.preparing;
+    // One tap should always speak in the elderly screen: read the family's own words instead.
+    if (elder && !summarized && caption && error.status !== 401) {
+      $('p', panel).textContent = '요약 대신 가족이 쓴 글을 읽어 드려요.'; showAsk();
+      try {
+        await playSpeech(spokenPost(caption, post), control, valid, generation);
+        if (valid() && audio && !audio.paused) { target.innerHTML = icon('stop') + feedListenLabel(true); target.setAttribute('aria-label','듣기 중지'); }
+      } catch (speechError) { if (valid()) { $('p', panel).textContent = speechError.message; stopAudio(); } }
+      return;
+    }
+    $('p', panel).textContent = error.message; stopAudio();
+  }
 }
 
 function renderFamily() {
@@ -902,14 +1057,17 @@ function stopRecording(discard = false) {
   }
   stream?.getTracks().forEach(track => track.stop());
 }
-async function startRecording({ postId = state.detail?.id, purpose = null } = {}) {
+async function startRecording({ postId = state.detail?.id, purpose = null, target = null } = {}) {
+  const voicePanel = () => target || $('#voice-panel');
+  // The in-card reply always keeps a way to record again after a failure.
+  const retry = () => purpose === 'elder-reply' ? elderVoiceIdle(postId) : purpose === 'memory' ? memoryVoiceIdle() : '';
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) throw new ApiError('음성 답장은 localhost 또는 HTTPS에서 지원되는 브라우저로 이용해 주세요.');
   if (recorder) return;
   const request = ++recordingRequest;
   const version = state.modalVersion;
   const questionRequest = dailyRequest;
   const valid = () => request === recordingRequest && version === state.modalVersion && (!purpose || purpose === 'post' || questionRequest === dailyRequest);
-  const retryAction = purpose === 'post' ? 'record-post' : purpose ? `daily-record-${purpose}` : 'record';
+  const retryAction = purpose === 'post' ? 'record-post' : purpose === 'elder-reply' ? 'elder-reply-record' : purpose === 'memory' ? 'memory-voice' : purpose ? `daily-record-${purpose}` : 'record';
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { if (valid()) throw new ApiError('마이크를 사용할 수 없어요. 브라우저의 마이크 권한과 연결을 확인해 주세요.'); else return; }
@@ -921,6 +1079,7 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
   catch { stream.getTracks().forEach(track => track.stop()); throw new ApiError('녹음을 시작하지 못했어요. 마이크 설정을 확인해 주세요.'); }
   recorder = current;
   recordingStream = stream;
+  elderRecording = purpose === 'elder-reply' || purpose === 'memory';
   const chunks = [];
   let bytes = 0;
   current.ondataavailable = event => {
@@ -931,7 +1090,7 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
   current.onerror = () => {
     if (!valid()) return;
     stopRecording(true);
-    $('#voice-panel').innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.');
+    voicePanel().innerHTML = errorBlock('녹음 중 문제가 생겼어요. 다시 시도해 주세요.') + retry();
   };
   current.onstop = async () => {
     stream.getTracks().forEach(track => track.stop());
@@ -941,16 +1100,30 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
     }
     if (!valid()) return;
     const blob = new Blob(chunks, { type: mimeType });
-    if (!blob.size || blob.size > 5 * 1024 * 1024) { $('#voice-panel').innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.'); return; }
-    $('#voice-panel').innerHTML = loading('말씀을 글로 옮기고 있어요');
+    if (!blob.size || blob.size > 5 * 1024 * 1024) { voicePanel().innerHTML = errorBlock('녹음이 비어 있거나 너무 커요. 짧게 다시 녹음해 주세요.') + retry(); return; }
+    voicePanel().innerHTML = loading('말씀을 글로 옮기고 있어요');
     try {
       const data = new FormData();
       const extension = mimeType.includes('mp4') ? 'm4a' : mimeType.includes('ogg') ? 'ogg' : 'webm';
       data.append('audio', blob, `reply.${extension}`);
-      const result = await api(purpose === 'post' ? 'speech/transcribe/' : `posts/${postId}/replies/transcribe/`, { method: 'POST', data });
+      const result = await api(purpose === 'post' || purpose === 'memory' ? 'speech/transcribe/' : `posts/${postId}/replies/transcribe/`, { method: 'POST', data });
       if (!valid()) return;
+      if (purpose === 'memory') {
+        const text = (result.recognized || '').trim().slice(0, 1000), form = $('form[data-form="search"]'), field = $('#memory-question');
+        if (!text) { voicePanel().innerHTML = memoryVoiceIdle('말씀을 알아듣지 못했어요. 다시 말씀해 주세요.'); return; }
+        voicePanel().innerHTML = memoryVoiceIdle();
+        // The question stays editable in the field; searching publishes nothing.
+        if (form && field && !form.dataset.pending) { field.value = text; form.requestSubmit(); }
+        return;
+      }
+      if (purpose === 'elder-reply') {
+        const draft = await api(`posts/${postId}/replies/prepare/`, { method: 'POST', data: { recognized: result.recognized } });
+        if (!valid()) return;
+        voicePanel().innerHTML = `<div class="voice-review"><h4>이렇게 보낼게요</h4><p class="voice-draft">${e(draft.converted || draft.recognized)}</p><div class="button-row">${button('elder-reply-send', '가족에게 보내기', 'arrow', 'button primary', `data-id="${draft.id}" data-post="${postId}"`)}${button('elder-reply-record', '다시 말하기', 'mic', 'button quiet', `data-id="${postId}"`)}</div></div>`;
+        return;
+      }
       if (purpose === 'post') {
-        $('#voice-panel').innerHTML = `<label class="field"><span>말씀하신 내용 · 고친 뒤 글에 넣어 주세요</span><textarea data-post-voice maxlength="2000" rows="3">${e(result.recognized)}</textarea></label>${button('post-voice-insert', '글에 넣기', 'plus', 'button secondary')}`;
+        voicePanel().innerHTML = `<label class="field"><span>말씀하신 내용 · 고친 뒤 글에 넣어 주세요</span><textarea data-post-voice maxlength="2000" rows="3">${e(result.recognized)}</textarea></label>${button('post-voice-insert', '글에 넣기', 'plus', 'button secondary')}`;
         return;
       }
       if (purpose) {
@@ -958,17 +1131,19 @@ async function startRecording({ postId = state.detail?.id, purpose = null } = {}
         if (field) { field.value = result.recognized; field.focus(); }
         if (purpose === 'answer') dailyDraft.source = 'voice';
         captureDailyDraft();
-        $('#voice-panel').innerHTML = '<p class="help">글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.</p>';
+        voicePanel().innerHTML = '<p class="help">글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.</p>';
         return;
       }
-      $('#voice-panel').innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
-    } catch (error) { if (valid()) $('#voice-panel').innerHTML = failureBlock(error, button(retryAction, error.status >= 500 ? '다시 시도하기' : '다시 녹음하기', 'mic'), error.status >= 500 ? '잠시 후 다시 시도해 주세요' : '다시 말해 주세요'); }
+      voicePanel().innerHTML = `<div class="voice-review"><h4>${icon('mic')}말씀하신 내용을 확인해 주세요</h4><form data-form="voice-prepare"><label class="field"><span>잘못 인식된 부분은 고칠 수 있어요.</span><textarea name="recognized" required maxlength="2000" rows="3">${e(result.recognized)}</textarea></label><p class="form-error" role="alert"></p><button type="submit" class="button secondary">다정한 답장으로 정리하기${icon('sparkle')}</button></form></div>`;
+    } catch (error) { if (valid()) voicePanel().innerHTML = failureBlock(error, button(retryAction, error.status >= 500 ? '다시 시도하기' : '다시 녹음하기', 'mic', 'button secondary', purpose === 'elder-reply' ? `data-id="${postId}"` : ''), error.status >= 500 ? '잠시 후 다시 시도해 주세요' : '다시 말해 주세요'); }
   };
   current.start(1000);
   recordingTimer = setTimeout(() => {
     if (valid() && recorder === current) { stopRecording(); toast('2분이 되어 녹음을 마쳤어요.'); }
   }, 120000);
-  $('#voice-panel').innerHTML = `<div class="recording-status"><span class="recording-dot"></span><span>녹음 중이에요 · 최대 2분</span>${button('finish-record', '녹음 마치기', 'stop', 'button primary compact')}${button('cancel-record', '취소', '', 'button quiet compact')}</div>`;
+  if (purpose === 'memory') { voicePanel().innerHTML = `<div class="recording-status elder-recording"><span class="recording-dot"></span><strong>듣고 있어요</strong><span class="help">궁금한 것을 말씀하신 뒤 아래 버튼을 눌러 주세요.</span>${button('finish-record', '다 말했어요', 'stop', 'button primary')}${button('memory-voice-reset', '취소', '', 'button quiet')}</div>`; return; }
+  if (purpose === 'elder-reply') { voicePanel().innerHTML = `<div class="recording-status elder-recording"><span class="recording-dot"></span><strong>듣고 있어요</strong><span class="help">다 말씀하시면 아래 버튼을 눌러 주세요.</span>${button('finish-record', '다 말했어요', 'stop', 'button primary')}${button('elder-reply-reset', '취소', '', 'button quiet', `data-id="${postId}"`)}</div>`; return; }
+  voicePanel().innerHTML = `<div class="recording-status"><span class="recording-dot"></span><span>녹음 중이에요 · 최대 2분</span>${button('finish-record', '녹음 마치기', 'stop', 'button primary compact')}${button('cancel-record', '취소', '', 'button quiet compact')}</div>`;
 }
 
 const formHandlers = {
@@ -1077,6 +1252,13 @@ const formHandlers = {
     else location.hash = '#/feed';
     return { postingMessage: '글 업로드가 완료됐어요.' };
   },
+  async 'elder-reply'(data, form) {
+    const id = Number(form.dataset.id), text = data.text.trim();
+    if (!text || text.length > 2000) throw new ApiError('댓글은 1~2,000자로 적어 주세요.');
+    await api(`posts/${id}/comments/`, { method: 'POST', data: { text } });
+    closeElderReply(form.closest('.elder-reply')); toast('댓글을 달았어요!');
+    await reloadInlineComments(id);
+  },
   async comment(data, form) {
     const version = state.modalVersion;
     const postId = state.detail.id;
@@ -1115,7 +1297,8 @@ const formHandlers = {
       if (!current()) return;
       const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
       if (!current()) return;
-      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p></section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      queueMicrotask(() => { if (tabTour === 'memory-listen') tourStep('memory-listen'); });
+      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p>${elder ? `${button('memory-audio', '답변 듣기', 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : ''}</section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
       hydrateImages($('#search-result'));
     } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
@@ -1182,6 +1365,15 @@ document.addEventListener('click', async event => {
   const target = event.target.closest('[data-action]');
   if (!target || target.disabled) return;
   const action = target.dataset.action;
+  // Elderly tab tour: pressing the pointed-at button moves on to the next step.
+  if (tabTour) {
+    if (action === 'tab-hint-close') { endTabTour(); return; }
+    if (action === 'digest-audio' && tabTour === 'day-listen') tourStep('day-previous');
+    else if (action === 'elder-day-step' && tabTour === 'day-previous') endTabTour();
+    else if (action === 'memory-example' && tabTour === 'memory-example') { tabTour = 'memory-listen'; $('#page .tab-hint p').textContent = TAB_TOUR['memory-listen'][0]; pointAt(null); }
+    else if (action === 'memory-audio' && tabTour === 'memory-listen') tourStep('memory-voice');
+    else if (action === 'memory-voice' && tabTour === 'memory-voice') endTabTour();
+  }
   if (action === 'screen-standard' || action === 'screen-elder') {
     preferredModes.set(state.user.user_id, writeMode(localStorage, state.user.user_id, action === 'screen-elder' ? 'elder' : 'standard'));
     renderShell(); return renderPage();
@@ -1196,7 +1388,52 @@ document.addEventListener('click', async event => {
     if (!pendingComments.has(key)) { pendingComments.add(key); commentQueue.push({ id, key, session: state.session, room: state.room.id }); drainInlineComments(); }
     return;
   }
-  if (action === 'feed-comments' || action === 'elder-comment' || action === 'feed-voice') {
+  if (action === 'elder-comment') return toggleElderReply(Number(target.dataset.id));
+  // One help button: it starts the guide for the tab it is pressed on.
+  if (action === 'elder-help') {
+    const route = currentRoute();
+    if (route === 'digest' && $('.elder-day-title')) return tourStep($('[data-action="digest-audio"]') ? 'day-listen' : 'day-previous');
+    if (route === 'search' && $('[data-action="memory-example"]')) return tourStep('memory-example');
+    return openPractice(true);
+  }
+  if (action === 'tab-hint-close') { target.closest('.tab-hint')?.remove(); return; }
+  if (action === 'elder-day-step') {
+    const next = new Date(`${selectedDigestDate}T12:00:00Z`); next.setUTCDate(next.getUTCDate() + Number(target.dataset.step));
+    const date = next.toISOString().slice(0, 10); if (date > today()) return;
+    selectedDigestDate = date; return renderPage();
+  }
+  if (action === 'memory-voice') {
+    const slot = target.closest('.memory-voice'); if (!slot) return;
+    stopAudio(); stopRecording(true);
+    return busy(target, () => startRecording({ purpose: 'memory', target: slot }), $('form[data-form="search"] .form-error'));
+  }
+  if (action === 'memory-voice-reset') { stopRecording(true); elderRecording = false; const slot = target.closest('.memory-voice'); if (slot) slot.innerHTML = memoryVoiceIdle(); return; }
+  if (action === 'memory-example') {
+    const form = $('form[data-form="search"]'), field = $('#memory-question');
+    if (!form || !field || form.dataset.pending) return;
+    field.value = target.dataset.question; form.requestSubmit(); return;
+  }
+  if (action === 'memory-audio') {
+    const answer = target.closest('.search-answer'), text = answer?.querySelector('.answer-text')?.textContent, version = state.pageVersion;
+    return busy(target, () => playSpeech(text, $('[data-action="stop-audio"]', answer), () => version === state.pageVersion));
+  }
+  if (action === 'post-ask') { stopAudio(); assistant.targetId = Number(target.dataset.id); assistant.open(); return; }
+  if (action === 'elder-reply-close') return closeElderReply(target.closest('.elder-reply'));
+  if (action === 'elder-reply-reset') { stopRecording(true); elderRecording = false; const slot = target.closest('.elder-reply-voice'); if (slot) slot.innerHTML = elderVoiceIdle(Number(target.dataset.id)); return; }
+  if (action === 'elder-reply-record') {
+    const panel = target.closest('.elder-reply'), slot = panel?.querySelector('.elder-reply-voice'); if (!slot) return;
+    stopAudio(); stopRecording(true);
+    return busy(target, () => startRecording({ postId: Number(target.dataset.id), purpose: 'elder-reply', target: slot }), panel.querySelector('.form-error'));
+  }
+  if (action === 'elder-reply-send') {
+    const id = Number(target.dataset.post), panel = target.closest('.elder-reply');
+    return busy(target, async () => {
+      await api(`replies/${Number(target.dataset.id)}/send/`, { method: 'POST' });
+      closeElderReply(panel); toast('댓글을 달았어요!');
+      await reloadInlineComments(id);
+    }, panel?.querySelector('.form-error'));
+  }
+  if (action === 'feed-comments' || action === 'feed-voice') {
     await openPost(Number(target.dataset.id));
     if (!state.detail || state.detail.id !== Number(target.dataset.id)) return;
     if (action !== 'elder-comment') { modal.classList.add('comments-only'); $('#modal-title').textContent = '댓글'; }
@@ -1345,7 +1582,8 @@ function openBotMenu() {
   const id = assistant.targetId, roomId = state.room?.id, session = state.session;
   const menu = document.createElement('dialog'); menu.className = 'bot-menu-dialog';
   menu.setAttribute('aria-label', '토닥 도우미 메뉴');
-  const rows = [['ask','comment','이 소식 물어보기',true],['listen','volume',document.querySelector(`#feed-list [data-action="feed-stop-listen"][data-id="${id}"]`) ? '듣기 중지' : '음성으로 듣기',true],['summary','sparkle','AI 요약 보기',true],['memory','search','가족 추억 찾기',false],['day','calendar','오늘 가족의 하루',false],['help','book','도움말',false]];
+  // The elderly screen asks about a post from the card, right after listening to it.
+  const rows = [...(elder ? [] : [['ask','comment','이 소식 물어보기',true]]),['listen','volume',document.querySelector(`#feed-list [data-action="feed-stop-listen"][data-id="${id}"]`) ? '듣기 중지' : '음성으로 듣기',true],['summary','sparkle','AI 요약 보기',true],['memory','search','가족 추억 찾기',false],['day','calendar','오늘 가족의 하루',false],['help','book','도움말',false]];
   menu.innerHTML = `<header><h2>무엇을 도와드릴까요?</h2><button type="button" class="icon-button" data-bot="close" aria-label="도우미 메뉴 닫기">${icon('close')}</button></header>${rows.map(([action,symbol,label,needsPost])=>`<button type="button" data-bot="${action}" ${needsPost&&id===null?'disabled':''}>${icon(symbol)}<span>${label}</span>${icon('chevron')}</button>`).join('')}`;
   document.body.append(menu); menu.showModal();
   menu.addEventListener('close',()=>menu.remove(),{once:true});

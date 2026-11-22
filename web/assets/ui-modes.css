@@ -89,3 +89,34 @@
   .month-day { min-height: 44px; }
   .elder-screen .post-actions .button { font-size: 1rem; }
 }
+/* Elderly in-card reply: listening, replying and sending stay inside the post card. */
+.elder-reply { display: grid; gap: 14px; padding: 18px 22px 22px; border-top: 1px solid var(--line); }
+.elder-reply-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.elder-reply-heading h3 { margin: 0; font-size: 1.3rem; }
+.elder-reply .button { min-height: 64px; font-size: 1.2rem; border-radius: 20px; }
+.elder-reply textarea { width: 100%; min-height: 112px; font-size: 1.15rem; }
+.elder-reply .recording-status.elder-recording { display: grid; gap: 10px; }
+.elder-reply .voice-draft { font-size: 1.2rem; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feed-ask { display: grid; gap: 10px; margin-top: 16px; }
+.feed-ask .feed-ask-hint { margin: 0; font-weight: 700; }
+.elder-screen .feed-ask .button { min-height: 64px; font-size: 1.2rem; border-radius: 20px; }
+.elder-screen .vertical-feed > .elder-compose { min-height: 72px; font-size: 1.3rem; border-radius: 22px; margin-bottom: 16px; }
+.elder-screen .screen-bottom > a { font-size: 1.15rem; font-weight: 700; min-height: 72px; }
+.elder-screen .topbar .elder-help { min-height: 48px; font-size: 1.05rem; font-weight: 700; }
+.elder-day-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.elder-day-steps .button, .elder-day .day-actions .button { min-height: 64px; font-size: 1.2rem; }
+.elder-day-title { font-size: 1.6rem; }
+.memory-examples { display: grid; gap: 10px; margin-bottom: 16px; text-align: left; }
+.memory-examples .button { min-height: 64px; font-size: 1.15rem; justify-content: flex-start; }
+.elder-screen .search-answer [data-action="memory-audio"] { margin-top: 14px; min-height: 64px; font-size: 1.2rem; }
+.memory-voice { display: grid; gap: 8px; margin-bottom: 8px; }
+.memory-voice .button { min-height: 72px; font-size: 1.25rem; }
+.tab-hint { display: grid; gap: 10px; margin: 14px 0; padding: 16px 18px; border-radius: 20px; background: var(--mode-pink); text-align: left; }
+.tab-hint p { margin: 0; font-size: 1.15rem; font-weight: 700; line-height: 1.6; }
+.tab-hint .button { justify-self: end; min-height: 48px; }
+.tour-target { outline: 4px solid var(--accent); outline-offset: 4px; border-radius: 20px; }
+.tour-hand { position: fixed; z-index: 30; width: 48px; height: 48px; pointer-events: none; animation: tour-tap 1.2s ease-in-out infinite; }
+.tour-hand img { width: 34px; height: 38px; object-fit: contain; }
+.tour-hand span { position: absolute; top: -6px; right: 0; font-size: 24px; line-height: 1; }
+@keyframes tour-tap { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+@media (prefers-reduced-motion: reduce) { .tour-hand { animation: none; } }

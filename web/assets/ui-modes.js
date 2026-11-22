@@ -20,3 +20,20 @@ export function koreanDay(value) {
 }
 // Use measured overflow so short text with line breaks also respects the two-line limit.
 export function captionNeedsMore(scrollHeight, visibleHeight, elder) { return !elder && scrollHeight > visibleHeight + 1; }
+// Rule-based closing spoken after an elderly listener hears a family post.
+// The relationship label is already resolved from the viewer's side by the server.
+const GENERIC_RELATIONS = new Set(['', '가족', '인척', '공동 부모 쪽 가족']);
+export function replyPrompt(post, viewerId) {
+  if (!post || (viewerId != null && post.author_id === viewerId)) return null;
+  const relation = (post.relationship || '').trim();
+  if (relation === '나' || relation === '오늘의 질문') return null;
+  const name = (post.author_name || '').trim();
+  const subject = !GENERIC_RELATIONS.has(relation) ? relation : name ? `${name}님` : '';
+  return subject ? `${subject}의 소식에 답장해 보시는 건 어떨까요?` : null;
+}
+export function withReplyPrompt(text, closing) {
+  const body = (text || '').trim();
+  if (!closing || !body) return text;
+  const ended = /[.!?…。]$/.test(body) || /[요다]$/.test(body);
+  return `${body}${ended ? ' ' : '. '}${closing}`;
+}

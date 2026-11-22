@@ -22,6 +22,13 @@ import java.net.SocketTimeoutException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
+/** Microphone access for asking by voice; the activity owns the permission request. */
+class MemoryVoiceAccess(
+    val hasMicrophone: () -> Boolean,
+    val requestMicrophone: (FamilyMemoryPanel) -> Unit,
+    val beforeRecording: () -> Unit,
+)
+
 /** Family-wide, single-question search using the same endpoint as the web app. */
 class FamilyMemoryPanel(
     private val activity: Activity,
@@ -31,8 +38,18 @@ class FamilyMemoryPanel(
     private val executor: ExecutorService,
     initial: Bundle? = null,
     private val renderPost: (LinearLayout, JSONObject) -> Unit,
+    /** Elderly mode: one-tap questions shown above the input, so nothing has to be typed. */
+    private val examples: List<String> = emptyList(),
+    /** Elderly mode: adds a listen control for the answer. */
+    private val listen: ((LinearLayout, String) -> Unit)? = null,
+    /** Elderly mode: ask by speaking; the transcript fills the question and searches. */
+    private val voice: MemoryVoiceAccess? = null,
     onLogin: () -> Unit
 ) : LinearLayout(activity) {
+    private val voiceArea = ui.column().apply { tag = "memory-voice" }
+    private var recorder: kr.talkdock.app.device.Recorder? = null
+    private var voiceTask: Future<*>? = null
+    private var voiceGeneration = 0
     private var generation = 0
     private var pending = false
     private var task: Future<*>? = null
@@ -42,7 +59,8 @@ class FamilyMemoryPanel(
     private var evidence = initial?.getString("result")?.let {
         runCatching { MemorySearchResult.fromJson(JSONObject(it)) }.getOrNull()
     }
-    val input = ui.input(this, "어떤 추억이 궁금하세요?",
+    // The elderly screen leads with voice and example questions, so the field needs no title.
+    val input = ui.input(this, if (large) "" else "어떤 추억이 궁금하세요?",
         "예: 지난번 가족 여행은 어디로 갔었지?", multiline = true,
         initial = initial?.getString("draft").orEmpty()).apply {
         contentDescription = "가족 추억 질문 입력"
@@ -70,6 +88,24 @@ class FamilyMemoryPanel(
 
     init {
         orientation = VERTICAL
+        if (examples.isNotEmpty() || voice != null) {
+            val choices = ui.column().apply { tag = "memory-examples" }
+            if (voice != null) {
+                choices.addView(voiceArea, LayoutParams(-1, -2))
+                voiceIdle()
+                ui.gap(choices, 20)
+            }
+            if (examples.isNotEmpty()) ui.label(choices, "이렇게 물어보세요", if (large) 22f else 18f, true)
+            examples.forEach { question ->
+                ui.ghost(choices, question, if (large) 70 else 56) {
+                    if (!pending) { input.setText(question); search() }
+                }.apply { contentDescription = "$question 물어보기"; isAllCaps = false; tag = "memory-example" }
+            }
+            ui.gap(choices, 20)
+            ui.label(choices, "글로 물어보셔도 돼요", if (large) 20f else 16f, color = ui.muted)
+            ui.gap(choices, 8)
+            addView(choices, 0, LayoutParams(-1, -2))
+        }
         ui.gap(this, 16)
         addView(loading, LayoutParams(-1, -2))
         addView(error, LayoutParams(-1, -2))
@@ -161,6 +197,7 @@ class FamilyMemoryPanel(
             setTextIsSelectable(true)
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
+        listen?.invoke(card, answer)
         ui.gap(result, 24)
         ui.label(result, "이 이야기가 담긴 소식", if (large) 24f else 20f, true)
         ui.gap(result, 12)
@@ -178,7 +215,74 @@ class FamilyMemoryPanel(
         return card
     }
 
+    private fun voiceIdle(message: String = "") {
+        voiceArea.removeAllViews()
+        ui.button(voiceArea, "말로 물어보기", true, if (large) 76 else 56) { startVoice() }.apply {
+            tag = "memory-voice-start"; contentDescription = "말로 물어보기"
+        }
+        if (message.isNotBlank()) ui.label(voiceArea, message, if (large) 19f else 15f, color = ui.coralDeep).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+    }
+
+    /** Starts recording; the activity calls this again once the microphone is allowed. */
+    fun startVoice() {
+        val access = voice ?: return
+        if (pending || voiceTask != null) return
+        if (!access.hasMicrophone()) { access.requestMicrophone(this); return }
+        cancelVoice()
+        access.beforeRecording()
+        val request = voiceGeneration
+        val engine = kr.talkdock.app.device.Recorder(activity) {
+            activity.runOnUiThread { if (request == voiceGeneration && recorder?.active == true) finishVoice() }
+        }
+        recorder = engine
+        if (runCatching { engine.start() }.isFailure) {
+            recorder = null; voiceIdle("녹음을 시작하지 못했어요. 마이크 사용을 확인해 주세요."); return
+        }
+        voiceArea.removeAllViews()
+        ui.label(voiceArea, "듣고 있어요", if (large) 23f else 19f, true).accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        ui.label(voiceArea, "궁금한 것을 말씀하신 뒤 아래 버튼을 눌러 주세요.", if (large) 18f else 15f, color = ui.muted)
+        ui.button(voiceArea, "■ 다 말했어요", true, if (large) 76 else 56) { finishVoice() }.apply { tag = "memory-voice-finish" }
+        ui.ghost(voiceArea, "취소", if (large) 64 else 48) { cancelVoice(); voiceIdle() }
+    }
+
+    fun microphoneDenied() = voiceIdle("말로 물어보려면 마이크 사용을 허용해 주세요.")
+
+    private fun finishVoice() {
+        val audio = runCatching { recorder?.finish() }.getOrNull()
+        recorder = null
+        if (audio == null) { voiceIdle("조금 더 길게 다시 말씀해 주세요."); return }
+        voiceArea.removeAllViews()
+        ui.label(voiceArea, "말씀을 글로 바꾸고 있어요.", if (large) 20f else 16f, true, ui.skyDeep)
+        val request = ++voiceGeneration
+        voiceTask = executor.submit {
+            val result = runCatching {
+                try { client.transcribePost(audio).getString("recognized").trim() } finally { audio.delete() }
+            }
+            activity.runOnUiThread {
+                if (request != voiceGeneration || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
+                voiceTask = null
+                result.fold({ text ->
+                    if (text.isBlank()) { voiceIdle("말씀을 알아듣지 못했어요. 다시 말씀해 주세요."); return@fold }
+                    voiceIdle()
+                    // The question stays editable in the field; searching publishes nothing.
+                    input.setText(text.take(1000)); search()
+                }, { failure ->
+                    voiceIdle((failure as? ApiException)?.message ?: "말씀을 글로 바꾸지 못했어요. 다시 말씀해 주세요.")
+                })
+            }
+        }
+    }
+
+    private fun cancelVoice() {
+        voiceGeneration++
+        voiceTask?.cancel(true); voiceTask = null
+        recorder?.cancel(); recorder = null
+    }
+
     override fun onDetachedFromWindow() {
+        cancelVoice()
         generation++
         cancellation?.cancel(); cancellation = null
         task?.cancel(true); task = null

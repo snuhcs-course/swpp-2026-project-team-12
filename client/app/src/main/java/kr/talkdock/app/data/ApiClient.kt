@@ -172,6 +172,10 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray(StandardCharsets.UTF_8)) }
             if (connection.responseCode !in 200..299) response(connection)
+            // Only audio is handed to the player: decoding other data can stall MediaPlayer and,
+            // through release(), the main thread. The server always answers with audio/mpeg.
+            if (connection.contentType?.lowercase()?.startsWith("audio/") != true)
+                throw ApiException("음성을 준비하지 못했어요. 다시 시도해 주세요.", connection.responseCode)
             return connection.inputStream.use { it.readBytes() }
         } catch (error: IOException) { throw networkFailure(error) }
         finally { cancellation?.release(connection); connection.disconnect() }
