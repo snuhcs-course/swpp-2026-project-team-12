@@ -1224,7 +1224,8 @@ class PostQuestionUiTest {
             ui.screenshot("post-question-answer.png")
             ui.test.runOnMainSync { ui.all().single { it.contentDescription == "도우미 닫기" }.performClick() }
             ui.await { ui.all().none { it is kr.talkdock.app.ui.PostQuestionPanel } }
-            ui.test.runOnMainSync { assertTrue(ui.all().any { it is kr.talkdock.app.ui.FloatingAssistantView }) }
+            // The standard screen returns to its floating assistant; the elderly screen has none.
+            ui.test.runOnMainSync { assertEquals(!large, ui.all().any { it is kr.talkdock.app.ui.FloatingAssistantView }) }
             val request = api.requests.single { it.path.endsWith("/questions/") }
             assertEquals("/api/posts/2/questions/", request.path); assertEquals("POST", request.method)
             val body = JSONObject(request.body)

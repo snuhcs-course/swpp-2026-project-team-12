@@ -133,7 +133,21 @@ class ScreenModesTest {
         ui.screenshot("elder-03-guide-comment.png")
         ui.test.runOnMainSync { assertEquals("home", ui.currentScreen()); card().replyAction!!.performClick() }
         // The summary stays open during the guide, so its 소식 물어보기 is the next step.
-        ui.await { ui.cue("안내: 소식 물어보기") }
+        // On a slow emulator the summary may still be loading; on failure, report the app state.
+        try { ui.await(timeout = 15000) { ui.cue("안내: 소식 물어보기") } } catch (error: AssertionError) {
+            var state = ""
+            ui.test.runOnMainSync {
+                fun field(name: String) = runCatching {
+                    MainActivity::class.java.getDeclaredField(name).apply { isAccessible = true }.get(ui.activity)
+                }.getOrNull()
+                val ask = descendants(card()).firstOrNull { it.tag == "post-audio-ask" }
+                state = "guideStep=${field("guideStep")} busy=${field("busy")} guidePostId=${field("guidePostId")} " +
+                    "screen=${ui.currentScreen()} replyOpen=${card().replyOpen} audioVisible=${card().audio.visibility == View.VISIBLE} " +
+                    "ask=${ask != null} askCue=${ask?.let { ViewCompat.getStateDescription(it) }} " +
+                    "cues=${ui.all().mapNotNull { ViewCompat.getStateDescription(it)?.toString() }.filter { it.startsWith("안내") }}"
+            }
+            throw AssertionError("소식 물어보기 cue missing: $state", error)
+        }
         ui.screenshot("elder-04-guide-ask.png")
         ui.test.runOnMainSync { descendants(card()).single { it.tag == "post-audio-ask" }.performClick() }
         ui.await { ui.all().any { it is kr.talkdock.app.ui.PostQuestionPanel } }
