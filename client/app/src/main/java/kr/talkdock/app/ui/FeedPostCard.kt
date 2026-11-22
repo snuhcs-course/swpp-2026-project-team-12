@@ -20,6 +20,17 @@ class FeedPostCard(
     var commentsLoading = false
     private val commentLabel = ui.text("", if (elder) 21f else 16f)
     private var commentAction: View? = null
+    /** The card's 댓글 달기 button, for the elderly reply tutorial. */
+    val replyAction: View? get() = commentAction
+    /** The card's 소식 듣기 button, for the elderly tutorial. */
+    var listenAction: View? = null
+        private set
+    /** Elderly mode replies inside the card instead of opening the detail screen. */
+    private val replySlot = ui.column()
+    var reply: ElderReplyPanel? = null
+        private set
+    val replyOpen get() = reply?.parent != null
+    val replyInUse get() = replyOpen && reply?.inUse == true
 
     init {
         isClickable = true; isFocusable = true; contentDescription = "소식과 댓글 자세히 보기"
@@ -51,7 +62,7 @@ class FeedPostCard(
         }
         commentAction = action(if (elder) "댓글 달기" else "댓글 ${post.optInt("comment_count")}", "comment", comment)
         if (!elder) action("말로 댓글", "mic", voice)
-        action("소식 듣기", "listen") { audio.togglePlayback() }
+        listenAction = action("소식 듣기", "listen") { audio.togglePlayback() }
         if (!elder) addView(actions)
         if (caption.text.isNotBlank()) {
             addView(caption, LayoutParams(-1, -2).apply { topMargin = ui.dp(12) })
@@ -76,9 +87,21 @@ class FeedPostCard(
         if (elder) addView(actions)
         addView(audio, LayoutParams(-1, -2))
         if (elder) {
+            addView(replySlot, LayoutParams(-1, -2))
             addView(comments, LayoutParams(-1, -2).apply { topMargin = ui.dp(14) })
             ui.label(comments, "가족의 댓글을 불러올게요.", 18f, color = ui.muted)
         }
+    }
+
+    fun showReply(panel: ElderReplyPanel) {
+        reply = panel
+        if (panel.parent !== replySlot) { (panel.parent as? LinearLayout)?.removeView(panel); replySlot.addView(panel, LayoutParams(-1, -2)) }
+        commentAction?.isSelected = true
+    }
+
+    fun hideReply() {
+        reply?.cancel(); replySlot.removeAllViews()
+        commentAction?.isSelected = false
     }
 
     fun showComments(items: List<JSONObject>) {

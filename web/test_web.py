@@ -39,6 +39,20 @@ class WebServingTests(SimpleTestCase):
                     self.assertIn(content_type, response["Content-Type"])
                     self.assertTrue(b"".join(response.streaming_content))
 
+    def test_every_asset_the_page_and_its_modules_reference_is_served(self):
+        # A module missing from the server's allowlist stops the whole app from starting.
+        import re
+        from pathlib import Path
+        root = Path(__file__).resolve().parent
+        names = set(re.findall(r'/web/assets/([\w.-]+)', (root / "index.html").read_text(encoding="utf-8")))
+        for source in (root / "assets").glob("*.js"):
+            names |= set(re.findall(r"""(?:from\s+|import\(\s*)['"]\./([\w.-]+)""", source.read_text(encoding="utf-8")))
+        self.assertIn("ui-modes.js", names)
+        with override_settings(DEBUG=False):
+            for name in sorted(names):
+                with self.subTest(name=name):
+                    self.assertEqual(self.client.get("/web/assets/" + name).status_code, 200)
+
     def test_server_does_not_expose_sources_secrets_or_unknown_paths(self):
         for path in ["/web/assets/run.py", "/web/assets/.env", "/web/assets/../requirements.txt",
                      "/web/index.html", "/.env", "/web/assets/missing.js", "/api/missing/"]:

@@ -8,14 +8,27 @@ const lessons = {
   reply: ['가족 소식에 답장해 봐요.', '댓글을 글로 쓰거나 말로 답장하는 방법을 연습해요.'],
   end: ['잘하셨어요!', '토닥 도우미의 도움말에서 다시 연습할 수 있어요.'],
 };
+// The elderly screen has no assistant: listening is on the card, the day and memories are bottom tabs,
+// and help is the 도움말 button at the top.
+const elderLessons = {
+  ...lessons,
+  write: ['가족에게 소식을 올려봐요.', '맨 위의 가족에게 소식 남기기를 누르고 글이나 연습 사진을 올려보세요.'],
+  listen: ['소식을 소리로 들어봐요.', '소식 아래의 소식 듣기를 눌러 보세요.'],
+  comment: ['들은 소식에 답장해 봐요.', '댓글 달기를 누르고 글로 쓰거나 말로 답장해 보세요.'],
+  ask: ['궁금한 점을 물어봐요.', '소식을 들은 뒤 나오는 소식 물어보기를 눌러 보세요.'],
+  reply: ['가족 소식에 답장해 봐요.', '소식 아래의 댓글 달기를 누르고 글로 쓰거나 말로 답장해 보세요.'],
+  end: ['잘하셨어요!', '맨 위의 도움말 버튼에서 다시 연습할 수 있어요.'],
+};
 const samplePhoto = '<img class="help-picture" alt="연습 사진" src="/web/assets/assistant_character.png">';
 const button = (action, label) => `<button type="button" class="button secondary full" data-help="${action}">${label}</button>`;
 
 export class GuidedHelp {
-  open({ post = null, replyOnly = false, onReplyShown = () => {}, onClose = () => {} } = {}) {
+  open({ post = null, replyOnly = false, elder = false, onReplyShown = () => {}, onClose = () => {} } = {}) {
     if (this.dialog?.open) return;
-    this.steps = replyOnly ? [] : ['intro', 'read', 'write', 'listen', 'day'];
-    if (post) this.steps.push('reply');
+    this.elder = elder;
+    // Elderly first guide: listen, reply, ask, then write. The tabs explain themselves on their first visit.
+    this.steps = replyOnly ? [] : elder ? ['intro', 'listen', 'comment', 'ask', 'write'] : ['intro', 'read', 'write', 'listen', 'day'];
+    if (post && !(elder && !replyOnly)) this.steps.push('reply');
     this.steps.push('end');
     this.post = post;
     this.onReplyShown = onReplyShown;
@@ -47,7 +60,7 @@ export class GuidedHelp {
   render() {
     clearTimeout(this.advance);
     const lesson = this.steps[this.index];
-    const [title, instruction] = lessons[lesson];
+    const [title, instruction] = (this.elder ? elderLessons : lessons)[lesson];
     const dialog = this.dialog;
     dialog.innerHTML = `<div class="help-stage"><header><span>사용 안내 ${this.index + 1} / ${this.steps.length}</span>${button('skip', '나중에 보기')}</header>
       <div class="help-feed"><h2>${title}</h2><p>${instruction}</p><p class="help-note">연습용 · 실제 가족방에 저장되지 않아요</p>
@@ -78,17 +91,29 @@ export class GuidedHelp {
         }
         previousY = feed.scrollTop;
       };
-    } else if (lesson === 'reply' || lesson === 'write') {
-      const reply = lesson === 'reply';
-      practice.innerHTML = (reply ? '<strong class="help-author"></strong><p class="help-caption"></p>' : '') + button(reply ? 'comment' : 'compose', reply ? '댓글 달기' : '소식 쓰기');
+    } else if (lesson === 'reply' || lesson === 'write' || lesson === 'comment') {
+      const reply = lesson !== 'write';
+      practice.innerHTML = (reply ? '<strong class="help-author"></strong><p class="help-caption"></p>' : '') + button(reply ? 'comment' : 'compose', reply ? '댓글 달기' : this.elder ? '가족에게 소식 남기기' : '소식 쓰기');
       if (reply) {
-        find('.help-author').textContent = `${this.post.author_name || '가족'}님의 소식`;
-        find('.help-caption').textContent = this.post.caption || '사진으로 전한 소식이에요.';
-        this.onReplyShown();
+        find('.help-author').textContent = `${this.post?.author_name || '가족'}님의 소식`;
+        find('.help-caption').textContent = this.post?.caption || '오늘 공원에서 단풍을 봤어요.';
+        if (this.post) this.onReplyShown();
       }
       const open = practice.querySelector('button');
       this.point(open);
       open.onclick = () => this.form(practice, reply, done);
+    } else if (this.elder) {
+      // One button, as on the real elderly screen: the card's 소식 듣기 or a bottom tab.
+      const label = { listen: '소식 듣기', ask: '소식 물어보기' }[lesson];
+      practice.innerHTML = button(lesson, label);
+      const open = practice.querySelector('button');
+      this.point(open);
+      open.onclick = () => {
+        practice.innerHTML = lesson === 'listen'
+          ? '<p>연습용 듣기를 열었어요.</p><p>가족 소식을 읽어 드리고, 아래에 요약도 보여 드려요.</p>'
+          : '<p>연습으로 “이 사진은 어디서 찍었어?” 하고 물어봤어요.</p><p>토닥이가 소식을 보고 대답해 드려요.</p>';
+        done();
+      };
     } else {
       practice.innerHTML = button('bot','토닥 도우미');
       const bot = practice.querySelector('button');

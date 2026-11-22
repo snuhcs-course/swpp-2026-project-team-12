@@ -95,7 +95,7 @@ class Ui(val context: Context) {
             parent.addView(it, LinearLayout.LayoutParams(-2, -2).apply { gravity = Gravity.CENTER_HORIZONTAL })
         }
     fun input(parent: LinearLayout, title: String, hintText: String, password: Boolean = false, multiline: Boolean = false, initial: String = "", identifier: Boolean = false): EditText {
-        label(parent, title, 16f, true); gap(parent, 8)
+        if (title.isNotBlank()) { label(parent, title, 16f, true); gap(parent, 8) }
         val input = EditText(context).apply {
             hint = hintText; textSize = 18f; typeface = font
             setTextColor(ink); setHintTextColor(muted)

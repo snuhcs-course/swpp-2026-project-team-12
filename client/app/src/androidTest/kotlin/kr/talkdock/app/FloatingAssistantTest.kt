@@ -192,7 +192,8 @@ class FloatingAssistantTest {
     }
 
     @Test fun characterMovesKeepProfileAuthorDateAndCaptionInPlace() {
-        for (large in listOf(false, true)) Server().use { server -> Screen(server, large).use { screen ->
+        // Only the standard screen has the floating assistant; the elderly screen uses tabs and card buttons.
+        for (large in listOf(false)) Server().use { server -> Screen(server, large).use { screen ->
             fun settle() = screen.await {
                 screen.views().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().all { !it.isLayoutRequested }
             }

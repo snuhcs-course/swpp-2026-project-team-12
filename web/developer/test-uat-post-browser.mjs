@@ -53,6 +53,7 @@ await page.route('**/api/**', async route => {
   if(pathname==='/api/speech/') { if(delaySpeech)await new Promise(r=>releaseSpeech=r); return route.fulfill({contentType:'audio/mpeg',body:'test audio'}); }
   if(pathname.endsWith('/transcribe/'))return reply({recognized:'잘 먹었어'});
   if(pathname.endsWith('/prepare/'))return reply({id:55,converted:'잘 먹었어'});
+  if(pathname==='/api/replies/55/send/')return reply({id:27},201);
   if(pathname==='/api/speech/voices/')return reply({voices:[]});
   if(pathname==='/api/daily-questions/today/')return reply({});
   return reply({error:'Unmocked '+pathname},404);
@@ -119,12 +120,48 @@ try {
   ok(!calls.some(c=>c.path.endsWith('/send/')),'review does not send automatically');
   await close();
   await page.locator('a[aria-label="설정으로 이동"]').click();await page.getByRole('button',{name:'어르신 화면',exact:true}).click();await page.locator('.topbar .brand').click();
-  await page.locator('[data-action=elder-comment]').first().click();await page.setViewportSize({width:430,height:650});await assertLayout();
+  // Elderly mode: replying stays inside the card, with no dialog in between.
+  const elderCard=page.locator('#feed-list .post-card').first();
+  await elderCard.locator('[data-action=elder-comment]').first().click();
+  await elderCard.locator('.elder-reply').waitFor();
+  ok(await page.locator('dialog[open]').count()===0,'elderly comment opens inside the card');
+  await page.screenshot({path:path.join(output,'web-elder-inline-reply.png')});
+  await elderCard.locator('[data-action=elder-reply-record]').click();
+  await elderCard.locator('[data-action=finish-record]').waitFor();
+  await elderCard.locator('[data-action=finish-record]').click();
+  await elderCard.locator('[data-action=elder-reply-send]').waitFor();
+  ok(await elderCard.locator('.voice-draft').innerText()==='잘 먹었어','spoken reply is shown for confirmation');
+  ok(!calls.some(c=>c.path.endsWith('/send/')),'elderly spoken reply waits for an explicit send');
+  await elderCard.locator('[data-action=elder-reply-send]').click();
+  await page.waitForFunction(()=>!document.querySelector('#feed-list .elder-reply'));
+  ok(calls.some(c=>c.path==='/api/replies/55/send/'&&c.method==='POST'),'elderly spoken reply is sent from the card');
+  ok(await page.locator('dialog[open]').count()===0,'sending keeps the feed in place');
+  await elderCard.locator('[data-action=elder-comment]').first().click();await elderCard.locator('.elder-reply').waitFor();
+  await elderCard.locator('[data-action=feed-listen]').click();
+  await page.waitForFunction(()=>!document.querySelector('#feed-list .elder-reply'));
+  ok(true,'listening closes an open reply area');
+  await elderCard.locator('.feed-audio-summary p').waitFor();
+  ok(await elderCard.locator('[data-action=elder-comment]').count()===1,'listening does not repeat the reply button');
+  await elderCard.locator('.feed-ask [data-action=post-ask]').waitFor();
+  ok(await elderCard.locator('.feed-ask-hint').innerText()==='이 소식 관련해서 궁금한 점을 토닥이에게 물어보세요!','listening invites a question to Todak');
+  await elderCard.locator('.post-actions [data-action=elder-comment]').click();
+  await elderCard.locator('.elder-reply textarea').fill('산책 잘 했구나');
+  failSend=false;
+  await elderCard.locator('[data-form=elder-reply] [type=submit]').click();
+  await page.waitForFunction(()=>!document.querySelector('#feed-list .elder-reply'));
+  await elderCard.getByText('산책 잘 했구나',{exact:true}).waitFor();
+  ok(await page.locator('dialog[open]').count()===0,'typed elderly reply is sent from the card');
+  // The elderly screen has no assistant; its post dialog opens from a photo tap, and these posts are text-only,
+  // so send the same open-post action a photo would.
+  await page.evaluate(()=>{const b=document.createElement('button');b.dataset.action='open-post';b.dataset.id='1';document.querySelector('#feed-list').append(b);b.click();b.remove();});
+  await page.locator('[data-action=summary-audio]').waitFor();
+  await page.setViewportSize({width:430,height:650});await assertLayout();
   await page.screenshot({path:path.join(output,'web-elder-comment.png')});
+  const playsBeforeDetail=await page.evaluate(()=>window.playCount);
   delaySummary=true;releaseSummary=null;
   await page.locator('[data-action=summary-audio]').click();await waitUntil(()=>releaseSummary);
   await page.locator('#modal [data-action=stop-audio]').click();releaseSummary();await page.waitForTimeout(150);
-  ok(await page.evaluate(()=>window.playCount)===2,'detail summary cancellation prevents late playback');
+  ok(await page.evaluate(()=>window.playCount)===playsBeforeDetail,'detail summary cancellation prevents late playback');
   ok(errors.length===0,`no browser errors: ${errors}`);
   console.log(`${checks} browser checks passed`);
 } finally { releaseSummary?.();releaseSpeech?.();await browser.close();server.close(); }

@@ -102,38 +102,83 @@ class ScreenModesTest {
         ui.test.runOnMainSync { more.performClick(); assertEquals(Int.MAX_VALUE, caption.maxLines) }
     } }
 
-    @Test fun elderlyModeHasSingleComposeAndLabeledRightBotWithInlineComments() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
+    @Test fun elderlyModeHasTabsTopComposeHelpAndNoBotWithInlineComments() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
         ui.await { ui.guideVisible() }
         ui.dismissHelp()
         ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
         ui.await { ui.has("좋은 하루 보내렴!") }
         ui.test.runOnMainSync {
-            assertTrue(ui.all().none { it.tag?.toString()?.startsWith("main-tab:") == true })
-            assertEquals(1, ui.all().count { it.tag == "elder-compose" })
-            val bot = ui.all().filterIsInstance<FloatingAssistantView>().single()
-            assertEquals("Bot docks to right", (bot.parent as View).width.toFloat(), bot.x + bot.width, 2f)
-            val label = descendants(bot).filterIsInstance<TextView>().single { it.tag == "assistant-label" }
-            assertEquals("토닥 도우미", label.text.toString())
-            assertTrue(label.top >= bot.getChildAt(0).bottom)
-            ui.all().single { it.tag == "elder-compose" }.performClick()
+            val tabs = ui.all().filter { it.tag?.toString()?.startsWith("main-tab:") == true }
+            assertEquals(listOf("main-tab:home", "main-tab:digest", "main-tab:memories"), tabs.map { it.tag.toString() })
+            assertTrue(ui.has("오늘 하루") && ui.has("가족 추억"))
+            assertTrue(ui.all().none { it is FloatingAssistantView })
+            assertEquals(1, ui.all().count { it.tag == "elder-help" })
+            val compose = ui.all().single { it.tag == "elder-compose" }
+            // Writing sits above the feed instead of in the bottom bar.
+            assertTrue(compose.top < ui.all().filterIsInstance<FeedPostCard>().first().top)
         }
+        ui.screenshot("elder-01-feed-tabs.png")
+        ui.test.runOnMainSync { ui.all().single { it.tag == "elder-compose" }.performClick() }
         ui.await { ui.has("가족에게 전하기") }
         assertTrue(api.requests.none { it.method == "POST" && it.path != "/api/speech/" })
     } }
 
-    @Test fun readingAndReplayUseTheRealFeed() = server { listOf(post(42)) }.use { api -> UiHarness(api, family, large = true).use { ui ->
-        ui.await { ui.cue("안내: 소식 보기") }
-        ui.captureMotion("read")
-        ui.screenshot("01-read.png")
-        ui.test.runOnMainSync { ui.all().filterIsInstance<FeedPostCard>().single().performClick() }
-        ui.await { ui.cue("안내: 소식 목록으로 돌아가기") }
-        ui.test.runOnMainSync { ui.all().single { it.contentDescription == "이전 화면" }.performClick() }
+    @Test fun elderlyGuideListensRepliesAsksThenWritesOnTheRealFeed() = server { listOf(post(42)) }.use { api -> UiHarness(api, family, large = true).use { ui ->
+        fun card() = ui.all().filterIsInstance<FeedPostCard>().single()
+        ui.await { ui.cue("안내: 소식 듣기") }
+        ui.captureMotion("listen")
+        ui.screenshot("elder-02-guide-listen.png")
+        ui.test.runOnMainSync { assertEquals("안내: 소식 듣기", ViewCompat.getStateDescription(card().listenAction!!)); card().listenAction!!.performClick() }
+        ui.await { ui.cue("안내: 댓글 달기") }
+        ui.screenshot("elder-03-guide-comment.png")
+        ui.test.runOnMainSync { assertEquals("home", ui.currentScreen()); card().replyAction!!.performClick() }
+        // The summary stays open during the guide, so its 소식 물어보기 is the next step.
+        ui.await { ui.cue("안내: 소식 물어보기") }
+        ui.screenshot("elder-04-guide-ask.png")
+        ui.test.runOnMainSync { descendants(card()).single { it.tag == "post-audio-ask" }.performClick() }
+        ui.await { ui.all().any { it is kr.talkdock.app.ui.PostQuestionPanel } }
+        ui.test.runOnMainSync { ui.all().first { it.contentDescription == "도우미 닫기" }.performClick() }
         ui.await { ui.cue("안내: 소식 쓰기") }
-        ui.openAssistantOption("도움말")
-        ui.await { ui.cue("안내: 소식 보기") }
+        ui.screenshot("elder-05-guide-compose.png")
+        ui.test.runOnMainSync { ui.all().single { it.tag == "elder-help" }.performClick() }
+        ui.await { ui.cue("안내: 소식 듣기") }
         ui.dismissHelp()
         assertTrue(!ui.guideVisible())
-        assertTrue(api.requests.none { it.method == "POST" && it.path != "/api/speech/" })
+        assertTrue(api.requests.none { it.method == "POST" && it.path !in setOf("/api/speech/", "/api/notifications/device/") &&
+            !it.path.endsWith("/message/") })
+    } }
+
+    @Test fun elderlyTabsShowTheirShortGuideOnlyOnTheFirstVisit() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
+        ui.await { ui.guideVisible() }
+        ui.dismissHelp()
+        fun tab(name: String) = ui.test.runOnMainSync { ui.all().single { it.tag == "main-tab:$name" }.performClick() }
+        // Day: listen first, then the pointer moves to stepping back a day.
+        tab("digest"); ui.await { ui.cue("안내: 오늘 하루") }
+        ui.screenshot("elder-06-day-tour-listen.png")
+        ui.test.runOnMainSync { ui.all().first { it is kr.talkdock.app.ui.ReplyAudioButton && it.isShown }.performClick() }
+        ui.await { ui.cue("안내: 지난 날 보기") }
+        ui.screenshot("elder-07-day-tour-previous.png")
+        ui.test.runOnMainSync { ui.all().single { it.tag == "elder-day-previous" }.performClick() }
+        ui.await { ui.has("글로 읽기") && !ui.guideVisible() }
+        // Memories: a one-tap example question first.
+        tab("memories"); ui.await { ui.cue("안내: 예시로 물어보기") }
+        ui.screenshot("elder-08-memory-tour-example.png")
+        ui.test.runOnMainSync { ui.all().first { it.tag == "memory-example" }.performClick() }
+        ui.await { ui.cue("안내: 답변 듣기") }
+        ui.screenshot("elder-09-memory-tour-answer.png")
+        ui.test.runOnMainSync { ui.all().first { it.tag == "guide-close" && it.isShown }.performClick() }
+        ui.await { !ui.guideVisible() }
+        tab("digest"); ui.await { ui.has("글로 읽기") }
+        ui.test.runOnMainSync { assertTrue(!ui.cue("안내: 오늘 하루")) }
+        tab("memories"); ui.await { ui.all().any { it.tag == "memory-voice-start" } }
+        ui.test.runOnMainSync { assertTrue(!ui.cue("안내: 예시로 물어보기")) }
+        // The same help button replays the guide of the tab it is pressed on.
+        fun help() = ui.test.runOnMainSync { ui.all().single { it.tag == "elder-help" }.performClick() }
+        help(); ui.await { ui.cue("안내: 예시로 물어보기") }
+        tab("digest"); ui.await { ui.has("글로 읽기") }
+        help(); ui.await { ui.cue("안내: 오늘 하루") }
+        tab("home"); ui.await { ui.all().filterIsInstance<FeedPostCard>().isNotEmpty() }
+        help(); ui.await { ui.cue("안내: 소식 듣기") }
     } }
 
     private fun UiHarness.playing(): android.media.MediaPlayer? {
@@ -232,7 +277,7 @@ class ScreenModesTest {
     @Test fun composeGuideKeepsDraftAndUsesRealPublish() = server { emptyList() }.use { api -> UiHarness(api, family, large = true).use { ui ->
         ui.await { ui.cue("안내: 소식 쓰기") }
         ui.screenshot("02-empty-feed.png")
-        ui.click("소식 쓰기")
+        ui.click("첫 소식 쓰기")
         ui.await { ui.cue("안내: 소식 입력") }
         ui.captureMotion("write")
         ui.await { ui.editor().hint == "오늘 있었던 일을 적어보세요" && ui.editor().text.isEmpty() }
@@ -266,11 +311,13 @@ class ScreenModesTest {
             ui.captureMotion("family")
             ui.screenshot("05-family-reply.png")
             ui.test.runOnMainSync {
+                // The elderly screen replies inside the card, so the cue sits on its 댓글 달기.
                 val other = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 42 }
-                assertEquals("안내: 가족 글에 답장하기", ViewCompat.getStateDescription(other))
-                other.performClick()
+                assertEquals("안내: 가족 글에 답장하기", ViewCompat.getStateDescription(other.replyAction!!))
+                other.replyAction!!.performClick()
             }
             ui.await { ui.cue("안내: 댓글 입력") }
+            ui.test.runOnMainSync { assertEquals("home", ui.currentScreen()) }
             ui.captureMotion("comment")
             ui.await { ui.editor().hint == "하고 싶은 말씀을 적어보세요" && ui.editor().text.isEmpty() }
             assertTrue(ui.all().single { it.contentDescription == "댓글 보내기" }.visibility == View.GONE)
@@ -289,15 +336,15 @@ class ScreenModesTest {
             val detailReads = api.paths().count { it == "/api/posts/42/" }
             ui.test.runOnMainSync { ui.all().single { it.contentDescription == "댓글 보내기" }.performClick() }
             ui.await { api.requests.count { it.method == "POST" && it.path == "/api/posts/42/comments/" } == 1 }
+            // Sent from the card: the feed stays, the reply area closes and the card's comments refresh.
             ui.await(10000) { api.paths().count { it == "/api/posts/42/" } > detailReads &&
-                ui.hasPostDetail() && ui.all().none { it.tag == "posting-status" && it.isShown } }
-            ui.test.runOnMainSync { ui.all().single { it.contentDescription == "이전 화면" }.performClick() }
-            ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
+                ui.all().filterIsInstance<FeedPostCard>().none { it.replyOpen } && ui.all().none { it.tag == "posting-status" && it.isShown } }
+            ui.test.runOnMainSync { assertEquals("home", ui.currentScreen()) }
             assertTrue(!ui.guideVisible())
         } }
     }
 
-    @Test fun returningFromElderlyCommentsKeepsTheSamePostPosition() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
+    @Test fun elderlyCommentOpensInsideTheCardAndKeepsTheFeed() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
         ui.await { ui.guideVisible() }
         ui.dismissHelp()
         ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
@@ -306,20 +353,17 @@ class ScreenModesTest {
             ui.all().filterIsInstance<ScrollView>().first().scrollTo(0, card.top + 80)
         }
         ui.await { ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }.commentsLoaded }
-        var offset = 0
         ui.test.runOnMainSync {
             val card = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }
-            val scroll = ui.all().filterIsInstance<ScrollView>().first()
-            offset = card.top - scroll.scrollY
             descendants(card).single { it.contentDescription == "댓글 달기" }.performClick()
         }
-        ui.await { ui.has("가족의 소식") && ui.has("댓글 1") }
-        ui.test.runOnMainSync { ui.all().single { it.contentDescription == "이전 화면" }.performClick() }
-        ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
-        ui.await {
-            val card = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }
-            kotlin.math.abs(card.top - ui.all().filterIsInstance<ScrollView>().first().scrollY - offset) <= 2
+        ui.await { ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }.replyOpen }
+        ui.test.runOnMainSync {
+            assertEquals(3, ui.all().filterIsInstance<FeedPostCard>().size)
+            assertEquals("home", ui.currentScreen())
+            assertTrue(ui.has("좋은 하루 보내렴!"))
         }
+        assertTrue(api.requests.none { it.method == "POST" && it.path != "/api/speech/" && it.path != "/api/notifications/device/" })
     } }
 
     @Test fun invalidCommentResponseShowsRetryInsteadOfCrashing() = MockApi { request ->

@@ -165,7 +165,9 @@ class UatPostInteractionsTest {
 
     @Test fun detailHelpCanBeReopenedAndClosedWithTheFixedComposer() {
         server().use { api -> UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = true).use { ui ->
-            ui.openCurrentPost(); ui.openAssistantOption("도움말")
+            // The elderly detail header has its own help button instead of the assistant menu.
+            ui.openCurrentPost(); ui.screenshot("elder-13-detail-listen-help.png")
+            ui.test.runOnMainSync { ui.all().single { it.tag == "elder-help" }.performClick() }
             ui.await { ui.all().any { ViewCompat.getStateDescription(it) == "안내: 댓글 입력" } }
             ui.dismissHelp()
             ui.test.runOnMainSync {

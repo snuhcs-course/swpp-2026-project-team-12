@@ -145,11 +145,18 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     fun openDaily() {
         dismissHelp()
         if (has("오늘도, 함께")) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-        if (!has("오늘 이야기 보기")) {
+        // The elderly day tab opens the written day with "글로 읽기" instead.
+        if (!has("오늘 이야기 보기") && !has("글로 읽기") && elderly() && all().none { it.tag == "main-tab:digest" }) {
+            // No assistant in the elderly screen: step back (e.g. from a post) to a page with the tabs.
+            test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+            await { has("글로 읽기") || all().any { it.tag == "main-tab:digest" } }
+        }
+        if (!has("오늘 이야기 보기") && !has("글로 읽기")) {
             if (all().any { it.tag == "main-tab:digest" }) test.runOnMainSync { all().single { it.tag == "main-tab:digest" }.performClick() }
             else openAssistantOption("오늘 가족의 하루")
         }
-        await { has("오늘 이야기 보기") }; click("오늘 이야기 보기")
+        await { has("오늘 이야기 보기") || has("글로 읽기") }
+        click(if (has("오늘 이야기 보기")) "오늘 이야기 보기" else "글로 읽기")
     }
     fun openCurrentPost() {
         dismissHelp()
@@ -161,7 +168,10 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         }
         await { hasPostDetail() }
     }
-    fun hasPostDetail() = has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
+    fun elderly() = (activity.javaClass.getDeclaredField("session").apply { isAccessible = true }.get(activity) as? JSONObject)?.optBoolean("large") == true
+    fun feedCard(id: Int) = all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.getInt("id") == id }
+    fun currentScreen() = activity.javaClass.getDeclaredField("screen").apply { isAccessible = true }.get(activity) as String
+    fun hasPostDetail() = currentScreen() == "detail" && has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
     fun selectLetter(id: Int) {
         dismissHelp()
         await { all().any { it is kr.talkdock.app.ui.FeedPostCard && it.post.optInt("id") == id } }
@@ -654,7 +664,10 @@ class InlinePostAudioTest {
     private fun tap(ui: UiHarness) {
         var active = false
         ui.test.runOnMainSync { active = panels(ui).any { it.isPlaying } }
-        ui.openAssistantOption(if (active) "듣기 중지" else "음성으로 듣기")
+        // The elderly detail screen has its own listen button instead of the assistant menu.
+        if (ui.elderly()) ui.test.runOnMainSync {
+            ui.all().first { it.isShown && it.contentDescription == (if (active) "듣기 중지" else "소식 듣기") && it !is kr.talkdock.app.ui.FeedPostCard }.performClick()
+        } else ui.openAssistantOption(if (active) "듣기 중지" else "음성으로 듣기")
     }
     private fun playing(ui: UiHarness): Boolean {
         val speaker = MainActivity::class.java.getDeclaredField("speaker").apply { isAccessible = true }.get(ui.activity)
@@ -671,7 +684,8 @@ class InlinePostAudioTest {
         ui.openAssistantOption("AI 요약 보기")
     }
     @Test fun feedBotActionsUseTheSelectedPostInlineAndSummaryDoesNotStartSpeech() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
+        // The elderly screen has no assistant menu; its card and detail buttons are covered elsewhere.
+        for (large in listOf(false)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
             ui.selectLetter(1)
             ui.openAssistantOption("AI 요약 보기")
             ui.await { !ui.hasPostDetail() && ui.has("사진과 글을 설명한 AI 요약") }
@@ -687,7 +701,8 @@ class InlinePostAudioTest {
         } }
     }
     @Test fun summaryAndSpeechShowTheirOwnPreparationUntilReadyInBothSizes() {
-        for (large in listOf(false, true)) {
+        // Reading a summary without speech is an assistant-menu action, so only the standard screen has it.
+        for (large in listOf(false)) {
             val releaseSummary = CountDownLatch(1)
             val releaseSpeech = CountDownLatch(1)
             try {
@@ -722,7 +737,8 @@ class InlinePostAudioTest {
         }
     }
     @Test fun summaryCanBeReadWithoutSpeechAndListeningReusesItInBothSizes() {
-        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
+        // Reading a summary without speech is an assistant-menu action, so only the standard screen has it.
+        for (large in listOf(false)) server().use { api -> UiHarness(api, room(1, "재생"), large, tutorialSeen = true).use { ui ->
             open(ui)
             ui.test.runOnMainSync {
                 assertFalse(ui.has("말로 답장")); assertFalse(ui.has("목소리로 댓글 남기기"))
@@ -1163,7 +1179,13 @@ class PostQuestionUiTest {
             ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
             ui.await { ui.all().none { it is kr.talkdock.app.ui.PostQuestionPanel } }
         }
-        ui.selectLetter(id); ui.openAssistantOption("이 소식 물어보기")
+        ui.selectLetter(id)
+        if (ui.elderly()) {
+            // The elderly screen asks from the card, below what was just heard.
+            ui.test.runOnMainSync { ui.all(ui.feedCard(id)).first { it.contentDescription == "소식 듣기" }.performClick() }
+            ui.await { ui.all(ui.feedCard(id)).any { it.contentDescription == "소식 물어보기" && it.isShown } }
+            ui.test.runOnMainSync { ui.all(ui.feedCard(id)).first { it.contentDescription == "소식 물어보기" }.performClick() }
+        } else ui.openAssistantOption("이 소식 물어보기")
         ui.await { ui.all().filterIsInstance<kr.talkdock.app.ui.PostQuestionPanel>().singleOrNull()?.composer?.isShown == true }
     }
     private fun ask(ui: UiHarness, text: String) = ui.test.runOnMainSync {
