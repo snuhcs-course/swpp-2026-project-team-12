@@ -95,6 +95,7 @@ class FloatingAssistantTest {
                 .put("token", "local-test-token").put("room", family).put("large", large)
             sessionPrefs.edit().clear().putString("server", server.base).putString("current", user.toString()).commit()
             positionPrefs.edit().clear().commit()
+            test.targetContext.getSharedPreferences("talkdock-local-drafts", Context.MODE_PRIVATE).edit().clear().commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
             await { views().any { it is kr.talkdock.app.ui.FeedPostCard && it.height > 0 } }

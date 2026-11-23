@@ -115,6 +115,8 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
+        // Device-only drafts would otherwise follow a reused mock port into the next test.
+        test.targetContext.getSharedPreferences("talkdock-local-drafts", Context.MODE_PRIVATE).edit().clear().commit()
         val edit = prefs.edit().clear().putString("server",api.base)
         if (signedIn) edit.putString("current",user.toString()).putString("accounts",JSONArray(listOf(user) + others).toString())
         edit.commit()

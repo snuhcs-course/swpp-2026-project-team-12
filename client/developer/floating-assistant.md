@@ -2,6 +2,8 @@
 
 The assistant keeps the existing transparent child mascot and is rendered as a small 60 × 72dp overlay on home and post detail, docked against either screen edge without horizontal inset. The home footer shows the author's initials badge/name beside the date and reserves clearance on the assistant's current side. The initial position follows that footer. Dragging and the existing accessible move actions retain left/right docking and a saved relative height, stored under `talkdock-assistant-letter`. The complete character artwork fits inside its image view without cropping; the source PNG is unchanged.
 
+The elderly screen does not show the assistant; it uses feed buttons, tabs and a header **도움말** instead (see `uat-post-interactions.md`).
+
 The assistant is hidden while a profile or question dialog is open, during loading, and on the dedicated recording/daily/settings pages. A question dialog represents it with a header avatar. Its hit area remains larger than 56dp.
 
 ## Current-post identity

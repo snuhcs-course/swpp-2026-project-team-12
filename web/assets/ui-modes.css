@@ -120,3 +120,16 @@
 .tour-hand span { position: absolute; top: -6px; right: 0; font-size: 24px; line-height: 1; }
 @keyframes tour-tap { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @media (prefers-reduced-motion: reduce) { .tour-hand { animation: none; } }
+
+/* Earlier questions to Todak, kept on this device, behind one toggle. */
+.past-questions { margin: 4px 0 12px; border-radius: 14px; background: rgba(0, 0, 0, .035); }
+.past-questions > summary { cursor: pointer; padding: 10px 14px; font-weight: 700; color: var(--muted, #7a6a58); list-style: none; }
+.past-questions > summary::-webkit-details-marker { display: none; }
+.past-questions > summary::after { content: ' ▾'; }
+.past-questions[open] > summary::after { content: ' ▴'; }
+.past-question-list { padding: 0 14px 12px; display: grid; gap: 8px; }
+.past-turn > span { display: block; font-size: .72rem; font-weight: 700; opacity: .7; }
+.past-turn p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.past-turn.user p { font-weight: 600; }
+.past-turn.assistant p { opacity: .85; }
+.elder-screen .past-questions > summary { font-size: 1.15rem; padding: 14px 16px; }

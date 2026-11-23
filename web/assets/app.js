@@ -8,6 +8,7 @@ import { treeMarkup, mountTree } from './family-tree-view.js';
 import { FloatingAssistant } from './floating-assistant.js?v=ui-modes-20261109';
 import { memoryEvidence } from './memory-search.js';
 import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
+import { postDraft, savePostDraft, clearPostDraft, commentDraft, saveCommentDraft, clearCommentIfSent, pastQuestions, rememberQuestion, pastQuestionsMarkup, clearAccountDrafts } from './local-drafts.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -84,6 +85,23 @@ function scheduleReplyCheck() {
   }, 20_000);
 }
 const pendingOperations = new Set();
+const draftScope = () => state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null;
+document.addEventListener('input', event => {
+  const field = event.target, scope = draftScope();
+  if (!scope || !(field instanceof HTMLTextAreaElement)) return;
+  if (field.id === 'post-caption') savePostDraft(scope, field.value);
+  else if (field.id === 'comment-text' && state.detail) saveCommentDraft(scope, state.detail.id, field.value);
+  else if (field.closest('[data-form="elder-reply"]')) saveCommentDraft(scope, Number(field.closest('form').dataset.id), field.value);
+});
+function restoreDraft(field, text) {
+  if (!field || !text || field.value) return false;
+  field.value = text; field.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+function questionHistoryMarkup() {
+  const past = state.detail ? pastQuestions(draftScope(), state.detail.id) : [];
+  return pastQuestionsMarkup(past, e, { user: '나의 질문', assistant: '토닥 AI' }) + state.dialogue.map(turn => `<div class="chat-turn ${turn.role}"><span>${turn.role === 'user' ? '나의 질문' : '토닥 AI'}</span><p>${e(turn.text)}</p></div>`).join('');
+}
 const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
 const assistant = new FloatingAssistant({
   root: document.querySelector('#assistant-root'),
@@ -672,6 +690,7 @@ function toggleElderReply(id) {
   const comments = card.querySelector('.feed-inline-comments');
   if (comments) comments.insertAdjacentHTML('beforebegin', elderReplyMarkup(post)); else card.insertAdjacentHTML('beforeend', elderReplyMarkup(post));
   if (post.author_id !== state.user.user_id) markGuideSeen(guideKeys().reply);
+  restoreDraft(card.querySelector('.elder-reply textarea'), commentDraft(draftScope(), id));
   card.querySelector('.elder-reply')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 async function reloadInlineComments(id) {
@@ -766,6 +785,8 @@ async function openPost(id, summarize = false) {
     const detail = $('.post-detail', modal); detail.before(scroller); scroller.append(detail);
     footer.append($('form[data-form="comment"]', modal), $('#voice-panel', modal)); modal.append(footer);
     renderComments();
+    restoreDraft($('#comment-text', modal), commentDraft(draftScope(), post.id));
+    $('#question-history', modal).innerHTML = questionHistoryMarkup();
     if (post.images.length) showPhoto(0);
     hydrateImages(modal);
     if (summarize) await busy($('[data-action="summary"]', modal), () => loadSummary());
@@ -837,6 +858,8 @@ async function listenToSummary() {
 
 function openComposer() {
   openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><button type="button" data-action="record-post" class="button secondary">${icon('mic')}말로 쓰기</button><div id="voice-panel" aria-live="polite"></div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  // Text written earlier in this browser is kept until it is published (photos are not kept).
+  if (restoreDraft($('#post-caption'), postDraft(draftScope()))) toast('임시 저장한 글을 불러왔어요.');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
@@ -1247,6 +1270,7 @@ const formHandlers = {
     body.append('caption', data.caption);
     state.files.forEach(file => body.append('images', file, file.name));
     await api('posts/', { method: 'POST', data: body });
+    clearPostDraft(draftScope());
     if (version === state.modalVersion) modal.close();
     if (currentRoute() === 'feed') await renderPage();
     else location.hash = '#/feed';
@@ -1256,6 +1280,7 @@ const formHandlers = {
     const id = Number(form.dataset.id), text = data.text.trim();
     if (!text || text.length > 2000) throw new ApiError('댓글은 1~2,000자로 적어 주세요.');
     await api(`posts/${id}/comments/`, { method: 'POST', data: { text } });
+    clearCommentIfSent(draftScope(), id, text);
     closeElderReply(form.closest('.elder-reply')); toast('댓글을 달았어요!');
     await reloadInlineComments(id);
   },
@@ -1263,6 +1288,7 @@ const formHandlers = {
     const version = state.modalVersion;
     const postId = state.detail.id;
     await api(`posts/${postId}/comments/`, { method: 'POST', data });
+    clearCommentIfSent(draftScope(), postId, data.text);
     if (version !== state.modalVersion) return;
     form.reset();
     // Publication already succeeded; a failed refresh must not invite sending twice.
@@ -1280,10 +1306,13 @@ const formHandlers = {
   },
   async 'post-question'(data, form) {
     const version = state.modalVersion;
-    const result = await api(`posts/${state.detail.id}/questions/`, { method: 'POST', data: { question: data.question, prior_dialogue: state.dialogue.slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) })) } });
+    const postId = state.detail.id, past = pastQuestions(draftScope(), postId);
+    const result = await api(`posts/${postId}/questions/`, { method: 'POST', data: { question: data.question, prior_dialogue: [...past, ...state.dialogue].slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) })) } });
     if (version !== state.modalVersion) return;
     state.dialogue.push({ role: 'user', text: data.question }, { role: 'assistant', text: result.text });
-    $('#question-history').innerHTML = state.dialogue.map(turn => `<div class="chat-turn ${turn.role}"><span>${turn.role === 'user' ? '나의 질문' : '토닥 AI'}</span><p>${e(turn.text)}</p></div>`).join('');
+    // Remembered after rendering so this answer shows below the toggle, not inside it, until the next opening.
+    $('#question-history').innerHTML = questionHistoryMarkup();
+    rememberQuestion(draftScope(), postId, data.question, result.text);
     form.reset();
   },
   async search(data) {
@@ -1504,6 +1533,7 @@ document.addEventListener('click', async event => {
     if (action === 'logout') {
       // Keep the session if revocation fails so the user can retry explicitly.
       await api('accounts/logout/', { method: 'POST' });
+      if (state.user) clearAccountDrafts(state.user.user_id);
       resetSession(); renderAuth();
     }
     if (action === 'copy-code') {
