@@ -240,6 +240,32 @@ class PostQATests(TestCase):
             self.assertNotIn("tools", client.responses.create.call_args.kwargs)
             self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.POST_SUMMARY)
 
+    def test_saved_description_defers_photo_until_model_requests_it(self):
+        self.post.description = "책상 위에 물건을 놓고 찍은 사진이에요."
+        self.post.save(update_fields=["description"])
+        direct = SimpleNamespace(status="completed", output=[], output_text="책상 위를 찍었어요.")
+        photo_call = SimpleNamespace(type="function_call", name="view_current_post_photos",
+                                     call_id="photo", arguments="{}")
+        first = SimpleNamespace(status="completed", output=[photo_call])
+        final = SimpleNamespace(status="completed", output_text="파란색이에요.")
+
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
+            create = sdk.return_value.__aenter__.return_value.responses.create
+            create.side_effect = [direct, first, final]
+            self.assertEqual(self.ask({"question": "어디를 찍었어?"}).json(), {"text": direct.output_text})
+            self.assertEqual(self.ask({"question": "사진 속 물건 색은?"}).json(), {"text": final.output_text})
+            search.assert_not_awaited()
+
+        requests = [call.kwargs for call in create.await_args_list]
+        for decision in requests[:2]:
+            content = decision["input"][0]["content"]
+            self.assertEqual([item["type"] for item in content], ["input_text"])
+            self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], self.post.description)
+        reply = requests[-1]["input"]
+        self.assertEqual(reply[-2]["call_id"], "photo")
+        self.assertEqual([item["type"] for item in reply[-1]["content"]], ["input_image"])
+
     def test_six_calls_fail_without_retrieval_and_incomplete_answer_is_503(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i), arguments='{"query":"q"}') for i in range(6)]
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:

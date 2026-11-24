@@ -23,6 +23,8 @@ Response: `{"text": "..."}`. Responses are `no-store`. Question length: 1–1,00
 
 QA returns the first answer when the model can answer from the post and conversation. Otherwise it runs the initial queries in parallel and independently checks the retrieved text against the question. When the review identifies missing evidence and the five-query budget allows it, QA can run one shorter follow-up query. That query gives semantic episode ranking twice the weight of keyword ranking. The initial five-fact and five-episode budget stays in the final input. A retry can add up to five new sourced facts and ten new sourced episodes. Every tool call receives an output, even when it contributes no selected evidence.
 
+When a post already has a saved description, QA starts with its caption and description. The model can ask to see the current post's photos for the final answer when the question requires details missing from the description. If the worker has yet to generate a description, QA sends the photos with the initial request.
+
 Search uses Korean calendar days for explicit event dates such as `10월 15일` and `어제`. Approximate dates such as `10월 15일쯤` include the adjacent days, with the requested day ranked first. Fact dates use `valid_at`, and standalone episode dates use the post's timestamp. Questions about a scheduled event leave the date in the relevance query because the fact can describe an earlier arrangement. Current-state queries exclude facts with a known end time at or before the request time. For other undated searches, a bounded recency boost is applied to the relevance ranking before selecting five facts and five episodes per query.
 
 The Android follow-up question button/screen is not part of this backend change.

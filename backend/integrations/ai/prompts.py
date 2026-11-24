@@ -307,6 +307,20 @@ POST_QA_SEARCH_TOOL = {
                    'required': ['query'], 'additionalProperties': False}, 'strict': True,
 }
 
+POST_QA_PHOTO_TOOL = {
+    'type': 'function', 'name': 'view_current_post_photos',
+    'description': '게시글 설명만으로 확인할 수 없는 세부 정보가 필요할 때 현재 게시글의 사진을 연다.',
+    'parameters': {'type': 'object', 'properties': {}, 'additionalProperties': False}, 'strict': True,
+}
+
+POST_QA_USE_DESCRIPTION = """
+입력의 '게시글 설명'은 현재 게시글의 사진과 글을 미리 정리한 참고 자료다.
+질문에 답하거나 검색어를 만드는 데 필요한 정보를 여기서 확인할 수 있으면 이 설명을 사용한다.
+현재 사진의 글자, 색, 개수 등 답에 필요한 시각 정보가 설명에 없다면 view_current_post_photos를 한 번 호출한다.
+과거 기록의 사실을 찾는 검색과 현재 사진을 여는 요청이 모두 필요하면 두 도구를 함께 호출할 수 있다.
+과거 기록만으로 답할 수 있는 질문에는 현재 사진을 열지 않는다.
+"""
+
 MAX_QUERIES = 5
 FACT_BUDGET = 5
 SUPPLEMENTAL_EPISODE_LIMIT = 10

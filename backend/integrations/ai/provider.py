@@ -96,6 +96,8 @@ def ask(post, relation, question, prior_dialogue, viewer_name, *, parent_terms=N
                "이전대화": prior_dialogue, "현재시각": timezone.now().isoformat()}
     if parent_terms:
         payload["확인된 가족 호칭"] = parent_terms
+    if post.description.strip():
+        payload["게시글 설명"] = post.description
     return answer_with_memory(
         "post_qa", post.room_id, json.dumps(payload, ensure_ascii=False), post.photo_files(),
     )

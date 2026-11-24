@@ -98,16 +98,25 @@ async def supplemental_evidence(search, query, queries, results, parent_terms):
         return []
 
 
+def image_input(photo):
+    with photo.open('rb') as file:
+        image_url = 'data:image/jpeg;base64,' + base64.b64encode(file.read()).decode()
+    return {'type': 'input_image', 'detail': 'high', 'image_url': image_url}
+
+
 async def answer(search, text, feature, *, images=(), timings=None, parent_terms=None, retry_search=None):
     timings = timings if timings is not None else {}
     timings.update(decision=0.0, search=0.0, answer=0.0)
     is_qa = feature == 'post_qa'
     instructions = prompts.POST_QA + '\n' + prompts.POST_QA_RETRIEVAL if is_qa else prompts.POST_SUMMARY
     content = [{'type': 'input_text', 'text': text}]
-    for image in images:
-        with image.open('rb') as file:
-            content.append({'type': 'input_image', 'detail': 'high',
-                            'image_url': 'data:image/jpeg;base64,' + base64.b64encode(file.read()).decode()})
+    use_description = is_qa and images and json.loads(text).get('게시글 설명')
+    tools = [prompts.POST_QA_SEARCH_TOOL]
+    if use_description:
+        tools.append(prompts.POST_QA_PHOTO_TOOL)
+        instructions += '\n' + prompts.POST_QA_USE_DESCRIPTION
+    else:
+        content.extend(image_input(image) for image in images)
     items = [{'role': 'user', 'content': content}]
     options = dict(**model_options('ANSWER' if is_qa else 'SUMMARY'), instructions=instructions, store=False)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
@@ -116,9 +125,8 @@ async def answer(search, text, feature, *, images=(), timings=None, parent_terms
             response = await client.responses.create(**options, input=items, max_output_tokens=prompts.ANSWER_MAX_TOKENS)
             timings['answer'] = perf_counter() - started
             return {'text': checked_text(response), 'query': None, 'queries': [], 'memories': []}
-        first = await client.responses.create(**options, input=items, tools=[prompts.POST_QA_SEARCH_TOOL],
-                                             tool_choice='auto', parallel_tool_calls=True,
-                                             max_output_tokens=prompts.DECISION_MAX_TOKENS)
+        first = await client.responses.create(**options, input=items, tools=tools, tool_choice='auto',
+                                             parallel_tool_calls=True, max_output_tokens=prompts.DECISION_MAX_TOKENS)
         timings['decision'] = perf_counter() - started
         if first.status != 'completed':
             raise RuntimeError('검색 판단이 완료되지 않았습니다.')
@@ -126,29 +134,35 @@ async def answer(search, text, feature, *, images=(), timings=None, parent_terms
         if not calls:
             return {'text': checked_text(first), 'query': None, 'queries': [], 'memories': []}
         # Log only protocol metadata, never private question text or model arguments.
-        if len(calls) > prompts.MAX_QUERIES or any(c.name != prompts.POST_QA_SEARCH_TOOL['name'] for c in calls):
+        search_calls = [call for call in calls if call.name == prompts.POST_QA_SEARCH_TOOL['name']]
+        photo_calls = [call for call in calls if use_description and call.name == prompts.POST_QA_PHOTO_TOOL['name']]
+        if (len(search_calls) > prompts.MAX_QUERIES or len(photo_calls) > 1
+                or len(search_calls) + len(photo_calls) != len(calls)):
             logging.getLogger(__name__).warning('Rejected post QA tools: count=%s names=%s', len(calls), [c.name for c in calls])
             raise RuntimeError('검색 요청 한도를 벗어났습니다.')
-        queries = tool_queries(calls, parent_terms)
-        started = perf_counter()
-        results = select_budget(await search(queries))
-        timings['search'] = perf_counter() - started
-        if len(results) != len(calls):
-            raise RuntimeError('검색 결과 개수가 일치하지 않습니다.')
+        queries = tool_queries(search_calls, parent_terms)
+        results, extra = [], []
         answer_options = {**options, 'instructions': prompts.POST_QA + '\n' + prompts.POST_QA_FINAL_EVIDENCE}
-        extra = []
-        if len(queries) < prompts.MAX_QUERIES:
+        if queries:
             started = perf_counter()
-            query = await review_query(client, options, text, results)
-            if query:
-                extra = await supplemental_evidence(retry_search or search, query, queries, results, parent_terms)
-            timings['search'] += perf_counter() - started
-        messages = [*items, *first.output, *tool_outputs(calls, results)]
+            results = select_budget(await search(queries))
+            if len(results) != len(search_calls):
+                raise RuntimeError('검색 결과 개수가 일치하지 않습니다.')
+            if len(queries) < prompts.MAX_QUERIES:
+                query = await review_query(client, options, text, results)
+                if query:
+                    extra = await supplemental_evidence(retry_search or search, query, queries, results, parent_terms)
+            timings['search'] = perf_counter() - started
+        messages = [*items, *first.output, *tool_outputs(search_calls, results)]
+        if photo_calls:
+            messages.append({'type': 'function_call_output', 'call_id': photo_calls[0].call_id,
+                             'output': '다음 사용자 메시지의 이미지는 현재 게시글에 첨부된 사진이다.'})
+            messages.append({'role': 'user', 'content': [image_input(image) for image in images]})
         if extra:
             messages.append({'role': 'user', 'content': json.dumps({'보완 검색 결과': context(extra)}, ensure_ascii=False)})
         started = perf_counter()
-        final = await client.responses.create(**answer_options, input=messages, tools=[prompts.POST_QA_SEARCH_TOOL],
-                                             tool_choice='none', max_output_tokens=prompts.ANSWER_MAX_TOKENS)
+        final = await client.responses.create(**answer_options, input=messages, tools=tools, tool_choice='none',
+                                             max_output_tokens=prompts.ANSWER_MAX_TOKENS)
         timings['answer'] = perf_counter() - started
         memories = [m for r in results for m in r['memories']] + extra
-        return {'text': checked_text(final), 'query': queries[0], 'queries': queries, 'memories': memories}
+        return {'text': checked_text(final), 'query': queries[0] if queries else None, 'queries': queries, 'memories': memories}
