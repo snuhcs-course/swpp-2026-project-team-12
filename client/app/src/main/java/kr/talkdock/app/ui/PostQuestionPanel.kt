@@ -22,9 +22,13 @@ class PostQuestionPanel(
     private val large: Boolean,
     private val client: ApiClient,
     private val executor: ExecutorService,
-    private val embedded: Boolean = false
+    private val embedded: Boolean = false,
+    /** Questions asked about this post before, kept only on this device. */
+    private val history: List<Pair<String, String>> = emptyList(),
+    private val remember: ((String, String) -> Unit)? = null
 ) : LinearLayout(activity) {
     private val turns = mutableListOf<Pair<String, String>>()
+    private val pastList = ui.column().apply { visibility = GONE; tag = "question-history-list" }
     private var generation = 0
     private var pending = false
     private var task: Future<*>? = null
@@ -51,9 +55,34 @@ class PostQuestionPanel(
         ui.gap(body, 12)
         if (!embedded) ui.label(body, "질문과 답변은 가족 댓글로 등록되지 않아요.", if (large) 18f else 14f, color = ui.muted)
         ui.gap(body, 12)
+        if (history.isNotEmpty()) addHistory()
         body.addView(dialogue, LayoutParams(-1, -2))
         body.addView(composer, LayoutParams(-1, -2))
         addView(body, LayoutParams(-1, -2))
+    }
+
+    /** One collapsed toggle instead of listing every earlier question. */
+    private fun addHistory() {
+        val label = { open: Boolean -> "이전에 물어본 질문 ${history.size}개 " + if (open) "닫기 ▴" else "보기 ▾" }
+        val toggle = ui.ghost(body, label(false)) {}
+        toggle.tag = "question-history-toggle"
+        toggle.setOnClickListener {
+            val open = pastList.visibility != VISIBLE
+            pastList.visibility = if (open) VISIBLE else GONE
+            toggle.text = label(open)
+            toggle.contentDescription = label(open)
+        }
+        toggle.contentDescription = label(false)
+        history.forEachIndexed { index, (asked, answered) ->
+            ui.gap(pastList, if (index > 0) 16 else 12)
+            val bubble = ui.column(12).apply { background = ui.shape(ui.blush, 18) }
+            ui.label(bubble, asked, if (large) 20f else 16f, true)
+            pastList.addView(bubble, LayoutParams(-1, -2).apply { marginStart = ui.dp(28) })
+            ui.gap(pastList, 8)
+            ui.label(pastList, answered, if (large) 20f else 16f, color = ui.muted)
+        }
+        body.addView(pastList, LayoutParams(-1, -2))
+        ui.gap(body, 16)
     }
 
     private fun keyboard() = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -81,7 +110,7 @@ class PostQuestionPanel(
         val request = ++generation
         // The API accepts at most ten prior messages, each at most 1,000 characters.
         val prior = JSONArray()
-        turns.takeLast(5).forEach { (asked, answered) ->
+        (history + turns).takeLast(5).forEach { (asked, answered) ->
             prior.put(JSONObject().put("role", "user").put("text", asked.take(1000)))
             prior.put(JSONObject().put("role", "assistant").put("text", answered.take(1000)))
         }
@@ -97,6 +126,7 @@ class PostQuestionPanel(
                 task = null; pending = false
                 result.fold({ answer ->
                     turns.add(question to answer)
+                    remember?.invoke(question, answer)
                     if (turns.size > 1) ui.gap(dialogue, 16)
                     val answerHeading = if (embedded) {
                         val questionBubble = ui.column(14).apply { background = ui.shape(ui.blush, 22) }

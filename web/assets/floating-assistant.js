@@ -1,5 +1,6 @@
 import { LAUNCHER_SIZE, centeredPost, fitPanel, launcherPlacement, launcherPosition, restoreLauncher, PostConversations } from './assistant-state.js';
 import { icon } from './icons.js';
+import { pastQuestions, rememberQuestion, pastQuestionsMarkup } from './local-drafts.js';
 
 const LAYOUT_KEY = 'talkdock.web.assistant.layout.v1';
 const escape = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -10,7 +11,7 @@ export class FloatingAssistant {
   constructor({ root, context, ask }) {
     this.root = root; this.context = context; this.ask = ask;
     root.style.setProperty('--assistant-launcher-size', `${LAUNCHER_SIZE}px`);
-    this.conversations = new PostConversations();
+    this.conversations = new PostConversations({ past: pastQuestions, remember: rememberQuestion });
     this.targetId = null; this.opened = false; this.frame = null; this.gesture = null;
     try { this.layout = JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch { this.layout = {}; }
     if (!this.layout || typeof this.layout !== 'object' || Array.isArray(this.layout)) this.layout = {};
@@ -145,8 +146,9 @@ export class FloatingAssistant {
   renderConversation() {
     const entry = this.targetId === null ? null : this.conversations.entry(this.targetId);
     const scroll = entry?.scrollTop;
-    this.history.innerHTML = !entry ? `<div class="assistant-welcome">${character}<h3>어떤 소식이 궁금하세요?</h3><p>궁금한 소식을 화면 가운데로<br>가져와 주세요.</p></div>` :
-      (entry.turns.length || entry.pending ? entry.turns.map(turn => `<div class="assistant-turn ${turn.role}"><span>${turn.role === 'user' ? '나' : '토닥'}</span><p>${escape(turn.text)}</p></div>`).join('') : `<div class="assistant-welcome">${character}<h3>이 소식, 함께 읽어볼까요?</h3><p>궁금한 점을 편하게 물어보세요.<br>스크롤하면 새 소식의 대화로 바뀌어요.</p></div>`);
+    const past = entry ? pastQuestionsMarkup(entry.past, escape) : '';
+    this.history.innerHTML = past + (!entry ? `<div class="assistant-welcome">${character}<h3>어떤 소식이 궁금하세요?</h3><p>궁금한 소식을 화면 가운데로<br>가져와 주세요.</p></div>` :
+      (entry.turns.length || entry.pending ? entry.turns.map(turn => `<div class="assistant-turn ${turn.role}"><span>${turn.role === 'user' ? '나' : '토닥'}</span><p>${escape(turn.text)}</p></div>`).join('') : `<div class="assistant-welcome">${character}<h3>이 소식, 함께 읽어볼까요?</h3><p>궁금한 점을 편하게 물어보세요.<br>스크롤하면 새 소식의 대화로 바뀌어요.</p></div>`));
     if (entry?.pending) this.history.insertAdjacentHTML('beforeend', `<div class="assistant-turn user"><span>나</span><p>${escape(entry.question)}</p></div><div class="assistant-thinking" role="status"><span></span><span></span><span></span>소식을 살펴보고 있어요.</div>`);
     const draft = entry?.draft || '';
     if (this.input.value !== draft) this.input.value = draft;

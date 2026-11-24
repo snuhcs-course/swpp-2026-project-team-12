@@ -9,15 +9,18 @@ There are no backend, API schema, database, launcher artwork, or APK changes in 
 
 | Area | Standard | Elderly |
 | --- | --- | --- |
-| Navigation | News / Day / Memories | One bottom **Write news** action; Day and Memories are in the assistant |
+| Navigation | News / Day / Memories | 소식 / 오늘 하루 / 가족 추억 tabs; **가족에게 소식 남기기** at the top of the feed |
 | News | Vertical feed; captions show at most two rendered lines before More; no search/family filters | Full captions and inline family comments |
-| Post actions | Icons only for comments, voice comment, and listen; accessible names retained | Large comment and listen buttons with text |
-| Comments | Bottom sheet with text/voice composer | Post detail with text/voice composer; Back restores the reading position |
-| Assistant | Context follows the visible post | Docked to the right with the same icon and a “토닥 도우미” caption; includes Help |
-| Day | Large calendar, selected-day thumbnails, story and audio actions | Same view, opened from the assistant |
+| Post actions | Icons only for comments, voice comment, and listen; accessible names retained | Large 댓글 달기 and 소식 듣기 buttons; listening plays at once and then offers **소식 물어보기** |
+| Comments | Bottom sheet with text/voice composer | Text/voice reply inside the card; post detail keeps its composer |
+| Assistant | Context follows the visible post | None; **도움말** in the header replays the current tab's guide |
+| Day | Large calendar, selected-day thumbnails, story and audio actions | One day with ◀ 전날, listen and 글로 읽기 |
+| Memories | Search page | Three personalized examples, 말로 물어보기 and 답변 듣기 |
 
 Settings retain the existing account/family controls and add explicit screen choices, family-room switching, and account switching.
 Signup can select the elderly screen. The choice is saved per account **on the current client**; it is not synchronized between devices or between Android and web.
+
+> The elderly rows above and the paragraphs below were updated by the elderly-screen simplification; see [uat-post-interactions.md](uat-post-interactions.md#elderly-screen-follow-up) for the current guide order and tab tours. The rest of this section describes the original implementation.
 
 On Android, the elderly tutorial animates a finger on the real post card or compose button. The empty post editor shows a tap followed by a typed placeholder. Tapping another family member’s first guided card opens the real comment editor, which types a placeholder and points to Send once there is a comment. The examples only change the hint. The header close button dismisses the tutorial without editing the draft, and the assistant’s Help replays it. With system animations disabled or touch exploration on, the cues are static.
 

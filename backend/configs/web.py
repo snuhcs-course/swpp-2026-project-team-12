@@ -18,6 +18,7 @@ ASSETS = {
     "family-tree-view.js": "text/javascript; charset=utf-8",
     "floating-assistant.js": "text/javascript; charset=utf-8",
     "assistant-state.js": "text/javascript; charset=utf-8",
+    "local-drafts.js": "text/javascript; charset=utf-8",
     "assistant_character.png": "image/png",
     "icons.js": "text/javascript; charset=utf-8",
     "guided-help.js": "text/javascript; charset=utf-8",

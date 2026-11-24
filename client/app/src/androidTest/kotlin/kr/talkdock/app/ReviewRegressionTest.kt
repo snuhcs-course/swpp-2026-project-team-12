@@ -115,6 +115,8 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         val user = JSONObject().put("user_id",999).put("username","review-user").put("token","mock-review-token")
             .put("name","테스트 사용자").put("large",large)
         if (room != null) user.put("room",room)
+        // Device-only drafts would otherwise follow a reused mock port into the next test.
+        test.targetContext.getSharedPreferences("talkdock-local-drafts", Context.MODE_PRIVATE).edit().clear().commit()
         val edit = prefs.edit().clear().putString("server",api.base)
         if (signedIn) edit.putString("current",user.toString()).putString("accounts",JSONArray(listOf(user) + others).toString())
         edit.commit()
@@ -144,6 +146,16 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     fun openRooms() { openSettings(); click("가족방 전환") }
     fun openDaily() {
         dismissHelp()
+        // Back from a post opened in a day's story returns to that story, and Back from the story to the day tab.
+        // The app ignores Back while a page is still loading, so wait for it first (slow CI emulators).
+        repeat(2) {
+            await(15000) { !isBusy() }
+            val current = currentScreen()
+            if (current != "detail" && current != "story") return@repeat
+            test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+            await(15000) { currentScreen() != current }
+        }
+        await(15000) { !isBusy() }
         if (has("오늘도, 함께")) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
         // The elderly day tab opens the written day with "글로 읽기" instead.
         if (!has("오늘 이야기 보기") && !has("글로 읽기") && elderly() && all().none { it.tag == "main-tab:digest" }) {
@@ -171,6 +183,7 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     fun elderly() = (activity.javaClass.getDeclaredField("session").apply { isAccessible = true }.get(activity) as? JSONObject)?.optBoolean("large") == true
     fun feedCard(id: Int) = all().filterIsInstance<kr.talkdock.app.ui.FeedPostCard>().single { it.post.getInt("id") == id }
     fun currentScreen() = activity.javaClass.getDeclaredField("screen").apply { isAccessible = true }.get(activity) as String
+    fun isBusy() = activity.javaClass.getDeclaredField("busy").apply { isAccessible = true }.getBoolean(activity)
     fun hasPostDetail() = currentScreen() == "detail" && has("가족의 소식") && all().any { it is kr.talkdock.app.ui.CommentComposer }
     fun selectLetter(id: Int) {
         dismissHelp()

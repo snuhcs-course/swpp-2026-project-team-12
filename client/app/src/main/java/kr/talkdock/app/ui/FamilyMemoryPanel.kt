@@ -44,8 +44,14 @@ class FamilyMemoryPanel(
     private val listen: ((LinearLayout, String) -> Unit)? = null,
     /** Elderly mode: ask by speaking; the transcript fills the question and searches. */
     private val voice: MemoryVoiceAccess? = null,
+    /** Searches made earlier on this device, newest first; reopening one does not ask the AI again. */
+    history: List<Pair<String, JSONObject>> = emptyList(),
+    private val remember: ((String, MemorySearchResult) -> Unit)? = null,
     onLogin: () -> Unit
 ) : LinearLayout(activity) {
+    private val pastSearches = history.toMutableList()
+    private val historyBox = ui.column().apply { tag = "memory-history" }
+    private var historyOpen = false
     private val voiceArea = ui.column().apply { tag = "memory-voice" }
     private var recorder: kr.talkdock.app.device.Recorder? = null
     private var voiceTask: Future<*>? = null
@@ -106,6 +112,8 @@ class FamilyMemoryPanel(
             ui.gap(choices, 8)
             addView(choices, 0, LayoutParams(-1, -2))
         }
+        addView(historyBox, LayoutParams(-1, -2))
+        renderHistory()
         ui.gap(this, 16)
         addView(loading, LayoutParams(-1, -2))
         addView(error, LayoutParams(-1, -2))
@@ -162,6 +170,11 @@ class FamilyMemoryPanel(
                 response.fold({ found ->
                     answeredQuestion = question; answer = found.text; evidence = found
                     revealAnswer(showAnswer())
+                    remember?.invoke(question, found)
+                    pastSearches.removeAll { it.first.trim() == question }
+                    pastSearches.add(0, question to found.toJson())
+                    while (pastSearches.size > 20) pastSearches.removeAt(pastSearches.lastIndex)
+                    renderHistory()
                 }, { failure ->
                     error.text = when {
                         failure is ApiException && failure.status == 401 -> "로그인이 만료되었어요. 다시 로그인해 주세요."
@@ -175,6 +188,33 @@ class FamilyMemoryPanel(
                 updateControls()
             }
         }
+    }
+
+    /** One collapsed toggle with earlier searches; choosing one shows its saved answer and posts. */
+    private fun renderHistory() {
+        historyBox.removeAllViews()
+        if (pastSearches.isEmpty()) return
+        ui.gap(historyBox, 12)
+        val label = "이전에 찾아본 추억 ${pastSearches.size}개 " + if (historyOpen) "닫기 ▴" else "보기 ▾"
+        ui.ghost(historyBox, label) {
+            historyOpen = !historyOpen
+            renderHistory()
+        }.apply { tag = "memory-history-toggle"; contentDescription = label; isAllCaps = false }
+        if (!historyOpen) return
+        val list = ui.column().apply { tag = "memory-history-list" }
+        pastSearches.forEach { (question, saved) ->
+            ui.gap(list, 8)
+            ui.ghost(list, question, if (large) 64 else 52) {
+                if (pending) return@ghost
+                val found = runCatching { MemorySearchResult.fromJson(saved) }.getOrNull() ?: return@ghost
+                input.setText(question)
+                answeredQuestion = question; answer = found.text; evidence = found
+                error.visibility = GONE; login.visibility = GONE
+                historyOpen = false; renderHistory()
+                revealAnswer(showAnswer())
+            }.apply { contentDescription = "$question 다시 보기"; isAllCaps = false; tag = "memory-history-item" }
+        }
+        historyBox.addView(list, LayoutParams(-1, -2))
     }
 
     /** Only after a fresh search: bring the answer card to the top so the answer and first post are visible. */

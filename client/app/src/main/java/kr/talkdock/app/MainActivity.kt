@@ -77,6 +77,10 @@ import java.util.concurrent.Executors
 class MainActivity : ComponentActivity() {
     private lateinit var ui: Ui
     private lateinit var sessions: SessionStore
+    /** Unfinished posts, unsent comments and past questions, kept only on this phone. */
+    private lateinit var drafts: LocalDrafts
+    /** Family room the open post draft was started in, so a room switch saves it there. */
+    private var postDraftScope: PostingScope? = null
     private lateinit var root: FrameLayout
     private lateinit var page: LinearLayout
     private lateinit var content: LinearLayout
@@ -155,7 +159,8 @@ class MainActivity : ComponentActivity() {
     private var guideVolume: ImageButton? = null
     private lateinit var narrator: TutorialNarrator
     private var feedReady = false
-    private var digestReturn = false
+    /** Where Back from a post opened in the day view goes: "digest" (the day tab) or "story" (that day's story). */
+    private var digestReturn: String? = null
     private var feedPostId: Int? = null
     private var feedScrollY = 0
     private var feedAnchorId: Int? = null
@@ -226,7 +231,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
-        ui = Ui(this); sessions = SessionStore(this); session = sessions.current()
+        ui = Ui(this); sessions = SessionStore(this); drafts = LocalDrafts(this); session = sessions.current()
         outgoing = ViewModelProvider(this)[OutgoingPosts::class.java]
         outgoing.onChange = ::updatePosting
         pendingPush = state?.getString("pendingPush")?.let { saved ->
@@ -272,7 +277,7 @@ class MainActivity : ComponentActivity() {
         feedScrollY = state?.getInt("feedScrollY") ?: 0
         feedAnchorId = state?.getInt("feedAnchorId", -1)?.takeIf { it > 0 }
         feedAnchorOffset = state?.getInt("feedAnchorOffset") ?: 0
-        digestReturn = state?.getBoolean("digestReturn") ?: false
+        digestReturn = state?.getString("digestReturn")
         restoreFeedScroll = state?.getBoolean("restoreFeedScroll", false) ?: false
         dailyQuestionState = state?.getBundle("dailyQuestion")?.takeIf {
             it.getInt("userId", -1) == session?.optInt("user_id") && it.getInt("roomId", -1) == room.optInt("id", -1) &&
@@ -300,7 +305,7 @@ class MainActivity : ComponentActivity() {
                 if (restoredScreen == "tree") { tree(); return }
                 if (restoredScreen == "profile" && treeDraft?.selectedId != null) { profile(); return }
             }
-            if (!room.has("id")) { clearPhotoDraft(); selectedPost = null; roomChoice(); return }
+            if (!room.has("id")) { stashPostDraft(); selectedPost = null; roomChoice(); return }
             when {
             restoredScreen == "dailyQuestion" || (restoredScreen == "voice" && dailyVoicePurpose != null) -> {
                 dailyVoicePurpose = null; dailyQuestions(dailyQuestionState)
@@ -330,7 +335,7 @@ class MainActivity : ComponentActivity() {
             async({ loadRoom(JSONObject(savedAccount.toString())) }, "가족방을 확인하고 있어요.") { current ->
                 saveSession(current, big)
                 if (previousRoom != room.optInt("id", -1)) {
-                    clearPhotoDraft(); selectedPost = null
+                    stashPostDraft(); selectedPost = null
                     if (room.has("id")) home() else roomChoice()
                 } else restoreScreen()
             }
@@ -355,7 +360,7 @@ class MainActivity : ComponentActivity() {
         val readingAnchor = if (screen == "home") feedCards.firstOrNull { it.bottom > (pageScroll?.scrollY ?: 0) } else null
         out.putInt("feedAnchorId", readingAnchor?.post?.optInt("id") ?: feedAnchorId ?: -1)
         out.putInt("feedAnchorOffset", readingAnchor?.let { it.top - (pageScroll?.scrollY ?: 0) } ?: feedAnchorOffset)
-        out.putBoolean("digestReturn", digestReturn)
+        out.putString("digestReturn", digestReturn)
         out.putBoolean("restoreFeedScroll", restoreFeedScroll || screen == "home")
         out.putBundle("dailyQuestion", dailyPanel?.snapshot() ?: dailyQuestionState)
         out.putString("dailyVoicePurpose", dailyVoicePurpose)
@@ -375,6 +380,10 @@ class MainActivity : ComponentActivity() {
         updateAssistantContext()
         if (screen == "home" && feedReady && guideCue == null) offerHelp()
         scheduleReplyCheck()
+    }
+    override fun onStop() {
+        if (screen == "post") savePostDraft()
+        super.onStop()
     }
     override fun onPause() {
         postVoiceInput?.pauseRecording()
@@ -774,7 +783,11 @@ class MainActivity : ComponentActivity() {
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = ui.dp(12) })
         box.addView(context); ui.gap(box, 12)
         val scroll = ScrollView(this)
-        val panel = PostQuestionPanel(this, ui, target.getInt("id"), large, client, questions, embedded = true)
+        val questionScope = postingScope()
+        val postId = target.getInt("id")
+        val panel = PostQuestionPanel(this, ui, postId, large, client, questions, embedded = true,
+            history = questionScope?.let { drafts.questions(it, postId) }.orEmpty(),
+            remember = { asked, answered -> questionScope?.let { drafts.addQuestion(it, postId, asked, answered) } })
         scroll.addView(panel)
         box.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         panel.open()
@@ -986,6 +999,7 @@ class MainActivity : ComponentActivity() {
                 }
             } else {
                 val postId = upload.postId ?: return@forEach
+                if (upload.kind == OutgoingPosts.Kind.TEXT_COMMENT) drafts.clearCommentIfSent(upload.scope, postId, upload.text)
                 val target = commentTarget?.takeIf { it.postId == postId }
                 if (target != null && upload.kind == OutgoingPosts.Kind.TEXT_COMMENT) {
                     if (target.composer.input.text.toString() == upload.text) target.composer.input.setText("")
@@ -1066,7 +1080,7 @@ class MainActivity : ComponentActivity() {
     }
     /** Drafts, the open post and the digest date belong to one room, so drop them when switching. */
     private fun resetRoomState() {
-        clearPhotoDraft(); selectedPost = null
+        stashPostDraft(); selectedPost = null
         dailyStatus = null; dailyQuestionState = null; dailyVoicePurpose = null; dailyPanel = null
         memoryTabState = null; memoryPanel = null; memoryReturn = null
         feedPostId = null; feedScrollY = 0; restoreFeedScroll = false
@@ -1630,6 +1644,7 @@ class MainActivity : ComponentActivity() {
                         footer.removeAllViews(); footer.addView(composer)
                         dialog.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE)
                         composer.tag = "sheet-comment"
+                        keepCommentDraft(postId, composer)
                         showComments(latestComments(postId, revision, comments))
                         commentTarget = CommentTarget(postId, composer, ::showComments)
                         updatePosting()
@@ -1851,7 +1866,7 @@ class MainActivity : ComponentActivity() {
                 val image = ImageView(this).apply {
                     scaleType = ImageView.ScaleType.CENTER_CROP; background = ui.shape(ui.blush, 18); clipToOutline = true
                     contentDescription = post.optString("author_name") + "님의 소식 보기"; isClickable = true; isFocusable = true
-                    setOnClickListener { digestReturn = true; detail(post) }
+                    setOnClickListener { digestReturn = "digest"; detail(post) }
                 }
                 strip.addView(image, LinearLayout.LayoutParams(ui.dp(108), ui.dp(122)).apply { marginEnd = ui.dp(8) })
                 photoItems(post).firstOrNull()?.let { remotePhoto(image, post, it.getString("url"), thumbnail = true) }
@@ -1916,7 +1931,7 @@ class MainActivity : ComponentActivity() {
             val image = ImageView(this).apply {
                 scaleType = ImageView.ScaleType.CENTER_CROP; background = ui.shape(ui.blush, 18); clipToOutline = true
                 contentDescription = post.optString("author_name") + "님의 소식 보기"; isClickable = true; isFocusable = true
-                setOnClickListener { digestReturn = true; detail(post) }
+                setOnClickListener { digestReturn = "digest"; detail(post) }
             }
             strip.addView(image, LinearLayout.LayoutParams(ui.dp(120), ui.dp(136)).apply { marginEnd = ui.dp(8) })
             photoItems(post).firstOrNull()?.let { remotePhoto(image, post, it.getString("url"), thumbnail = true) }
@@ -1982,6 +1997,7 @@ class MainActivity : ComponentActivity() {
         ui.gap(content, 12)
         ui.label(content, "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.", if (large) 21f else 17f, color = ui.muted).gravity = Gravity.CENTER
         ui.gap(content, 24)
+        val memoryScope = postingScope()
         memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, restored,
             renderPost = { parent, post ->
                 val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
@@ -1992,6 +2008,8 @@ class MainActivity : ComponentActivity() {
                 deck.currentCard.tag = "feed-post:${post.getInt("id")}"
                 parent.addView(deck, LinearLayout.LayoutParams(-1, -2))
             },
+            history = memoryScope?.let { drafts.memorySearches(it) }.orEmpty(),
+            remember = { asked, found -> memoryScope?.let { drafts.addMemorySearch(it, asked, found.toJson()) } },
             examples = if (large) memoryExamples() else emptyList(),
             voice = if (large) kr.talkdock.app.ui.MemoryVoiceAccess(
                 hasMicrophone = { checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED },
@@ -2114,7 +2132,10 @@ class MainActivity : ComponentActivity() {
         }
         selectedPost = post
         navigation("가족의 소식", {
-            if (returnToMemories != null) familyMemories(returnToMemories) else if (digestReturn) { digestReturn = false; digest() } else home()
+            if (returnToMemories != null) familyMemories(returnToMemories) else if (digestReturn != null) {
+                val story = digestReturn == "story"; digestReturn = null
+                if (story) digestStory() else digest()
+            } else home()
         }, name = "detail")
         memoryReturn = returnToMemories
         val client = api
@@ -2163,6 +2184,7 @@ class MainActivity : ComponentActivity() {
             footer.addView(composer, LinearLayout.LayoutParams(-1, -2))
             page.addView(footer, LinearLayout.LayoutParams(-1, -2))
             composer.tag = "detail-comment"
+            keepCommentDraft(postId, composer)
             val text = composer.input
             text.doAfterTextChanged { guideComment(composer) }
             commentTarget = CommentTarget(postId, composer, ::showComments)
@@ -2234,6 +2256,32 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun selectedPhotos(): List<File> = listOfNotNull(photo) + extraPhotos
+    /** Saves the unfinished post for the room it was written in, then empties the composer (photos stay on disk). */
+    private fun stashPostDraft() {
+        caption = captionInput?.text?.toString() ?: caption
+        val scope = postDraftScope
+        if (scope != null && (selectedPhotos().isNotEmpty() || caption.isNotBlank())) drafts.savePost(scope, caption, selectedPhotos())
+        resetPhotoDraft()
+    }
+    private fun savePostDraft() {
+        caption = captionInput?.text?.toString() ?: caption
+        postDraftScope?.let { drafts.savePost(it, caption, selectedPhotos()) }
+    }
+    /** Opening the composer with nothing in it continues the post saved on this phone. */
+    private fun restorePostDraft() {
+        val scope = postingScope() ?: return
+        val saved = drafts.post(scope) ?: return
+        caption = saved.text; photo = saved.photos.firstOrNull(); extraPhotos.clear(); extraPhotos.addAll(saved.photos.drop(1).take(4))
+        toast("임시 저장한 소식을 불러왔어요.")
+    }
+    /** Unsent comment text survives closing the app; the field is restored when the same post is opened again. */
+    private fun keepCommentDraft(postId: Int, composer: CommentComposer) {
+        val scope = postingScope() ?: return
+        if (composer.input.text.isEmpty()) drafts.comment(scope, postId)?.let { saved ->
+            composer.input.setText(saved); composer.input.setSelection(saved.length)
+        }
+        composer.input.doAfterTextChanged { if (postingScope() == scope) drafts.saveComment(scope, postId, it?.toString().orEmpty()) }
+    }
     private fun clearPhotoDraft() {
         selectedPhotos().forEach { it.delete() }
         resetPhotoDraft()
@@ -2268,6 +2316,10 @@ class MainActivity : ComponentActivity() {
     }
     private fun composer() {
         if (screen == "home" && guideStep != null) guideStep = GuideStep.WRITING
+        if (screen != "post") {
+            if (selectedPhotos().isEmpty() && caption.isBlank() && postVoiceText.isBlank() && guideStep != GuideStep.WRITING) restorePostDraft()
+            postDraftScope = postingScope()
+        }
         val files = selectedPhotos()
         draftPhotoIndex = draftPhotoIndex.coerceIn(0, files.lastIndex.coerceAtLeast(0))
         navigation("소식 쓰기", { discardPhoto() }, name = "post")
@@ -2308,7 +2360,7 @@ class MainActivity : ComponentActivity() {
             val scope = postingScope() ?: return@button
             narrator.interrupt()
             if (guideStep == GuideStep.WRITING) closeGuide()
-            resetPhotoDraft()
+            resetPhotoDraft(); drafts.clearPost(scope)
             outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.POST, draft,
                 thumbnail = previews.firstOrNull(), files = files) { client, progress ->
                 client.uploadPost(files, draft, progress)
@@ -2358,7 +2410,9 @@ class MainActivity : ComponentActivity() {
         caption = captionInput?.text?.toString() ?: caption
         if (selectedPhotos().isEmpty() && caption.isBlank()) { home(); return }
         AlertDialog.Builder(this).setTitle("소식 작성을 그만할까요?")
-            .setPositiveButton("그만하기") { _, _ -> clearPhotoDraft(); home() }
+            .setMessage("임시 저장하면 다음에 소식 쓰기를 열 때 이어서 쓸 수 있어요.")
+            .setPositiveButton("그만하기") { _, _ -> postDraftScope?.let(drafts::clearPost); clearPhotoDraft(); home() }
+            .setNeutralButton("임시 저장") { _, _ -> stashPostDraft(); toast("소식을 임시 저장했어요."); home() }
             .setNegativeButton("계속 쓰기", null).show()
     }
     private fun stopPostAudio() {
@@ -2413,6 +2467,7 @@ class MainActivity : ComponentActivity() {
                     }, postingClient())
                 }
             })
+        if (card.reply == null) keepCommentDraft(post.getInt("id"), panel.composer)
         if (card.reply == null) panel.composer.input.doAfterTextChanged {
             if (guideStep == GuideStep.REPLYING && guidePostId == post.optInt("id")) guideComment(panel.composer)
         }
@@ -2729,7 +2784,7 @@ class MainActivity : ComponentActivity() {
                                 background = ui.shape(ui.blush, 22); clipToOutline = true
                                 isClickable = true; isFocusable = true
                                 contentDescription = post.optString("author_name") + "의 소식 보기"
-                                setOnClickListener { digestReturn = true; detail(post) }
+                                setOnClickListener { digestReturn = "story"; detail(post) }
                             }
                             val image = photoItems(post).firstOrNull()
                             if (image != null) {
@@ -2955,6 +3010,8 @@ class MainActivity : ComponentActivity() {
             ui.button(content, "로그아웃", false) {
                 val client = api
                 async({ client.request("accounts/logout/", "POST", JSONObject()) }) {
+                    session?.optInt("user_id")?.let { user -> drafts.clearAccount(sessions.serverUrl(), user).forEach { it.delete() } }
+                    resetPhotoDraft(); postDraftScope = null
                     sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear(); welcome()
                 }
             }

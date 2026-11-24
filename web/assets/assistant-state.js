@@ -54,11 +54,12 @@ export function launcherPlacement(point, viewport) {
 }
 
 export class PostConversations {
-  constructor() { this.scope = null; this.generation = 0; this.entries = new Map(); }
+  /** `store` keeps earlier questions on this device: { past(scope, id), remember(scope, id, question, answer) }. */
+  constructor(store = null) { this.store = store; this.scope = null; this.generation = 0; this.entries = new Map(); }
   reset(scope = null) { this.scope = scope; this.generation++; this.entries.clear(); }
   setScope(scope) { if (scope !== this.scope) this.reset(scope); }
   entry(id) {
-    if (!this.entries.has(id)) this.entries.set(id, { draft: '', turns: [], pending: false, question: '', error: '', scrollTop: null });
+    if (!this.entries.has(id)) this.entries.set(id, { draft: '', past: this.store?.past(this.scope, id) || [], turns: [], pending: false, question: '', error: '', scrollTop: null });
     return this.entries.get(id);
   }
   async send(id, request, changed = () => {}) {
@@ -68,13 +69,14 @@ export class PostConversations {
     if (question.length > 1000) { entry.error = '질문은 1,000자 이내로 적어 주세요.'; changed(); return false; }
     const generation = this.generation;
     const current = () => generation === this.generation && this.entries.get(id) === entry;
-    const dialogue = entry.turns.slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) }));
+    const dialogue = [...entry.past, ...entry.turns].slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) }));
     entry.pending = true; entry.question = question; entry.error = ''; entry.scrollTop = null; changed();
     try {
       const result = await request(question, dialogue);
       if (!current()) return false;
       if (typeof result?.text !== 'string' || !result.text.trim()) throw new Error('답변을 받지 못했어요. 다시 시도해 주세요.');
       entry.turns.push({ role: 'user', text: question }, { role: 'assistant', text: result.text });
+      this.store?.remember(this.scope, id, question, result.text);
       if (entry.draft === originalDraft) entry.draft = '';
       entry.scrollTop = null;
       return true;

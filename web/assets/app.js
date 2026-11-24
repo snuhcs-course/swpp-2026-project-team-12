@@ -8,6 +8,7 @@ import { treeMarkup, mountTree } from './family-tree-view.js';
 import { FloatingAssistant } from './floating-assistant.js?v=ui-modes-20261109';
 import { memoryEvidence } from './memory-search.js';
 import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
+import { postDraft, savePostDraft, clearPostDraft, commentDraft, saveCommentDraft, clearCommentIfSent, pastQuestions, rememberQuestion, pastQuestionsMarkup, clearAccountDrafts, memorySearches, rememberMemorySearch, pastMemoriesMarkup } from './local-drafts.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -84,6 +85,26 @@ function scheduleReplyCheck() {
   }, 20_000);
 }
 const pendingOperations = new Set();
+function memoryResultMarkup(text, evidence) {
+  return `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(text)}</p>${elder ? `${button('memory-audio', '답변 듣기', 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : ''}</section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+}
+const draftScope = () => state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null;
+document.addEventListener('input', event => {
+  const field = event.target, scope = draftScope();
+  if (!scope || !(field instanceof HTMLTextAreaElement)) return;
+  if (field.id === 'post-caption') savePostDraft(scope, field.value);
+  else if (field.id === 'comment-text' && state.detail) saveCommentDraft(scope, state.detail.id, field.value);
+  else if (field.closest('[data-form="elder-reply"]')) saveCommentDraft(scope, Number(field.closest('form').dataset.id), field.value);
+});
+function restoreDraft(field, text) {
+  if (!field || !text || field.value) return false;
+  field.value = text; field.dispatchEvent(new Event('input', { bubbles: true }));
+  return true;
+}
+function questionHistoryMarkup() {
+  const past = state.detail ? pastQuestions(draftScope(), state.detail.id) : [];
+  return pastQuestionsMarkup(past, e, { user: '나의 질문', assistant: '토닥 AI' }) + state.dialogue.map(turn => `<div class="chat-turn ${turn.role}"><span>${turn.role === 'user' ? '나의 질문' : '토닥 AI'}</span><p>${e(turn.text)}</p></div>`).join('');
+}
 const state = { user: null, room: null, rooms: [], posts: [], detail: null, dialogue: [], files: [], lookup: null, pageVersion: 0, modalVersion: 0, session: 0, digest: null, photoIndex: 0 };
 const assistant = new FloatingAssistant({
   root: document.querySelector('#assistant-root'),
@@ -672,6 +693,7 @@ function toggleElderReply(id) {
   const comments = card.querySelector('.feed-inline-comments');
   if (comments) comments.insertAdjacentHTML('beforebegin', elderReplyMarkup(post)); else card.insertAdjacentHTML('beforeend', elderReplyMarkup(post));
   if (post.author_id !== state.user.user_id) markGuideSeen(guideKeys().reply);
+  restoreDraft(card.querySelector('.elder-reply textarea'), commentDraft(draftScope(), id));
   card.querySelector('.elder-reply')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 async function reloadInlineComments(id) {
@@ -766,6 +788,8 @@ async function openPost(id, summarize = false) {
     const detail = $('.post-detail', modal); detail.before(scroller); scroller.append(detail);
     footer.append($('form[data-form="comment"]', modal), $('#voice-panel', modal)); modal.append(footer);
     renderComments();
+    restoreDraft($('#comment-text', modal), commentDraft(draftScope(), post.id));
+    $('#question-history', modal).innerHTML = questionHistoryMarkup();
     if (post.images.length) showPhoto(0);
     hydrateImages(modal);
     if (summarize) await busy($('[data-action="summary"]', modal), () => loadSummary());
@@ -837,6 +861,8 @@ async function listenToSummary() {
 
 function openComposer() {
   openModal(`${modalHeading('오늘의 안부를 남겨요', 'A LITTLE MOMENT')}<form data-form="post"><div class="composer-user">${avatar(state.user.name, state.user.user_id)}<div><strong>${e(state.user.name)}</strong><p class="help">${e(state.room.name)} 가족에게 공유돼요.</p></div></div><label class="sr-only" for="post-caption">소식 내용</label><textarea id="post-caption" name="caption" maxlength="2000" rows="5" placeholder="오늘 있었던 일, 가족과 나누고 싶은 순간을 들려주세요."></textarea><div class="character-count"><span id="caption-count">0</span> / 2,000</div><button type="button" data-action="record-post" class="button secondary">${icon('mic')}말로 쓰기</button><div id="voice-panel" aria-live="polite"></div><label class="upload-zone" id="drop-zone" tabindex="0">${icon('photo')}<strong>사진을 여기에 놓거나 클릭해 주세요</strong><span>최대 5장 · 사진 없이 글만 써도 좋아요</span><input id="photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" multiple class="sr-only"></label><div id="photo-previews" class="photo-previews"></div><p class="form-error" role="alert"></p><div class="composer-footer"><p class="help">${icon('heart')}작은 안부가 가족에게 큰 기쁨이 돼요.</p><button type="submit" class="button primary">소식 전하기${icon('arrow')}</button></div></form>`, 'compose-dialog');
+  // Text written earlier in this browser is kept until it is published (photos are not kept).
+  if (restoreDraft($('#post-caption'), postDraft(draftScope()))) toast('임시 저장한 글을 불러왔어요.');
 }
 function addFiles(files) {
   const next = [...state.files, ...files];
@@ -924,7 +950,7 @@ function memoryVoiceIdle(message = '') {
   return `${button('memory-voice', '말로 물어보기', 'mic', 'button primary full')}${message ? `<p class="form-error" role="alert">${e(message)}</p>` : ''}`;
 }
 function renderSearch() {
-  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p>${elder ? `<div class="memory-examples"><div class="memory-voice" aria-live="polite">${memoryVoiceIdle()}</div><h3>이렇게 물어보세요</h3>${memoryExamples().map(q => button('memory-example', e(q), '', 'button secondary full', `data-question="${e(q)}"`)).join('')}<p class="muted">글로 물어보셔도 돼요</p></div>` : ''}<form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
+  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p>${elder ? `<div class="memory-examples"><div class="memory-voice" aria-live="polite">${memoryVoiceIdle()}</div><h3>이렇게 물어보세요</h3>${memoryExamples().map(q => button('memory-example', e(q), '', 'button secondary full', `data-question="${e(q)}"`)).join('')}<p class="muted">글로 물어보셔도 돼요</p></div>` : ''}<form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form><div id="memory-past">${pastMemoriesMarkup(memorySearches(draftScope()), e)}</div></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
   if (startTabTour('search')) tourStep('memory-example');
 }
 async function renderDigest(version) {
@@ -1247,6 +1273,7 @@ const formHandlers = {
     body.append('caption', data.caption);
     state.files.forEach(file => body.append('images', file, file.name));
     await api('posts/', { method: 'POST', data: body });
+    clearPostDraft(draftScope());
     if (version === state.modalVersion) modal.close();
     if (currentRoute() === 'feed') await renderPage();
     else location.hash = '#/feed';
@@ -1256,6 +1283,7 @@ const formHandlers = {
     const id = Number(form.dataset.id), text = data.text.trim();
     if (!text || text.length > 2000) throw new ApiError('댓글은 1~2,000자로 적어 주세요.');
     await api(`posts/${id}/comments/`, { method: 'POST', data: { text } });
+    clearCommentIfSent(draftScope(), id, text);
     closeElderReply(form.closest('.elder-reply')); toast('댓글을 달았어요!');
     await reloadInlineComments(id);
   },
@@ -1263,6 +1291,7 @@ const formHandlers = {
     const version = state.modalVersion;
     const postId = state.detail.id;
     await api(`posts/${postId}/comments/`, { method: 'POST', data });
+    clearCommentIfSent(draftScope(), postId, data.text);
     if (version !== state.modalVersion) return;
     form.reset();
     // Publication already succeeded; a failed refresh must not invite sending twice.
@@ -1280,10 +1309,13 @@ const formHandlers = {
   },
   async 'post-question'(data, form) {
     const version = state.modalVersion;
-    const result = await api(`posts/${state.detail.id}/questions/`, { method: 'POST', data: { question: data.question, prior_dialogue: state.dialogue.slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) })) } });
+    const postId = state.detail.id, past = pastQuestions(draftScope(), postId);
+    const result = await api(`posts/${postId}/questions/`, { method: 'POST', data: { question: data.question, prior_dialogue: [...past, ...state.dialogue].slice(-10).map(turn => ({ ...turn, text: turn.text.slice(0, 1000) })) } });
     if (version !== state.modalVersion) return;
     state.dialogue.push({ role: 'user', text: data.question }, { role: 'assistant', text: result.text });
-    $('#question-history').innerHTML = state.dialogue.map(turn => `<div class="chat-turn ${turn.role}"><span>${turn.role === 'user' ? '나의 질문' : '토닥 AI'}</span><p>${e(turn.text)}</p></div>`).join('');
+    // Remembered after rendering so this answer shows below the toggle, not inside it, until the next opening.
+    $('#question-history').innerHTML = questionHistoryMarkup();
+    rememberQuestion(draftScope(), postId, data.question, result.text);
     form.reset();
   },
   async search(data) {
@@ -1298,7 +1330,9 @@ const formHandlers = {
       const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
       if (!current()) return;
       queueMicrotask(() => { if (tabTour === 'memory-listen') tourStep('memory-listen'); });
-      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p>${elder ? `${button('memory-audio', '답변 듣기', 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : ''}</section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      $('#search-result').innerHTML = memoryResultMarkup(result.text, evidence);
+      rememberMemorySearch(draftScope(), data.question, result.text, evidence.posts, evidence.unavailable);
+      $('#memory-past').innerHTML = pastMemoriesMarkup(memorySearches(draftScope()), e);
       hydrateImages($('#search-result'));
     } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
@@ -1418,6 +1452,16 @@ document.addEventListener('click', async event => {
     return busy(target, () => playSpeech(text, $('[data-action="stop-audio"]', answer), () => version === state.pageVersion));
   }
   if (action === 'post-ask') { stopAudio(); assistant.targetId = Number(target.dataset.id); assistant.open(); return; }
+  if (action === 'memory-past') {
+    // A saved search shows its stored answer and posts again; nothing is sent to the AI.
+    const item = memorySearches(draftScope())[Number(target.dataset.index)];
+    if (!item) return;
+    const field = $('#memory-question'); if (field) field.value = item.question;
+    target.closest('details')?.removeAttribute('open');
+    $('#search-result').innerHTML = memoryResultMarkup(item.text, { posts: item.posts, unavailable: item.unavailable });
+    hydrateImages($('#search-result'));
+    return;
+  }
   if (action === 'elder-reply-close') return closeElderReply(target.closest('.elder-reply'));
   if (action === 'elder-reply-reset') { stopRecording(true); elderRecording = false; const slot = target.closest('.elder-reply-voice'); if (slot) slot.innerHTML = elderVoiceIdle(Number(target.dataset.id)); return; }
   if (action === 'elder-reply-record') {
@@ -1504,6 +1548,7 @@ document.addEventListener('click', async event => {
     if (action === 'logout') {
       // Keep the session if revocation fails so the user can retry explicitly.
       await api('accounts/logout/', { method: 'POST' });
+      if (state.user) clearAccountDrafts(state.user.user_id);
       resetSession(); renderAuth();
     }
     if (action === 'copy-code') {
