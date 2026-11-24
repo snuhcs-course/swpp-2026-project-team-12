@@ -1,8 +1,6 @@
 package kr.talkdock.app
 
-import android.app.Dialog
 import android.view.View
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -45,10 +43,7 @@ class PhotoLetterDesignTest {
         fixtureOrigin = api.base.removeSuffix("/api/")
         return api
     }
-    private fun dialog(ui: UiHarness, field: String): Dialog? = ui.activity.javaClass.getDeclaredField(field).let {
-        it.isAccessible = true; it.get(ui.activity) as? Dialog
-    }
-    @Test fun verticalPostsKeepTheirOwnBotContextAndOpenAllPhotosInDetail() {
+    @Test fun verticalPostsShowAnIconVoiceReplyAndOpenAllPhotosInDetail() {
         server().use { api -> UiHarness(api, room(77, "우리 가족")).use { ui ->
             ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
             ui.selectLetter(1)
@@ -63,17 +58,6 @@ class PhotoLetterDesignTest {
             ui.screenshot("vertical-feed-home.png")
             ui.selectLetter(2)
             assertTrue("Browsing must not start AI requests", api.paths().none { it.contains("questions") || it.contains("message/") || it.contains("speech") })
-            ui.openAssistantOption("이 소식 물어보기")
-            ui.await { dialog(ui, "assistantDialog")?.isShowing == true }
-            val question = dialog(ui, "assistantDialog")!!
-            ui.test.runOnMainSync {
-                assertTrue(ui.all(question.window!!.decorView).filterIsInstance<TextView>().any { it.text.toString() == "아빠의 소식" })
-                ui.all(question.window!!.decorView).filterIsInstance<EditText>().single().setText("누구의 소식이야?")
-                ui.all(question.window!!.decorView).first { it.contentDescription == "질문 보내기" }.performClick()
-            }
-            ui.await { ui.all(question.window!!.decorView).filterIsInstance<TextView>().any { it.text.toString().contains("아빠가 저녁") } }
-            assertTrue(api.paths().contains("/api/posts/2/questions/"))
-            ui.test.runOnMainSync { question.dismiss() }
             ui.selectLetter(1); ui.openCurrentPost()
             ui.await { ui.all().any { it is PhotoCarousel } && ui.has("참 보기 좋구나.") }
             ui.test.runOnMainSync {

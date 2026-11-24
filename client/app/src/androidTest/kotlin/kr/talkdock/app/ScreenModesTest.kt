@@ -358,28 +358,6 @@ class ScreenModesTest {
         } }
     }
 
-    @Test fun elderlyCommentOpensInsideTheCardAndKeepsTheFeed() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
-        ui.await { ui.guideVisible() }
-        ui.dismissHelp()
-        ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 3 }
-        ui.test.runOnMainSync {
-            val card = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }
-            ui.all().filterIsInstance<ScrollView>().first().scrollTo(0, card.top + 80)
-        }
-        ui.await { ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }.commentsLoaded }
-        ui.test.runOnMainSync {
-            val card = ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }
-            descendants(card).single { it.contentDescription == "댓글 달기" }.performClick()
-        }
-        ui.await { ui.all().filterIsInstance<FeedPostCard>().single { it.post.getInt("id") == 2 }.replyOpen }
-        ui.test.runOnMainSync {
-            assertEquals(3, ui.all().filterIsInstance<FeedPostCard>().size)
-            assertEquals("home", ui.currentScreen())
-            assertTrue(ui.has("좋은 하루 보내렴!"))
-        }
-        assertTrue(api.requests.none { it.method == "POST" && it.path != "/api/speech/" && it.path != "/api/notifications/device/" })
-    } }
-
     @Test fun invalidCommentResponseShowsRetryInsteadOfCrashing() = MockApi { request ->
         jsonReply(when (request.path) {
             "/api/families/current/" -> family

@@ -108,12 +108,17 @@ class ElderInlineReplyTest {
         }
     }
 
-    @Test fun secondTapClosesAndOnlyOneCardKeepsAReplyOpen() = server().use { api ->
+    @Test fun onlyOneCardKeepsAReplyOpenAndListeningClosesIt() = server().use { api ->
         UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = true).use { ui ->
             ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
             ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
             ui.tapIn(2, "댓글 달기"); ui.await { ui.panel(2) != null && ui.panel(1) == null }
             ui.tapIn(2, "답장 닫기"); ui.await { ui.panel(2) == null }
+            // Listening on another card, or on the same card, folds an open reply away.
+            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
+            ui.tapIn(2, "소식 듣기"); ui.await { ui.panel(1) == null }
+            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
+            ui.tapIn(1, "소식 듣기"); ui.await { ui.panel(1) == null }
             ui.test.runOnMainSync { assertTrue(ui.stillOnFeed()) }
             assertTrue(api.requests.none { it.method == "POST" && it.path != "/api/speech/" && it.path != "/api/notifications/device/" })
         }
@@ -135,13 +140,21 @@ class ElderInlineReplyTest {
         }
     }
 
-    @Test fun listeningClosesAnOpenReplyOnAnyCard() = server().use { api ->
-        UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = true).use { ui ->
-            ui.await { ui.all().filterIsInstance<FeedPostCard>().size == 2 }
-            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
-            ui.tapIn(2, "소식 듣기"); ui.await { ui.panel(1) == null }
-            ui.tapIn(1, "댓글 달기"); ui.await { ui.panel(1) != null }
-            ui.tapIn(1, "소식 듣기"); ui.await { ui.panel(1) == null }
+    @Test fun guidePointsAtReplyOnlyAfterThePostHasBeenRead() = server().use { api ->
+        UiHarness(api, room(1, "우리 가족"), large = true, tutorialSeen = false).use { ui ->
+            fun cue(view: View?) = view?.let { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() }
+            fun guided() = ui.all().filterIsInstance<FeedPostCard>().single { cue(it.listenAction) == "안내: 소식 듣기" }
+            ui.await { ui.all().filterIsInstance<FeedPostCard>().any { cue(it.listenAction) == "안내: 소식 듣기" } }
+            var id = 0
+            ui.test.runOnMainSync { val card = guided(); id = card.post.getInt("id"); card.listenAction!!.performClick() }
+            // While the summary is prepared and read aloud, nothing points at the next step yet.
+            ui.test.runOnMainSync {
+                assertTrue(ui.card(id).audio.isPlaying)
+                assertNotEquals("안내: 댓글 달기", cue(ui.card(id).replyAction))
+            }
+            ui.await { ui.has("지우가 공원에서 단풍을 봤대요.") }
+            ui.await { cue(ui.card(id).replyAction) == "안내: 댓글 달기" }
+            ui.test.runOnMainSync { assertFalse(ui.card(id).audio.isPlaying) }
         }
     }
 

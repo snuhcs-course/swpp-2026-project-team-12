@@ -147,6 +147,8 @@ class MainActivity : ComponentActivity() {
     private var pendingMemoryPanel: FamilyMemoryPanel? = null
     /** Elderly tab tour step: day-listen, day-previous, memory-example, memory-listen or memory-voice. */
     private var tabTour: String? = null
+    /** Elderly guide: the 댓글 달기 cue waits until the first post has been heard (or stopped). */
+    private var listenCueWaiting = false
     // LISTEN, LISTEN_COMMENT and ASK are the elderly first guide: listen, reply, ask, then write.
     private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING, LISTEN, LISTEN_COMMENT, ASK }
     private var guideStep: GuideStep? = null
@@ -1709,6 +1711,7 @@ class MainActivity : ComponentActivity() {
 
     private fun closeGuide() {
         clearCue()
+        listenCueWaiting = false
         guideStep = null
         tabTour = null
         guideClose?.visibility = View.GONE
@@ -1765,7 +1768,9 @@ class MainActivity : ComponentActivity() {
             GuideStep.LISTEN_COMMENT -> {
                 val card = cards.firstOrNull { it.post.optInt("id") == guidePostId } ?: cards.first()
                 guidePostId = card.post.getInt("id")
-                showCue(card.replyAction ?: card, TutorialLine.ELDER_LISTEN_COMMENT, reveal = true)
+                // Still reading the post aloud: the cue follows when it ends.
+                if (card.audio.isPlaying) listenCueWaiting = true
+                else { listenCueWaiting = false; showCue(card.replyAction ?: card, TutorialLine.ELDER_LISTEN_COMMENT, reveal = true) }
             }
             GuideStep.ASK -> {
                 val card = cards.firstOrNull { it.post.optInt("id") == guidePostId }
@@ -1877,7 +1882,7 @@ class MainActivity : ComponentActivity() {
         val day = if (chosen == today) "오늘" else "${chosen.monthValue}월 ${chosen.dayOfMonth}일"
         val steps = ui.row()
         val previous = ui.ghost(steps, "◀ 전날", 64) {
-            if (!busy) { if (tabTour == "day-previous") closeGuide(); digest(chosen.minusDays(1).toString()) }
+            if (!busy) { if (tabTour == "day-previous" || tabTour == "day-listening") closeGuide(); digest(chosen.minusDays(1).toString()) }
         }.apply {
             tag = "elder-day-previous"; contentDescription = "전날 이야기"
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = ui.dp(8) }
@@ -1895,7 +1900,8 @@ class MainActivity : ComponentActivity() {
         if (text.isNotBlank() && summary.optString("status") == "ready") {
             content.addView(ReplyAudioButton(this, ui, text, client, speaker, summaries, true,
                 playLabel = "${day} 이야기 듣기", stopLabel = "듣기 중지", primary = true,
-                onPlay = { if (tabTour == "day-listen") tourCue("day-previous", previous, TutorialLine.ELDER_DAY_PREVIOUS) }).also {
+                onPlay = { if (tabTour == "day-listen") { tabTour = "day-listening"; clearCue() } },
+                onFinished = { if (tabTour == "day-listening") tourCue("day-previous", previous, TutorialLine.ELDER_DAY_PREVIOUS) }).also {
                     replyPreview = it; it.tag = "elder-day-listen"
                     if (startTabTour("digest")) tourCue("day-listen", it, TutorialLine.ELDER_DAY)
                 })
@@ -2003,12 +2009,13 @@ class MainActivity : ComponentActivity() {
                     pendingMemoryPanel = panel; narrator.interrupt()
                     requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode)
                 },
-                beforeRecording = { if (tabTour == "memory-voice") closeGuide(); narrator.interrupt(); speaker.stop(); replyPreview?.stop() }) else null,
+                beforeRecording = { if (tabTour == "memory-voice" || tabTour == "memory-listening") closeGuide(); narrator.interrupt(); speaker.stop(); replyPreview?.stop() }) else null,
             listen = if (large) ({ parent, answer ->
                 ui.gap(parent, 12)
                 parent.addView(ReplyAudioButton(this, ui, answer, api, speaker, summaries, true,
                     playLabel = "답변 듣기", stopLabel = "듣기 중지", primary = true,
-                    onPlay = { if (tabTour == "memory-listen") tourCue("memory-voice", memoryPanel?.findViewWithTag("memory-voice-start"), TutorialLine.ELDER_MEMORY) }).also {
+                    onPlay = { if (tabTour == "memory-listen") { tabTour = "memory-listening"; clearCue() } },
+                    onFinished = { if (tabTour == "memory-listening") tourCue("memory-voice", memoryPanel?.findViewWithTag("memory-voice-start"), TutorialLine.ELDER_MEMORY) }).also {
                         replyPreview = it
                         if (tabTour == "memory-example") tourCue("memory-listen", it, TutorialLine.ELDER_MEMORY_LISTEN)
                     })
@@ -2475,10 +2482,10 @@ class MainActivity : ComponentActivity() {
             // Listening moves on from replying: close any reply area left open in the feed.
             feedCards.filter { it.replyOpen }.forEach { it.hideReply() }
             if (guideStep == GuideStep.LISTEN && screen == "home" && post.optInt("id") == guidePostId) {
+                // Point at 댓글 달기 only after the summary has been read (see playbackChanged).
                 guideStep = GuideStep.LISTEN_COMMENT
-                feedCards.firstOrNull { it.post.optInt("id") == guidePostId }?.replyAction?.let {
-                    showCue(it, TutorialLine.ELDER_LISTEN_COMMENT, reveal = true)
-                }
+                listenCueWaiting = true
+                clearCue()
             }
         },
         login = {
@@ -2488,6 +2495,14 @@ class MainActivity : ComponentActivity() {
             login(username, userId, big)
         },
         playbackChanged = { updateAssistantContext() },
+        finished = {
+            if (listenCueWaiting && guideStep == GuideStep.LISTEN_COMMENT && screen == "home" && post.optInt("id") == guidePostId) {
+                listenCueWaiting = false
+                feedCards.firstOrNull { it.post.optInt("id") == guidePostId }?.replyAction?.let {
+                    showCue(it, TutorialLine.ELDER_LISTEN_COMMENT, reveal = true)
+                }
+            }
+        },
         ask = if (large) ({ if (!busy) {
             // Elderly guide: asking is the last step before writing, shown once the question window closes.
             if (guideStep == GuideStep.ASK && guidePostId == post.optInt("id")) {

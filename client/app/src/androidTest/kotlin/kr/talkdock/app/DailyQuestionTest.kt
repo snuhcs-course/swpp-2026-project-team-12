@@ -34,7 +34,7 @@ class DailyQuestionTest {
         (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
 
     private fun awaitUi(condition: () -> Boolean) {
-        val end = SystemClock.uptimeMillis() + 8000
+        val end = SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
         while (SystemClock.uptimeMillis() < end) {
             var ready = false
             test.runOnMainSync { ready = condition() }

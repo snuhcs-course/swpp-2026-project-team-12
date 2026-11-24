@@ -33,6 +33,8 @@ class InlinePostAudio(
     private val askShown: ((View) -> Unit)? = null,
     /** Elderly mode: a closing line spoken after the post, never shown as text. */
     private val speechClosing: String? = null,
+    /** Reading ended for the listener: heard to the end, stopped, or failed (not the brief stop between summary and speech). */
+    private val finished: () -> Unit = {},
 ) : LinearLayout(activity) {
     val toggle = ui.row().apply {
         gravity = Gravity.CENTER
@@ -74,7 +76,7 @@ class InlinePostAudio(
 
     fun togglePlayback() {
         if (needsLogin) login()
-        else if (active) stop()
+        else if (active) { stop(); finished() }
         else if (summaryLoading) {
             activate(this)
             speaker.stop()
@@ -110,7 +112,7 @@ class InlinePostAudio(
         if (captionFallback && summaryText == null)
             ui.label(this, "요약 대신 가족이 쓴 글을 읽어 드려요.", 18f, color = ui.muted).tag = "post-audio-caption-fallback"
         if (active) {
-            ui.button(this, if (summaryLoading || speechLoading) "취소" else "■ 듣기 중지", false, height()) { stop() }.apply {
+            ui.button(this, if (summaryLoading || speechLoading) "취소" else "■ 듣기 중지", false, height()) { stop(); finished() }.apply {
                 tag = "post-audio-stop"
                 contentDescription = if (summaryLoading || speechLoading) "음성 준비 취소" else "듣기 중지"
             }
@@ -213,11 +215,12 @@ class InlinePostAudio(
                         val processing = data.optString("status") == "processing"
                         status = if (processing) "" else "설명을 준비하지 못했어요. 다시 시도해 주세요."
                         summaryRetry = !processing
-                        if (!readCaptionInstead()) render()
+                        if (!readCaptionInstead()) { render(); finished() }
                     }
                 }, { error ->
-                    fail(error, summary = true)
-                    if (!needsLogin) readCaptionInstead()
+                    // Reading the caption instead continues the listening; only then is nothing finished yet.
+                    fail(error, summary = true, notify = false)
+                    if (needsLogin || !readCaptionInstead()) finished()
                 })
             }
         }
@@ -258,7 +261,7 @@ class InlinePostAudio(
                     status = ""
                     render()
                     speaker.play(file, completed = {
-                        if (current(request)) { active = false; status = ""; render() }
+                        if (current(request)) { active = false; status = ""; render(); finished() }
                     }, failed = { message ->
                         if (current(request)) fail(Exception(message), speech = text)
                     })
@@ -267,7 +270,7 @@ class InlinePostAudio(
         }
     }
 
-    private fun fail(error: Throwable, summary: Boolean = false, speech: String? = null) {
+    private fun fail(error: Throwable, summary: Boolean = false, speech: String? = null, notify: Boolean = true) {
         active = false
         summaryLoading = false
         speechLoading = false
@@ -278,6 +281,7 @@ class InlinePostAudio(
         summaryRetry = if (needsLogin) null else if (summary) true else summaryRetry
         speechRetry = if (!needsLogin) speech else null
         render()
+        if (notify) finished()
     }
 
     override fun onDetachedFromWindow() {

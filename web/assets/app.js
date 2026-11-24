@@ -123,6 +123,9 @@ let toastTimer, observer, audio, audioURL, recorder, recordingStream, recordingT
 let recordingRequest = 0;
 let elderRecording = false;
 let audioGeneration = 0;
+// Elderly tab tour: the next step waits until the playback it started has ended, been stopped or failed.
+let afterAudio = null;
+function whenAudioEnds(fn) { afterAudio = { generation: 0, fn }; }
 function updatePostViewport() {
   const viewport = window.visualViewport;
   document.documentElement.style.setProperty('--post-viewport-height', `${viewport?.height || innerHeight}px`);
@@ -236,6 +239,8 @@ function showFieldError(form, error) {
   return true;
 }
 function stopAudio() {
+  const ending = afterAudio?.generation && afterAudio.generation === audioGeneration ? afterAudio.fn : null;
+  if (ending) afterAudio = null;
   audioGeneration++;
   voicePreview?.cancel();
   if (audio) { audio.pause(); audio = null; }
@@ -243,6 +248,7 @@ function stopAudio() {
   document.querySelectorAll('.feed-audio-summary[data-preparing]').forEach(node => { node.hidden = true; });
   document.querySelectorAll('[data-action="stop-audio"]').forEach(node => { node.hidden = true; });
   document.querySelectorAll('[data-action="feed-stop-listen"]').forEach(node => { node.dataset.action = 'feed-listen'; node.innerHTML = icon('volume') + feedListenLabel(); node.setAttribute('aria-label','소식 듣기'); });
+  ending?.();
 }
 function updateBusyIndicator() {
   const active = [...pendingOperations].some(operation =>
@@ -831,6 +837,7 @@ function spokenPost(text, post) { return elder ? withReplyPrompt(text, replyProm
 async function playSpeech(text, target, valid = () => true, generation = null) {
   if (!text) throw new ApiError('먼저 요약을 불러와 주세요.');
   if (generation === null) { stopAudio(); generation = audioGeneration; }
+  if (afterAudio && !afterAudio.generation) afterAudio.generation = generation;
   const current = () => generation === audioGeneration && valid();
   if (!current()) return;
   audioControl(target);
@@ -1402,11 +1409,11 @@ document.addEventListener('click', async event => {
   // Elderly tab tour: pressing the pointed-at button moves on to the next step.
   if (tabTour) {
     if (action === 'tab-hint-close') { endTabTour(); return; }
-    if (action === 'digest-audio' && tabTour === 'day-listen') tourStep('day-previous');
-    else if (action === 'elder-day-step' && tabTour === 'day-previous') endTabTour();
+    if (action === 'digest-audio' && tabTour === 'day-listen') { tabTour = 'day-listening'; pointAt(null); whenAudioEnds(() => { if (tabTour === 'day-listening') tourStep('day-previous'); }); }
+    else if (action === 'elder-day-step' && (tabTour === 'day-previous' || tabTour === 'day-listening')) endTabTour();
     else if (action === 'memory-example' && tabTour === 'memory-example') { tabTour = 'memory-listen'; $('#page .tab-hint p').textContent = TAB_TOUR['memory-listen'][0]; pointAt(null); }
-    else if (action === 'memory-audio' && tabTour === 'memory-listen') tourStep('memory-voice');
-    else if (action === 'memory-voice' && tabTour === 'memory-voice') endTabTour();
+    else if (action === 'memory-audio' && tabTour === 'memory-listen') { tabTour = 'memory-listening'; pointAt(null); whenAudioEnds(() => { if (tabTour === 'memory-listening') tourStep('memory-voice'); }); }
+    else if (action === 'memory-voice' && (tabTour === 'memory-voice' || tabTour === 'memory-listening')) endTabTour();
   }
   if (action === 'screen-standard' || action === 'screen-elder') {
     preferredModes.set(state.user.user_id, writeMode(localStorage, state.user.user_id, action === 'screen-elder' ? 'elder' : 'standard'));

@@ -34,6 +34,12 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Opt-in checks (live memory demo, phone notification preview) skip themselves unless asked for;
+        // leave them out of the default run entirely. Passing their opt-in argument includes them again.
+        val optIn = listOf("liveMemoryDemo", "phonePreview")
+            .any { providers.gradleProperty("android.testInstrumentationRunnerArguments.$it").orNull == "true" }
+        if (!optIn) testInstrumentationRunnerArguments["notClass"] =
+            "kr.talkdock.app.MemoryDemoLiveTest,kr.talkdock.app.PhoneNotificationPreviewTest"
         val apiUrl = providers.gradleProperty("talkDockApiUrl").getOrElse("http://10.0.2.2:8000/api/")
         buildConfigField("String", "API_URL", "\"" + apiUrl + "\"")
         manifestPlaceholders["cleartextAllowed"] = "false"

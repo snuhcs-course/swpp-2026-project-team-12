@@ -180,7 +180,7 @@ class LocalDraftsTest {
 }
 
 /** What was on screen when a wait failed, so a failure says why. */
-internal fun UiHarness.awaitOrDescribe(timeout: Long = 10000, condition: () -> Boolean) {
+internal fun UiHarness.awaitOrDescribe(timeout: Long = TestTiming.UI_TIMEOUT_MS, condition: () -> Boolean) {
     try { await(timeout, condition) } catch (failure: AssertionError) {
         var state = ""
         test.runOnMainSync {

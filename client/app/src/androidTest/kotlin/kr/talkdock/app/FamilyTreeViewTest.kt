@@ -27,7 +27,7 @@ class FamilyTreeViewTest {
     private fun nodes(root: AccessibilityNodeInfo?): List<AccessibilityNodeInfo> =
         if (root == null) emptyList() else listOf(root) + (0 until root.childCount).flatMap { nodes(root.getChild(it)) }
     private fun waitNode(predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {
-        val until = SystemClock.uptimeMillis() + 8000
+        val until = SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
         do {
             nodes(automation.rootInActiveWindow).firstOrNull { it.isVisibleToUser && predicate(it) }?.let { return it }
             SystemClock.sleep(100)

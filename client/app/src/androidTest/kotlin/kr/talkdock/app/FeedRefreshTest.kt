@@ -32,7 +32,7 @@ class FeedRefreshTest {
         if (view is ViewGroup) (0 until view.childCount).flatMap { views(view.getChildAt(it)) } else emptyList()
 
     private fun awaitUi(condition: () -> Boolean) {
-        val deadline = SystemClock.uptimeMillis() + 5000
+        val deadline = SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
         while (SystemClock.uptimeMillis() < deadline) {
             var ready = false
             test.runOnMainSync { ready = condition() }
