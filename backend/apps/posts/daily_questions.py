@@ -66,8 +66,8 @@ def definition(day):
     return title, kind, options
 
 
-def ensure_today(room):
-    day = timezone.localdate()
+def ensure_today(room, day=None):
+    day = day or timezone.localdate()
     query = DailyQuestion.objects.select_related("post", "room").filter(room=room, date=day)
     for attempt in range(6):
         try:
@@ -203,7 +203,8 @@ def answer(request, pk):
             not isinstance(grade, str) or grade not in GRADES for grade in tiers.values()
         ):
             raise APIError("모든 항목의 등급을 골라 주세요.")
-    QuestionAnswer.objects.update_or_create(question=question, author=request.user, defaults={
-        "choice": choice, "other_text": other_text, "text": text, "tiers": tiers, "source": source,
-    })
+    with transaction.atomic():
+        QuestionAnswer.objects.update_or_create(question=question, author=request.user, defaults={
+            "choice": choice, "other_text": other_text, "text": text, "tiers": tiers, "source": source,
+        })
     return serialize_question(question, request)

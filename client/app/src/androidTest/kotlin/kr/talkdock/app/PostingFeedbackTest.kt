@@ -1,127 +1,111 @@
-@file:Suppress("DEPRECATION")
-
 package kr.talkdock.app
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.view.View
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.view.ViewGroup
-import android.animation.ValueAnimator
+import android.widget.EditText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import kr.talkdock.app.ui.TodakArtView
-import kr.talkdock.app.ui.TodakJoyView
+import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.FeedPostCard
 import kr.talkdock.app.ui.TodakWaitingView
-import kr.talkdock.app.ui.TodakSuccessView
+import org.json.JSONArray
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit.SECONDS
 
-/** Checks local posting feedback without sending anything to a deployed server. */
 @RunWith(AndroidJUnit4::class)
 class PostingFeedbackTest {
-    @Test fun successShowsJoyAndMessageWithoutWaitingSpinnerOrOverlappingText() {
-        val test = InstrumentationRegistry.getInstrumentation()
-        test.runOnMainSync {
-            val context = test.targetContext
-            val ordinary = TodakWaitingView(context, "불러오고 있어요.")
-            val success = TodakSuccessView(context, "글 업로드가 완료됐어요") {}
-            assertTrue(ordinary.getChildAt(0) is TodakArtView)
-            val width = (360 * context.resources.displayMetrics.density).toInt()
-            val height = (640 * context.resources.displayMetrics.density).toInt()
-            success.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
-                View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY))
-            success.layout(0, 0, width, height)
-            val children = (0 until success.childCount).map { success.getChildAt(it) }
-            val character = children.filterIsInstance<TodakJoyView>().single()
-            val message = children.filterIsInstance<TextView>().single()
-            assertEquals("글 업로드가 완료됐어요", message.text.toString())
-            assertTrue(children.none { it is ProgressBar })
-            assertTrue("The success text must sit below the character", character.bottom < message.top)
-            assertTrue("The success message must fit on screen", message.bottom <= height)
-            val preview = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            try {
-                success.draw(Canvas(preview))
-                java.io.File(context.cacheDir, "posting-success-preview.png").outputStream().use {
-                    preview.compress(Bitmap.CompressFormat.PNG, 100, it)
-                }
-            } finally { preview.recycle() }
-        }
+    private val family = room(1, "우리 가족")
+    private val caption = "봄 햇살 아래 가족과 산책했어요."
+    private val comment = "사진 보니 같이 걷고 싶네요!"
+
+    private fun news(comments: JSONArray = JSONArray()) = JSONObject()
+        .put("id", 1).put("author_id", 999).put("author_name", "지우").put("relationship", "나")
+        .put("caption", caption).put("created_at", "2026-10-19T10:00:00+09:00")
+        .put("images", JSONArray()).put("comments", comments).put("comment_count", comments.length())
+
+    private fun feed(post: JSONObject) = jsonReply(JSONObject().put("posts", JSONArray().put(post)))
+
+    private fun UiHarness.press(tag: String) = test.runOnMainSync {
+        assertTrue(all().single { it.tag == tag }.performClick())
     }
 
-    @Test fun boySuccessMovesAndStopsWhenRemoved() {
-        org.junit.Assume.assumeTrue(ValueAnimator.areAnimatorsEnabled())
-        MockApi { request -> if (request.path == "/api/families/current/")
-            jsonReply(room(1, "완료 화면 테스트")) else emptyFeed()
-        }.use { api -> UiHarness(api, room(1, "완료 화면 테스트")).use { ui ->
-            ui.await { ui.has("첫 소식을 기다리고 있어요") }
-            lateinit var host: ViewGroup
-            fun frame(): Bitmap {
-                val image = Bitmap.createBitmap(host.width, host.height, Bitmap.Config.ARGB_8888)
-                host.draw(Canvas(image))
-                return image
-            }
-            fun moving(boy: TodakJoyView) = kotlin.math.abs(boy.translationY) > .5f || kotlin.math.abs(boy.rotation) > .1f
-            // A clearly lifted or tilted pose (the animation peaks at 10 dp and 3 degrees), so the frame differs visibly.
-            val lift = 2f * ui.activity.resources.displayMetrics.density
-            fun posed(boy: TodakJoyView) = kotlin.math.abs(boy.translationY) > lift || kotlin.math.abs(boy.rotation) > 1f
-            // The celebration is one 1.8 s animation that starts and ends at rest. A slow software-rendered
-            // emulator can finish it before a fixed sleep wakes up, so poll its state on the main thread and
-            // draw the frame in the same main-thread turn the state was read in.
-            fun <T : Any> awaitOnMain(timeoutMs: Long, read: () -> T?): T? {
-                val deadline = System.currentTimeMillis() + timeoutMs
-                while (System.currentTimeMillis() < deadline) {
-                    var value: T? = null
-                    ui.test.runOnMainSync { value = read() }
-                    value?.let { return it }
-                    Thread.sleep(16)
-                }
-                return null
-            }
-            fun show(): Pair<TodakSuccessView, TodakJoyView> {
-                lateinit var shown: Pair<TodakSuccessView, TodakJoyView>
-                ui.test.runOnMainSync {
-                    host = ui.activity.findViewById(android.R.id.content)
-                    val success = TodakSuccessView(ui.activity, "댓글을 달았어요!") {}
-                    host.addView(success, ViewGroup.LayoutParams(-1, -1))
-                    shown = success to (0 until success.childCount).map { success.getChildAt(it) }
-                        .filterIsInstance<TodakJoyView>().single()
-                }
-                return shown
-            }
+    private fun UiHarness.assertUnblocked() = test.runOnMainSync {
+        assertTrue(all().any { it.tag == "posting-status" && it.isShown })
+        assertTrue(all().none { it is TodakWaitingView })
+    }
 
-            val (success, boy) = show()
-            var celebrating: Bitmap? = null
-            var resting: Bitmap? = null
-            try {
-                // The animation cannot end before its first frame, so a long wait here only absorbs a slow start.
-                celebrating = awaitOnMain(5000) { if (posed(boy)) frame() else null }
-                assertNotNull("The new boy must start moving on success", celebrating)
-                ui.screenshot("boy-posting-success.png")
-                resting = awaitOnMain(5000) { if (!moving(boy)) frame() else null }
-                assertNotNull("The success motion must settle back to rest", resting)
-                assertFalse("The new boy must visibly move on success", resting!!.sameAs(celebrating))
-            } finally {
-                celebrating?.recycle(); resting?.recycle()
-                ui.test.runOnMainSync { host.removeView(success) }
+    @Test fun postingLeavesTheComposerImmediatelyAndPreservesTheNextDraft() {
+        val uploaded = CountDownLatch(1)
+        var saved = false
+        MockApi { request -> when {
+            request.path == "/api/families/current/" -> jsonReply(family)
+            request.path == "/api/posts/" && request.method == "POST" -> {
+                uploaded.await(12, SECONDS)
+                saved = true
+                jsonReply(news(), 201)
             }
-
-            // Removing the view mid-celebration must stop the motion and reset the pose.
-            val (again, nextBoy) = show()
+            request.path == "/api/posts/" && saved -> feed(news())
+            else -> emptyFeed()
+        } }.use { api -> UiHarness(api, family, tutorialSeen = true).use { ui ->
             try {
-                assertNotNull("The new boy must move again when shown again",
-                    awaitOnMain(5000) { if (posed(nextBoy)) true else null })
+                ui.await { ui.has("첫 소식을 기다리고 있어요") }
+                ui.press("home-compose")
+                ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText(caption) }
+                ui.click("가족에게 전하기")
+                ui.await { ui.has("게시 확인 중") && ui.has("첫 소식을 기다리고 있어요") }
+                ui.assertUnblocked()
+                ui.press("home-compose")
+                ui.await { ui.has("가족에게 전하기") && ui.has("게시 확인 중") }
+                val draft = "업로드 중에도 쓸 수 있는 다음 소식"
+                ui.test.runOnMainSync { ui.all().filterIsInstance<EditText>().single().setText(draft) }
+                uploaded.countDown()
+                ui.await { ui.all().none { it.tag == "posting-status" && it.isShown } }
                 ui.test.runOnMainSync {
-                    host.removeView(again)
-                    assertFalse(nextBoy.isAttachedToWindow)
-                    assertEquals(0f, nextBoy.translationY, .001f)
-                    assertEquals(0f, nextBoy.rotation, .001f)
+                    assertEquals(draft, ui.all().filterIsInstance<EditText>().single().text.toString())
+                    ui.all().filterIsInstance<EditText>().single().setText("")
+                    ui.activity.onBackPressedDispatcher.onBackPressed()
                 }
-            } finally {
-                ui.test.runOnMainSync { host.removeView(again) }
+                ui.await { ui.all().any { it is FeedPostCard && it.post.optString("caption") == caption } }
+                assertEquals(1, api.requests.count { it.method == "POST" && it.path == "/api/posts/" })
+            } finally { uploaded.countDown() }
+        } }
+    }
+
+    @Test fun commentKeepsSendingAfterLeavingItsDetail() {
+        val sent = CountDownLatch(1)
+        val comments = JSONArray()
+        MockApi { request -> when (request.path) {
+            "/api/families/current/" -> jsonReply(family)
+            "/api/posts/" -> feed(news(comments))
+            "/api/posts/1/" -> jsonReply(news(comments))
+            "/api/posts/1/comments/" -> {
+                sent.await(12, SECONDS)
+                comments.put(JSONObject().put("id", 1).put("author_name", "지우").put("relationship", "나")
+                    .put("text", JSONObject(request.body).getString("text")))
+                jsonReply(JSONObject().put("id", 1), 201)
             }
+            else -> emptyFeed()
+        } }.use { api -> UiHarness(api, family, tutorialSeen = true).use { ui ->
+            try {
+                ui.openCurrentPost()
+                ui.test.runOnMainSync {
+                    val composer = ui.all().filterIsInstance<CommentComposer>().single()
+                    composer.input.setText(comment)
+                    composer.sendButton.performClick()
+                }
+                ui.await { ui.has("댓글 전송 중") }
+                ui.assertUnblocked()
+                ui.press("guide-back")
+                ui.await { ui.has("댓글 전송 중") && ui.all().any { it is FeedPostCard } }
+                sent.countDown()
+                ui.await { ui.all().any { it.contentDescription == "댓글 1" } &&
+                    ui.all().none { it.tag == "posting-status" && it.isShown } }
+                ui.openCurrentPost()
+                ui.await { ui.has("댓글 1") && ui.has(comment) }
+                assertEquals(1, api.paths().count { it == "/api/posts/1/comments/" })
+            } finally { sent.countDown() }
         } }
     }
 }

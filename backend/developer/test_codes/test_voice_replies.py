@@ -95,6 +95,29 @@ class VoiceReplyAPITests(TestCase):
             **self.auth(token or self.grandma_token),
         )
 
+    def test_post_draft_transcription_requires_room_and_does_not_publish(self):
+        path = "/api/speech/transcribe/"
+        self.assertEqual(self.client.post(path, {"audio": wave_audio()}).status_code, 401)
+        with patch.object(speech_provider, "transcribe", return_value="오늘 공원에서 산책했어요") as stt:
+            headers = self.auth(self.grandma_token)
+            response = self.client.post(path, {"audio": wave_audio()}, **headers)
+            self.assertEqual(response.json(), {"recognized": "오늘 공원에서 산책했어요"})
+            stt.assert_called_once()
+            headers["HTTP_X_FAMILY_ROOM"] = str(FamilyRoom.objects.get(owner=self.outsider).pk)
+            self.assertEqual(self.client.post(path, {"audio": wave_audio()}, **headers).status_code, 403)
+        self.assertEqual(Post.objects.count(), 1)
+        self.assertFalse(Comment.objects.exists())
+        self.assertFalse(VoiceDraft.objects.exists())
+
+    def test_post_draft_transcription_validates_audio_and_reports_retryable_errors(self):
+        path = "/api/speech/transcribe/"
+        self.assertEqual(self.client.post(path, {}, **self.auth(self.grandma_token)).status_code, 400)
+        invalid = SimpleUploadedFile("bad.wav", b"not audio", content_type="audio/wav")
+        self.assertEqual(self.client.post(path, {"audio": invalid}, **self.auth(self.grandma_token)).status_code, 400)
+        for error, status in ((speech_provider.NoSpeech("silent"), 400), (speech_provider.SpeechUnavailable("offline"), 503)):
+            with patch.object(speech_provider, "transcribe", side_effect=error):
+                self.assertEqual(self.client.post(path, {"audio": wave_audio()}, **self.auth(self.grandma_token)).status_code, status)
+
     def test_stt_review_and_send_creates_one_comment(self):
         transcribe_path = f"/api/posts/{self.post.pk}/replies/transcribe/"
         with patch.object(speech_provider, "transcribe", return_value="정아 고생했다고 전해줘"):

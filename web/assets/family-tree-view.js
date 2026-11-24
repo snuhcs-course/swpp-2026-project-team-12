@@ -1,100 +1,86 @@
 const escape = value => String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
 const relations = { father: '아버지', mother: '어머니', parent: '부모', spouse: '배우자', child: '자녀' };
 
-// Match Android FamilyTreeLayout: co-parents share a block, with one row per generation.
+// One contextual set of actions; empty relatives are never drawn around every person.
+export function familyTreeActions(draft, anchorId = draft.focusedId || draft.ownerId) {
+  const result = [];
+  const parents = draft.parents.filter(link => link.child_id === anchorId)
+    .map(link => draft.people.find(person => person.id === link.parent_id));
+  if (parents.length < 2) {
+    for (const [relation, gender] of [['father', 'male'], ['mother', 'female']]) {
+      if (!parents.some(person => person.gender === gender)) result.push({ anchor_id: anchorId, relation });
+    }
+  }
+  if (!draft.partnerships.some(pair => pair.first_id === anchorId || pair.second_id === anchorId)) {
+    result.push({ anchor_id: anchorId, relation: 'spouse' });
+  }
+  const childrenOf = id => draft.parents.filter(link => link.parent_id === id).length;
+  if (childrenOf(anchorId) < 10) {
+    const others = draft.coParentsOf(anchorId);
+    if (!others.length) result.push({ anchor_id: anchorId, relation: 'child' });
+    else others.filter(id => childrenOf(id) < 10).forEach(id => result.push({ anchor_id: anchorId, relation: 'child', co_parent_id: id }));
+  }
+  return result;
+}
+
+// Append-only grid slots match Android. New relatives do not reflow earlier people.
 export function familyTreeDrawing(draft, editable = false) {
-  const nodes = draft.people.map(person => ({ ...person }));
+  const nodes = [draft.people.find(person => person.id === draft.ownerId), ...draft.people.filter(person => person.id !== draft.ownerId)]
+    .filter(Boolean).map(person => ({ ...person }));
   const parents = draft.parents.map(link => ({ ...link }));
   const pairs = draft.partnerships.map(link => ({ ...link }));
-  const parentsOf = id => draft.parents.filter(link => link.child_id === id).map(link => link.parent_id);
-  const marker = (id, generation, gender, action) => {
-    nodes.push({ id, generation, gender, action });
-    return id;
-  };
-  if (editable) {
-    const childGroups = new Set();
-    draft.people.forEach(person => {
-      const existing = parentsOf(person.id);
-      const gender = draft.people.find(node => node.id === existing[0])?.gender;
-      const missing = !existing.length ? ['father', 'mother'] : existing.length === 1 ?
-        [gender === 'male' ? 'mother' : gender === 'female' ? 'father' : 'parent'] : [];
-      missing.forEach(relation => {
-        const id = marker(`+${person.id}:${relation}`, person.generation + 1,
-          relation === 'father' ? 'male' : relation === 'mother' ? 'female' : 'unknown', { anchor_id: person.id, relation });
-        parents.push({ parent_id: id, child_id: person.id });
-      });
-      const coParents = draft.coParentsOf(person.id);
-      const missingCoParent = draft.parents.some(link => link.parent_id === person.id && parentsOf(link.child_id).length === 1);
-      if (!coParents.length && !missingCoParent) {
-        const id = marker(`+${person.id}:spouse`, person.generation, 'unknown', { anchor_id: person.id, relation: 'spouse' });
-        pairs.push({ first_id: person.id, second_id: id });
-      }
-      (coParents.length ? coParents : [null]).forEach(other => {
-        const key = [person.id, other].filter(Boolean).sort().join(':');
-        if (childGroups.has(key)) return;
-        childGroups.add(key);
-        const id = marker(`+child:${key}`, person.generation - 1, 'unknown',
-          { anchor_id: person.id, relation: 'child', ...(other ? { co_parent_id: other } : {}) });
-        parents.push({ parent_id: person.id, child_id: id });
-        if (other) parents.push({ parent_id: other, child_id: id });
-      });
-    });
+  const raw = new Map(), occupied = new Map();
+  for (const node of nodes) {
+    const partners = pairs.flatMap(pair => pair.first_id === node.id ? [raw.get(pair.second_id)] : pair.second_id === node.id ? [raw.get(pair.first_id)] : []).filter(Boolean);
+    const parentPoints = parents.filter(link => link.child_id === node.id).map(link => raw.get(link.parent_id)).filter(Boolean);
+    const childPoints = parents.filter(link => link.parent_id === node.id).map(link => raw.get(link.child_id)).filter(Boolean);
+    const relatives = parentPoints.length ? parentPoints : childPoints;
+    const desired = Math.floor((partners.length ? partners[0].x + 1 : relatives.length ? relatives.reduce((sum, point) => sum + point.x, 0) / relatives.length : 0));
+    if (!occupied.has(node.generation)) occupied.set(node.generation, new Set());
+    const row = occupied.get(node.generation);
+    let column = desired, distance = 0;
+    while (row.has(column)) { distance++; column = desired + (distance % 2 ? (distance + 1) / 2 : -distance / 2); }
+    row.add(column); raw.set(node.id, { x: column, y: -node.generation });
   }
-  const byId = new Map(nodes.map(node => [node.id, node]));
-  const groups = new Map(nodes.map(node => [node.id, node.id]));
-  const root = id => { while (groups.get(id) !== id) id = groups.get(id); return id; };
-  const union = (a, b) => {
-    if (byId.has(a) && byId.has(b) && byId.get(a).generation === byId.get(b).generation) groups.set(root(b), root(a));
-  };
-  pairs.forEach(pair => union(pair.first_id, pair.second_id));
-  const children = new Map();
-  parents.forEach(link => { if (!children.has(link.child_id)) children.set(link.child_id, []); children.get(link.child_id).push(link.parent_id); });
-  children.forEach(ids => ids.slice(1).forEach(id => union(ids[0], id)));
-  const blocks = new Map();
-  nodes.forEach(node => { const key = root(node.id); if (!blocks.has(key)) blocks.set(key, []); blocks.get(key).push(node); });
-  blocks.forEach(block => block.sort((a, b) => ({ male: 0, unknown: 1, female: 2 }[a.gender] ?? 1) - ({ male: 0, unknown: 1, female: 2 }[b.gender] ?? 1)));
-  const generations = [...new Set(nodes.map(node => node.generation))].sort((a, b) => b - a);
-  const rows = generations.map(generation => [...blocks.keys()].filter(key => byId.get(key).generation === generation));
-  const neighbors = new Map(nodes.map(node => [node.id, []]));
-  parents.forEach(link => { neighbors.get(link.parent_id)?.push(link.child_id); neighbors.get(link.child_id)?.push(link.parent_id); });
-  const x = new Map();
-  const place = keys => {
-    const desired = new Map(keys.map(key => {
-      const values = blocks.get(key).flatMap(node => neighbors.get(node.id)).filter(id => x.has(id)).map(id => x.get(id));
-      return [key, values.length ? values.reduce((a, b) => a + b, 0) / values.length : [...blocks.keys()].indexOf(key) * 170];
-    }));
-    const ordered = [...keys].sort((a, b) => desired.get(a) - desired.get(b));
-    const centers = new Map();
-    let right = -Infinity;
-    ordered.forEach(key => { const half = blocks.get(key).length * 66; const center = Math.max(desired.get(key), right + 36 + half); centers.set(key, center); right = center + half; });
-    const shift = ordered.reduce((sum, key) => sum + centers.get(key) - desired.get(key), 0) / (ordered.length || 1);
-    ordered.forEach(key => blocks.get(key).forEach((node, index, block) => x.set(node.id, centers.get(key) - shift + (index - (block.length - 1) / 2) * 132)));
-  };
-  rows.forEach(place);
-  for (let i = 0; i < 4; i++) { [...rows].reverse().forEach(place); rows.forEach(place); }
-  const minX = x.size ? Math.min(...x.values()) : 0;
-  const points = new Map(nodes.map(node => [node.id, { x: x.get(node.id) - minX + 72, y: (generations[0] - node.generation) * 205 + 76 }]));
-  return { nodes, parents, pairs, points, width: Math.max(248, ...[...points.values()].map(point => point.x + 72)), height: Math.max(260, ...[...points.values()].map(point => point.y + 90)) };
+  const minX = Math.min(0, ...[...raw.values()].map(point => point.x));
+  const minY = Math.min(0, ...[...raw.values()].map(point => point.y));
+  const points = new Map([...raw].map(([id, point]) => [id, { x: (point.x - minX) * 144 + 72, y: (point.y - minY) * 205 + 76 }]));
+  return { nodes, parents, pairs, points,
+    width: Math.max(320, ...[...points.values()].map(point => point.x + 72)),
+    height: Math.max(300, ...[...points.values()].map(point => point.y + 90)) };
+}
+
+export function familyTreeConnection(drawing, first, second) {
+  const a = drawing.points.get(first), b = drawing.points.get(second);
+  const obstructed = [...drawing.points].some(([id, point]) => id !== first && id !== second &&
+    point.y === a.y && point.x > Math.min(a.x, b.x) && point.x < Math.max(a.x, b.x));
+  if (!obstructed) return [a, b];
+  // Route below the cards (bottom +65), within the gap before the next row (top +154).
+  const corridor = Math.max(a.y, b.y) + 84;
+  return [a, { x: a.x, y: corridor }, { x: b.x, y: corridor }, b];
 }
 
 export function treeMarkup(draft, { editable = false, gender, userId, members = [] } = {}) {
   const drawing = familyTreeDrawing(draft, editable);
-  const line = (a, b, cls = '') => `<path class="${cls}" d="M${a.x},${a.y} L${b.x},${b.y}"/>`;
-  let edges = drawing.pairs.map(pair => line(drawing.points.get(pair.first_id), drawing.points.get(pair.second_id), 'tree-spouse-line')).join('');
+  const route = (points, cls = '') => `<path class="${cls}" d="${points.map((point, index) => `${index ? 'L' : 'M'}${point.x},${point.y}`).join(' ')}"/>`;
+  let edges = drawing.pairs.map(pair => route(familyTreeConnection(drawing, pair.first_id, pair.second_id), 'tree-spouse-line')).join('');
   const grouped = new Map();
-  drawing.parents.forEach(link => { if (!grouped.has(link.child_id)) grouped.set(link.child_id, []); grouped.get(link.child_id).push(drawing.points.get(link.parent_id)); });
-  grouped.forEach((parents, child) => {
+  drawing.parents.forEach(link => { if (!grouped.has(link.child_id)) grouped.set(link.child_id, []); grouped.get(link.child_id).push(link.parent_id); });
+  grouped.forEach((ids, child) => {
+    const parents = ids.map(id => drawing.points.get(id));
     const childPoint = drawing.points.get(child);
     const center = parents.reduce((sum, point) => sum + point.x, 0) / parents.length;
-    const junction = (parents[0].y + childPoint.y) / 2;
-    edges += line({ x: Math.min(...parents.map(p => p.x)), y: parents[0].y }, { x: Math.max(...parents.map(p => p.x)), y: parents[0].y });
-    edges += `<path d="M${center},${parents[0].y} V${junction} H${childPoint.x} V${childPoint.y}"/>`;
+    const connection = familyTreeConnection(drawing, ids[0], ids.at(-1));
+    const parentY = Math.max(...connection.map(point => point.y));
+    const junction = (parentY + childPoint.y) / 2;
+    edges += route(connection);
+    edges += `<path d="M${center},${parentY} V${junction} H${childPoint.x} V${childPoint.y}"/>`;
   });
   const cards = drawing.nodes.map((node, index) => {
     const point = drawing.points.get(node.id);
     const mine = node.user_id != null && node.user_id === userId;
     const selected = draft.selectedId === node.id;
-    const claimable = editable && draft.canClaim(node.id, gender);
+    const claimable = editable;
     const name = node.action ? '+' : node.name || (selected ? '내 자리' : '빈자리');
     const member = members.find(member => member.person_id === node.id);
     const anchor = node.action && draft.people.find(person => person.id === node.action.anchor_id);
@@ -102,15 +88,27 @@ export function treeMarkup(draft, { editable = false, gender, userId, members = 
     const label = node.action ? `${anchor.name || '빈자리'}의 ${relations[node.action.relation]} 추가` : `${name} · ${status}${node.is_owner ? ' · 방장' : ''}`;
     return `<foreignObject x="${point.x - 56}" y="${point.y - 51}" width="112" height="116"><button xmlns="http://www.w3.org/1999/xhtml" type="button" class="tree-node ${node.gender} ${node.action ? 'tree-add-node' : ''} ${selected ? 'selected' : ''} ${mine ? 'mine' : ''}" data-tree-index="${index}" aria-label="${escape(label)}" title="${escape(label)}" ${editable && !node.action ? `aria-pressed="${selected}"` : ''} ${!node.action && !claimable ? 'disabled' : ''}><span class="tree-node-face">${escape(node.action ? '+' : [...name][0])}</span><strong>${escape(node.action ? relations[node.action.relation] : name)}</strong><small>${escape(status)}${node.is_owner ? ' · 방장' : ''}</small></button></foreignObject>`;
   }).join('');
-  return `<section class="family-tree-board" aria-label="${editable ? '내 자리를 선택하는 가계도' : '우리 가족 가계도'}"><div class="tree-toolbar"><span>가계도</span><div><button type="button" data-tree-zoom="out" aria-label="가계도 축소">−</button><button type="button" data-tree-zoom="in" aria-label="가계도 확대">+</button><button type="button" data-tree-zoom="fit">전체 보기</button></div></div><svg class="family-tree-canvas" viewBox="0 0 ${drawing.width} ${drawing.height}" aria-label="부모·자녀와 배우자 연결" tabindex="0">${edges}${cards}</svg><p class="tree-legend"><span>— 부모·자녀</span><span>┄ 배우자</span><span>${editable ? '+ 가족 추가 · 빈자리 선택' : '가입 전 빈자리도 함께 표시돼요'}</span></p><p class="help tree-help">드래그로 이동하고 +, − 버튼으로 확대·축소하세요. 방향키로도 이동할 수 있어요.</p></section>`;
+  const focus = draft.people.find(person => person.id === draft.focusedId) || draft.people.find(person => person.id === draft.ownerId);
+  const actions = familyTreeActions(draft, focus.id);
+  const count = draft.parents.filter(link => link.parent_id === focus.id).length;
+  const options = actions.map((action, index) => `<option value="${index}">${relations[action.relation]} 추가${action.relation === 'child' ? ` · ${count}/10` : ''}${action.co_parent_id && draft.coParentsOf(focus.id).length > 1 ? ` (${escape(draft.people.find(person => person.id === action.co_parent_id)?.name || '빈 가족')}와 함께)` : ''}</option>`).join('');
+  const context = editable ? `<div class="tree-context"><strong>기준: ${escape(focus.name || '빈 가족')}</strong><div><select data-tree-relation aria-label="추가할 가족 관계">${options}</select><button type="button" data-tree-add ${actions.length ? '' : 'disabled'}>+ 가족 추가</button></div><small>가족을 눌러 기준을 바꿔요 · 자녀는 부모당 10명까지</small></div>` : '';
+  return `<section class="family-tree-board" aria-label="${editable ? '내 자리를 선택하는 가계도' : '우리 가족 가계도'}"><div class="tree-toolbar"><span>가계도</span><div><button type="button" data-tree-zoom="out" aria-label="가계도 축소">−</button><button type="button" data-tree-zoom="in" aria-label="가계도 확대">+</button><button type="button" data-tree-zoom="fit">전체 보기</button></div></div>${context}<svg class="family-tree-canvas" viewBox="0 0 ${drawing.width} ${drawing.height}" aria-label="부모·자녀와 배우자 연결" tabindex="0">${edges}${cards}</svg><p class="tree-legend"><span>— 부모·자녀</span><span>┄ 배우자</span><span>${editable ? '가족 선택 → 관계 추가 · 빈자리는 내 자리로 선택' : '가입 전 빈자리도 함께 표시돼요'}</span></p><p class="help tree-help">드래그로 이동하고 +, − 버튼으로 확대·축소하세요. 방향키로도 이동할 수 있어요.</p></section>`;
 }
 
 export function mountTree(root, draft, { editable = false, onPerson, onAdd } = {}) {
   const drawing = familyTreeDrawing(draft, editable);
   const svg = root.querySelector('.family-tree-canvas');
-  let view = { x: 0, y: 0, width: drawing.width, height: drawing.height };
+  const origin = drawing.points.get(draft.ownerId);
+  const saved = draft.viewport;
+  let view = saved ? { x: saved.x + origin.x - saved.origin.x, y: saved.y + origin.y - saved.origin.y, width: saved.width, height: saved.height } :
+    { x: origin.x - 280, y: origin.y - 180, width: 560, height: 400 };
   let pointer = null, moved = false;
-  const update = () => svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.width} ${view.height}`);
+  const update = () => {
+    svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.width} ${view.height}`);
+    draft.viewport = { ...view, origin: { ...origin } };
+  };
+  update();
   const zoom = factor => {
     const width = Math.max(180, Math.min(drawing.width * 2, view.width * factor));
     const scale = width / view.width;
@@ -120,6 +118,11 @@ export function mountTree(root, draft, { editable = false, onPerson, onAdd } = {
   root.addEventListener('click', event => {
     const control = event.target.closest('[data-tree-zoom]');
     if (control) { if (control.dataset.treeZoom === 'fit') { view = { x: 0, y: 0, width: drawing.width, height: drawing.height }; update(); } else zoom(control.dataset.treeZoom === 'in' ? .8 : 1.25); }
+    if (event.target.closest('[data-tree-add]')) {
+      const action = familyTreeActions(draft)[Number(root.querySelector('[data-tree-relation]').value)];
+      if (action) onAdd?.(action);
+      return;
+    }
     const button = event.target.closest('[data-tree-index]');
     if (!button || button.disabled || (moved && event.detail)) return;
     const node = drawing.nodes[Number(button.dataset.treeIndex)];
@@ -145,8 +148,4 @@ export function mountTree(root, draft, { editable = false, onPerson, onAdd } = {
     if (event.key === '+' || event.key === '=') { event.preventDefault(); zoom(.8); }
     if (event.key === '-') { event.preventDefault(); zoom(1.25); }
   });
-  if (drawing.width > 850 || drawing.height > 600) {
-    const focus = drawing.points.get(draft.selectedId || draft.ownerId);
-    if (focus) { view = { x: focus.x - 425, y: focus.y - 260, width: 850, height: 520 }; update(); }
-  }
 }

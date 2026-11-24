@@ -8,6 +8,7 @@ from apps.posts import daily_questions
 from apps.replies import views as replies
 from apps.digests import views as digests
 from apps.searching import views as searching
+from apps.notifications import views as notifications
 from integrations.speech import views as speech
 from configs import web
 
@@ -23,6 +24,7 @@ urlpatterns = [
     path("api/accounts/login/", accounts.login, name="account-login"),
     path("api/accounts/logout/", accounts.logout, name="account-logout"),
     path("api/accounts/me/", accounts.me, name="account-me"),
+    path("api/notifications/device/", notifications.device, name="push-device"),
     path("api/families/", families.rooms, name="family-rooms"),
     path("api/families/create/", families.create, name="family-create"),
     path("api/families/lookup/", families.lookup, name="family-lookup"),
@@ -42,6 +44,7 @@ urlpatterns = [
     path("api/posts/<int:pk>/replies/prepare/", replies.prepare, name="reply-prepare"),
     path("api/posts/<int:pk>/replies/transcribe/", speech.transcribe, name="reply-transcribe"),
     path("api/speech/", speech.speak, name="speech"),
+    path("api/speech/transcribe/", speech.transcribe_post, name="post-transcribe"),
     path("api/speech/voices/", speech.voice_options, name="speech-voices"),
     path("api/speech/voices/<str:key>/sample/", speech.voice_sample, name="speech-voice-sample"),
     path("api/replies/<int:pk>/send/", replies.send, name="reply-send"),

@@ -44,6 +44,7 @@ class DigestPostListTest {
         val api = MockApi { request -> when {
             request.path == "/api/families/current/" -> jsonReply(room(77, "우리 가족"))
             request.path == "/api/posts/" -> emptyFeed()
+            request.path == "/api/digests/history/" -> jsonReply(JSONObject().put("dates", JSONArray().put("2026-10-30")))
             request.path.startsWith("/api/digests/?") -> jsonReply(JSONObject().put("status", "ready")
                 .put("text", "[딸 - 정아] 가족과 함께 산책하며 즐거운 하루를 보냈어요.\n\n[아들 - 준하] 맛있는 저녁을 준비하고, 서로의 안부를 나눴어요.")
                 .put("posts", JSONArray((1..6).map { post(it) })))
@@ -99,6 +100,21 @@ class DigestPostListTest {
                 ui.openDaily(); ui.await { ui.has("이날의 소식 6개") }
             }
             assertTrue("Text-only covers have no image request", api.paths().none { it == "/api/photos/6.png" })
+        } }
+    }
+
+    @Test fun backFromAPostOpenedInTheDayStoryReturnsToThatStory() {
+        for (large in listOf(false, true)) server().use { api -> UiHarness(api, room(77, "우리 가족"), large, tutorialSeen = true).use { ui ->
+            ui.await { ui.has("첫 소식을 기다리고 있어요") }; ui.openDaily()
+            ui.await { ui.currentScreen() == "story" && ui.has("이날의 소식 6개") }
+            ui.test.runOnMainSync { ui.all(slider(ui)).first { it.contentDescription == "아빠의 소식 보기" }.performClick() }
+            ui.await { ui.hasPostDetail() }
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            // Back lands on the same day's story, not on the day tab it was opened from.
+            ui.awaitOrDescribe { ui.currentScreen() == "story" && ui.has("이날의 소식 6개") }
+            ui.screenshot(if (large) "draft-7-story-after-back-large.png" else "draft-6-story-after-back.png")
+            ui.test.runOnMainSync { ui.activity.onBackPressedDispatcher.onBackPressed() }
+            ui.await { ui.currentScreen() == "digest" }
         } }
     }
 }

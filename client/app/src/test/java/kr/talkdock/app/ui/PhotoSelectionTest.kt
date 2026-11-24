@@ -5,6 +5,15 @@ import org.junit.Test
 
 /** The gallery's selection rules; PhotoSelection has no Android dependencies. */
 class PhotoSelectionTest {
+    @Test fun pickerRespectsTheRemainingAttachmentCapacity() {
+        val selection = PhotoSelection(2)
+        selection.setMultiple(true)
+        assertTrue(selection.tap("first")); assertTrue(selection.tap("second"))
+        assertFalse(selection.tap("third"))
+        assertEquals(listOf("first", "second"), selection.selected)
+        selection.restore(true, listOf("a", "b", "c"), "c")
+        assertEquals(listOf("a", "b"), selection.selected)
+    }
     @Test fun singleModeReplacesTheSelection() {
         val selection = PhotoSelection()
         assertTrue(selection.tap("a"))

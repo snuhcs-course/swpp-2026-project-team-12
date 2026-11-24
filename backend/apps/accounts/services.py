@@ -8,6 +8,7 @@ from apps.api import APIError
 from integrations.speech import voices
 
 from .models import AccessToken, User
+from .validators import password_error_message
 
 # ================ Main Services : Registration and Login =================
 def register_account(data):
@@ -22,8 +23,10 @@ def register_account(data):
         raise APIError("성별을 선택해 주세요.")
     if tts_voice != "" and not voices.is_known(tts_voice):
         raise APIError("목소리를 다시 선택해 주세요.")
-    if not isinstance(password, str) or len(password) > 128:
-        raise APIError("비밀번호를 다시 확인해 주세요.")
+    if not isinstance(password, str):
+        raise APIError("비밀번호를 입력해 주세요.", field="password")
+    if len(password) > 128:
+        raise APIError("비밀번호는 최대 128자까지 입력할 수 있어요.", field="password")
     if User.objects.filter(username__iexact=username).exists():
         raise APIError("이미 사용 중인 아이디예요.", 409)
 
@@ -31,7 +34,7 @@ def register_account(data):
     try:
         validate_password(password, user)
     except ValidationError as error:
-        raise APIError("비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자만으로는 만들 수 없어요.") from error
+        raise APIError(password_error_message(error), field="password") from error
     user.set_password(password)
     try:
         user.full_clean()
@@ -108,13 +111,13 @@ def update_account(user, data):
     if changing_password:
         current, replacement = data["current_password"], data["new_password"]
         if not isinstance(current, str) or not user.check_password(current):
-            raise APIError("현재 비밀번호가 맞지 않아요.")
+            raise APIError("현재 비밀번호가 맞지 않아요.", field="current_password")
         if not isinstance(replacement, str) or not 10 <= len(replacement) <= 128:
-            raise APIError("새 비밀번호는 10~128자로 입력해 주세요.")
+            raise APIError("새 비밀번호는 10~128자로 입력해 주세요.", field="new_password")
         try:
             validate_password(replacement, user)
         except ValidationError as error:
-            raise APIError("새 비밀번호는 10자 이상이며 숫자를 포함해야 해요. 아이디·이름과 비슷한 값, 흔한 비밀번호, 숫자만으로는 만들 수 없어요.") from error
+            raise APIError(password_error_message(error), field="new_password") from error
         user.set_password(replacement)
     user.save(update_fields=["display_name", "tts_voice", "password"])
     if old_name != user.display_name:

@@ -14,6 +14,7 @@ data class TreeAddition(val id: String, val anchor: String, val relation: String
 
 /** Only additions are editable. Existing people and relationships stay immutable. */
 class FamilyTreeDraft(val snapshot: JSONObject) {
+    companion object { const val MAX_CHILDREN = 10 }
     val version = snapshot.getInt("version")
     val ownerId = snapshot.getString("owner_id")
     val people = linkedMapOf<String, TreePerson>()
@@ -39,6 +40,7 @@ class FamilyTreeDraft(val snapshot: JSONObject) {
     }
 
     fun parentsOf(id: String) = parents.filter { it.child == id }.map { it.parent }
+    fun childrenOf(id: String) = parents.filter { it.parent == id }.map { it.child }.distinct()
     fun partnersOf(id: String) = partnerships.mapNotNull { if (it.first == id) it.second else if (it.second == id) it.first else null }
     fun coParentsOf(id: String): List<String> {
         val children = parents.filter { it.parent == id }.map { it.child }.toSet()
@@ -47,6 +49,9 @@ class FamilyTreeDraft(val snapshot: JSONObject) {
 
     fun add(anchor: String, relation: String, coParent: String? = null): String {
         require(additions.size < 200) { "한 번에 추가할 수 있는 가족은 200명까지예요." }
+        if (relation == "child") require((listOfNotNull(anchor, coParent)).all { childrenOf(it).size < MAX_CHILDREN }) {
+            "한 부모의 자녀는 10명까지 추가할 수 있어요."
+        }
         val a = TreeAddition("new_" + java.util.UUID.randomUUID().toString(), anchor, relation, coParent)
         apply(a); additions.add(a)
         return a.id

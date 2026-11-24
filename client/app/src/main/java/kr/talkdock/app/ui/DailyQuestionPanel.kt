@@ -22,6 +22,7 @@ class DailyQuestionPanel(
     private val roomId: Int, private val serverUrl: String,
     private val restored: Bundle? = null, openToday: Boolean = false, private val onSeen: (JSONObject) -> Unit,
     private val onVoice: (Int, String) -> Unit,
+    private val initialQuestionId: Int? = null,
 ) : LinearLayout(context) {
     private var question: JSONObject? = null
     private var generation = 0
@@ -44,7 +45,7 @@ class DailyQuestionPanel(
         orientation = VERTICAL
         // A feed preview always resolves today's question first, including after
         // midnight. Historic/voice navigation can explicitly restore its question.
-        post { load(if (openToday) null else restored?.getInt("questionId", 0)?.takeIf { it > 0 }) }
+        post { load(initialQuestionId ?: if (openToday) null else restored?.getInt("questionId", 0)?.takeIf { it > 0 }) }
     }
 
     private fun objects(data: JSONObject, key: String): List<JSONObject> {

@@ -13,11 +13,12 @@ import kotlin.math.min
 /** Post questions, listening and summaries share one contextual popover. */
 class AssistantBubbleMenu(
     context: Context, private val ui: Ui, private val large: Boolean,
-    askPost: () -> Unit, findMemories: () -> Unit,
+    askPost: (() -> Unit)?, findMemories: () -> Unit,
     listenPost: (() -> Unit)? = null, summarizePost: (() -> Unit)? = null,
+    showDay: (() -> Unit)? = null, showHelp: (() -> Unit)? = null,
 ) : FrameLayout(context) {
     private val content = ui.column(12)
-    private val postOption: View
+    private val postOption: View?
     private var listenOption: View? = null
     private var listenText: android.widget.TextView? = null
     private var summaryOption: View? = null
@@ -44,9 +45,9 @@ class AssistantBubbleMenu(
             content.addView(row)
             return row
         }
-        postOption = option("이 소식 물어보기", "comment", askPost)
+        postOption = askPost?.let { option("이 소식 물어보기", "comment", it) }
         if (listenPost != null) {
-            ui.line(content)
+            if (postOption != null) ui.line(content)
             listenOption = option("음성으로 듣기", "listen", listenPost)
             listenText = (listenOption as LinearLayout).getChildAt(1) as android.widget.TextView
         }
@@ -56,10 +57,12 @@ class AssistantBubbleMenu(
         }
         ui.line(content)
         option("가족 추억 찾기", "family", findMemories)
+        if (showDay != null) { ui.line(content); option("오늘 가족의 하루", "digest", showDay) }
+        if (showHelp != null) { ui.line(content); option("도움말", "chat", showHelp) }
     }
     fun setPostAvailable(available: Boolean) {
-        postOption.isEnabled = available; postOption.alpha = if (available) 1f else .4f
-        postOption.contentDescription = if (available) "이 소식 물어보기" else "이 소식 물어보기, 현재 선택된 소식이 없어요"
+        postOption?.isEnabled = available; postOption?.alpha = if (available) 1f else .4f
+        postOption?.contentDescription = if (available) "이 소식 물어보기" else "이 소식 물어보기, 현재 선택된 소식이 없어요"
         listOfNotNull(listenOption, summaryOption).forEach { it.isEnabled = available; it.alpha = if (available) 1f else .4f }
     }
     fun setAudioActive(active: Boolean) {

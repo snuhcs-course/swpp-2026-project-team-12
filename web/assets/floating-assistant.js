@@ -1,5 +1,6 @@
 import { LAUNCHER_SIZE, centeredPost, fitPanel, launcherPlacement, launcherPosition, restoreLauncher, PostConversations } from './assistant-state.js';
 import { icon } from './icons.js';
+import { pastQuestions, rememberQuestion, pastQuestionsMarkup } from './local-drafts.js';
 
 const LAYOUT_KEY = 'talkdock.web.assistant.layout.v1';
 const escape = value => String(value).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
@@ -10,14 +11,14 @@ export class FloatingAssistant {
   constructor({ root, context, ask }) {
     this.root = root; this.context = context; this.ask = ask;
     root.style.setProperty('--assistant-launcher-size', `${LAUNCHER_SIZE}px`);
-    this.conversations = new PostConversations();
+    this.conversations = new PostConversations({ past: pastQuestions, remember: rememberQuestion });
     this.targetId = null; this.opened = false; this.frame = null; this.gesture = null;
     try { this.layout = JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch { this.layout = {}; }
     if (!this.layout || typeof this.layout !== 'object' || Array.isArray(this.layout)) this.layout = {};
     this.placement = restoreLauncher(this.layout.button);
     this.panelRect = this.layout.panel && typeof this.layout.panel === 'object' ? this.layout.panel : null;
     root.innerHTML = `<div class="assistant-shade" hidden aria-hidden="true"></div>
-      <button type="button" class="assistant-launcher" aria-label="토닥 도우미 열기" aria-expanded="false" aria-controls="assistant-panel" title="토닥 도우미 · 드래그로 이동" hidden><span class="assistant-launcher-portrait" aria-hidden="true">${character}</span><span class="assistant-launcher-mark" aria-hidden="true">${icon('sparkle')}</span></button>
+      <button type="button" class="assistant-launcher" aria-label="토닥 도우미 열기" aria-expanded="false" aria-controls="assistant-panel" title="토닥 도우미 · 드래그로 이동" hidden><span class="assistant-launcher-portrait" aria-hidden="true">${character}</span><span class="assistant-launcher-mark" aria-hidden="true">${icon('sparkle')}</span><span class="assistant-launcher-label" aria-hidden="true">토닥 도우미</span></button>
       <section id="assistant-panel" class="assistant-panel" role="region" aria-labelledby="assistant-title" hidden>
         <header class="assistant-header"><span class="assistant-avatar" aria-hidden="true">${character}</span><h2 id="assistant-title"><button type="button" class="assistant-grip" title="드래그하거나 방향키로 대화창 이동">이 글에 대해 궁금하세요?</button></h2><div class="assistant-controls"><button type="button" class="assistant-close icon-button" aria-label="도우미 닫기" title="닫기">${icon('close')}</button></div></header>
         <div class="assistant-history" role="log" aria-label="현재 게시글에 대한 대화" aria-live="polite" aria-relevant="additions text"></div>
@@ -104,7 +105,7 @@ export class FloatingAssistant {
     this.positionLauncher();
     const view = this.viewport();
     const header = document.querySelector('.topbar')?.getBoundingClientRect();
-    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: view.top + view.height };
+    const viewport = { left: view.left, right: view.left + view.width, top: Math.max(view.top, header?.bottom || 0), bottom: Math.min(view.top + view.height, document.querySelector('.screen-bottom')?.getBoundingClientRect().top || Infinity) };
     const nodes = [...document.querySelectorAll('#feed-list .post-card[data-post-id]')];
     const cards = nodes.map(node => ({ id: Number(node.dataset.postId), ...node.getBoundingClientRect().toJSON() }));
     const id = centeredPost(cards, viewport, this.targetId);
@@ -145,8 +146,9 @@ export class FloatingAssistant {
   renderConversation() {
     const entry = this.targetId === null ? null : this.conversations.entry(this.targetId);
     const scroll = entry?.scrollTop;
-    this.history.innerHTML = !entry ? `<div class="assistant-welcome">${character}<h3>어떤 소식이 궁금하세요?</h3><p>궁금한 소식을 화면 가운데로<br>가져와 주세요.</p></div>` :
-      (entry.turns.length || entry.pending ? entry.turns.map(turn => `<div class="assistant-turn ${turn.role}"><span>${turn.role === 'user' ? '나' : '토닥'}</span><p>${escape(turn.text)}</p></div>`).join('') : `<div class="assistant-welcome">${character}<h3>이 소식, 함께 읽어볼까요?</h3><p>궁금한 점을 편하게 물어보세요.<br>스크롤하면 새 소식의 대화로 바뀌어요.</p></div>`);
+    const past = entry ? pastQuestionsMarkup(entry.past, escape) : '';
+    this.history.innerHTML = past + (!entry ? `<div class="assistant-welcome">${character}<h3>어떤 소식이 궁금하세요?</h3><p>궁금한 소식을 화면 가운데로<br>가져와 주세요.</p></div>` :
+      (entry.turns.length || entry.pending ? entry.turns.map(turn => `<div class="assistant-turn ${turn.role}"><span>${turn.role === 'user' ? '나' : '토닥'}</span><p>${escape(turn.text)}</p></div>`).join('') : `<div class="assistant-welcome">${character}<h3>이 소식, 함께 읽어볼까요?</h3><p>궁금한 점을 편하게 물어보세요.<br>스크롤하면 새 소식의 대화로 바뀌어요.</p></div>`));
     if (entry?.pending) this.history.insertAdjacentHTML('beforeend', `<div class="assistant-turn user"><span>나</span><p>${escape(entry.question)}</p></div><div class="assistant-thinking" role="status"><span></span><span></span><span></span>소식을 살펴보고 있어요.</div>`);
     const draft = entry?.draft || '';
     if (this.input.value !== draft) this.input.value = draft;
@@ -163,7 +165,13 @@ export class FloatingAssistant {
   }
   positionLauncher() {
     if (this.gesture?.kind === 'launcher' && this.gesture.moved) return;
-    const point = launcherPosition(this.placement, this.viewport());
+    const view = this.viewport();
+    const bottom = document.querySelector('.screen-bottom')?.getBoundingClientRect().top;
+    if (Number.isFinite(bottom)) view.height = Math.min(view.height, Math.max(1, bottom - view.top - 10));
+    const elder = document.documentElement.classList.contains('elder-screen');
+    view.height = Math.max(1, view.height - Math.max(0, this.launcher.offsetHeight - LAUNCHER_SIZE) - (elder ? 40 : 0));
+    const placement = elder ? { ...this.placement, xRatio: 1 } : this.placement;
+    const point = launcherPosition(placement, view);
     Object.assign(this.launcher.style, { left: `${point.x}px`, top: `${point.y}px` });
   }
   positionPanel() {

@@ -85,9 +85,22 @@ class FamilyTreeDraftTest {
 
     @Test fun additionsStopAtTwoHundred() {
         val draft = FamilyTreeDraft(snapshot())
-        repeat(200) { draft.add("1", "child") }
+        var parent = "1"
+        repeat(200) { parent = draft.add(parent, "child") }
         val error = assertThrows(IllegalArgumentException::class.java) { draft.add("1", "child") }
         assertEquals("한 번에 추가할 수 있는 가족은 200명까지예요.", error.message)
         assertEquals(200, draft.additions.size)
+    }
+
+    @Test fun childLimitIncludesExistingChildrenAndBothParents() {
+        val draft = FamilyTreeDraft(snapshot())
+        repeat(9) { draft.add("1", "child") }
+        val before = draft.payload().toString()
+        assertThrows(IllegalArgumentException::class.java) { draft.add("1", "child") }
+        assertEquals(before, draft.payload().toString())
+        val spouse = draft.add("2", "spouse")
+        assertThrows(IllegalArgumentException::class.java) { draft.add(spouse, "child", "1") }
+        assertEquals(10, draft.childrenOf("1").size)
+        assertTrue(draft.childrenOf(spouse).isEmpty())
     }
 }

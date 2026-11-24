@@ -139,13 +139,40 @@ class FamilyWorkflowTests(TestCase):
         self.assertEqual(relationship(self.member, second_son, self.room), "형제자매")
 
     def test_join_accepts_200_additions_and_rejects_201_without_saving(self):
-        additions = [self.add(f"child_{index}", self.root, "child") for index in range(201)]
+        additions = [self.add(f"child_{index}", self.root if index == 0 else f"new_child_{index - 1}", "child") for index in range(201)]
         self.assertEqual(self.join(additions, "new_child_0").status_code, 400)
         self.assertEqual(self.room.people.count(), 1)
         self.room.refresh_from_db()
         self.assertEqual(self.room.tree_version, 0)
         self.assertEqual(self.join(additions[:200], "new_child_0").status_code, 200)
         self.assertEqual(self.room.people.count(), 201)
+
+    def test_ten_children_are_supported_and_an_eleventh_is_rejected(self):
+        additions = [self.add("partner", self.root, "spouse")]
+        additions += [self.add(f"child_{index}", self.root, "child", "new_partner") for index in range(10)]
+        self.assertEqual(self.join(additions, "new_child_9").status_code, 200)
+        self.assertEqual(ParentChild.objects.filter(parent_id=self.root).count(), 10)
+        third = User.objects.create_user(username="eleventh", display_name="가족")
+        response = self.join([self.add("eleventh", self.root, "child")], "new_eleventh", version=1, token=AccessToken.issue(third))
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("10명", response.json()["error"])
+        self.assertEqual(self.room.people.count(), 12)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 1)
+
+    def test_child_limit_checks_co_parent_and_rolls_back_the_entire_draft(self):
+        partner = FamilyPerson.objects.create(room=self.room, generation=0)
+        Partnership.objects.create(first_id=min(int(self.root), partner.pk), second_id=max(int(self.root), partner.pk))
+        for _ in range(10):
+            child = FamilyPerson.objects.create(room=self.room, generation=-1)
+            ParentChild.objects.create(parent=partner, child=child)
+        before = self.room.people.count()
+        additions = [self.add("father", self.root, "father"), self.add("child", self.root, "child", str(partner.pk))]
+        self.assertEqual(self.join(additions, "new_child").status_code, 400)
+        self.assertEqual(self.room.people.count(), before)
+        self.assertEqual(ParentChild.objects.filter(parent_id=self.root).count(), 0)
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.tree_version, 0)
 
     def test_auth_validation_and_occupied_owner(self):
         self.assertEqual(self.post("/api/families/join/", self.invitation).status_code, 401)

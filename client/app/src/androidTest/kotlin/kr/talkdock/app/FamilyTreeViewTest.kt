@@ -65,6 +65,45 @@ class FamilyTreeViewTest {
         send(MotionEvent.ACTION_UP, 1, to)
     }
 
+    @Test fun tenChildrenStayInPlaceAndOnlyTheFocusedFamilyOffersAdditions() {
+        val context = instrumentation.targetContext
+        val family = room(1, "따뜻한 우리 가족")
+        MockApi { request -> if (request.path == "/api/families/current/") jsonReply(family) else emptyFeed() }.use { api ->
+            UiHarness(api, family, tutorialSeen = true).use { ui ->
+                ui.await { ui.has("첫 소식을 기다리고 있어요") }
+                val draft = FamilyTreeDraft(JSONObject("""{"version":0,"owner_id":"1","people":[
+                    {"id":"1","name":"준하","gender":"male","generation":0,"user_id":1},
+                    {"id":"2","name":"지민","gender":"female","generation":0,"user_id":2}],
+                    "parents":[],"partnerships":[{"first_id":"1","second_id":"2"}]}"""))
+                draft.add("1", "child", "2"); draft.add("1", "child", "2")
+                instrumentation.runOnMainSync {
+                    MainActivity::class.java.getDeclaredField("treeDraft").apply { isAccessible = true }.set(ui.activity, draft)
+                    MainActivity::class.java.getDeclaredMethod("tree").apply { isAccessible = true }.invoke(ui.activity)
+                }
+                ui.await { ui.has("전체 보기") }; ui.click("전체 보기")
+                ui.screenshot("he-tree-normal.png")
+                assertTrue(waitNode { it.text?.toString() == "+ 가족 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                ui.screenshot("he-tree-actions.png")
+                assertTrue(waitNode { it.text?.toString() == "자녀 추가 · 2/10" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                repeat(7) { index ->
+                    val before = Rect().also { waitNode { it.contentDescription?.toString() == "준하, 가입한 가족" }.getBoundsInScreen(it) }
+                    assertTrue(waitNode { it.text?.toString() == "+ 가족 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                    assertTrue(waitNode { it.text?.toString() == "자녀 추가 · ${index + 3}/10" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                    instrumentation.waitForIdleSync()
+                    val after = Rect().also { waitNode { it.contentDescription?.toString() == "준하, 가입한 가족" }.getBoundsInScreen(it) }
+                    assertEquals("A child addition must not move the visible family", before, after)
+                }
+                assertEquals(10, draft.childrenOf("1").size)
+                assertEquals(10, draft.childrenOf("2").size)
+                SystemClock.sleep(4000) // Let the last addition notice clear before the review screenshot.
+                ui.click("전체 보기"); ui.screenshot("he-tree-ten-children.png")
+                assertTrue(waitNode { it.text?.toString() == "+ 가족 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+                assertFalse(nodes(automation.rootInActiveWindow).any { it.text?.toString()?.startsWith("자녀 추가") == true })
+                assertThrows(IllegalArgumentException::class.java) { draft.add("1", "child", "2") }
+            }
+        }
+    }
+
     @Test fun familyTreeSupportsSelectionPanningPinchingAndReadOnlyViewing() {
         val context = instrumentation.targetContext
         context.getSharedPreferences("talkdock-session", 0).edit().clear().commit()
@@ -85,9 +124,43 @@ class FamilyTreeViewTest {
                 field("treeDraft", draft)
                 MainActivity::class.java.getDeclaredMethod("tree").apply { isAccessible = true }.invoke(activity)
             }
-            val father = waitNode { it.contentDescription?.toString() == "김대협의 아버지 추가" }
+            val continueButton = waitNode { it.text?.toString() == "선택한 자리로 계속하기" }
+            val footerBefore = Rect().also { continueButton.getBoundsInScreen(it) }
+            instrumentation.runOnMainSync {
+                fun scrolls(view: View): List<android.widget.ScrollView> =
+                    (if (view is android.widget.ScrollView) listOf(view) else emptyList()) +
+                        ((view as? ViewGroup)?.let { group -> (0 until group.childCount).flatMap { scrolls(group.getChildAt(it)) } } ?: emptyList())
+                scrolls(activity.window.decorView).first().scrollTo(0, 1000)
+            }
+            instrumentation.waitForIdleSync()
+            val footerAfter = Rect().also { waitNode { it.text?.toString() == "선택한 자리로 계속하기" }.getBoundsInScreen(it) }
+            assertEquals("Continue must stay visible while the tree page scrolls", footerBefore, footerAfter)
+            instrumentation.runOnMainSync {
+                val content = MainActivity::class.java.getDeclaredField("pageScroll").apply { isAccessible = true }.get(activity) as android.widget.ScrollView
+                content.scrollTo(0, 0)
+            }
+            fun ownerBounds(): Rect {
+                instrumentation.waitForIdleSync()
+                val result = Rect()
+                instrumentation.runOnMainSync {
+                    val world = board(activity.window.decorView)!!.getChildAt(0) as ViewGroup
+                    val owner = (0 until world.childCount).map { world.getChildAt(it) }
+                        .single { it.contentDescription == "김대협, 가입한 가족" }
+                    val location = IntArray(2); owner.getLocationOnScreen(location)
+                    result.set(location[0], location[1], location[0] + owner.width, location[1] + owner.height)
+                }
+                return result
+            }
             screenshot("tree-before.png")
-            assertTrue(father.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            // Accessibility can retain pre-scroll bounds. Compare the actual views
+            // after the UI queue settles, keeping the exact viewport invariant.
+            val ownerBefore = ownerBounds()
+            assertTrue(waitNode { it.text?.toString() == "+ 가족 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            assertTrue(waitNode { it.text?.toString() == "아버지 추가" }.performAction(AccessibilityNodeInfo.ACTION_CLICK))
+            instrumentation.waitForIdleSync()
+            val ownerAfter = ownerBounds()
+            assertEquals("Adding a parent must not recenter the viewport", ownerBefore, ownerAfter)
+            instrumentation.runOnMainSync { board(activity.window.decorView)!!.centerOn(draft.additions.single().id) }
             val blank = waitNode { it.contentDescription?.toString() == "빈 가족, 내 자리로 선택 가능" }
             assertNull(draft.selectedId)
             assertEquals(1, draft.additions.size)

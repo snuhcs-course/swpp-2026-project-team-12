@@ -48,6 +48,79 @@ python backend/manage.py run_construction_worker --family-id 12
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
 
+## Android push notifications
+
+Push support is always included in the Android app and has no enable/disable
+environment flag. The server worker runs once Firebase credentials are configured.
+Family news, comments and today's question use Firebase Cloud Messaging. Text and
+confirmed voice comments notify only the post's author. A question's first answer
+and each question comment notify the other members, including the question title.
+Answer edits, unsent voice drafts and one's own activity stay silent. Relationship
+labels are calculated from each recipient's family tree. The notification opens
+the relevant post/comments or exact question, including across family rooms.
+
+At **20:00 Asia/Seoul**, the worker checks each room for members who have not
+answered that day's question. It queues one reminder per receiving installation
+and question, rechecks participation before sending, and expires reminders at
+Korean midnight. The worker checks every 10 seconds during 20:00–20:59; restarting
+within that hour catches up once. Keep it running for the 20:00 notification.
+
+To enable delivery:
+
+1. Register Android package `kr.talkdock.app` in your Firebase project, enable the
+   FCM HTTP v1 API, and place its downloaded `google-services.json` at
+   `client/app/google-services.json` (ignored by Git). Register the demo package
+   separately if using `-PtalkDockDemo=true`. Without this file the APK still
+   builds for local development, but cannot receive remote pushes.
+2. Install `backend/requirements.txt`, then run `python backend/manage.py migrate`.
+3. Configure server-side Application Default Credentials for that **same Firebase
+   project**, for example `GOOGLE_APPLICATION_CREDENTIALS` pointing to a private
+   service-account JSON outside the repository.
+   Never put this private key in the APK. See the
+   [Firebase Admin setup](https://firebase.google.com/docs/admin/setup).
+4. Run `python backend/manage.py run_push_worker` alongside the API and configure
+   your process manager to restart it. `--once` runs a single queue/reminder pass.
+5. Rebuild/install the APK, sign in and allow notifications. **설정 → 알림 설정**
+   opens Android's controls for family activity and daily reminder channels.
+
+Device registration uses authenticated `PUT /api/notifications/device/` with
+`installation_id` (UUID) and `token`; `DELETE` unregisters only that login's device.
+The active account receives notifications for all its family rooms. Token renewal
+and app resume refresh registration; switching accounts changes the binding and
+clears existing notifications. Logout deletes registrations for that login.
+Expired logins, departed members and stale account bindings cannot receive queued
+events. Each installation has an independent durable outbox with retries and
+expired-worker claim recovery. Invalid FCM tokens are removed. Data messages let
+the client reject stale account deliveries before displaying their contents;
+lock-screen content follows Android's private-notification setting.
+
+Firebase/Android delivery is best effort: offline devices, force-stop, notification
+permission denial or OS power restrictions can delay or prevent display. No exact
+alarm or continuous background service is required on the phone.
+
+Notification regression tests run without Firebase credentials or external AI:
+
+```powershell
+python backend/manage.py test developer.test_codes.test_notifications developer.test_codes.test_comments developer.test_codes.test_daily_questions
+```
+
+From `client/`, run JVM tests, lint and compile the device tests with
+`./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest`.
+Android `PushNotificationTest` checks actual notification content, channels,
+private visibility, pending intents, duplicate delivery and stale-account guards.
+`DailyQuestionTest` verifies that tapping a notification opens its exact question
+and preserves the existing question screens. Run these classes on a test emulator;
+their fixtures temporarily replace session state and clear notifications.
+
+Pass instrumentation argument `pushScreenshots=true` to `PushNotificationTest` to
+capture five real notification examples in the app's external files directory
+`push-previews/`. For an explicitly selected physical phone,
+`PhoneNotificationPreviewTest` with `phonePreview=true` leaves three sample
+notifications in the shade without logging in or changing saved account state.
+That preview is skipped by default and validates display only, not remote FCM
+delivery. Manufacturer UIs can display the original launcher icon instead of the
+monochrome notification icon, so inspect the physical device for Galaxy styling.
+
 ## Daily conversation questions
 
 The Android home has a fixed **오늘의 질문** preview bar below the header, showing
@@ -124,6 +197,15 @@ question options are preserved. Apply the new migration before deploying the API
 
 `FamilyPerson` represents a person independently of an account. `ParentChild` stores directed parent-to-child links, `Partnership` stores explicit spouse links, and `Membership.person` connects an account to one person. `FamilyRoom.owner` controls room administration. Memberships require a person; the former owner-relative slot field is removed. Relationship labels are resolved by graph search in `backend/apps/families/utils/relationships.py`.
 
+Labels summarize lineage, maternal/paternal aunts and uncles, cousins, and common
+in-laws (for example `외할머니`, `이모`, `장모`, `며느리`, `사돈`). Known spouse gender
+uses `남편` or `아내`; unknown gender stays neutral. Shared children alone establish
+`공동 부모`, without creating or assuming a partnership. Their ancestors can therefore
+appear as `공동 부모의 외할머니`; an explicit partnership instead gives `아내의 외할머니`.
+Blood paths take precedence over indirect partner/co-parent shortcuts, and equal
+paths are resolved consistently regardless of input order. Very complex affinity
+chains use `인척` or `공동 부모 쪽 가족` instead of unbounded possessive labels.
+
 `POST /api/families/lookup/` returns the room and `tree` snapshot (`version`, `owner_id`, `people`, `parents`, `partnerships`). Person IDs are strings. To join, submit the invitation credentials and the snapshot version, selected person, and sequential additions:
 
 ```json
@@ -139,7 +221,9 @@ question options are preserved. Apply the new migration before deploying the API
 }
 ```
 
-Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+Supported additions are `father`, `mother`, `parent` (unspecified), `spouse`, and `child`. A child can specify `co_parent_id` for an existing spouse or co-parent. Each parent can have up to ten children; both parents' existing children count toward this limit. Only new people can be added; existing graph data cannot be rewritten by an invitation draft. At most 200 people can be added per join. Selecting an existing unclaimed person uses its ID with an empty additions list. A conditional version update and transaction prevent partial saves; stale or occupied positions return HTTP 409. Reload the tree and start again.
+
+The Android and web invitation trees show actual people in stable grid positions. Select a person and use **+ 가족 추가** to add a parent, spouse or child. Additions preserve the current pan/zoom and earlier people's relative positions. **전체 보기** explicitly fits the tree, and the join/continue action remains below the scrollable tree. Existing trees with more than ten children remain readable; further child additions for those parents are rejected.
 
 Family migrations start directly with the tree schema. When updating an older local database that used slots, reset `backend/db.sqlite3` and run `python backend/manage.py migrate`; existing data is not imported. Parent edges always move one generation upward, and a person has at most two parents in this version. Ages are not collected, so sibling labels stay neutral instead of guessing Korean age-specific honorifics.
 
@@ -263,6 +347,15 @@ When upgrading from the current tree-based family schema, stop the API server an
 ### Speech API
 
 After `GET /api/posts/<id>/message/` returns `{"status": "ready", "text": "..."}`, send that text as JSON to `POST /api/speech/` with the same bearer token. The response is `audio/mpeg` MP3 data. A family membership is required, and text is limited to 4,000 characters. Configure `ELEVENLABS_API_KEY` on the backend. The voices accounts can choose are listed once in `TTS_VOICES` in `backend/configs/settings.py`, each with a `name`, an ElevenLabs `voice_id` and a `description`; entries without a `voice_id` are not offered. `GET /api/speech/voices/` (no login) returns each offered voice's key, name and description and the default, and the apps build their choices from it, so adding a voice needs only a new `TTS_VOICES` entry. Each account may pick a voice key as `tts_voice` at registration and can change it with `PATCH /api/accounts/me/` `{"tts_voice": "<key>"}`; accounts that never chose one follow `TTS_DEFAULT_VOICE`, which must be a `TTS_VOICES` key (`manage.py check` reports it otherwise). Each voice has a preview sample reading "가족의 일상을 잇는 따뜻한 공간, 토닥" at `GET /api/speech/voices/<key>/sample/` (no login); samples live in `backend/integrations/speech/samples/` named by voice ID, so after adding a voice or changing its `voice_id`, run `python backend/manage.py generate_voice_samples` (needs `ELEVENLABS_API_KEY`) and commit the new MP3, and `/api/speech/` uses the requesting account's choice; `ELEVENLABS_TTS_MODEL` defaults to `eleven_multilingual_v2`. Generated audio is cached under `backend/media/speech/` by family room, text, model, and voice.
+
+`POST /api/speech/transcribe/` accepts the same audio formats and 5 MB limit as
+reply transcription, with a bearer token and `X-Family-Room` membership. It
+returns `recognized` text without creating a post, comment or voice draft.
+Android and web **말로 쓰기** let the user edit this transcript and explicitly
+insert it into the existing post caption with **글에 넣기**. The combined caption
+remains limited to 2,000 characters and is published only by the normal send
+action. Leaving the Android editor cancels recording/transcription and cleans
+its temporary audio.
 
 ### Voice Reply APIs
 

@@ -9,7 +9,7 @@ import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.ViewCompat
 
-/** A fixed, quiet preview that stays outside the swipeable family letters. */
+/** A compact question preview at the top of the vertically scrolling feed. */
 class DailyQuestionEntryView(context: Context, ui: Ui, large: Boolean, onOpen: () -> Unit) : LinearLayout(context) {
     private val preview = ui.text("가족과 나눌 오늘의 질문을 확인해 보세요", if (large) 22f else 16f, true).apply {
         maxLines = 1; ellipsize = TextUtils.TruncateAt.END

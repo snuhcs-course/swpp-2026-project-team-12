@@ -10,10 +10,11 @@ import java.nio.charset.StandardCharsets
 import java.io.InterruptedIOException
 import java.io.IOException
 import java.io.FileNotFoundException
+import java.io.OutputStream
 import java.net.SocketTimeoutException
 
 class ApiException(message: String, val status: Int = 0, cause: Throwable? = null,
-                   val isMaintenance: Boolean = false) : Exception(message, cause)
+                   val isMaintenance: Boolean = false, val field: String? = null) : Exception(message, cause)
 
 /** A single request's connection, so leaving a slow AI screen also releases its worker. */
 class RequestCancellation {
@@ -85,13 +86,16 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         return multipart("posts/", "image", "photo.jpg", "image/jpeg", photo, mapOf("caption" to caption))
     }
 
-    fun uploadPost(photos: List<File>, caption: String): JSONObject =
+    fun uploadPost(photos: List<File>, caption: String, onProgress: ((Int) -> Unit)? = null): JSONObject =
         multipartParts("posts/",
             photos.mapIndexed { index, file -> UploadPart("images", "photo-$index.jpg", "image/jpeg", file) },
-            mapOf("caption" to caption))
+            mapOf("caption" to caption), onProgress)
 
     fun transcribe(postId: Int, audio: File): JSONObject =
         multipart("posts/$postId/replies/transcribe/", "audio", "recording.m4a", "audio/mp4", audio, emptyMap())
+
+    fun transcribePost(audio: File): JSONObject =
+        multipart("speech/transcribe/", "audio", "recording.m4a", "audio/mp4", audio, emptyMap())
 
     private fun multipart(path: String, field: String, filename: String, type: String, file: File, values: Map<String, String>): JSONObject {
         return multipartParts(path, listOf(UploadPart(field, filename, type, file)), values)
@@ -99,7 +103,8 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
 
     private data class UploadPart(val field: String, val filename: String, val type: String, val file: File)
 
-    private fun multipartParts(path: String, files: List<UploadPart>, values: Map<String, String>): JSONObject {
+    private fun multipartParts(path: String, files: List<UploadPart>, values: Map<String, String>,
+                               onProgress: ((Int) -> Unit)? = null): JSONObject {
         val boundary = "TalkDock" + java.util.UUID.randomUUID().toString().replace("-", "")
         val connection = open(baseUrl + path, "POST")
         connection.doOutput = true
@@ -113,7 +118,34 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         connection.setFixedLengthStreamingMode(length)
         connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary)
         try {
-            connection.outputStream.buffered().use { stream ->
+            val output = connection.outputStream
+            val tracked = if (onProgress == null) output else object : OutputStream() {
+                private var bytesSent = 0L
+                private var lastProgress = 0
+
+                override fun write(value: Int) {
+                    output.write(value)
+                    report(1)
+                }
+
+                override fun write(bytes: ByteArray, offset: Int, count: Int) {
+                    output.write(bytes, offset, count)
+                    report(count)
+                }
+
+                private fun report(count: Int) {
+                    bytesSent += count
+                    val percent = (bytesSent * 100 / length).toInt().coerceAtMost(99)
+                    if (percent != lastProgress) {
+                        lastProgress = percent
+                        onProgress(percent)
+                    }
+                }
+
+                override fun flush() = output.flush()
+                override fun close() = output.close()
+            }
+            tracked.buffered().use { stream ->
                 stream.write(fieldBytes)
                 files.forEachIndexed { index, part ->
                     stream.write(prefixes[index])
@@ -122,21 +154,31 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
                 }
                 stream.write(suffix)
             }
+            onProgress?.invoke(100)
             return response(connection)
         } catch (error: IOException) { throw networkFailure(error) }
         finally { connection.disconnect() }
     }
 
-    fun speech(text: String): ByteArray {
+    fun speech(text: String, cancellation: RequestCancellation? = null, timeoutMillis: Int? = null): ByteArray {
         val connection = open(baseUrl + "speech/", "POST")
         try {
+            cancellation?.attach(connection)
+            if (timeoutMillis != null) {
+                connection.connectTimeout = timeoutMillis
+                connection.readTimeout = timeoutMillis
+            }
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8")
             connection.outputStream.use { it.write(JSONObject().put("text", text).toString().toByteArray(StandardCharsets.UTF_8)) }
             if (connection.responseCode !in 200..299) response(connection)
+            // Only audio is handed to the player: decoding other data can stall MediaPlayer and,
+            // through release(), the main thread. The server always answers with audio/mpeg.
+            if (connection.contentType?.lowercase()?.startsWith("audio/") != true)
+                throw ApiException("음성을 준비하지 못했어요. 다시 시도해 주세요.", connection.responseCode)
             return connection.inputStream.use { it.readBytes() }
         } catch (error: IOException) { throw networkFailure(error) }
-        finally { connection.disconnect() }
+        finally { cancellation?.release(connection); connection.disconnect() }
     }
 
     fun maintenanceMessage(): String {
@@ -192,7 +234,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             val message = json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" }
             val maintenance = code == 503 && json?.optString("code") == "maintenance"
             if (maintenance) onMaintenance?.invoke()
-            throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance)
+            throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance, field = json?.optString("field")?.takeIf { it.isNotBlank() })
         }
         return json ?: throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
     }

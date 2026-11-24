@@ -35,12 +35,18 @@ jobs:
       - name: Check for missing migrations
         run: python backend/manage.py makemigrations --check --dry-run
       - name: Run pytest
-        run: python -m pytest --cov --cov-report=term --cov-report=xml
+        run: python -m pytest --cov --cov-report=term --cov-report=xml --junitxml=backend-test-results.xml
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-coverage
           path: coverage.xml
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend-test-results.xml
           if-no-files-found: ignore
 
   web:
@@ -52,12 +58,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs web/test_assistant.mjs web/test_maintenance.mjs web/test_memory_search.mjs web/test_daily_questions.mjs
+      - run: node --test web/test_family_tree.mjs web/test_images.mjs web/test_usability.mjs web/test_assistant.mjs web/test_maintenance.mjs web/test_memory_search.mjs web/test_daily_questions.mjs web/test_uat_account.mjs
 
   android:
-    name: Android unit tests and test build
+    name: Android lint, unit tests and APK builds
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PUBLIC_ORIGIN: https://talkdock.app
     defaults:
       run:
         working-directory: client
@@ -68,12 +76,20 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :app:testDebugUnitTest :app:assembleDebugAndroidTest --console=plain
+      - run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest :app:assembleApks --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-distribution-apks
+          path: client/app/build/outputs/apk/distribution/*.apk
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: android-unit-test-reports
-          path: client/app/build/reports/tests/
+          path: |
+            client/app/build/reports/tests/
+            client/app/build/test-results/
+            client/app/build/reports/lint-results-*
 
   android-emulator:
     name: Android instrumented tests (emulator)
@@ -137,13 +153,14 @@ jobs:
           target: google_apis
           arch: x86_64
           force-avd-creation: false
-          # PostingFeedbackTest verifies character motion and requires enabled animators.
+          # Several UI tests verify motion and require enabled animators.
           disable-animations: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           working-directory: client
           # "System UI isn't responding" dialogs on the software-rendered emulator cover the app under test.
           script: |
             adb shell settings put global hide_error_dialogs 1
+            adb shell settings put secure show_ime_with_hard_keyboard 1
             adb shell settings put global window_animation_scale 1
             adb shell settings put global transition_animation_scale 1
             adb shell settings put global animator_duration_scale 1

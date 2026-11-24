@@ -7,9 +7,13 @@ import java.util.List;
 /** Tap order is the upload order. No Android dependencies: executable on a plain JDK. */
 public final class PhotoSelection {
     public static final int LIMIT = 5;
+    private final int limit;
     private final ArrayList<String> selected = new ArrayList<>();
     private boolean multiple;
     private String preview;
+
+    public PhotoSelection() { this(LIMIT); }
+    public PhotoSelection(int limit) { this.limit = Math.max(1, Math.min(LIMIT, limit)); }
 
     public boolean isMultiple() { return multiple; }
     public String getPreview() { return preview; }
@@ -22,7 +26,7 @@ public final class PhotoSelection {
             if (uri.equals(preview)) preview = selected.isEmpty() ? null : selected.get(selected.size() - 1);
             return true;
         }
-        if (multiple && selected.size() == LIMIT) return false;
+        if (multiple && selected.size() == limit) return false;
         if (!multiple) selected.clear();
         selected.add(uri);
         preview = uri;
@@ -49,7 +53,7 @@ public final class PhotoSelection {
         multiple = multi;
         for (String value : values) {
             if (value != null && !selected.contains(value)) selected.add(value);
-            if (selected.size() == (multi ? LIMIT : 1)) break;
+            if (selected.size() == (multi ? limit : 1)) break;
         }
         preview = selected.contains(shown) ? shown : (selected.isEmpty() ? null : selected.get(0));
     }

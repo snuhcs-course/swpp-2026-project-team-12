@@ -27,6 +27,12 @@ class InlinePostAudio(
     private val activate: (InlinePostAudio) -> Unit,
     private val login: () -> Unit,
     private val playbackChanged: (Boolean) -> Unit = {},
+    /** Elderly mode: after listening, ask Todak about this post right from the card. */
+    private val ask: (() -> Unit)? = null,
+    /** Elderly tutorial: told whenever the 소식 물어보기 button is (re)drawn. */
+    private val askShown: ((View) -> Unit)? = null,
+    /** Elderly mode: a closing line spoken after the post, never shown as text. */
+    private val speechClosing: String? = null,
 ) : LinearLayout(activity) {
     val toggle = ui.row().apply {
         gravity = Gravity.CENTER
@@ -48,6 +54,8 @@ class InlinePostAudio(
     private var speechRetry: String? = null
     private var needsLogin = false
     private var revealSummary = false
+    /** Elderly mode reads the family's own caption when no summary can be played. */
+    private var captionFallback = false
     val isPlaying get() = active
 
     init {
@@ -72,7 +80,7 @@ class InlinePostAudio(
             speaker.stop()
             active = true
             autoplayAfterSummary = true
-            updateToggle()
+            render()
         }
         else if (summaryText != null) startSpeech(summaryText!!)
         else loadSummary(false)
@@ -99,6 +107,14 @@ class InlinePostAudio(
         visibility = VISIBLE
         ui.gap(this, 12)
         summaryText?.let { ui.note(this, it, large) }
+        if (captionFallback && summaryText == null)
+            ui.label(this, "요약 대신 가족이 쓴 글을 읽어 드려요.", 18f, color = ui.muted).tag = "post-audio-caption-fallback"
+        if (active) {
+            ui.button(this, if (summaryLoading || speechLoading) "취소" else "■ 듣기 중지", false, height()) { stop() }.apply {
+                tag = "post-audio-stop"
+                contentDescription = if (summaryLoading || speechLoading) "음성 준비 취소" else "듣기 중지"
+            }
+        }
         // A false retry flag means the server is still processing, with manual recheck available.
         if (speechLoading || summaryLoading || summaryRetry == false) {
             val stage = if (speechLoading) PostPreparationView.Stage.SPEECH else PostPreparationView.Stage.NEWS
@@ -114,11 +130,18 @@ class InlinePostAudio(
                     loadSummary(retry, autoplayAfterSummary)
                 }
                 val caption = post.optString("caption")
-                if (caption.isNotBlank()) ui.button(this, "가족이 쓴 글 듣기", false, height()) { startSpeech(caption) }
+                if (caption.isNotBlank() && !(captionFallback && active)) ui.button(this, "가족이 쓴 글 듣기", false, height()) { startSpeech(caption) }
             }
             speechRetry?.let { text ->
                 ui.button(this, "음성 다시 준비하기", false, height()) { startSpeech(text) }
             }
+        }
+        if (ask != null && !needsLogin && (summaryText != null || captionFallback)) {
+            ui.gap(this, 16)
+            ui.label(this, "이 소식 관련해서 궁금한 점을 토닥이에게 물어보세요!", if (large) 20f else 17f, true).tag = "post-audio-ask-hint"
+            ui.button(this, "소식 물어보기", true, height()) { ask.invoke() }.apply {
+                tag = "post-audio-ask"; contentDescription = "소식 물어보기"
+            }.also { button -> askShown?.let { shown -> post { if (button.isAttachedToWindow) shown(button) } } }
         }
         updateToggle()
         if (revealSummary && summaryText != null) {
@@ -143,6 +166,12 @@ class InlinePostAudio(
         return generation
     }
 
+    /** Stops playback and folds the panel away until the next listen (e.g. when replying starts). */
+    fun dismiss() {
+        stop()
+        visibility = GONE
+    }
+
     /** Invalidate pending callbacks as well as stopping already playing audio. */
     fun stop() {
         generation++
@@ -163,6 +192,7 @@ class InlinePostAudio(
     private fun loadSummary(retry: Boolean, autoplay: Boolean = true) {
         val request = begin("", playback = autoplay, preparingSummary = true)
         autoplayAfterSummary = autoplay
+        captionFallback = false
         revealLoadingIndicator()
         task = executor.submit {
             val result = runCatching {
@@ -183,11 +213,23 @@ class InlinePostAudio(
                         val processing = data.optString("status") == "processing"
                         status = if (processing) "" else "설명을 준비하지 못했어요. 다시 시도해 주세요."
                         summaryRetry = !processing
-                        render()
+                        if (!readCaptionInstead()) render()
                     }
-                }, { fail(it, summary = true) })
+                }, { error ->
+                    fail(error, summary = true)
+                    if (!needsLogin) readCaptionInstead()
+                })
             }
         }
+    }
+
+    /** One tap on 소식 듣기 should always speak; summary recovery stays available below. */
+    private fun readCaptionInstead(): Boolean {
+        val caption = post.optString("caption").trim()
+        if (!large || !autoplayAfterSummary || caption.isEmpty()) return false
+        captionFallback = true
+        startSpeech(caption)
+        return true
     }
 
     private fun revealLoadingIndicator() {
@@ -204,7 +246,7 @@ class InlinePostAudio(
         revealLoadingIndicator()
         task = executor.submit {
             val result = runCatching {
-                val bytes = client.speech(text)
+                val bytes = client.speech(kr.talkdock.app.data.ReplyPrompt.spoken(text, speechClosing))
                 val file = File.createTempFile("post-listen-", ".mp3", activity.cacheDir)
                 try { file.writeBytes(bytes); file } catch (error: Exception) { file.delete(); throw error }
             }
