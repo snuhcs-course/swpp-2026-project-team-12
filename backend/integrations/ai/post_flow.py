@@ -11,19 +11,23 @@ from . import prompts
 from .options import model_options
 
 
-def select_budget(results, limit=prompts.FACT_BUDGET):
-    """Same round-robin, unique-fact budget as the adopted experiment."""
+def select_budget(results, fact_limit=prompts.FACT_BUDGET, episode_limit=prompts.EPISODE_BUDGET):
+    """Round-robin across queries with separate unique fact and episode budgets.
+
+    Episodes get their own budget so update posts that Graphiti did not turn into
+    facts are not crowded out by older facts that rank first.
+    """
     selected = [{'query': r['query'], 'memories': []} for r in results]
-    seen = set()
+    limits = {'fact': fact_limit, 'episode': episode_limit}
+    seen = {'fact': set(), 'episode': set()}
     for rank in range(max((len(r['memories']) for r in results), default=0)):
         for i, result in enumerate(results):
             if rank < len(result['memories']):
                 memory = result['memories'][rank]
-                if memory['id'] not in seen:
+                kind = 'episode' if memory.get('source_episode_ids') == [memory['id']] else 'fact'
+                if memory['id'] not in seen[kind] and len(seen[kind]) < limits[kind]:
                     selected[i]['memories'].append(memory)
-                    seen.add(memory['id'])
-                    if len(seen) == limit:
-                        return selected
+                    seen[kind].add(memory['id'])
     return selected
 
 

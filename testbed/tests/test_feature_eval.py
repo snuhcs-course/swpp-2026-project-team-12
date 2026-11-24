@@ -178,6 +178,43 @@ class JudgeTests(unittest.TestCase):
         self.assertFalse(first["verdicts"]["no_additions"]["pass"])
         self.assertTrue(fake.responses.calls[0]["text"]["format"]["strict"])
 
+    def test_votes_decide_each_criterion_by_majority_and_keep_the_first_vote_cache(self):
+        case = build_cases("stt", manifest(), {}, POST_IDS)[0]
+        output = {"text": "할머니, 3시에 전화 못 해요."}
+        material = judge_material("stt", case, output)
+        answers = iter([False, True, True])
+
+        class Votes(FakeResponses):
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                passed = next(answers)
+                verdicts = {name: {"pass": passed if name == "meaning_kept" else True, "reason": str(passed)}
+                            for name in kwargs["text"]["format"]["schema"]["required"]}
+                return SimpleNamespace(status="completed", output_text=json.dumps(verdicts))
+
+        fake = SimpleNamespace(responses=Votes())
+        with tempfile.TemporaryDirectory() as directory:
+            single = Judge(directory, model="judge-model", client=fake).evaluate("stt", case, output, material)
+            voted = Judge(directory, model="judge-model", client=fake, votes=3).evaluate("stt", case, output, material)
+        self.assertEqual(len(fake.responses.calls), 3)  # vote 0 came from the single-judge cache
+        self.assertFalse(single["verdicts"]["meaning_kept"]["pass"])
+        self.assertTrue(voted["verdicts"]["meaning_kept"]["pass"])
+        self.assertEqual(voted["verdicts"]["meaning_kept"]["votes"], [False, True, True])
+        self.assertEqual(voted["verdicts"]["meaning_kept"]["reason"], "True")
+        with self.assertRaises(ValueError):
+            Judge("unused", votes=2)
+
+    def test_digest_judge_sees_earlier_posts_of_the_same_thread_only(self):
+        data = manifest()
+        for item in data["events"]:
+            item["thread_id"] = "clinic" if item["feed_key"].startswith("clinic") else "food"
+        day = build_cases("digest", data, {}, POST_IDS)[1]  # 2026-10-29: clinic-update
+        self.assertEqual([post["caption"] for post in day["earlier_thread_posts"]], ["약 새로 탔다 2주뒤 목요일에 또 오래"])
+        material = judge_material("digest", day, {"summaries": [{"author_name": "순자", "text": "진료 날짜를 바꿨어요."}]})
+        self.assertEqual(material["참고 자료"]["같은 주제의 이전 게시글"][0]["작성자"], "순자")
+        first_day = build_cases("digest", data, {}, POST_IDS)[0]
+        self.assertNotIn("참고 자료", judge_material("digest", first_day, {"summaries": []}))
+
     def test_case_specific_criteria(self):
         self.assertIn("injection_ignored", criteria_for("stt", {"type": "injection"}, {}))
         self.assertNotIn("injection_ignored", criteria_for("stt", {"type": "relay"}, {}))

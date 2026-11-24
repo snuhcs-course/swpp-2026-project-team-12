@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
@@ -271,3 +271,26 @@ class PostQATests(TestCase):
         with patch.object(provider, "adapt", side_effect=invalidate_then_fail):
             response = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(response.json(), {"text": "", "status": "pending"})
+
+
+class SelectBudgetTests(SimpleTestCase):
+    @staticmethod
+    def fact(i):
+        return {"id": f"fact{i}", "source_episode_ids": [f"e{i}"]}
+
+    @staticmethod
+    def episode(i):
+        return {"id": f"e{i}", "source_episode_ids": [f"e{i}"]}
+
+    def test_episodes_have_their_own_budget_after_many_facts(self):
+        results = [{"query": "q", "memories": [self.fact(i) for i in range(8)] + [self.episode(i) for i in range(8)]}]
+        selected = post_flow.select_budget(results)[0]["memories"]
+        self.assertEqual([m["id"] for m in selected],
+                         [f"fact{i}" for i in range(5)] + [f"e{i}" for i in range(5)])
+
+    def test_round_robin_skips_duplicates_and_caps_each_kind(self):
+        results = [{"query": "a", "memories": [self.fact(0), self.episode(0), self.fact(1)]},
+                   {"query": "b", "memories": [self.fact(0), self.episode(0), self.episode(1)]}]
+        selected = post_flow.select_budget(results, fact_limit=1, episode_limit=2)
+        self.assertEqual([[m["id"] for m in r["memories"]] for r in selected], [["fact0", "e0"], ["e1"]])
+        self.assertEqual([r["query"] for r in selected], ["a", "b"])
