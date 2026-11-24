@@ -125,7 +125,7 @@ class FamilyMemorySearchTest {
         fun has(text: String) = views().filterIsInstance<TextView>().any { it.text.toString() == text }
         fun panel() = views().filterIsInstance<FamilyMemoryPanel>().single()
         fun await(condition: () -> Boolean) {
-            val until = SystemClock.uptimeMillis() + 10000
+            val until = SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
             while (SystemClock.uptimeMillis() < until) {
                 var ready = false
                 test.runOnMainSync { ready = condition() }

@@ -131,7 +131,7 @@ class FloatingAssistantTest {
             test.waitForIdleSync()
         }
         fun await(condition: () -> Boolean) {
-            val end = SystemClock.uptimeMillis() + 10000
+            val end = SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
             while (SystemClock.uptimeMillis() < end) {
                 var ready = false; test.runOnMainSync { ready = condition() }
                 if (ready) return

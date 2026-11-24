@@ -149,13 +149,13 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
         // Back from a post opened in a day's story returns to that story, and Back from the story to the day tab.
         // The app ignores Back while a page is still loading, so wait for it first (slow CI emulators).
         repeat(2) {
-            await(15000) { !isBusy() }
+            await { !isBusy() }
             val current = currentScreen()
             if (current != "detail" && current != "story") return@repeat
             test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
-            await(15000) { currentScreen() != current }
+            await { currentScreen() != current }
         }
-        await(15000) { !isBusy() }
+        await { !isBusy() }
         if (has("오늘도, 함께")) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
         // The elderly day tab opens the written day with "글로 읽기" instead.
         if (!has("오늘 이야기 보기") && !has("글로 읽기") && elderly() && all().none { it.tag == "main-tab:digest" }) {
@@ -208,8 +208,9 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     }
     fun hasRoom(name: String) = has(name) || all().any { androidx.core.view.ViewCompat.getStateDescription(it)?.toString() == "현재 가족방: $name" }
     fun has(text: String) = all().filterIsInstance<TextView>().any { it.text.toString()==text }
-    fun await(timeout: Long=6000, condition: () -> Boolean) {
-        val end=SystemClock.uptimeMillis()+timeout
+    fun await(timeout: Long=TestTiming.UI_TIMEOUT_MS, condition: () -> Boolean) {
+        // Never shorter than the shared limit; a longer explicit timeout is kept.
+        val end=SystemClock.uptimeMillis()+maxOf(timeout, TestTiming.UI_TIMEOUT_MS)
         while(SystemClock.uptimeMillis()<end) {
             var ready=false
             test.runOnMainSync { ready=condition() }

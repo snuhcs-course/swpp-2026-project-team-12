@@ -35,7 +35,7 @@ class PhoneNotificationPreviewTest {
                 "event_id" to id, "kind" to kind, "title" to title, "body" to body,
                 "binding" to "visual-preview-only", "user_id" to "0",
                 "room_id" to "0", "post_id" to "0", "question_id" to "")))
-            val deadline = android.os.SystemClock.uptimeMillis() + 5000
+            val deadline = android.os.SystemClock.uptimeMillis() + TestTiming.UI_TIMEOUT_MS
             while (manager.activeNotifications.none { it.tag == id } &&
                 android.os.SystemClock.uptimeMillis() < deadline) Thread.sleep(100)
             assertNotNull(manager.activeNotifications.firstOrNull { it.tag == id })

@@ -30,7 +30,9 @@ class ReplyAudioButton(
     private val playLabel: String = "댓글 소리로 확인하기",
     private val stopLabel: String = "댓글 듣기 중지",
     private val primary: Boolean = false,
-    private val onPlay: () -> Unit = {}
+    private val onPlay: () -> Unit = {},
+    /** Playback ended: heard to the end, stopped by the listener, or failed. */
+    private val onFinished: () -> Unit = {}
 ) : FrameLayout(activity) {
     private var request = 0
     private var active = false
@@ -49,7 +51,7 @@ class ReplyAudioButton(
             background = RippleDrawable(ColorStateList.valueOf(ui.border), ui.shape(ui.sky, 16), null)
         }
         isClickable = true; isFocusable = true
-        setOnClickListener { if (active) stop() else play() }
+        setOnClickListener { if (active) { stop(); onFinished() } else play() }
         render()
     }
 
@@ -104,7 +106,7 @@ class ReplyAudioButton(
                 task = null
                 result.fold({ file ->
                     render()
-                    speaker.play(file, completed = { if (current(token)) stop() }, failed = { message ->
+                    speaker.play(file, completed = { if (current(token)) { stop(); onFinished() } }, failed = { message ->
                         if (current(token)) fail(message)
                     })
                 }, { error -> fail((error as? ApiException)?.message ?: "소리를 재생하지 못했어요. 다시 눌러 주세요.") })
@@ -114,6 +116,7 @@ class ReplyAudioButton(
 
     private fun fail(message: String) {
         stop()
+        onFinished()
         Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
     }
 
