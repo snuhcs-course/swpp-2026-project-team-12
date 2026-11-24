@@ -1,6 +1,6 @@
 # Post summary and follow-up QA
 
-Adopted prompts live in `prompts.py`. Runtime code does not import developer scripts or read ignored experiment artifacts. `post_flow.py` implements the adopted October 16 evaluation policy.
+`prompts.py` defines the prompts, and `post_flow.py` runs the post summary and follow-up QA flows.
 
 ## Calls
 
@@ -21,7 +21,7 @@ Example request (Bearer token and `Content-Type: application/json` required):
 
 Response: `{"text": "..."}`. Responses are `no-store`. Question length: 1–1,000 characters. Optional history: at most 10 turns, each `user` or `assistant` with 1–1,000 characters of `text`. History is not persisted; clients send preceding turns on the next question. Temporary provider/search failures return HTTP 503; invalid inputs return 400/415. Authentication and family membership are required. Cross-family posts are not exposed.
 
-QA runs a search decision, then at most five parallel queries in one batch, then answers with `tool_choice=none`. If no search is requested, it returns the first answer. Round-robin selection across all queries sends the final answer model **up to five unique facts and five unique standalone episodes**. Every tool call receives an output, even when it contributes no selected evidence. Each output includes deduplicated source records.
+QA returns the first answer when the model can answer from the post and conversation. Otherwise it runs the initial queries in parallel and independently checks the retrieved text against the question. When the review identifies missing evidence and the five-query budget allows it, QA can run one shorter follow-up query. That query gives semantic episode ranking twice the weight of keyword ranking. The initial five-fact and five-episode budget stays in the final input. A retry can add up to five new sourced facts and ten new sourced episodes. Every tool call receives an output, even when it contributes no selected evidence.
 
 Search uses Korean calendar days for explicit event dates such as `10월 15일` and `어제`. Approximate dates such as `10월 15일쯤` include the adjacent days, with the requested day ranked first. Fact dates use `valid_at`, and standalone episode dates use the post's timestamp. Questions about a scheduled event leave the date in the relevance query because the fact can describe an earlier arrangement. Current-state queries exclude facts with a known end time at or before the request time. For other undated searches, a bounded recency boost is applied to the relevance ranking before selecting five facts and five episodes per query.
 

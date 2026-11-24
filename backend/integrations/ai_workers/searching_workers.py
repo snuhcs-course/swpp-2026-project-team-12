@@ -146,6 +146,8 @@ async def answer_request(search, feature, family_id, value, images=()):
             if isinstance(payload, dict):
                 if isinstance(payload.get("질문"), str):
                     options["question"] = payload["질문"]
+                    answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
+                                                              **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):
                     answer_options["parent_terms"] = parent_terms
         return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)

@@ -12,6 +12,8 @@ from graphiti_core.search.search_config import (
 )
 from graphiti_core.search.search_utils import rrf
 
+from integrations.ai.prompts import SUPPLEMENTAL_EPISODE_LIMIT
+
 from .episode_embeddings import search_dated_episodes, search_episodes
 from .graphiti_client import family_group
 from .temporal_search import date_window, fact_time_filter, time_rank
@@ -27,7 +29,7 @@ SEARCH_CONFIG = SearchConfig(
 )
 
 
-async def _search(graphiti, group_id, query, question, reference_time):
+async def _search(graphiti, group_id, query, question, reference_time, *, prefer_semantic=False):
     window = date_window(question, reference_time)
     filters = fact_time_filter(question, window, reference_time)
     filter_options = {"search_filter": filters} if filters is not None else {}
@@ -51,8 +53,13 @@ async def _search(graphiti, group_id, query, question, reference_time):
     ranked_lists = [[episode for episode in episodes if episode.group_id == group_id]
                     for episodes in [lexical_episodes, semantic.result()]]
     episodes = {episode.uuid: episode for ranked in ranked_lists for episode in ranked}
-    ids, scores = rrf([[episode.uuid for episode in ranked] for ranked in ranked_lists])
-    episode_scores = dict(zip(ids, scores))
+    rankings = [[episode.uuid for episode in ranked] for ranked in ranked_lists]
+    if prefer_semantic:
+        rankings.append(rankings[-1])
+    ids, scores = rrf(rankings)
+    # A 2:1 semantic weight broadens retries while retaining the time boost's scale.
+    score_scale = 2 / len(rankings)
+    episode_scores = {uuid: score * score_scale for uuid, score in zip(ids, scores)}
     edge_scores = getattr(result, "edge_reranker_scores", None) or [
         1 / rank for rank in range(1, len(result.edges) + 1)
     ]
@@ -65,11 +72,13 @@ async def _search(graphiti, group_id, query, question, reference_time):
         key=lambda item: time_rank(item[1], item[0].valid_at, reference_time, window), reverse=True,
     )
     result.edges = [edge for edge, _ in ranked_edges[:RESULT_LIMIT]]
-    result.episodes = [episodes[uuid] for uuid in ids[:RESULT_LIMIT]]
+    episode_limit = SUPPLEMENTAL_EPISODE_LIMIT if prefer_semantic else RESULT_LIMIT
+    result.episodes = [episodes[uuid] for uuid in ids[:episode_limit]]
     return result
 
 
-async def search_many(graphiti, family_id, queries, *, max_queries=3, question=None, reference_time=None):
+async def search_many(graphiti, family_id, queries, *, max_queries=3, question=None, reference_time=None,
+                      prefer_semantic=False):
     # Server-owned limit; never accept a query limit chosen by the model.
     if type(max_queries) is not int or not 1 <= max_queries <= 5:
         raise ValueError("검색 질문 상한은 1~5 사이 정수여야 합니다.")
@@ -84,7 +93,7 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3, question=N
     async with asyncio.TaskGroup() as group:
         tasks = [group.create_task(_search(
             graphiti, group_id, query, question if question and len(queries) == 1 else query,
-            reference_time,
+            reference_time, prefer_semantic=prefer_semantic,
         )) for query in queries]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]

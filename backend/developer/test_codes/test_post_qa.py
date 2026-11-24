@@ -58,6 +58,74 @@ class PostQATests(TestCase):
     def ask(self, data, **auth):
         return self.client.post(self.path, json.dumps(data), content_type="application/json", **(auth or self.auth))
 
+    def test_post_question_can_recover_missing_evidence_with_one_new_query(self):
+        query, retry = "도윤이가 기르는 식물", "도윤 자주 식물 옮긴 장소"
+
+        def tool_response(call_id, query_text):
+            call = SimpleNamespace(type="function_call", name="search_family_memory", call_id=call_id,
+                                   arguments=json.dumps({"query": query_text}))
+            return SimpleNamespace(status="completed", output=[call])
+
+        def memory(key, fact):
+            source = {"id": "episode", "name": "post_1", "text": fact, "recorded_at": "2026-10-14"}
+            return {"id": key, "fact": fact, "source_episode_ids": [source["id"]], "sources": [source]}
+
+        initial = [memory(f"initial{index}", "도윤이가 식물 사진을 올렸다.") for index in range(5)]
+        found = memory("found", "도윤이가 자주를 서재 창가로 옮겼다.")
+        final = SimpleNamespace(status="completed", output=[], output_text="서재 창가로 옮겼어요.")
+        cases = (
+            ("new", retry, [{"query": retry, "memories": [initial[0], found]}], initial, [found]),
+            ("duplicate", query + "  ", None, initial, []),
+            ("failed", retry, RuntimeError("offline"), initial, []),
+        )
+        for label, retry_query, extra_search, retained, extra in cases:
+            with self.subTest(case=label), patch.object(post_flow, "AsyncOpenAI") as sdk, \
+                 patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
+                client = sdk.return_value.__aenter__.return_value
+                reviewed = SimpleNamespace(status="completed", output_text=json.dumps({"retry_query": retry_query}))
+                client.responses.create = AsyncMock(side_effect=[tool_response("initial", query), reviewed, final])
+                batches = [[{"query": query, "memories": initial}]]
+                if extra_search is not None:
+                    batches.append(extra_search)
+                search.side_effect = batches
+
+                response = self.ask({"question": "도윤이가 자주를 옮긴 곳은 어디야?"})
+
+                self.assertEqual(response.status_code, 200, response.content)
+                self.assertEqual(search.await_count, len(batches))
+                if extra_search is not None:
+                    self.assertEqual(search.await_args.args[1:], (self.room.pk, [retry]))
+                    self.assertTrue(search.await_args.kwargs["prefer_semantic"])
+                requests = [call.kwargs for call in client.responses.create.await_args_list]
+                self.assertEqual([request.get("tool_choice") for request in requests], ["auto", None, "none"])
+                self.assertIsInstance(requests[1]["input"], str)
+                outputs = {i["call_id"]: json.loads(i["output"]) for i in requests[-1]["input"]
+                           if isinstance(i, dict) and i.get("type") == "function_call_output"}
+                self.assertEqual(outputs, {"initial": post_flow.context(retained)})
+                if extra:
+                    self.assertEqual(json.loads(requests[-1]["input"][-1]["content"]),
+                                     {"보완 검색 결과": post_flow.context(extra)})
+                else:
+                    self.assertEqual(requests[-1]["input"][-1]["type"], "function_call_output")
+
+    def test_post_question_uses_original_evidence_when_review_returns_no_answer(self):
+        call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="original",
+                               arguments='{"query":"도윤이 읽는 책"}')
+        first = SimpleNamespace(status="completed", output=[call])
+        empty_review = SimpleNamespace(status="completed", output=[], output_text="")
+        final = SimpleNamespace(status="completed", output_text="청의 엑소시스트예요.")
+        initial = [{"query": "도윤이 읽는 책", "memories": []}]
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=initial)) as search:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, empty_review, final])
+            response = self.ask({"question": "도윤이가 읽고 있는 책은 뭐야?"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["text"], final.output_text)
+        search.assert_awaited_once()
+        self.assertEqual(client.responses.create.await_args.kwargs["tool_choice"], "none")
+
     def test_post_question_uses_viewers_parent_for_search_and_answer(self):
         father = User.objects.create_user(username="doyun", display_name="도윤", gender="male")
         add_member(self.room, father)
@@ -65,19 +133,20 @@ class PostQATests(TestCase):
         tool_call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="parent",
                                     arguments=json.dumps({"query": "아버지가 읽던 책"}))
         first = SimpleNamespace(status="completed", output=[tool_call])
-        final = SimpleNamespace(status="completed", output_text="청의 엑소시스트예요.")
+        review = SimpleNamespace(status="completed", output_text='{"retry_query":""}')
+        final = SimpleNamespace(status="completed", output=[], output_text="청의 엑소시스트예요.")
         memories = [{"query": "책 제목", "memories": []}]
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=memories)) as search:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, final])
+            client.responses.create = AsyncMock(side_effect=[first, review, final])
             response = self.ask({"question": "아빠가 어제 읽던 책은 뭐야?", "확인된 가족 호칭": {"아빠": "타인"}})
 
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json(), {"text": final.output_text})
         self.assertEqual(search.await_args.args[1:], (self.room.pk, ["도윤 아버지가 읽던 책"]))
         self.assertEqual(search.await_args.kwargs["question"], "아빠가 어제 읽던 책은 뭐야?")
-        for request in client.responses.create.await_args_list:
+        for request in client.responses.create.await_args_list[::2]:
             payload = json.loads(request.kwargs["input"][0]["content"][0]["text"])
             self.assertEqual(payload["확인된 가족 호칭"], {"아빠": "도윤", "아버지": "도윤", "부친": "도윤"})
 
