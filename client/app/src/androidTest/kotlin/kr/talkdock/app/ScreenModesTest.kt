@@ -1,5 +1,6 @@
 package kr.talkdock.app
 
+import android.graphics.Rect
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ScrollView
@@ -45,6 +46,7 @@ class ScreenModesTest {
         (0 until root.childCount).flatMap { descendants(root.getChildAt(it)) } else emptyList()
 
     private fun UiHarness.guideVisible() = all().any { it.tag == "guide-close" && it.isShown }
+    private fun UiHarness.helpVisible() = all().any { it.tag == "elder-help" && it.isShown }
     private fun UiHarness.cue(label: String) = all().any { ViewCompat.getStateDescription(it)?.toString() == label }
     private fun UiHarness.editor() = all().filterIsInstance<EditText>().single()
 
@@ -126,6 +128,18 @@ class ScreenModesTest {
     @Test fun elderlyGuideListensRepliesAsksThenWritesOnTheRealFeed() = server { listOf(post(42)) }.use { api -> UiHarness(api, family, large = true).use { ui ->
         fun card() = ui.all().filterIsInstance<FeedPostCard>().single()
         ui.await { ui.cue("안내: 소식 듣기") }
+        ui.test.waitForIdleSync()
+        ui.test.runOnMainSync {
+            val labels = ui.all().filterIsInstance<TextView>()
+            val brand = labels.single { it.text.toString() == "토닥" }
+            val familyName = labels.single { it.text.toString() == family.getString("name") }
+            assertEquals(1, brand.lineCount)
+            assertEquals(0, brand.layout.getEllipsisCount(0))
+            assertEquals(1, familyName.lineCount)
+            assertTrue(ui.all().single { it.contentDescription?.startsWith("튜토리얼 음성 ") == true }.isShown)
+            assertTrue(ui.guideVisible())
+            assertFalse(ui.helpVisible())
+        }
         ui.captureMotion("listen")
         ui.screenshot("elder-02-guide-listen.png")
         ui.test.runOnMainSync { assertEquals("안내: 소식 듣기", ViewCompat.getStateDescription(card().listenAction!!)); card().listenAction!!.performClick() }
@@ -153,11 +167,18 @@ class ScreenModesTest {
         ui.await { ui.all().any { it is kr.talkdock.app.ui.PostQuestionPanel } }
         ui.test.runOnMainSync { ui.all().first { it.contentDescription == "도우미 닫기" }.performClick() }
         ui.await { ui.cue("안내: 소식 쓰기") }
+        ui.test.runOnMainSync {
+            val compose = ui.all().single { it.tag == "elder-compose" }
+            assertTrue(compose.getGlobalVisibleRect(Rect()))
+        }
         ui.screenshot("elder-05-guide-compose.png")
-        ui.test.runOnMainSync { ui.all().single { it.tag == "elder-help" }.performClick() }
-        ui.await { ui.cue("안내: 소식 듣기") }
         ui.dismissHelp()
-        assertTrue(!ui.guideVisible())
+        ui.await { ui.helpVisible() && !ui.guideVisible() }
+        ui.screenshot("elder-guide-dismissed.png")
+        ui.test.runOnMainSync { ui.all().single { it.tag == "elder-help" }.performClick() }
+        ui.await { ui.cue("안내: 소식 듣기") && ui.guideVisible() && !ui.helpVisible() }
+        ui.dismissHelp()
+        ui.await { ui.helpVisible() && !ui.guideVisible() }
         assertTrue(api.requests.none { it.method == "POST" && it.path !in setOf("/api/speech/", "/api/notifications/device/") &&
             !it.path.endsWith("/message/") })
     } }
@@ -173,7 +194,7 @@ class ScreenModesTest {
         ui.await { ui.cue("안내: 지난 날 보기") }
         ui.screenshot("elder-07-day-tour-previous.png")
         ui.test.runOnMainSync { ui.all().single { it.tag == "elder-day-previous" }.performClick() }
-        ui.await { ui.has("글로 읽기") && !ui.guideVisible() }
+        ui.await { ui.has("글로 읽기") && ui.helpVisible() && !ui.guideVisible() }
         // Memories: a one-tap example question first.
         tab("memories"); ui.await { ui.cue("안내: 예시로 물어보기") }
         ui.screenshot("elder-08-memory-tour-example.png")
@@ -181,7 +202,7 @@ class ScreenModesTest {
         ui.await { ui.cue("안내: 답변 듣기") }
         ui.screenshot("elder-09-memory-tour-answer.png")
         ui.test.runOnMainSync { ui.all().first { it.tag == "guide-close" && it.isShown }.performClick() }
-        ui.await { !ui.guideVisible() }
+        ui.await { ui.helpVisible() && !ui.guideVisible() }
         tab("digest"); ui.await { ui.has("글로 읽기") }
         ui.test.runOnMainSync { assertTrue(!ui.cue("안내: 오늘 하루")) }
         tab("memories"); ui.await { ui.all().any { it.tag == "memory-voice-start" } }
