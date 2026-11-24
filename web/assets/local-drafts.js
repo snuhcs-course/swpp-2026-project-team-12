@@ -57,3 +57,23 @@ export function pastQuestionsMarkup(turns, escape, labels = { user: '나', assis
   const items = turns.map(turn => `<div class="past-turn ${turn.role}"><span>${labels[turn.role]}</span><p>${escape(turn.text)}</p></div>`).join('');
   return `<details class="past-questions" data-past-questions><summary>이전에 물어본 질문 ${asked}개</summary><div class="past-question-list">${items}</div></details>`;
 }
+
+const MAX_SEARCHES = 20, MAX_MEMORY_POSTS = 10;
+/** Recent family-memory searches, newest first: { question, text, posts, unavailable }. */
+export function memorySearches(scope) {
+  const list = scope ? read(`memory:${scope}`, []) : [];
+  return Array.isArray(list) ? list.filter(item => item && typeof item.question === 'string' && typeof item.text === 'string') : [];
+}
+/** Asking the same question again moves it to the top instead of adding a copy. */
+export function rememberMemorySearch(scope, question, text, posts = [], unavailable = false) {
+  if (!scope || !question.trim()) return;
+  const kept = posts.slice(0, MAX_MEMORY_POSTS).map(({ comments, ...post }) => post);
+  const entry = { question: question.trim().slice(0, MAX_TEXT), text, posts: kept, unavailable: Boolean(unavailable) };
+  write(`memory:${scope}`, [entry, ...memorySearches(scope).filter(item => item.question !== entry.question)].slice(0, MAX_SEARCHES));
+}
+/** One collapsed toggle; each earlier question reopens its saved answer without asking the AI again. */
+export function pastMemoriesMarkup(list, escape) {
+  if (!list.length) return '';
+  const items = list.map((item, index) => `<button type="button" class="button secondary full past-memory" data-action="memory-past" data-index="${index}">${escape(item.question)}</button>`).join('');
+  return `<details class="past-questions" data-past-memories><summary>이전에 찾아본 추억 ${list.length}개</summary><div class="past-question-list">${items}</div></details>`;
+}

@@ -8,7 +8,7 @@ import { treeMarkup, mountTree } from './family-tree-view.js';
 import { FloatingAssistant } from './floating-assistant.js?v=ui-modes-20261109';
 import { memoryEvidence } from './memory-search.js';
 import { questionEntry, questionMarkup, questionHistory, questionPayload, questionVersion } from './daily-questions.js';
-import { postDraft, savePostDraft, clearPostDraft, commentDraft, saveCommentDraft, clearCommentIfSent, pastQuestions, rememberQuestion, pastQuestionsMarkup, clearAccountDrafts } from './local-drafts.js';
+import { postDraft, savePostDraft, clearPostDraft, commentDraft, saveCommentDraft, clearCommentIfSent, pastQuestions, rememberQuestion, pastQuestionsMarkup, clearAccountDrafts, memorySearches, rememberMemorySearch, pastMemoriesMarkup } from './local-drafts.js';
 
 const app = document.querySelector('#app');
 const modal = document.querySelector('#modal');
@@ -85,6 +85,9 @@ function scheduleReplyCheck() {
   }, 20_000);
 }
 const pendingOperations = new Set();
+function memoryResultMarkup(text, evidence) {
+  return `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(text)}</p>${elder ? `${button('memory-audio', '답변 듣기', 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : ''}</section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+}
 const draftScope = () => state.user && state.room ? `${state.user.user_id}:${state.room.id}` : null;
 document.addEventListener('input', event => {
   const field = event.target, scope = draftScope();
@@ -947,7 +950,7 @@ function memoryVoiceIdle(message = '') {
   return `${button('memory-voice', '말로 물어보기', 'mic', 'button primary full')}${message ? `<p class="form-error" role="alert">${e(message)}</p>` : ''}`;
 }
 function renderSearch() {
-  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p>${elder ? `<div class="memory-examples"><div class="memory-voice" aria-live="polite">${memoryVoiceIdle()}</div><h3>이렇게 물어보세요</h3>${memoryExamples().map(q => button('memory-example', e(q), '', 'button secondary full', `data-question="${e(q)}"`)).join('')}<p class="muted">글로 물어보셔도 돼요</p></div>` : ''}<form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
+  $('#page').innerHTML = `${pageHeading('MEMORIES TOGETHER', '함께 쌓아온 추억 찾기', '기억이 가물가물한 순간, 가족의 이야기 속에서 함께 찾아봐요.')}<section class="search-hero panel"><span class="empty-icon sage">${icon('search')}</span><h2>우리 가족의 어떤 순간이 궁금하세요?</h2><p class="muted">가족이 남긴 소식을 바탕으로 AI가 추억을 찾아드려요.</p>${elder ? `<div class="memory-examples"><div class="memory-voice" aria-live="polite">${memoryVoiceIdle()}</div><h3>이렇게 물어보세요</h3>${memoryExamples().map(q => button('memory-example', e(q), '', 'button secondary full', `data-question="${e(q)}"`)).join('')}<p class="muted">글로 물어보셔도 돼요</p></div>` : ''}<form data-form="search" class="memory-search"><label class="sr-only" for="memory-question">가족 기록에서 찾을 내용</label><input id="memory-question" name="question" required maxlength="1000" placeholder="예: 지난번 가족 여행은 어디로 갔었지?"><button class="button primary" type="submit">추억 찾기${icon('arrow')}</button><p class="form-error" role="alert"></p></form><div id="memory-past">${pastMemoriesMarkup(memorySearches(draftScope()), e)}</div></section><div id="search-result" aria-live="polite"></div><p class="page-note">${icon('leaf')}AI는 저장된 가족 기록을 참고해요. 아직 정리되지 않은 소식은 검색되지 않을 수 있어요.</p>`;
   if (startTabTour('search')) tourStep('memory-example');
 }
 async function renderDigest(version) {
@@ -1327,7 +1330,9 @@ const formHandlers = {
       const evidence = await memoryEvidence(result, id => api(`posts/${id}/`, { room }));
       if (!current()) return;
       queueMicrotask(() => { if (tabTour === 'memory-listen') tourStep('memory-listen'); });
-      $('#search-result').innerHTML = `<div class="feed-layout memory-results"><div><section class="panel search-answer"><p class="answer-text">${e(result.text)}</p>${elder ? `${button('memory-audio', '답변 듣기', 'volume', 'button primary full')}${button('stop-audio', '듣기 중지', 'stop', 'button quiet', 'hidden')}` : ''}</section><section class="memory-evidence" aria-label="답변에 참고한 가족 소식">${evidence.posts.map(memoryPostCard).join('')}${evidence.unavailable ? '<p class="help" role="status">일부 소식을 불러오지 못했어요. 잠시 후 다시 찾아주세요.</p>' : !evidence.posts.length ? '<p class="help">함께 보여드릴 소식을 찾지 못했어요.</p>' : ''}</section></div></div>`;
+      $('#search-result').innerHTML = memoryResultMarkup(result.text, evidence);
+      rememberMemorySearch(draftScope(), data.question, result.text, evidence.posts, evidence.unavailable);
+      $('#memory-past').innerHTML = pastMemoriesMarkup(memorySearches(draftScope()), e);
       hydrateImages($('#search-result'));
     } catch (error) { if (current()) $('#search-result').innerHTML = ''; throw error; }
   },
@@ -1447,6 +1452,16 @@ document.addEventListener('click', async event => {
     return busy(target, () => playSpeech(text, $('[data-action="stop-audio"]', answer), () => version === state.pageVersion));
   }
   if (action === 'post-ask') { stopAudio(); assistant.targetId = Number(target.dataset.id); assistant.open(); return; }
+  if (action === 'memory-past') {
+    // A saved search shows its stored answer and posts again; nothing is sent to the AI.
+    const item = memorySearches(draftScope())[Number(target.dataset.index)];
+    if (!item) return;
+    const field = $('#memory-question'); if (field) field.value = item.question;
+    target.closest('details')?.removeAttribute('open');
+    $('#search-result').innerHTML = memoryResultMarkup(item.text, { posts: item.posts, unavailable: item.unavailable });
+    hydrateImages($('#search-result'));
+    return;
+  }
   if (action === 'elder-reply-close') return closeElderReply(target.closest('.elder-reply'));
   if (action === 'elder-reply-reset') { stopRecording(true); elderRecording = false; const slot = target.closest('.elder-reply-voice'); if (slot) slot.innerHTML = elderVoiceIdle(Number(target.dataset.id)); return; }
   if (action === 'elder-reply-record') {

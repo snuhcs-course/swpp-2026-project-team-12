@@ -113,6 +113,8 @@ class FamilyMemorySearchTest {
             val user = JSONObject().put("user_id", 999).put("username", "memory-test").put("name", "테스트")
                 .put("token", "memory-test-token").put("large", large).put("room", family)
             prefs.edit().clear().putString("current", user.toString()).putString("server", server.base).commit()
+            // Saved searches from an earlier test would add a history toggle to this one.
+            test.targetContext.getSharedPreferences("talkdock-local-drafts", Context.MODE_PRIVATE).edit().clear().commit()
             activity = test.startActivitySync(Intent(test.targetContext, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)) as MainActivity
             await { has("첫 소식을 기다리고 있어요") || views().any { it is FeedPostCard } }

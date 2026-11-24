@@ -146,6 +146,13 @@ internal class UiHarness(private val api: MockApi, room: JSONObject?, large: Boo
     fun openRooms() { openSettings(); click("가족방 전환") }
     fun openDaily() {
         dismissHelp()
+        // Back from a post opened in a day's story returns to that story, and Back from the story to the day tab.
+        repeat(2) {
+            val current = currentScreen()
+            if (current != "detail" && current != "story") return@repeat
+            test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
+            await { currentScreen() != current }
+        }
         if (has("오늘도, 함께")) test.runOnMainSync { activity.onBackPressedDispatcher.onBackPressed() }
         // The elderly day tab opens the written day with "글로 읽기" instead.
         if (!has("오늘 이야기 보기") && !has("글로 읽기") && elderly() && all().none { it.tag == "main-tab:digest" }) {

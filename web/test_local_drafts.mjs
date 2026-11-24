@@ -88,3 +88,21 @@ test('storage failures leave the app working without drafts', () => {
     assert.doesNotThrow(() => drafts.clearAccountDrafts(7));
   } finally { globalThis.localStorage = original; }
 });
+
+test('memory searches keep the newest 20 without duplicates or comment threads', () => {
+  drafts.rememberMemorySearch('7:1', '카메라 누구 거야?', '도윤이 거예요', [{ id: 4, caption: '카메라', comments: [{ text: '긴 댓글' }] }]);
+  drafts.rememberMemorySearch('7:1', '제주도 갔었어?', '기록이 없어요');
+  drafts.rememberMemorySearch('7:1', ' 카메라 누구 거야? ', '도윤이 거예요');
+  const list = drafts.memorySearches('7:1');
+  assert.deepEqual(list.map(item => item.question), ['카메라 누구 거야?', '제주도 갔었어?']);
+  for (let index = 0; index < 25; index++) drafts.rememberMemorySearch('7:1', `질문 ${index}`, '답');
+  assert.equal(drafts.memorySearches('7:1').length, 20);
+  assert.deepEqual(drafts.memorySearches('8:1'), []);
+  drafts.rememberMemorySearch('7:2', '사진', '답', [{ id: 1, comments: [1, 2] }]);
+  assert.equal('comments' in drafts.memorySearches('7:2')[0].posts[0], false);
+  const markup = drafts.pastMemoriesMarkup(drafts.memorySearches('7:2'), escape);
+  assert.match(markup, /이전에 찾아본 추억 1개/);
+  assert.match(markup, /data-action="memory-past" data-index="0"/);
+  drafts.clearAccountDrafts(7);
+  assert.deepEqual(drafts.memorySearches('7:1'), []);
+});

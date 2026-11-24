@@ -31,6 +31,8 @@ class LocalDraftsTest {
         r.path.endsWith("/message/") -> jsonReply(JSONObject().put("status", "ready").put("text", "지우가 남긴 소식이에요."))
         r.path == "/api/posts/1/questions/" -> jsonReply(JSONObject().put("text", "답변: " + JSONObject(r.body).getString("question")))
         r.path == "/api/speech/" -> Reply(ByteArray(0), 503, "application/json")
+        r.path == "/api/searching/history/" -> jsonReply(JSONObject().put("text", "답: " + JSONObject(r.body).getString("question"))
+            .put("evidence_posts", JSONArray().put(post(1))).put("evidence_kind", "cited"))
         else -> jsonReply(JSONObject())
     } }
     private fun descendants(root: View): List<View> = listOf(root) + if (root is ViewGroup)
@@ -82,6 +84,49 @@ class LocalDraftsTest {
             leaveWith("그만하기")
             openComposer()
             ui.test.runOnMainSync { assertTrue(caption().text.isEmpty()) }
+        }
+    }
+
+    @Test fun earlierMemorySearchesReopenFromOneToggleWithoutAskingAgain() = server().use { api ->
+        UiHarness(api, room(1, "우리 가족"), tutorialSeen = true).use { ui ->
+            fun openMemories() {
+                ui.awaitOrDescribe { ui.all().any { it.tag == "main-tab:memories" } }
+                ui.test.runOnMainSync { ui.all().single { it.tag == "main-tab:memories" }.performClick() }
+                ui.awaitOrDescribe { ui.all().any { it is kr.talkdock.app.ui.FamilyMemoryPanel } }
+            }
+            fun panel() = ui.all().filterIsInstance<kr.talkdock.app.ui.FamilyMemoryPanel>().single()
+            fun ask(question: String) {
+                ui.test.runOnMainSync { panel().input.setText(question); panel().searchButton.performClick() }
+                ui.awaitOrDescribe { ui.has("답: $question") }
+            }
+            openMemories()
+            ui.test.runOnMainSync { assertTrue(ui.all().none { it.tag == "memory-history-toggle" }) }
+            ask("여행은 어디로 갔지?"); ask("카메라는 누구 거야?")
+            // A new panel (after switching tabs) reads the saved searches back from the device.
+            ui.test.runOnMainSync { ui.all().single { it.tag == "main-tab:home" }.performClick() }
+            ui.awaitOrDescribe { ui.currentScreen() == "home" }
+            openMemories()
+            ui.awaitOrDescribe { ui.all().any { it.tag == "memory-history-toggle" } }
+            ui.test.runOnMainSync {
+                val toggle = ui.all().single { it.tag == "memory-history-toggle" } as Button
+                assertEquals("이전에 찾아본 추억 2개 보기 ▾", toggle.text.toString())
+                assertTrue(ui.all().none { it.tag == "memory-history-item" })
+            }
+            ui.screenshot("draft-8-memory-history-closed.png")
+            ui.test.runOnMainSync { (ui.all().single { it.tag == "memory-history-toggle" } as Button).performClick() }
+            ui.awaitOrDescribe { ui.all().count { it.tag == "memory-history-item" && it.isShown } == 2 }
+            ui.screenshot("draft-9-memory-history-open.png")
+            ui.test.runOnMainSync {
+                val items = ui.all().filter { it.tag == "memory-history-item" }.map { it as Button }
+                assertEquals(listOf("카메라는 누구 거야?", "여행은 어디로 갔지?"), items.map { it.text.toString() })
+                items.last().performClick()
+            }
+            ui.awaitOrDescribe { ui.has("답: 여행은 어디로 갔지?") }
+            ui.test.runOnMainSync {
+                assertEquals("여행은 어디로 갔지?", panel().input.text.toString())
+                assertFalse(ui.has("답: 카메라는 누구 거야?"))
+            }
+            assertEquals("A saved search is shown without asking again", 2, api.paths().count { it == "/api/searching/history/" })
         }
     }
 

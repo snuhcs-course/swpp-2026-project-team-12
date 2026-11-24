@@ -1983,6 +1983,7 @@ class MainActivity : ComponentActivity() {
         ui.gap(content, 12)
         ui.label(content, "가족이 남긴 소식을 바탕으로\n궁금한 이야기를 찾아드려요.", if (large) 21f else 17f, color = ui.muted).gravity = Gravity.CENTER
         ui.gap(content, 24)
+        val memoryScope = postingScope()
         memoryPanel = FamilyMemoryPanel(this, ui, large, api, questions, restored,
             renderPost = { parent, post ->
                 val deck = PhotoLetterDeck(this, ui, listOf(post), large, post.getInt("id"),
@@ -1993,6 +1994,8 @@ class MainActivity : ComponentActivity() {
                 deck.currentCard.tag = "feed-post:${post.getInt("id")}"
                 parent.addView(deck, LinearLayout.LayoutParams(-1, -2))
             },
+            history = memoryScope?.let { drafts.memorySearches(it) }.orEmpty(),
+            remember = { asked, found -> memoryScope?.let { drafts.addMemorySearch(it, asked, found.toJson()) } },
             examples = if (large) memoryExamples() else emptyList(),
             voice = if (large) kr.talkdock.app.ui.MemoryVoiceAccess(
                 hasMicrophone = { checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED },

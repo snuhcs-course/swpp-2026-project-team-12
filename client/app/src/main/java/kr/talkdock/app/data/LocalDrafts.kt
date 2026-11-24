@@ -65,6 +65,30 @@ internal class LocalDrafts(context: Context) {
         prefs.edit().putString("questions:" + key(scope), book.toString()).apply()
     }
 
+    /** Recent family-memory searches, newest first: the question and the answer with its source posts. */
+    fun memorySearches(scope: PostingScope): List<Pair<String, JSONObject>> {
+        val list = prefs.getString("memory:" + key(scope), null)?.let { runCatching { JSONArray(it) }.getOrNull() } ?: return emptyList()
+        return (0 until list.length()).mapNotNull { index ->
+            val item = list.optJSONObject(index) ?: return@mapNotNull null
+            val question = item.optString("question").takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            item.optJSONObject("result")?.let { question to it }
+        }
+    }
+
+    /** Asking the same question again moves it to the top instead of adding a copy. */
+    fun addMemorySearch(scope: PostingScope, question: String, result: JSONObject) {
+        val kept = JSONObject(result.toString())
+        kept.optJSONArray("evidence_posts")?.let { posts ->
+            kept.put("evidence_posts", JSONArray((0 until minOf(posts.length(), MAX_MEMORY_POSTS)).map {
+                JSONObject(posts.getJSONObject(it).toString()).apply { remove("comments") }
+            }))
+        }
+        val entries = listOf(question.trim().take(MAX_TEXT) to kept) +
+            memorySearches(scope).filter { it.first.trim() != question.trim() }
+        val list = JSONArray(entries.take(MAX_SEARCHES).map { (asked, found) -> JSONObject().put("question", asked).put("result", found) })
+        prefs.edit().putString("memory:" + key(scope), list.toString()).apply()
+    }
+
     /** Explicit logout: forget this account's drafts on this phone and return the post photos to delete. */
     fun clearAccount(server: String, userId: Int): List<File> {
         val prefix = hash(server) + ":" + userId + ":"
@@ -90,5 +114,7 @@ internal class LocalDrafts(context: Context) {
         const val MAX_ANSWER = 4000
         const val MAX_TURNS = 10
         const val MAX_POSTS = 30
+        const val MAX_SEARCHES = 20
+        const val MAX_MEMORY_POSTS = 10
     }
 }
