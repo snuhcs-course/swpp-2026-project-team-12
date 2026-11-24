@@ -98,6 +98,11 @@ def digest_cases(manifest, gold, post_ids):
         spec = gold.get("digest", {}).get(day, {})
         other_days = [event["caption"] for event in manifest["events"]
                       if event["feed_key"] in post_ids and event_day(event) != day]
+        # Earlier posts of the same threads let the judge accept "A에서 B로 바뀌었어요" when A was posted before.
+        threads = {event.get("thread_id") for event in events} - {None}
+        earlier = sorted((event for event in manifest["events"]
+                          if event["feed_key"] in post_ids and event.get("thread_id") in threads
+                          and event_day(event) < day), key=lambda event: event["created_at"])
         cases.append({
             "id": day,
             "day": day,
@@ -107,6 +112,8 @@ def digest_cases(manifest, gold, post_ids):
             ]),
             "must_not_include": spec.get("must_not_include", []),
             "other_day_captions": other_days,
+            "earlier_thread_posts": [{"author_name": event["author_name"], "created_at": event["created_at"],
+                                      "caption": event["caption"]} for event in earlier],
         })
     return cases
 

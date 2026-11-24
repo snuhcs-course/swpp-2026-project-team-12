@@ -13,23 +13,24 @@ from . import prompts
 from .options import model_options
 
 
-def select_budget(results, limit=prompts.FACT_BUDGET, *, episode_limit=None):
-    """Select up to limit unique facts and limit unique episodes across all queries."""
+def select_budget(results, fact_limit=prompts.FACT_BUDGET, episode_limit=prompts.EPISODE_BUDGET):
+    """Round-robin across queries with separate unique fact and episode budgets.
+
+    Episodes get their own budget so update posts that Graphiti did not turn into
+    facts are not crowded out by older facts that rank first.
+    """
     selected = [{'query': r['query'], 'memories': []} for r in results]
-    fact_ids = set()
-    episode_ids = set()
-    episode_limit = limit if episode_limit is None else episode_limit
+    limits = {'fact': fact_limit, 'episode': episode_limit}
+    seen = {'fact': set(), 'episode': set()}
     for rank in range(max((len(r['memories']) for r in results), default=0)):
         for i, result in enumerate(results):
             if rank < len(result['memories']):
                 memory = result['memories'][rank]
-                memory_id = memory['id']
-                # Standalone episodes cite their own ID. Fact edges cite their source episodes.
-                is_episode = memory.get('source_episode_ids') == [memory_id]
-                seen, capacity = (episode_ids, episode_limit) if is_episode else (fact_ids, limit)
-                if len(seen) < capacity and memory_id not in seen:
+                # Standalone episodes cite their own ID.
+                kind = 'episode' if memory.get('source_episode_ids') == [memory['id']] else 'fact'
+                if memory['id'] not in seen[kind] and len(seen[kind]) < limits[kind]:
                     selected[i]['memories'].append(memory)
-                    seen.add(memory_id)
+                    seen[kind].add(memory['id'])
     return selected
 
 

@@ -199,7 +199,7 @@ def run(args):
 
         # Django settings load the repository .env, so the judge reads its key and model after setup.
         judge = None if args.no_judge else Judge(context.output / "feature_eval" / "judge_cache",
-                                                 model=args.judge_model)
+                                                 model=args.judge_model, votes=args.judge_votes)
         posts = load_posts(post_ids)
         for feature, cases in plan.items():
             _, metrics = evaluate_feature(
@@ -232,6 +232,8 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="case 수만 출력하고 API는 호출하지 않음")
     parser.add_argument("--no-judge", action="store_true", help="규칙 기반 채점만 실행")
     parser.add_argument("--judge-model", help="기본값: JUDGE_AI_MODEL, 없으면 DEFAULT_AI_MODEL")
+    parser.add_argument("--judge-votes", type=int, default=1,
+                        help="case마다 judge를 N번(홀수) 호출해 기준별 다수결로 판정. case가 적은 digest에 권장")
     parser.add_argument("--reuse-outputs", action="store_true", help="이전 보고서의 기능 출력을 재사용하고 채점만 다시 실행")
     parser.add_argument("--regenerate-descriptions", action="store_true", help="저장된 description 대신 새로 생성")
     parser.add_argument("--force", action="store_true", help="pipeline phase 확인을 건너뜀")
