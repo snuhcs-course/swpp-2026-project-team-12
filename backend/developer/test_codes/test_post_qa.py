@@ -58,6 +58,44 @@ class PostQATests(TestCase):
     def ask(self, data, **auth):
         return self.client.post(self.path, json.dumps(data), content_type="application/json", **(auth or self.auth))
 
+    def test_post_question_uses_viewers_parent_for_search_and_answer(self):
+        father = User.objects.create_user(username="doyun", display_name="도윤", gender="male")
+        add_member(self.room, father)
+        link_parent(self.room, father, self.viewer)
+        tool_call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="parent",
+                                    arguments=json.dumps({"query": "아버지가 읽던 책"}))
+        first = SimpleNamespace(status="completed", output=[tool_call])
+        final = SimpleNamespace(status="completed", output_text="청의 엑소시스트예요.")
+        memories = [{"query": "책 제목", "memories": []}]
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=memories)) as search:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, final])
+            response = self.ask({"question": "아빠가 어제 읽던 책은 뭐야?", "확인된 가족 호칭": {"아빠": "타인"}})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {"text": final.output_text})
+        self.assertEqual(search.await_args.args[1:], (self.room.pk, ["도윤 아버지가 읽던 책"]))
+        self.assertEqual(search.await_args.kwargs["question"], "아빠가 어제 읽던 책은 뭐야?")
+        for request in client.responses.create.await_args_list:
+            payload = json.loads(request.kwargs["input"][0]["content"][0]["text"])
+            self.assertEqual(payload["확인된 가족 호칭"], {"아빠": "도윤", "아버지": "도윤", "부친": "도윤"})
+
+    def test_post_question_leaves_other_peoples_or_ambiguous_parents_unresolved(self):
+        father = User.objects.create_user(username="father", display_name="도윤", gender="male")
+        add_member(self.room, father)
+        link_parent(self.room, father, self.viewer)
+        with patch.object(provider, "ask", return_value="가족 기록 답변") as ask:
+            for text in ("지민이 아빠가 읽던 책은 뭐야?", "아빠의 아버지는 누구야?", "아빠랑 엄마는 뭐 읽었어?"):
+                with self.subTest(text=text):
+                    self.assertEqual(self.ask({"question": text}).status_code, 200)
+                    self.assertEqual(ask.call_args.kwargs["parent_terms"], {})
+            another = User.objects.create_user(username="another-father", display_name="정우", gender="male")
+            add_member(self.room, another)
+            link_parent(self.room, another, self.viewer)
+            self.assertEqual(self.ask({"question": "아빠가 읽던 책은 뭐야?"}).status_code, 200)
+            self.assertEqual(ask.call_args.kwargs["parent_terms"], {})
+
     def test_five_searches_send_five_facts_and_five_episodes_in_tool_outputs(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=f"call{i}",
                                  arguments=json.dumps({"query": f"단위{i}"})) for i in range(5)]

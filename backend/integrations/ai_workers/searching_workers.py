@@ -137,14 +137,18 @@ async def answer_request(search, feature, family_id, value, images=()):
         from integrations.ai.prompts import MAX_QUERIES
 
         options = {}
+        answer_options = {"images": images}
         if feature == "post_qa":
             try:
                 payload = json.loads(value)
             except (TypeError, ValueError):
                 payload = None
-            if isinstance(payload, dict) and isinstance(payload.get("질문"), str):
-                options["question"] = payload["질문"]
-        return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, images=images)
+            if isinstance(payload, dict):
+                if isinstance(payload.get("질문"), str):
+                    options["question"] = payload["질문"]
+                if parent_terms := payload.get("확인된 가족 호칭"):
+                    answer_options["parent_terms"] = parent_terms
+        return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
     if feature == "memories":
         return {"results": await search(value)}
 

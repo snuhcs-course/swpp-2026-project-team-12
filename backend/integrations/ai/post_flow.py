@@ -7,6 +7,8 @@ from time import perf_counter
 from django.conf import settings
 from openai import AsyncOpenAI
 
+from apps.families.utils.parent_terms import include_parent_name
+
 from . import prompts
 from .options import model_options
 
@@ -41,7 +43,7 @@ def checked_text(response):
     return response.output_text
 
 
-async def answer(search, text, feature, *, images=(), timings=None):
+async def answer(search, text, feature, *, images=(), timings=None, parent_terms=None):
     timings = timings if timings is not None else {}
     timings.update(decision=0.0, search=0.0, answer=0.0)
     is_qa = feature == 'post_qa'
@@ -81,7 +83,7 @@ async def answer(search, text, feature, *, images=(), timings=None):
                     raise ValueError()
             except (ValueError, TypeError, KeyError) as error:
                 raise RuntimeError('검색 질문 형식이 올바르지 않습니다.') from error
-            queries.append(query)
+            queries.append(include_parent_name(query, parent_terms, single_query=len(calls) == 1))
         started = perf_counter()
         results = select_budget(await search(queries))
         timings['search'] = perf_counter() - started
