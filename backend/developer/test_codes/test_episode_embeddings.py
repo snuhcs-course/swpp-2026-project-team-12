@@ -1,14 +1,16 @@
 """Episode embedding persistence and retrieval without live AI or Neo4j."""
 
 import asyncio
+from datetime import datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from django.test import SimpleTestCase
 from django.utils import timezone
 from graphiti_core.nodes import EpisodeType, EpisodicNode
 
 from integrations.ai_workers import construction_graphiti, episode_embeddings, searching_graphiti
+from integrations.ai_workers.temporal_search import date_window, time_rank
 
 
 class EpisodeEmbeddingTests(SimpleTestCase):
@@ -104,6 +106,54 @@ class EpisodeEmbeddingTests(SimpleTestCase):
         graph.search_.return_value.episodes = [shared, foreign]
         result, = asyncio.run(searching_graphiti.search_many(graph, 1, ["반려견"]))
         self.assertEqual([m["id"] for m in result["memories"]], [shared.uuid, vector_only.uuid])
+
+    def test_explicit_event_day_filters_both_episode_searches_and_fact_candidates(self):
+        graph = self.graph()
+        now = datetime.fromisoformat("2026-10-16T01:00:00+09:00")
+        start = datetime.fromisoformat("2026-10-15T00:00:00+09:00")
+        with patch.object(episode_embeddings, "fulltext_query", return_value="query"):
+            asyncio.run(searching_graphiti.search_many(
+                graph, 1, ["한 일 확인"], question="10월 15일에 뭐 했지?", reference_time=now,
+            ))
+        graph_args = graph.search_.await_args.kwargs
+        self.assertIsNone(graph_args["config"].episode_config)
+        self.assertEqual([f.date for f in graph_args["search_filter"].valid_at[0]], [
+            start, start + timedelta(days=1),
+        ])
+        self.assertEqual(graph.driver.execute_query.await_count, 2)
+        for call in graph.driver.execute_query.await_args_list:
+            self.assertIn("e.valid_at >= $start AND e.valid_at < $end", call.args[0])
+            self.assertEqual(call.kwargs["start"], start)
+            self.assertEqual(call.kwargs["end"], start + timedelta(days=1))
+
+    def test_relative_and_approximate_event_dates_use_korean_calendar_days(self):
+        now = datetime.fromisoformat("2026-10-15T16:00:00+00:00")
+        start = datetime.fromisoformat("2026-10-15T00:00:00+09:00")
+        self.assertEqual(date_window("어제 뭐 했지?", now), (start, start + timedelta(days=1)))
+        self.assertEqual(date_window("10월 15일쯤 무슨 일이 있었어?", now), (
+            start - timedelta(days=1), start + timedelta(days=2),
+        ))
+        approx = date_window("10월 15일쯤 무슨 일이 있었어?", now)
+        self.assertGreater(time_rank(0.2, start, now, approx),
+                           time_rank(1.0, start - timedelta(seconds=1), now, approx))
+        self.assertIsNone(date_window("10월 15일 약속이 몇 시야?", now))
+        self.assertIsNone(date_window("10월 15일부터 18일까지 뭐 했지?", now))
+
+    def test_recency_breaks_close_fact_scores_without_overriding_strong_matches(self):
+        now = datetime.fromisoformat("2026-10-16T01:00:00+09:00")
+        strong, older, recent = [
+            SimpleNamespace(uuid=name, fact=name, group_id="family_1", episodes=[],
+                            valid_at=now - timedelta(days=age), invalid_at=None)
+            for name, age in [("strong", 30), ("older", 30), ("recent", 1)]
+        ]
+        graph = self.graph()
+        graph.search_.return_value = SimpleNamespace(
+            edges=[strong, older, recent], edge_reranker_scores=[0.5, 0.2, 0.18], episodes=[],
+        )
+        result, = asyncio.run(searching_graphiti.search_many(
+            graph, 1, ["장소"], reference_time=now,
+        ))
+        self.assertEqual([memory["id"] for memory in result["memories"]], ["strong", "recent", "older"])
 
     def test_vector_failure_cancels_the_graph_search_before_returning(self):
         async def run():

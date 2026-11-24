@@ -58,7 +58,7 @@ class PostQATests(TestCase):
     def ask(self, data, **auth):
         return self.client.post(self.path, json.dumps(data), content_type="application/json", **(auth or self.auth))
 
-    def test_five_searches_are_scoped_budgeted_and_have_five_tool_outputs(self):
+    def test_five_searches_send_five_facts_and_five_episodes_in_tool_outputs(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=f"call{i}",
                                  arguments=json.dumps({"query": f"단위{i}"})) for i in range(5)]
         first = SimpleNamespace(status="completed", output=calls, output_text="")
@@ -69,7 +69,11 @@ class PostQATests(TestCase):
             ids = [0] + [n + rank * 5 for rank in range(1, 5)]
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids], episodes=[])
+                                     episodes=[f"e{i}"]) for i in ids], episodes=[
+                SimpleNamespace(uuid=f"episode{i}", group_id=f"family_{self.room.pk}",
+                                name=f"post_{i}", content=f"기록{i}", valid_at=timezone.now())
+                for i in ids
+            ])
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
@@ -86,7 +90,11 @@ class PostQATests(TestCase):
         self.assertEqual(result.status_code, 200);self.assertEqual(result.json(), {"text": final.output_text})
         self.assertEqual(result["Cache-Control"], "no-store")
         self.assertEqual(graph.search_.await_count, 5)
-        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["config"].limit == 5 for c in graph.search_.await_args_list))
+        self.assertTrue(all(
+            call.kwargs["group_ids"] == [f"family_{self.room.pk}"]
+            and call.kwargs["config"].limit == searching_graphiti.SEARCH_CONFIG.limit
+            for call in graph.search_.await_args_list
+        ))
         requests = client.responses.create.await_args_list
         self.assertEqual(len(requests), 2)
         initial, last = requests[0].kwargs, requests[1].kwargs
@@ -101,9 +109,15 @@ class PostQATests(TestCase):
         self.assertEqual(initial["input"][0]["content"][1]["detail"], "high")
         outputs = [item for item in last["input"] if isinstance(item, dict) and item.get("type") == "function_call_output"]
         self.assertEqual([o["call_id"] for o in outputs], [f"call{i}" for i in range(5)])
-        facts = [f for o in outputs for f in json.loads(o["output"])["facts"]]
+        memories = [memory for output in outputs for memory in json.loads(output["output"])["facts"]]
+        facts = [memory for memory in memories if memory["source_episode_ids"] != [memory["id"]]]
+        episodes = [memory for memory in memories if memory["source_episode_ids"] == [memory["id"]]]
         self.assertEqual({f["id"] for f in facts}, {"fact0", "fact5", "fact6", "fact7", "fact8"})
         self.assertEqual(len(facts), 5)
+        self.assertEqual({episode["id"] for episode in episodes}, {
+            "episode0", "episode5", "episode6", "episode7", "episode8",
+        })
+        self.assertEqual(len(episodes), 5)
         self.assertEqual(json.loads(outputs[-1]["output"]), {"facts": [], "sources": []})
         close.assert_awaited_once_with(graph)
 
