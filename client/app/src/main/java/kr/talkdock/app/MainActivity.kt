@@ -153,6 +153,8 @@ class MainActivity : ComponentActivity() {
     // LISTEN, LISTEN_COMMENT and ASK are the elderly first guide: listen, reply, ask, then write.
     private enum class GuideStep { READ, READING, COMPOSE, WRITING, REPLY, REPLYING, LISTEN, LISTEN_COMMENT, ASK }
     private var guideStep: GuideStep? = null
+    /** Elderly first guide: the reply opened from 댓글 달기 leads on to 소식 물어보기 once sent or closed. */
+    private var askAfterReply = false
     private var guideRoom = ""
     private var guidePostId = -1
     private var guideCue: TutorialCue? = null
@@ -291,6 +293,7 @@ class MainActivity : ComponentActivity() {
             guideRoom = replyKey()
             guideStep = state.getString("guideStep")?.let { GuideStep.valueOf(it) }
             guidePostId = state.getInt("guidePostId", -1)
+            askAfterReply = state.getBoolean("askAfterReply", false)
         }
         val restoredScreen = state?.getString("screen")
         memoryTabState = matchingMemoryState(state?.getBundle("memories"))
@@ -350,6 +353,7 @@ class MainActivity : ComponentActivity() {
         out.putString("guideRoom", guideRoom)
         out.putString("guideStep", guideStep?.name)
         out.putInt("guidePostId", guidePostId)
+        out.putBoolean("askAfterReply", askAfterReply)
         out.putString("screen", screen); out.putString("photo", photo?.absolutePath)
         out.putStringArrayList("extraPhotos", ArrayList(extraPhotos.map { it.absolutePath }))
         out.putString("pendingPhoto", pendingPhoto?.absolutePath)
@@ -1728,6 +1732,7 @@ class MainActivity : ComponentActivity() {
     private fun closeGuide() {
         clearCue()
         listenCueWaiting = false
+        askAfterReply = false
         guideStep = null
         tabTour = null
         setGuideControlsVisible(false)
@@ -1761,6 +1766,12 @@ class MainActivity : ComponentActivity() {
         val other = cards.firstOrNull { it.post.optInt("author_id") > 0 &&
             it.post.optInt("author_id") != session?.optInt("user_id") }
         val starting = manual || !seen(helpKey())
+        // The guided reply's card was redrawn (its reply area closed): go on to 소식 물어보기.
+        if (!starting && guideStep == GuideStep.REPLYING && askAfterReply) {
+            if (cards.any { it.replyOpen && it.post.optInt("id") == guidePostId }) return
+            askAfterReply = false
+            guideStep = GuideStep.ASK
+        }
         guideStep = when {
             starting -> if (cards.isEmpty()) GuideStep.COMPOSE else if (large) GuideStep.LISTEN else GuideStep.READ
             guideStep == GuideStep.READING -> GuideStep.COMPOSE
@@ -2427,9 +2438,21 @@ class MainActivity : ComponentActivity() {
         activePostAudio = null
     }
     /** Elderly feed: open the reply area inside the card; a second tap closes it. */
+    /** Ends a guided reply: the elderly first guide goes on to 소식 물어보기, any other reply guide closes. */
+    private fun finishReplyGuide(postId: Int) {
+        if (guideStep != GuideStep.REPLYING) return
+        if (!askAfterReply || postId != guidePostId) { closeGuide(); return }
+        askAfterReply = false
+        guideStep = GuideStep.ASK
+        clearCue()
+        // The summary stays open during the guide; if its button is redrawn, askShown points at it again.
+        feedCards.firstOrNull { it.post.optInt("id") == guidePostId }?.audio
+            ?.findViewWithTag<View>("post-audio-ask")?.let { showCue(it, TutorialLine.ELDER_ASK, reveal = true) }
+    }
+
     private fun toggleInlineReply(card: FeedPostCard) {
         if (busy || screen != "home") return
-        if (card.replyOpen) { card.hideReply(); return }
+        if (card.replyOpen) { card.hideReply(); finishReplyGuide(card.post.optInt("id")); return }
         feedCards.filter { it !== card && it.replyOpen }.forEach { it.hideReply() }
         val post = card.post
         val tour = guideStep == GuideStep.LISTEN_COMMENT && guidePostId == post.optInt("id")
@@ -2439,9 +2462,10 @@ class MainActivity : ComponentActivity() {
         if (!tour) card.audio.dismiss()
         if (post.optInt("author_id") > 0 && post.optInt("author_id") != session?.optInt("user_id")) markSeen(replyKey())
         // The reply tutorial continues inside the card: comment field, then send.
-        val guided = guideStep in setOf(GuideStep.REPLY, GuideStep.REPLYING) && guidePostId == post.optInt("id")
-        if (tour) { guideStep = GuideStep.ASK; clearCue() }
-        else if (guided) { guideStep = GuideStep.REPLYING; clearCue() } else if (guideStep != null) closeGuide()
+        // In the elderly first guide it also leads on to 소식 물어보기 after the comment is sent or closed.
+        val guided = tour || guideStep in setOf(GuideStep.REPLY, GuideStep.REPLYING) && guidePostId == post.optInt("id")
+        if (guided) { askAfterReply = tour || askAfterReply; guideStep = GuideStep.REPLYING; clearCue() }
+        else if (guideStep != null) closeGuide()
         val panel = card.reply ?: ElderReplyPanel(this, ui, post, api, summaries,
             hasMicrophone = { checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED },
             requestMicrophone = { pending ->
@@ -2449,7 +2473,7 @@ class MainActivity : ComponentActivity() {
                 requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode)
             },
             beforeRecording = { narrator.interrupt(); stopPostAudio() },
-            close = { card.hideReply(); if (guideStep == GuideStep.REPLYING) closeGuide() },
+            close = { card.hideReply(); finishReplyGuide(post.optInt("id")) },
             login = {
                 val username = session?.optString("username").orEmpty()
                 val userId = session?.optInt("user_id"); val big = large
@@ -2459,14 +2483,15 @@ class MainActivity : ComponentActivity() {
             // Same background queue as other comments: the status bar shows progress and retry,
             // and the card's comments refresh when the send completes.
             submitText = { text ->
-                if (guideStep == GuideStep.REPLYING) closeGuide()
+                // textComment interrupts the narrator, so the next cue's voice starts after it.
                 card.hideReply(); textComment(post.getInt("id"), text)
+                finishReplyGuide(post.optInt("id"))
             },
             submitVoice = { draft ->
                 val scope = postingScope()
                 if (scope != null) {
-                    if (guideStep == GuideStep.REPLYING) closeGuide()
                     card.hideReply(); narrator.interrupt()
+                    finishReplyGuide(post.optInt("id"))
                     val draftId = draft.getInt("id")
                     outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.VOICE_REPLY,
                         draft.optString("converted").ifBlank { draft.optString("recognized") }, post.getInt("id")) { client, _ ->
@@ -2480,7 +2505,6 @@ class MainActivity : ComponentActivity() {
         }
         card.showReply(panel)
         if (guided) panel.post { if (panel.isAttachedToWindow) guideComment(panel.composer, reveal = true) }
-        if (tour) card.audio.findViewWithTag<View>("post-audio-ask")?.let { showCue(it, TutorialLine.ELDER_ASK, reveal = true) }
         panel.post {
             if (panel.isAttachedToWindow)
                 panel.requestRectangleOnScreen(Rect(0, 0, panel.width, minOf(panel.height, ui.dp(260))), false)
@@ -2494,7 +2518,7 @@ class MainActivity : ComponentActivity() {
             if (activePostAudio !== audio) stopPostAudio()
             activePostAudio = audio
             // Listening moves on from replying: close any reply area left open in the feed.
-            feedCards.filter { it.replyOpen }.forEach { it.hideReply() }
+            feedCards.filter { it.replyOpen }.forEach { it.hideReply(); finishReplyGuide(it.post.optInt("id")) }
             if (guideStep == GuideStep.LISTEN && screen == "home" && post.optInt("id") == guidePostId) {
                 // Point at 댓글 달기 only after the summary has been read (see playbackChanged).
                 guideStep = GuideStep.LISTEN_COMMENT
@@ -2519,7 +2543,10 @@ class MainActivity : ComponentActivity() {
         },
         ask = if (large) ({ if (!busy) {
             // Elderly guide: asking is the last step before writing, shown once the question window closes.
-            if (guideStep == GuideStep.ASK && guidePostId == post.optInt("id")) {
+            // Asking before the guided comment is sent also counts as this step.
+            val replyingFirst = guideStep == GuideStep.REPLYING && askAfterReply
+            if ((guideStep == GuideStep.ASK || replyingFirst) && guidePostId == post.optInt("id")) {
+                askAfterReply = false
                 guideStep = GuideStep.READING; clearCue()
                 feedCards.firstOrNull { it.post.optInt("id") == guidePostId }?.hideReply()
             }

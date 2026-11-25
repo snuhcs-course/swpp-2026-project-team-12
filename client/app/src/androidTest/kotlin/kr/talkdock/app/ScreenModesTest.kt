@@ -146,6 +146,14 @@ class ScreenModesTest {
         ui.await { ui.cue("안내: 댓글 달기") }
         ui.screenshot("elder-03-guide-comment.png")
         ui.test.runOnMainSync { assertEquals("home", ui.currentScreen()); card().replyAction!!.performClick() }
+        // 댓글 달기 opens the reply area and guides the comment first; 소식 물어보기 waits until it is sent.
+        ui.await { ui.cue("안내: 댓글 입력") && card().replyOpen }
+        assertFalse(ui.cue("안내: 소식 물어보기"))
+        ui.test.runOnMainSync { ui.editor().setText("고마워!") }
+        ui.await { ui.cue("안내: 댓글 보내기") }
+        assertFalse(ui.cue("안내: 소식 물어보기"))
+        ui.test.runOnMainSync { ui.all().single { it.contentDescription == "댓글 보내기" }.performClick() }
+        ui.await { api.requests.count { it.method == "POST" && it.path == "/api/posts/42/comments/" } == 1 }
         // The summary stays open during the guide, so its 소식 물어보기 is the next step.
         // On a slow emulator the summary may still be loading; on failure, report the app state.
         try { ui.await(timeout = 15000) { ui.cue("안내: 소식 물어보기") } } catch (error: AssertionError) {
@@ -179,8 +187,8 @@ class ScreenModesTest {
         ui.await { ui.cue("안내: 소식 듣기") && ui.guideVisible() && !ui.helpVisible() }
         ui.dismissHelp()
         ui.await { ui.helpVisible() && !ui.guideVisible() }
-        assertTrue(api.requests.none { it.method == "POST" && it.path !in setOf("/api/speech/", "/api/notifications/device/") &&
-            !it.path.endsWith("/message/") })
+        assertTrue(api.requests.none { it.method == "POST" && it.path !in setOf("/api/speech/", "/api/notifications/device/",
+            "/api/posts/42/comments/") && !it.path.endsWith("/message/") })
     } }
 
     @Test fun elderlyTabsShowTheirShortGuideOnlyOnTheFirstVisit() = server().use { api -> UiHarness(api, family, large = true).use { ui ->
