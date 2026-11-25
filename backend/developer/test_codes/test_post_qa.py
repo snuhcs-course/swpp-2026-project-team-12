@@ -9,6 +9,7 @@ from itertools import repeat
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from asgiref.sync import async_to_sync
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -40,6 +41,28 @@ def mock_response_create(*responses):
     return AsyncMock(side_effect=create)
 
 
+class PostEvidenceFieldsTests(TestCase):
+    def test_post_fields_use_the_room_scoped_sqlite_row_and_keep_legacy_descriptions(self):
+        author = User.objects.create_user(username="writer", display_name="실제 작성자")
+        room = FamilyRoom.objects.create(owner=author, name="가족", invite_code="SRC001", password_hash="x")
+        other = FamilyRoom.objects.create(owner=author, name="다른 가족", invite_code="SRC002", password_hash="x")
+        post = Post.objects.create(room=room, author=author, caption="작성자의 본문\n둘째 줄", description="저장된 사진 설명")
+        hidden = Post.objects.create(room=other, author=author, caption="다른 가족 본문")
+        sources = [
+            {"name": f"post_{post.pk}", "text": "작성자: 그래프 이름\n상세 설명: 예전 설명"},
+            {"name": f"post_{hidden.pk}", "text": "작성자: 이전 이름\n상세 설명: 그래프에 보관된 설명"},
+            {"name": "family_registry_1_v1", "text": "가족관계"},
+        ]
+        actual, legacy, registry = async_to_sync(post_evidence.attach_post_fields)(room.pk, sources)
+        self.assertEqual(actual["post_fields"], {
+            "게시글 작성자": "실제 작성자", "게시글 원문": "작성자의 본문\n둘째 줄", "게시글 설명": "저장된 사진 설명",
+        })
+        self.assertEqual(legacy["post_fields"], {
+            "게시글 작성자": "이전 이름", "게시글 원문": None, "게시글 설명": "그래프에 보관된 설명",
+        })
+        self.assertNotIn("post_fields", registry)
+
+
 @override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna",
                    SUMMARY_AI_SERVICE_TIER="fast", SUMMARY_AI_REASONING_EFFORT="none",
                    ANSWER_AI_MODEL="gpt-6-luna", ANSWER_AI_SERVICE_TIER="fast", ANSWER_AI_REASONING_EFFORT="none")
@@ -48,6 +71,7 @@ class PostQATests(TestCase):
         self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
         self.enterContext(patch.object(searching_graphiti, "search_lexical_episodes", new=AsyncMock(return_value=[])))
         self.enterContext(patch.object(searching_graphiti, "excluded_post_episodes", new=AsyncMock(return_value=set())))
+        self.enterContext(patch.object(post_evidence, "attach_post_fields", new=AsyncMock(side_effect=lambda room, sources: sources)))
         self.enterContext(patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
@@ -87,6 +111,7 @@ class PostQATests(TestCase):
 
         def memory(key, fact):
             source = {"id": "episode", "name": "post_1", "text": fact, "recorded_at": "2026-10-14"}
+            source["post_fields"] = {"게시글 작성자": "지민", "게시글 원문": "화분을 옮겼어요.", "게시글 설명": fact}
             return {"id": key, "fact": fact, "source_episode_ids": [source["id"]], "sources": [source]}
 
         initial = [memory(f"initial{index}", "도윤이가 식물 사진을 올렸다.") for index in range(5)]
@@ -123,6 +148,8 @@ class PostQATests(TestCase):
                 outputs = {i["call_id"]: json.loads(i["output"]) for i in requests[-1]["input"]
                            if isinstance(i, dict) and i.get("type") == "function_call_output"}
                 self.assertEqual(outputs, {"initial": post_flow.context(retained)})
+                self.assertEqual(outputs["initial"]["sources"][0]["게시글 원문"], "화분을 옮겼어요.")
+                self.assertNotIn("text", outputs["initial"]["sources"][0])
                 if extra:
                     self.assertEqual(json.loads(requests[-1]["input"][-1]["content"]),
                                      {"보완 검색 결과": post_flow.context(extra)})
@@ -242,7 +269,7 @@ class PostQATests(TestCase):
         payload = json.loads(initial["input"][0]["content"][0]["text"])
         self.assertEqual(payload["원문"], self.post.caption);self.assertEqual(payload["질문자"], self.viewer.display_name)
         self.assertEqual(payload["이전대화"], [{"role": "assistant", "text": "이전 답"}])
-        self.assertEqual(initial["input"][0]["content"][1]["detail"], "high")
+        self.assertEqual([item["type"] for item in initial["input"][0]["content"]], ["input_text"])
         outputs = [item for item in last["input"] if isinstance(item, dict) and item.get("type") == "function_call_output"]
         self.assertEqual([o["call_id"] for o in outputs], [f"call{i}" for i in range(5)])
         memories = [memory for output in outputs for memory in json.loads(output["output"])["facts"]]
@@ -290,11 +317,13 @@ class PostQATests(TestCase):
         self.assertEqual(result.json(), {"text": completed.output_text})
         self.assertTrue(drained)
 
-    def test_post_question_reviews_family_sources_and_requested_photo_in_one_call(self):
+    def test_post_question_reviews_structured_family_sources_without_photos_in_one_call(self):
         self.post.description = "화분이 놓인 사진이에요."
         self.post.save(update_fields=["description"])
         source = {"id": "episode", "name": "post_123", "recorded_at": "2026-11-10T12:00:00+00:00",
-                  "text": "지민이 선희에게 받은 화분을 초록이로 이름 지었어요."}
+                  "text": "작성자: 지민\n상세 설명: 화분을 초록이라고 불렀어요.",
+                  "post_fields": {"게시글 작성자": "지민", "게시글 원문": "선희가 나눠 준 화분.",
+                                  "게시글 설명": "화분을 초록이라고 불렀어요."}}
         completed = SimpleNamespace(status="completed", output=[], output_text="선희가 줬어요.")
         with patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[source])) as prefetch, \
              patch.object(post_grounding, "AsyncOpenAI") as sdk:
@@ -316,55 +345,24 @@ class PostQATests(TestCase):
         self.assertEqual(request["reasoning"], {"effort": "none"})
         self.assertFalse(request["store"])
         self.assertNotIn("게시글 ID", json.loads(request["input"][0]["content"][0]["text"]))
-        self.assertEqual([part["type"] for part in request["input"][0]["content"]], ["input_text", "input_image"])
-        evidence = json.loads(request["input"][1]["content"])["미리 찾은 가족 기록"]["기록 원문"]
-        self.assertEqual(evidence, [{"기록": source["name"], "작성 시각": source["recorded_at"], "내용": source["text"]}])
+        self.assertEqual([part["type"] for part in request["input"][0]["content"]], ["input_text"])
+        self.assertNotIn("tools", request)
+        evidence = json.loads(request["input"][1]["content"])["미리 찾은 가족 기록"]["게시글"]
+        self.assertEqual(evidence, [{"id": source["id"], "name": source["name"], "recorded_at": source["recorded_at"],
+                                     **source["post_fields"]}])
 
-    def test_post_question_preserves_the_photo_tool_for_implicit_picture_details(self):
-        self.post.description = "초록이 사진이에요."
-        self.post.save(update_fields=["description"])
-        source = {"id": "episode", "name": "post_1", "recorded_at": "2026-11-10T12:00:00+00:00", "text": "초록이 화분"}
-        call = SimpleNamespace(type="function_call", name=prompts.POST_QA_PHOTO_TOOL["name"], call_id="photo")
-        first = SimpleNamespace(status="completed", output=[call])
-        final = SimpleNamespace(status="completed", output=[], output_text="파란색이에요.")
-        with patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[source])) as prefetch, \
-             patch.object(post_grounding, "AsyncOpenAI") as sdk:
-            create = mock_response_create(first, final)
+    def test_post_question_never_offers_photo_tool_even_without_a_saved_description(self):
+        final = SimpleNamespace(status="completed", output=[], output_text="어떤 색인지는 확인되지 않아요.")
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(Post, "photo_files") as photos:
+            create = mock_response_create(final)
             sdk.return_value.__aenter__.return_value.responses.create = create
-            response = self.ask({"question": "무슨 색이야?"})
-
-        self.assertEqual(response.json(), {"text": final.output_text})
-        prefetch.assert_awaited_once()
-        initial, answer = [call.kwargs for call in create.await_args_list]
-        self.assertEqual(initial["tools"], [prompts.POST_QA_PHOTO_TOOL])
-        self.assertEqual(answer["input"][-2]["call_id"], "photo")
-        self.assertEqual([part["type"] for part in answer["input"][-1]["content"]], ["input_image"])
-
-    def test_saved_description_defers_photo_until_model_requests_it(self):
-        self.post.description = "책상 위에 물건을 놓고 찍은 사진이에요."
-        self.post.save(update_fields=["description"])
-        direct = SimpleNamespace(status="completed", output=[], output_text="책상 위를 찍었어요.")
-        photo_call = SimpleNamespace(type="function_call", name="view_current_post_photos",
-                                     call_id="photo", arguments="{}")
-        first = SimpleNamespace(status="completed", output=[photo_call])
-        final = SimpleNamespace(status="completed", output_text="파란색이에요.")
-
-        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
-             patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
-            create = mock_response_create(direct, first, final)
-            sdk.return_value.__aenter__.return_value.responses.create = create
-            self.assertEqual(self.ask({"question": "어디를 찍었어?"}).json(), {"text": direct.output_text})
             self.assertEqual(self.ask({"question": "사진 속 물건 색은?"}).json(), {"text": final.output_text})
-            search.assert_not_awaited()
-
-        requests = [call.kwargs for call in create.await_args_list]
-        for decision in requests[:2]:
-            content = decision["input"][0]["content"]
-            self.assertEqual([item["type"] for item in content], ["input_text"])
-            self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], self.post.description)
-        reply = requests[-1]["input"]
-        self.assertEqual(reply[-2]["call_id"], "photo")
-        self.assertEqual([item["type"] for item in reply[-1]["content"]], ["input_image"])
+        photos.assert_not_called()
+        request = create.await_args.kwargs
+        self.assertEqual(request["tools"], [prompts.POST_QA_SEARCH_TOOL])
+        content = request["input"][0]["content"]
+        self.assertEqual([item["type"] for item in content], ["input_text"])
+        self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], "")
 
     def test_six_calls_fail_without_retrieval_and_incomplete_answer_is_503(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i), arguments='{"query":"q"}') for i in range(6)]
@@ -479,7 +477,7 @@ class PostQATests(TestCase):
             self.assertEqual(json.loads(content[0]["text"])["원문"], self.post.caption)
         graph.assert_not_called()
 
-    def test_summary_and_question_receive_every_photo_in_upload_order(self):
+    def test_summary_receives_every_photo_in_upload_order_and_question_uses_text(self):
         for position, color in [(1, "red"), (2, "blue")]:
             image = io.BytesIO(); Image.new("RGB", (3, 3), color).save(image, "JPEG")
             self.post.images.append(default_storage.save(f"extra-{position}.jpg",
@@ -498,11 +496,11 @@ class PostQATests(TestCase):
         self.assertEqual(question.status_code, 200, question.content)
         self.assertEqual(summary.json()["status"], "ready")
         self.assertEqual(client.responses.create.await_count, 2)
-        for call in client.responses.create.await_args_list:
-            content = call.kwargs["input"][0]["content"]
-            images = [item for item in content if item["type"] == "input_image"]
-            self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in images], expected)
-            self.assertTrue(all(item["detail"] == "high" for item in images))
+        question_call, summary_call = client.responses.create.await_args_list
+        self.assertEqual([item["type"] for item in question_call.kwargs["input"][0]["content"]], ["input_text"])
+        images = [item for item in summary_call.kwargs["input"][0]["content"] if item["type"] == "input_image"]
+        self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in images], expected)
+        self.assertTrue(all(item["detail"] == "high" for item in images))
         graph.assert_not_called()
 
     def test_single_photo_policy_cache_is_regenerated_once(self):

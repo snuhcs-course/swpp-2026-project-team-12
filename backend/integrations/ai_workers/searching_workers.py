@@ -144,6 +144,15 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
         options = {}
         answer_options = {"images": images}
         if feature == "post_qa":
+            from .post_evidence import attach_post_fields
+
+            async def search_posts(queries, **options):
+                results = await search(queries, **options)
+                sources = [source for result in results for memory in result["memories"]
+                           for source in memory.get("sources", ())]
+                await attach_post_fields(family_id, sources)
+                return results
+
             try:
                 payload = json.loads(value)
             except (TypeError, ValueError):
@@ -158,11 +167,12 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
                     if prefetch_posts is not None:
                         prefetch_options = {"exclude_post": options["exclude_post"]} if "exclude_post" in options else {}
                         answer_options["prefetch"] = partial(prefetch_posts, family_id, **prefetch_options)
-                    answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
+                    answer_options["retry_search"] = partial(search_posts, max_queries=MAX_QUERIES, prefer_semantic=True,
                                                               **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):
                     answer_options["parent_terms"] = parent_terms
-        return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
+            return await answer(partial(search_posts, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
+        return await answer(partial(search, max_queries=MAX_QUERIES), value, feature, **answer_options)
     if feature == "memories":
         return {"results": await search(value)}
 

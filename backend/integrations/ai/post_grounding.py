@@ -15,12 +15,11 @@ from . import post_flow, prompts
 from .options import model_options
 
 
-CURRENT_PHOTO = re.compile(r'(?:사진|이미지)\s*(?:속|에(?:서|\s*보이)|으로\s*보이)|(?:이|그)\s*사진|사진의\s*(?:글자|색깔|개수)')
 QUESTION_PARTS = re.compile(r'[,，]| 그리고 | 동시에 ')
 
 EVIDENCE_REVIEW = """
 두 번째 입력은 현재 질문을 위해 Graphiti에서 이미 검색한 기록이다. 질문의 항목별로 인물, 사건, 상태, 시점을 대조한다.
-원문과 현재 게시글 설명에서 확인되는 내용이나 일반 상식에는 기록을 끌어오지 않는다. 원문과 변경 기록을 우선한다.
+현재 글의 원문과 설명에서 확인되는 내용이나 일반 상식에는 다른 기록을 끌어오지 않는다. 게시글 원문과 변경 기록을 우선한다.
 현재 상태와 이전 상태, 계획과 실제 완료를 구분한다. 조건이 붙은 기록은 조건과 함께 답한다.
 근거를 찾은 부분은 바로 답하고, 확인할 수 없는 부분만 구분해 말한다. 기록이나 사진에 없는 사실을 지어내지 않는다.
 """
@@ -49,7 +48,7 @@ def evidence_queries(payload, parent_terms):
     return list(dict.fromkeys(queries))[:prompts.MAX_QUERIES]
 
 
-async def grounded_answer(prefetch, text, images, timings, parent_terms):
+async def grounded_answer(prefetch, text, timings, parent_terms):
     payload = json.loads(text)
     queries = evidence_queries(payload, parent_terms)
     started = perf_counter()
@@ -62,42 +61,18 @@ async def grounded_answer(prefetch, text, images, timings, parent_terms):
         return None
     timings['search'] = perf_counter() - started
 
-    use_photo_tool = bool(images and payload.get('게시글 설명') and not CURRENT_PHOTO.search(payload['질문']))
     instructions = prompts.POST_QA + '\n' + prompts.POST_QA_FINAL_EVIDENCE
-    content = [{'type': 'input_text', 'text': text}]
-    tool_options = {}
-    if use_photo_tool:
-        instructions += '\n' + prompts.POST_QA_USE_DESCRIPTION
-        tool_options = {'tools': [prompts.POST_QA_PHOTO_TOOL], 'tool_choice': 'auto'}
-    else:
-        content.extend(post_flow.image_input(image) for image in images)
-    evidence = {'추출된 사실': [], '기록 원문': [
-        {'기록': source['name'], '작성 시각': source['recorded_at'], '내용': source['text']} for source in sources
-    ]}
-    items = [{'role': 'user', 'content': content}, {'role': 'user', 'content': json.dumps(
+    evidence = {'게시글': [post_flow.source_context(source) for source in sources]}
+    items = [{'role': 'user', 'content': [{'type': 'input_text', 'text': text}]}, {'role': 'user', 'content': json.dumps(
         {'미리 찾은 가족 기록': evidence}, ensure_ascii=False, separators=(',', ':'),
     )}]
     options = dict(**model_options('ANSWER'), store=False)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         started = perf_counter()
         response = await post_flow.qa_response(
-            client, **options, **tool_options, instructions=instructions + '\n' + EVIDENCE_REVIEW,
+            client, **options, instructions=instructions + '\n' + EVIDENCE_REVIEW,
             input=items, max_output_tokens=prompts.DECISION_MAX_TOKENS,
         )
-        if response.status != 'completed':
-            raise RuntimeError('AI 답변이 완료되지 않았습니다.')
-        calls = [item for item in response.output if item.type == 'function_call']
-        if calls:
-            if not use_photo_tool or len(calls) != 1 or calls[0].name != prompts.POST_QA_PHOTO_TOOL['name']:
-                raise RuntimeError('검색 요청 한도를 벗어났습니다.')
-            items.extend(response.output)
-            items.append({'type': 'function_call_output', 'call_id': calls[0].call_id,
-                          'output': '다음 사용자 메시지의 이미지는 현재 게시글에 첨부된 사진이다.'})
-            items.append({'role': 'user', 'content': [post_flow.image_input(image) for image in images]})
-            response = await post_flow.qa_response(
-                client, **options, instructions=prompts.POST_QA + '\n' + prompts.POST_QA_FINAL_EVIDENCE + EVIDENCE_REVIEW,
-                input=items, tools=tool_options['tools'], tool_choice='none', max_output_tokens=prompts.ANSWER_MAX_TOKENS,
-            )
         timings['answer'] = perf_counter() - started
     memories = [{'id': source['id'], 'fact': source['text'], 'valid_at': None, 'invalid_at': None,
                  'source_episode_ids': [source['id']], 'sources': [source]} for source in sources]

@@ -1,8 +1,11 @@
 """Read ranked family post sources together for the Post QA evidence pass."""
 
+import re
+
 from django.utils import timezone
 from graphiti_core.search.search_utils import fulltext_query, rrf
 
+from apps.posts.models import Post
 from integrations.ai.prompts import EPISODE_BUDGET, SUPPLEMENTAL_EPISODE_LIMIT
 
 from .graphiti_client import family_group
@@ -44,6 +47,33 @@ RETURN rankings, sources
 """
 
 
+async def attach_post_fields(family_id, sources):
+    """Read the actual author, caption and description for the selected graph records."""
+    names = {source["name"] for source in sources if re.fullmatch(r"post_[0-9]{1,19}", source["name"])}
+    if not names:
+        return sources
+    ids = {int(name[5:]) for name in names if int(name[5:]) <= 2**63 - 1}
+    records = Post.objects.filter(room_id=family_id, pk__in=ids).values_list(
+        "pk", "author__display_name", "caption", "description",
+    )
+    posts = {f"post_{pk}": (author, caption, description) async for pk, author, caption, description in records}
+    for source in sources:
+        name = source["name"]
+        if name not in names:
+            continue
+        if name in posts:
+            author, caption, description = posts[name]
+        else:
+            # Older graph records may no longer have a corresponding SQLite row.
+            header, marker, description = source["text"].partition("\n상세 설명: ")
+            author = header.removeprefix("작성자: ") if marker and header.startswith("작성자: ") else None
+            caption = None
+            if not marker:
+                description = source["text"]
+        source["post_fields"] = {"게시글 작성자": author, "게시글 원문": caption, "게시글 설명": description}
+    return sources
+
+
 async def prefetch_post_episodes(graphiti, family_id, queries, *, exclude_post=None):
     group_id = family_group(family_id)
     reference_time = timezone.now()
@@ -83,5 +113,5 @@ async def prefetch_post_episodes(graphiti, family_id, queries, *, exclude_post=N
                     source = sources[key]
                     selected[key] = {**source, 'recorded_at': source['recorded_at'].isoformat()}
                 if len(selected) == budget:
-                    return list(selected.values())
-    return list(selected.values())
+                    return await attach_post_fields(family_id, list(selected.values()))
+    return await attach_post_fields(family_id, list(selected.values()))
