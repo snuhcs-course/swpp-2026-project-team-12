@@ -4,12 +4,14 @@ from datetime import date
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+from asgiref.sync import async_to_sync
 from django.test import SimpleTestCase, TestCase
 
 from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 from apps.searching import services
 from integrations.ai import flow, history_evidence
+from integrations.ai_workers.searching_workers import answer_request
 
 from .family_fixtures import add_member
 from .test_searching import FamilyFixture
@@ -74,6 +76,35 @@ class HistoryEvidenceAPITests(FamilyFixture, TestCase):
             data = self.search(self.result(sources, ["episode"]))
             self.assertEqual(data["evidence_posts"], [])
             self.assertEqual(data["text"], "여행은 부산으로 다녀왔어요.")
+
+    def test_history_shares_post_qa_source_fields_in_one_model_call(self):
+        self.first.description = "기차를 타고 떠난 가족 여행"
+        self.first.save(update_fields=["description"])
+        source = {"id": "episode", "name": f"post_{self.first.pk}", "text": "그래프 저장 설명",
+                  "recorded_at": "2026-10-10T12:00:00+09:00"}
+        registry = {"id": "family", "name": "family_relations_v1", "text": "가족관계"}
+        fact = {"id": "fact", "fact": "부산 여행", "source_episode_ids": ["episode", "family"]}
+        post = {"id": "episode", "fact": source["text"], "source_episode_ids": ["episode"], "sources": [source]}
+        search = AsyncMock(return_value=[{"memories": [{**fact, "sources": [source, registry]}, post]}])
+        reply = json.dumps({"text": "부산으로 다녀왔어요.", "source_episode_ids": ["episode", "invalid"]})
+        with patch.object(flow, "AsyncOpenAI") as sdk:
+            create = AsyncMock(return_value=SimpleNamespace(status="completed", output_text=reply))
+            sdk.return_value.__aenter__.return_value.responses.create = create
+            with self.assertNumQueries(1):
+                result = async_to_sync(answer_request)(search, "family_history", self.room.pk, "가족 여행은 어디였어?")
+
+        search.assert_awaited_once_with(self.room.pk, ["가족 여행은 어디였어?"])
+        create.assert_awaited_once()
+        self.assertEqual(create.await_args.kwargs["text"], history_evidence.ANSWER_FORMAT)
+        record = json.loads(create.await_args.kwargs["input"])["기록"]
+        self.assertEqual(record["facts"], [fact])
+        self.assertEqual(record["sources"], [
+            {"id": "episode", "name": source["name"], "recorded_at": source["recorded_at"],
+             "게시글 작성자": self.user.display_name, "게시글 원문": self.first.caption,
+             "게시글 설명": self.first.description},
+            registry,
+        ])
+        self.assertEqual(result["source_episode_ids"], ["episode"])
 
     @patch("apps.posts.daily_questions.timezone.localdate", return_value=date(2026, 10, 31))
     def test_daily_question_and_answer_stay_separate_from_memory_evidence(self, _clock):

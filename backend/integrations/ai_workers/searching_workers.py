@@ -137,6 +137,16 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
 
     family_group(family_id)
     search = partial(search, family_id)
+
+    async def search_posts(queries, **options):
+        from .post_evidence import attach_post_fields
+
+        results = await search(queries, **options)
+        sources = [source for result in results for memory in result["memories"]
+                   for source in memory.get("sources", ())]
+        await attach_post_fields(family_id, sources)
+        return results
+
     if feature in {"post_summary", "post_qa"}:
         from integrations.ai.post_flow import answer
         from integrations.ai.prompts import MAX_QUERIES
@@ -144,15 +154,6 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
         options = {}
         answer_options = {"images": images}
         if feature == "post_qa":
-            from .post_evidence import attach_post_fields
-
-            async def search_posts(queries, **options):
-                results = await search(queries, **options)
-                sources = [source for result in results for memory in result["memories"]
-                           for source in memory.get("sources", ())]
-                await attach_post_fields(family_id, sources)
-                return results
-
             try:
                 payload = json.loads(value)
             except (TypeError, ValueError):
@@ -177,7 +178,7 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
 
     from integrations.ai.flow import answer_with_memory
 
-    return await answer_with_memory(search, value, feature, images=images)
+    return await answer_with_memory(search_posts if feature == "family_history" else search, value, feature, images=images)
 
 
 SEARCH_POOL = SearchPool(settings.GRAPHITI_SEARCH_WORKERS)
