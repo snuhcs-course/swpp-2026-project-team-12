@@ -165,8 +165,7 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
                 if isinstance(payload.get("질문"), str):
                     options["question"] = payload["질문"]
                     if prefetch_posts is not None:
-                        prefetch_options = {"exclude_post": options["exclude_post"]} if "exclude_post" in options else {}
-                        answer_options["prefetch"] = partial(prefetch_posts, family_id, **prefetch_options)
+                        answer_options["prefetch"] = partial(prefetch_posts, family_id, **options)
                     answer_options["retry_search"] = partial(search_posts, max_queries=MAX_QUERIES, prefer_semantic=True,
                                                               **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):

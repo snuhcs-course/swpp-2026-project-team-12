@@ -10,7 +10,7 @@ from integrations.ai.prompts import EPISODE_BUDGET, SUPPLEMENTAL_EPISODE_LIMIT
 
 from .graphiti_client import family_group
 from .searching_graphiti import SEARCH_CONFIG
-from .temporal_search import date_window, time_rank
+from .temporal_search import date_preference, time_rank
 
 
 POST_SOURCE_QUERY = """
@@ -20,7 +20,7 @@ CALL (candidate) {
     WHERE e.name STARTS WITH 'post_' AND e.content_embedding IS NOT NULL
       AND ($exclude_post IS NULL OR e.name <> $exclude_post)
       AND size(e.content_embedding) = size(candidate.vector)
-      AND (candidate.start IS NULL OR (e.valid_at >= candidate.start AND e.valid_at < candidate.end))
+      AND (candidate.cutoff IS NULL OR e.valid_at <= candidate.cutoff)
     WITH e, vector.similarity.cosine(e.content_embedding, candidate.vector) AS score
     WHERE score >= $min_score
     ORDER BY score DESC, e.uuid LIMIT $limit
@@ -31,7 +31,7 @@ CALL (candidate) {
     CALL db.index.fulltext.queryNodes('episode_content', candidate.lexical) YIELD node AS e, score
     WHERE e.group_id = $group_id AND e.name STARTS WITH 'post_'
       AND ($exclude_post IS NULL OR e.name <> $exclude_post)
-      AND (candidate.start IS NULL OR (e.valid_at >= candidate.start AND e.valid_at < candidate.end))
+      AND (candidate.cutoff IS NULL OR e.valid_at <= candidate.cutoff)
     WITH e, score ORDER BY score DESC, e.uuid LIMIT $limit
     RETURN collect(e.uuid) AS lexical
 }
@@ -74,18 +74,18 @@ async def attach_post_fields(family_id, sources):
     return sources
 
 
-async def prefetch_post_episodes(graphiti, family_id, queries, *, exclude_post=None):
+async def prefetch_post_episodes(graphiti, family_id, queries, *, question=None, exclude_post=None):
     group_id = family_group(family_id)
     reference_time = timezone.now()
     vectors = await graphiti.embedder.create_batch([query.replace('\n', ' ') for query in queries])
-    windows = [date_window(query, reference_time) for query in queries]
+    question_preference = date_preference(question, reference_time)
+    preferences = [question_preference or date_preference(query, reference_time) for query in queries]
     scans = [{
         'index': index,
         'vector': vector,
         'lexical': fulltext_query(query, [group_id], graphiti.driver),
-        'start': window[0] if window else None,
-        'end': window[1] if window else None,
-    } for index, (query, vector, window) in enumerate(zip(queries, vectors, windows, strict=True))]
+        'cutoff': preference.cutoff if preference else None,
+    } for index, (query, vector, preference) in enumerate(zip(queries, vectors, preferences, strict=True))]
     rows, _, _ = await graphiti.driver.execute_query(
         POST_SOURCE_QUERY, group_id=group_id, queries=scans, exclude_post=exclude_post, routing_='r',
         min_score=SEARCH_CONFIG.episode_config.sim_min_score, limit=SEARCH_CONFIG.limit,
@@ -96,9 +96,8 @@ async def prefetch_post_episodes(graphiti, family_id, queries, *, exclude_post=N
     for ranking in sorted(row['rankings'], key=lambda item: item['index']):
         semantic = ranking['semantic']
         ids, scores = rrf([ranking['lexical'], semantic, semantic])
-        window = windows[ranking['index']]
         ranked = sorted(zip(ids, scores, strict=True), key=lambda item: time_rank(
-            item[1] * 2 / 3, sources[item[0]]['recorded_at'].to_native(), reference_time, window,
+            item[1] * 2 / 3, sources[item[0]]['recorded_at'].to_native(), reference_time, preferences[ranking['index']],
         ), reverse=True)
         ranked_ids.append([key for key, _ in ranked])
 
