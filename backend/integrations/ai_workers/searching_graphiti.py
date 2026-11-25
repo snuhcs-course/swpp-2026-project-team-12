@@ -29,13 +29,11 @@ SEARCH_CONFIG = SearchConfig(
 )
 
 
-async def _search(graphiti, group_id, query, question, reference_time, *, prefer_semantic=False):
+async def _search(graphiti, group_id, query, question, reference_time, vector, *, prefer_semantic=False):
     window = date_window(question, reference_time)
     filters = fact_time_filter(question, window, reference_time)
     filter_options = {"search_filter": filters} if filters is not None else {}
     config = SEARCH_CONFIG.model_copy(update={"episode_config": None}) if window else SEARCH_CONFIG
-    # Share one query embedding between fact and episode retrieval.
-    vector = await graphiti.embedder.create(input_data=[query.replace("\n", " ")])
     async with asyncio.TaskGroup() as group:
         graph = group.create_task(graphiti.search_(
             query=query, group_ids=[group_id], config=config, query_vector=vector, **filter_options,
@@ -89,12 +87,19 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3, question=N
         raise ValueError(f"검색 질문은 1~{max_queries}개, 각 1,000자 이내로 입력하세요.")
     group_id = family_group(family_id)
     reference_time = reference_time or timezone.now()
+    # Fetch all query vectors in one request. Fact and episode retrieval share
+    # each vector and use the original query strings for lexical search.
+    embedding_inputs = [query.replace("\n", " ") for query in queries]
+    if len(embedding_inputs) == 1:
+        vectors = [await graphiti.embedder.create(input_data=embedding_inputs)]
+    else:
+        vectors = await graphiti.embedder.create_batch(embedding_inputs)
     # Cancel sibling searches before their shared client is closed on failure.
     async with asyncio.TaskGroup() as group:
         tasks = [group.create_task(_search(
             graphiti, group_id, query, question if question and len(queries) == 1 else query,
-            reference_time, prefer_semantic=prefer_semantic,
-        )) for query in queries]
+            reference_time, vector, prefer_semantic=prefer_semantic,
+        )) for query, vector in zip(queries, vectors, strict=True)]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]
                          for task in tasks]

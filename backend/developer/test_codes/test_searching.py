@@ -339,6 +339,7 @@ class MemoryFlowTests(SimpleTestCase):
             both_started = asyncio.Event()
 
             async def search(*, query, group_ids, config, query_vector):
+                self.assertEqual(query_vector, {"부모": [1.0, 0.0], "반려견": [0.0, 1.0]}[query])
                 started.append(query)
                 if len(started) == 2:
                     both_started.set()
@@ -346,7 +347,8 @@ class MemoryFlowTests(SimpleTestCase):
                 return SimpleNamespace(edges=[SimpleNamespace(uuid="shared", group_id="family_1", fact="공통 근거",
                                         valid_at=None, invalid_at=None, episodes=[])], episodes=[])
 
-            graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+            graph = SimpleNamespace(embedder=SimpleNamespace(create_batch=AsyncMock(
+                                        return_value=[[1.0, 0.0], [0.0, 1.0]])),
                                     search_=AsyncMock(side_effect=search))
             with patch.object(flow, "AsyncOpenAI") as sdk:
                 client = sdk.return_value.__aenter__.return_value
@@ -355,6 +357,7 @@ class MemoryFlowTests(SimpleTestCase):
                     partial(searching_graphiti.search_many, graph, 1), "가족 소식", "stt_correction",
                     images=[SimpleUploadedFile("photo.jpg", b"photo")],
                 )
+                graph.embedder.create_batch.assert_awaited_once_with(["부모", "반려견"])
                 inputs = client.responses.create.call_args.kwargs["input"]
                 outputs = [item for item in inputs if isinstance(item, dict) and item.get("type") == "function_call_output"]
                 self.assertEqual([item["call_id"] for item in outputs], ["0", "1"])
@@ -392,7 +395,7 @@ class MemoryFlowTests(SimpleTestCase):
                 finally:
                     cancelled.set()
 
-            graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+            graph = SimpleNamespace(embedder=SimpleNamespace(create_batch=AsyncMock(return_value=[[1.0, 0.0]] * 2)),
                                     search_=AsyncMock(side_effect=search))
             with self.assertRaises(ExceptionGroup):
                 await searching_graphiti.search_many(graph, 1, ["실패", "대기"])

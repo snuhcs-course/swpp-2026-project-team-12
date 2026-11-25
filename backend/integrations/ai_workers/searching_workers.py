@@ -104,6 +104,11 @@ def search_worker(queue, ready):
 
                 return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
 
+            async def prefetch_posts(family_id, queries):
+                from .post_evidence import prefetch_post_episodes
+
+                return await prefetch_post_episodes(graphiti, family_id, queries)
+
             try:
                 while True:
                     request = queue.get()
@@ -113,7 +118,7 @@ def search_worker(queue, ready):
                     if not future.set_running_or_notify_cancel():
                         continue
                     try:
-                        result = runner.run(answer_request(search, feature, family_id, value, images))
+                        result = runner.run(answer_request(search, feature, family_id, value, images, prefetch_posts=prefetch_posts))
                     except BaseException as error:
                         future.set_exception(error)
                     else:
@@ -127,7 +132,7 @@ def search_worker(queue, ready):
             logging.getLogger(__name__).exception("Search worker stopped unexpectedly")
 
 
-async def answer_request(search, feature, family_id, value, images=()):
+async def answer_request(search, feature, family_id, value, images=(), *, prefetch_posts=None):
     from .graphiti_client import family_group
 
     family_group(family_id)
@@ -146,6 +151,8 @@ async def answer_request(search, feature, family_id, value, images=()):
             if isinstance(payload, dict):
                 if isinstance(payload.get("질문"), str):
                     options["question"] = payload["질문"]
+                    if prefetch_posts is not None:
+                        answer_options["prefetch"] = partial(prefetch_posts, family_id)
                     answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
                                                               **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):

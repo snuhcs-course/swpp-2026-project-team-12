@@ -5,8 +5,9 @@ import io
 import json
 import tempfile
 from datetime import timedelta
+from itertools import repeat
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
@@ -18,10 +19,25 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
 from apps.posts.services import save_post
-from integrations.ai import post_flow, prompts, provider
-from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
+from integrations.ai import post_flow, post_grounding, prompts, provider
+from integrations.ai_workers import graphiti_client, post_evidence, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member, link_parent
+
+
+def mock_response_create(*responses):
+    replies = iter(responses) if len(responses) > 1 else repeat(responses[0])
+
+    def create(**options):
+        response = next(replies)
+        if not options.get("stream"):
+            return response
+        stream = MagicMock()
+        stream.__aenter__.return_value = stream
+        stream.__aiter__.return_value = [SimpleNamespace(type=f"response.{response.status}", response=response)]
+        return stream
+
+    return AsyncMock(side_effect=create)
 
 
 @override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna",
@@ -30,6 +46,7 @@ from .family_fixtures import auth_headers, add_member, link_parent
 class PostQATests(TestCase):
     def setUp(self):
         self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
+        self.enterContext(patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
@@ -83,7 +100,7 @@ class PostQATests(TestCase):
                  patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
                 client = sdk.return_value.__aenter__.return_value
                 reviewed = SimpleNamespace(status="completed", output_text=json.dumps({"retry_query": retry_query}))
-                client.responses.create = AsyncMock(side_effect=[tool_response("initial", query), reviewed, final])
+                client.responses.create = mock_response_create(tool_response("initial", query), reviewed, final)
                 batches = [[{"query": query, "memories": initial}]]
                 if extra_search is not None:
                     batches.append(extra_search)
@@ -118,7 +135,7 @@ class PostQATests(TestCase):
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=initial)) as search:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, empty_review, final])
+            client.responses.create = mock_response_create(first, empty_review, final)
             response = self.ask({"question": "도윤이가 읽고 있는 책은 뭐야?"})
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -139,7 +156,7 @@ class PostQATests(TestCase):
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=memories)) as search:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, review, final])
+            client.responses.create = mock_response_create(first, review, final)
             response = self.ask({"question": "아빠가 어제 읽던 책은 뭐야?", "확인된 가족 호칭": {"아빠": "타인"}})
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -181,7 +198,7 @@ class PostQATests(TestCase):
                                 name=f"post_{i}", content=f"기록{i}", valid_at=timezone.now())
                 for i in ids
             ])
-        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+        graph = SimpleNamespace(embedder=SimpleNamespace(create_batch=AsyncMock(return_value=[[1.0, 0.0]] * 5)),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
@@ -190,7 +207,7 @@ class PostQATests(TestCase):
              searching_workers.SearchPool(1) as pool, \
              patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, final])
+            client.responses.create = mock_response_create(first, final)
             result = self.ask({"question": "학교와 악기 등 알려줘", "family_id": 999,
                                "caption": "공격자 본문", "prior_dialogue": [{"role": "assistant", "text": "이전 답"}]})
             close.assert_not_awaited()
@@ -210,6 +227,8 @@ class PostQATests(TestCase):
         self.assertEqual(initial["instructions"], prompts.POST_QA + "\n" + prompts.POST_QA_RETRIEVAL)
         self.assertEqual(initial["model"], "gpt-6-luna");self.assertEqual(initial["service_tier"], "fast")
         self.assertEqual(initial["reasoning"], {"effort": "none"})
+        self.assertTrue(initial["stream"])
+        self.assertTrue(last["stream"])
         payload = json.loads(initial["input"][0]["content"][0]["text"])
         self.assertEqual(payload["원문"], self.post.caption);self.assertEqual(payload["질문자"], self.viewer.display_name)
         self.assertEqual(payload["이전대화"], [{"role": "assistant", "text": "이전 답"}])
@@ -232,13 +251,82 @@ class PostQATests(TestCase):
         response = SimpleNamespace(status="completed", output=[], output_text="초록이는 화분이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=response)
+            client.responses.create = mock_response_create(response)
             self.assertEqual(self.ask({"question": "초록이가 뭐야?"}).status_code, 200)
             result = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
             self.assertEqual(result.json()["status"], "ready")
             graph.assert_not_called()
             self.assertNotIn("tools", client.responses.create.call_args.kwargs)
+            self.assertNotIn("stream", client.responses.create.call_args.kwargs)
             self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.POST_SUMMARY)
+
+    def test_post_question_drains_provider_stream_after_completion(self):
+        completed = SimpleNamespace(status="completed", output=[], output_text="초록이는 화분이에요.")
+        drained = False
+
+        async def events():
+            nonlocal drained
+            yield SimpleNamespace(type="response.completed", response=completed)
+            drained = True
+
+        stream = MagicMock()
+        stream.__aenter__.return_value = stream
+        stream.__aiter__.side_effect = events
+        with patch.object(post_flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=stream)
+            result = self.ask({"question": "초록이가 뭐야?"})
+
+        self.assertEqual(result.json(), {"text": completed.output_text})
+        self.assertTrue(drained)
+
+    def test_post_question_reviews_family_sources_and_requested_photo_in_one_call(self):
+        self.post.description = "화분이 놓인 사진이에요."
+        self.post.save(update_fields=["description"])
+        source = {"id": "episode", "name": "post_123", "recorded_at": "2026-11-10T12:00:00+00:00",
+                  "text": "지민이 선희에게 받은 화분을 초록이로 이름 지었어요."}
+        completed = SimpleNamespace(status="completed", output=[], output_text="선희가 줬어요.")
+        with patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[source])) as prefetch, \
+             patch.object(post_grounding, "AsyncOpenAI") as sdk:
+            create = mock_response_create(completed)
+            sdk.return_value.__aenter__.return_value.responses.create = create
+            question = "사진 속 초록이를 누가 줬어?"
+            response = self.ask({"question": question})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {"text": completed.output_text})
+        prefetch.assert_awaited_once()
+        self.assertEqual(prefetch.await_args.args[1], self.room.pk)
+        self.assertEqual(prefetch.await_args.args[2][0], question)
+        create.assert_awaited_once()
+        request = create.await_args.kwargs
+        self.assertEqual(request["model"], "gpt-6-luna")
+        self.assertEqual(request["service_tier"], "fast")
+        self.assertEqual(request["reasoning"], {"effort": "none"})
+        self.assertFalse(request["store"])
+        self.assertEqual([part["type"] for part in request["input"][0]["content"]], ["input_text", "input_image"])
+        evidence = json.loads(request["input"][1]["content"])["미리 찾은 가족 기록"]["기록 원문"]
+        self.assertEqual(evidence, [{"기록": source["name"], "작성 시각": source["recorded_at"], "내용": source["text"]}])
+
+    def test_post_question_preserves_the_photo_tool_for_implicit_picture_details(self):
+        self.post.description = "초록이 사진이에요."
+        self.post.save(update_fields=["description"])
+        source = {"id": "episode", "name": "post_1", "recorded_at": "2026-11-10T12:00:00+00:00", "text": "초록이 화분"}
+        call = SimpleNamespace(type="function_call", name=prompts.POST_QA_PHOTO_TOOL["name"], call_id="photo")
+        first = SimpleNamespace(status="completed", output=[call])
+        final = SimpleNamespace(status="completed", output=[], output_text="파란색이에요.")
+        with patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[source])) as prefetch, \
+             patch.object(post_grounding, "AsyncOpenAI") as sdk:
+            create = mock_response_create(first, final)
+            sdk.return_value.__aenter__.return_value.responses.create = create
+            response = self.ask({"question": "무슨 색이야?"})
+
+        self.assertEqual(response.json(), {"text": final.output_text})
+        prefetch.assert_awaited_once()
+        initial, answer = [call.kwargs for call in create.await_args_list]
+        self.assertEqual(initial["tools"], [prompts.POST_QA_PHOTO_TOOL])
+        self.assertEqual(answer["input"][-2]["call_id"], "photo")
+        self.assertEqual([part["type"] for part in answer["input"][-1]["content"]], ["input_image"])
 
     def test_saved_description_defers_photo_until_model_requests_it(self):
         self.post.description = "책상 위에 물건을 놓고 찍은 사진이에요."
@@ -251,8 +339,8 @@ class PostQATests(TestCase):
 
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
-            create = sdk.return_value.__aenter__.return_value.responses.create
-            create.side_effect = [direct, first, final]
+            create = mock_response_create(direct, first, final)
+            sdk.return_value.__aenter__.return_value.responses.create = create
             self.assertEqual(self.ask({"question": "어디를 찍었어?"}).json(), {"text": direct.output_text})
             self.assertEqual(self.ask({"question": "사진 속 물건 색은?"}).json(), {"text": final.output_text})
             search.assert_not_awaited()
@@ -270,12 +358,19 @@ class PostQATests(TestCase):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i), arguments='{"query":"q"}') for i in range(6)]
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="completed", output=calls))
+            client.responses.create = mock_response_create(SimpleNamespace(status="completed", output=calls))
             self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
             graph.assert_not_called()
             client.responses.create.assert_awaited_once()
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="incomplete"))
+            client.responses.create = mock_response_create(SimpleNamespace(status="incomplete"))
             self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
+
+            stream = MagicMock()
+            stream.__aenter__.return_value = stream
+            stream.__aiter__.return_value = [SimpleNamespace(type="response.created")]
+            client.responses.create = AsyncMock(return_value=stream)
+            self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
+            stream.__aexit__.assert_awaited_once()
 
     def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
@@ -287,7 +382,7 @@ class PostQATests(TestCase):
              searching_workers.SearchPool(1) as pool, \
              patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="completed", output=[call]))
+            client.responses.create = mock_response_create(SimpleNamespace(status="completed", output=[call]))
             self.assertEqual(self.ask({"question": "초록이는 뭐야?"}).status_code, 503)
             client.responses.create.assert_awaited_once()
             close.assert_not_awaited()
@@ -360,7 +455,7 @@ class PostQATests(TestCase):
         answer = SimpleNamespace(status="completed", output=[], output_text="산책 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=answer)
+            client.responses.create = mock_response_create(answer)
             question = self.ask({"question": "어떤 소식이야?"})
             summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(question.status_code, 200, question.content)
@@ -385,7 +480,7 @@ class PostQATests(TestCase):
         answer = SimpleNamespace(status="completed", output=[], output_text="세 장의 사진 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=answer)
+            client.responses.create = mock_response_create(answer)
             question = self.ask({"question": "사진들을 설명해 줘"})
             summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(question.status_code, 200, question.content)

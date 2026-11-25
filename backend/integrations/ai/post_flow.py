@@ -46,6 +46,21 @@ def checked_text(response):
     return response.output_text
 
 
+async def qa_response(client, **options):
+    stream = await client.responses.create(**options, stream=True)
+    response = None
+    async with stream:
+        # Drain the end of the stream so the SDK can reuse the connection.
+        async for event in stream:
+            if event.type in {'response.completed', 'response.incomplete', 'response.failed'}:
+                response = event.response
+            if event.type == 'error':
+                raise RuntimeError('AI 응답 스트림이 완료되지 않았습니다.')
+    if response is not None:
+        return response
+    raise RuntimeError('AI 응답 스트림이 완료되지 않았습니다.')
+
+
 def tool_queries(calls, parent_terms):
     queries = []
     for call in calls:
@@ -70,7 +85,8 @@ async def review_query(client, options, text, results):
     """Assess the requested fact against the retrieved records before composing a reply."""
     evidence = [dict(query=r['query'], **context(r['memories'])) for r in results]
     try:
-        response = await client.responses.create(
+        response = await qa_response(
+            client,
             **{**options, 'instructions': prompts.POST_QA_EVIDENCE_REVIEW},
             input=json.dumps({'요청': json.loads(text), '검색 결과': evidence}, ensure_ascii=False),
             text=prompts.POST_QA_REVIEW_FORMAT, max_output_tokens=160,
@@ -105,10 +121,16 @@ def image_input(photo):
     return {'type': 'input_image', 'detail': 'high', 'image_url': image_url}
 
 
-async def answer(search, text, feature, *, images=(), timings=None, parent_terms=None, retry_search=None):
+async def answer(search, text, feature, *, images=(), timings=None, parent_terms=None, retry_search=None, prefetch=None):
     timings = timings if timings is not None else {}
     timings.update(decision=0.0, search=0.0, answer=0.0)
     is_qa = feature == 'post_qa'
+    if is_qa and prefetch is not None:
+        from .post_grounding import grounded_answer
+
+        grounded = await grounded_answer(prefetch, text, images, timings, parent_terms)
+        if grounded is not None:
+            return grounded
     instructions = prompts.POST_QA + '\n' + prompts.POST_QA_RETRIEVAL if is_qa else prompts.POST_SUMMARY
     content = [{'type': 'input_text', 'text': text}]
     use_description = is_qa and images and json.loads(text).get('게시글 설명')
@@ -126,8 +148,8 @@ async def answer(search, text, feature, *, images=(), timings=None, parent_terms
             response = await client.responses.create(**options, input=items, max_output_tokens=prompts.ANSWER_MAX_TOKENS)
             timings['answer'] = perf_counter() - started
             return {'text': checked_text(response), 'query': None, 'queries': [], 'memories': []}
-        first = await client.responses.create(**options, input=items, tools=tools, tool_choice='auto',
-                                             parallel_tool_calls=True, max_output_tokens=prompts.DECISION_MAX_TOKENS)
+        first = await qa_response(client, **options, input=items, tools=tools, tool_choice='auto',
+                                  parallel_tool_calls=True, max_output_tokens=prompts.DECISION_MAX_TOKENS)
         timings['decision'] = perf_counter() - started
         if first.status != 'completed':
             raise RuntimeError('검색 판단이 완료되지 않았습니다.')
@@ -162,8 +184,8 @@ async def answer(search, text, feature, *, images=(), timings=None, parent_terms
         if extra:
             messages.append({'role': 'user', 'content': json.dumps({'보완 검색 결과': context(extra)}, ensure_ascii=False)})
         started = perf_counter()
-        final = await client.responses.create(**answer_options, input=messages, tools=tools, tool_choice='none',
-                                             max_output_tokens=prompts.ANSWER_MAX_TOKENS)
+        final = await qa_response(client, **answer_options, input=messages, tools=tools, tool_choice='none',
+                                  max_output_tokens=prompts.ANSWER_MAX_TOKENS)
         timings['answer'] = perf_counter() - started
         memories = [m for r in results for m in r['memories']] + extra
         return {'text': checked_text(final), 'query': queries[0] if queries else None, 'queries': queries, 'memories': memories}
