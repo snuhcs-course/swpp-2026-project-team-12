@@ -20,33 +20,34 @@ async def embed_episodes(graphiti, group_id, episodes):
     )
 
 
-async def search_episodes(graphiti, group_id, query_vector, *, limit, min_score, window=None):
+async def search_episodes(graphiti, group_id, query_vector, *, limit, min_score, window=None, exclude_post=None):
     date_constraint = "AND e.valid_at >= $start AND e.valid_at < $end " if window else ""
     dates = {"start": window[0], "end": window[1]} if window else {}
     records, _, _ = await graphiti.driver.execute_query(
         "MATCH (e:Episodic {group_id: $group_id}) "
         "WHERE e.name STARTS WITH 'post_' AND e.content_embedding IS NOT NULL "
+        "AND ($exclude_post IS NULL OR e.name <> $exclude_post) "
         "AND size(e.content_embedding) = size($query_vector) " + date_constraint
         + "WITH e, vector.similarity.cosine(e.content_embedding, $query_vector) AS score "
         "WHERE score >= $min_score "
         "RETURN " + EPISODIC_NODE_RETURN + " ORDER BY score DESC LIMIT $limit",
         group_id=group_id, query_vector=query_vector, min_score=min_score, limit=limit,
-        routing_="r", **dates,
+        routing_="r", exclude_post=exclude_post, **dates,
     )
     return [episodic_node_from_record(record) for record in records]
 
 
-async def search_dated_episodes(graphiti, group_id, query, *, limit, window):
+async def search_lexical_episodes(graphiti, group_id, query, *, limit, window, exclude_post):
     # Graphiti's Neo4j episode BM25 search does not apply SearchFilters.
     fuzzy_query = fulltext_query(query, [group_id], graphiti.driver)
     if not fuzzy_query:
         return []
-    start, end = window
+    date_constraint = "AND e.name STARTS WITH 'post_' AND e.valid_at >= $start AND e.valid_at < $end " if window else ""
+    dates = {"start": window[0], "end": window[1]} if window else {}
     records, _, _ = await graphiti.driver.execute_query(
         "CALL db.index.fulltext.queryNodes('episode_content', $query) YIELD node AS e, score "
-        "WHERE e.group_id = $group_id AND e.name STARTS WITH 'post_' "
-        "AND e.valid_at >= $start AND e.valid_at < $end "
-        "RETURN " + EPISODIC_NODE_RETURN + " ORDER BY score DESC LIMIT $limit",
-        query=fuzzy_query, group_id=group_id, start=start, end=end, limit=limit, routing_="r",
+        "WHERE e.group_id = $group_id AND ($exclude_post IS NULL OR e.name <> $exclude_post) "
+        + date_constraint + "RETURN " + EPISODIC_NODE_RETURN + " ORDER BY score DESC LIMIT $limit",
+        query=fuzzy_query, group_id=group_id, exclude_post=exclude_post, limit=limit, routing_="r", **dates,
     )
     return [episodic_node_from_record(record) for record in records]

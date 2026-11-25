@@ -46,6 +46,8 @@ def mock_response_create(*responses):
 class PostQATests(TestCase):
     def setUp(self):
         self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
+        self.enterContext(patch.object(searching_graphiti, "search_lexical_episodes", new=AsyncMock(return_value=[])))
+        self.enterContext(patch.object(searching_graphiti, "excluded_post_episodes", new=AsyncMock(return_value=set())))
         self.enterContext(patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
@@ -110,6 +112,8 @@ class PostQATests(TestCase):
 
                 self.assertEqual(response.status_code, 200, response.content)
                 self.assertEqual(search.await_count, len(batches))
+                for request in search.await_args_list:
+                    self.assertEqual(request.kwargs["exclude_post"], f"post_{self.post.pk}")
                 if extra_search is not None:
                     self.assertEqual(search.await_args.args[1:], (self.room.pk, [retry]))
                     self.assertTrue(search.await_args.kwargs["prefer_semantic"])
@@ -188,20 +192,26 @@ class PostQATests(TestCase):
         first = SimpleNamespace(status="completed", output=calls, output_text="")
         final = SimpleNamespace(status="completed", output_text="가족 기록으로 확인한 답이에요.")
         sources = [{"id": f"e{i}", "name": f"post_{i}", "text": f"원문{i}", "recorded_at": "2026-10-01"} for i in range(25)]
+        def candidates(query):
+            n = int(query[-1])
+            return [0] + [n + rank * 5 for rank in range(1, 5)]
+
         async def search(**kw):
-            n = int(kw["query"][-1])
-            ids = [0] + [n + rank * 5 for rank in range(1, 5)]
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids], episodes=[
+                                     episodes=[f"e{i}"]) for i in candidates(kw["query"])], episodes=[])
+
+        async def lexical(_graph, group, query, **options):
+            return [
                 SimpleNamespace(uuid=f"episode{i}", group_id=f"family_{self.room.pk}",
                                 name=f"post_{i}", content=f"기록{i}", valid_at=timezone.now())
-                for i in ids
-            ])
+                for i in candidates(query)
+            ]
         graph = SimpleNamespace(embedder=SimpleNamespace(create_batch=AsyncMock(return_value=[[1.0, 0.0]] * 5)),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_lexical_episodes", side_effect=lexical), \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
              searching_workers.SearchPool(1) as pool, \
@@ -298,12 +308,14 @@ class PostQATests(TestCase):
         prefetch.assert_awaited_once()
         self.assertEqual(prefetch.await_args.args[1], self.room.pk)
         self.assertEqual(prefetch.await_args.args[2][0], question)
+        self.assertEqual(prefetch.await_args.kwargs["exclude_post"], f"post_{self.post.pk}")
         create.assert_awaited_once()
         request = create.await_args.kwargs
         self.assertEqual(request["model"], "gpt-6-luna")
         self.assertEqual(request["service_tier"], "fast")
         self.assertEqual(request["reasoning"], {"effort": "none"})
         self.assertFalse(request["store"])
+        self.assertNotIn("게시글 ID", json.loads(request["input"][0]["content"][0]["text"]))
         self.assertEqual([part["type"] for part in request["input"][0]["content"]], ["input_text", "input_image"])
         evidence = json.loads(request["input"][1]["content"])["미리 찾은 가족 기록"]["기록 원문"]
         self.assertEqual(evidence, [{"기록": source["name"], "작성 시각": source["recorded_at"], "내용": source["text"]}])

@@ -91,7 +91,7 @@ def summarize(posts):
 
 
 def ask(post, relation, question, prior_dialogue, viewer_name, *, parent_terms=None):
-    payload = {"작성자": post.author.display_name, "관계": relation, "원문": post.caption,
+    payload = {"게시글 ID": post.pk, "작성자": post.author.display_name, "관계": relation, "원문": post.caption,
                "게시시각": post.created_at.isoformat(), "질문": question, "질문자": viewer_name,
                "이전대화": prior_dialogue, "현재시각": timezone.now().isoformat()}
     if parent_terms:

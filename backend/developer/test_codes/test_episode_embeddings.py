@@ -126,6 +126,21 @@ class EpisodeEmbeddingTests(SimpleTestCase):
             self.assertEqual(call.kwargs["start"], start)
             self.assertEqual(call.kwargs["end"], start + timedelta(days=1))
 
+    def test_post_search_excludes_the_current_episode_before_selecting_facts_and_posts(self):
+        graph = self.graph()
+        graph.driver.execute_query.side_effect = [([{"id": "current"}], None, None), ([], None, None), ([], None, None)]
+        graph.search_.return_value.edges = [
+            SimpleNamespace(uuid=key, group_id="family_1", fact=key, valid_at=None, invalid_at=None, episodes=ids)
+            for key, ids in [("current_fact", ["current"]), ("merged_fact", ["current", "older"]), ("other_fact", [])]
+        ]
+        with patch.object(episode_embeddings, "fulltext_query", return_value="query"):
+            result, = asyncio.run(searching_graphiti.search_many(graph, 1, ["질문"], exclude_post="post_20"))
+        self.assertEqual([m["id"] for m in result["memories"]], ["other_fact"])
+        self.assertEqual(graph.driver.execute_query.await_args_list[0].kwargs["name"], "post_20")
+        for call in graph.driver.execute_query.await_args_list[1:]:
+            self.assertIn("e.name <> $exclude_post", call.args[0].split("LIMIT")[0])
+            self.assertEqual(call.kwargs["exclude_post"], "post_20")
+
     def test_relative_and_approximate_event_dates_use_korean_calendar_days(self):
         now = datetime.fromisoformat("2026-10-15T16:00:00+00:00")
         start = datetime.fromisoformat("2026-10-15T00:00:00+09:00")

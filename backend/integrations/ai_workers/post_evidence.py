@@ -15,6 +15,7 @@ UNWIND $queries AS candidate
 CALL (candidate) {
     MATCH (e:Episodic {group_id: $group_id})
     WHERE e.name STARTS WITH 'post_' AND e.content_embedding IS NOT NULL
+      AND ($exclude_post IS NULL OR e.name <> $exclude_post)
       AND size(e.content_embedding) = size(candidate.vector)
       AND (candidate.start IS NULL OR (e.valid_at >= candidate.start AND e.valid_at < candidate.end))
     WITH e, vector.similarity.cosine(e.content_embedding, candidate.vector) AS score
@@ -26,6 +27,7 @@ CALL (candidate) {
     WITH candidate WHERE candidate.lexical <> ''
     CALL db.index.fulltext.queryNodes('episode_content', candidate.lexical) YIELD node AS e, score
     WHERE e.group_id = $group_id AND e.name STARTS WITH 'post_'
+      AND ($exclude_post IS NULL OR e.name <> $exclude_post)
       AND (candidate.start IS NULL OR (e.valid_at >= candidate.start AND e.valid_at < candidate.end))
     WITH e, score ORDER BY score DESC, e.uuid LIMIT $limit
     RETURN collect(e.uuid) AS lexical
@@ -42,7 +44,7 @@ RETURN rankings, sources
 """
 
 
-async def prefetch_post_episodes(graphiti, family_id, queries):
+async def prefetch_post_episodes(graphiti, family_id, queries, *, exclude_post=None):
     group_id = family_group(family_id)
     reference_time = timezone.now()
     vectors = await graphiti.embedder.create_batch([query.replace('\n', ' ') for query in queries])
@@ -55,7 +57,7 @@ async def prefetch_post_episodes(graphiti, family_id, queries):
         'end': window[1] if window else None,
     } for index, (query, vector, window) in enumerate(zip(queries, vectors, windows, strict=True))]
     rows, _, _ = await graphiti.driver.execute_query(
-        POST_SOURCE_QUERY, group_id=group_id, queries=scans, routing_='r',
+        POST_SOURCE_QUERY, group_id=group_id, queries=scans, exclude_post=exclude_post, routing_='r',
         min_score=SEARCH_CONFIG.episode_config.sim_min_score, limit=SEARCH_CONFIG.limit,
     )
     row, = rows

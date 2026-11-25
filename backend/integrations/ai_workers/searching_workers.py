@@ -104,10 +104,10 @@ def search_worker(queue, ready):
 
                 return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
 
-            async def prefetch_posts(family_id, queries):
+            async def prefetch_posts(family_id, queries, **options):
                 from .post_evidence import prefetch_post_episodes
 
-                return await prefetch_post_episodes(graphiti, family_id, queries)
+                return await prefetch_post_episodes(graphiti, family_id, queries, **options)
 
             try:
                 while True:
@@ -149,10 +149,15 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
             except (TypeError, ValueError):
                 payload = None
             if isinstance(payload, dict):
+                post_id = payload.pop("게시글 ID", None)
+                if type(post_id) is int and post_id > 0:
+                    options["exclude_post"] = f"post_{post_id}"
+                    value = json.dumps(payload, ensure_ascii=False)
                 if isinstance(payload.get("질문"), str):
                     options["question"] = payload["질문"]
                     if prefetch_posts is not None:
-                        answer_options["prefetch"] = partial(prefetch_posts, family_id)
+                        prefetch_options = {"exclude_post": options["exclude_post"]} if "exclude_post" in options else {}
+                        answer_options["prefetch"] = partial(prefetch_posts, family_id, **prefetch_options)
                     answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
                                                               **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):
