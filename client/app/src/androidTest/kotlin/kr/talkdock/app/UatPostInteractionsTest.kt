@@ -146,6 +146,73 @@ class UatPostInteractionsTest {
         } }
     }
 
+    @Test fun commentSheetHasOpaqueSurfaceAndKeepsTypedReplyAboveKeyboard() {
+        val sample = post().put("author_name", "김대협").put("caption", "따뜻한 커피와 빵으로 아침을 시작했어요.").put("comment_count", 3)
+        val comments = JSONArray().apply {
+            listOf("할머니" to "맛있겠다! 아침 든든하게 챙겨 먹어서 좋네.",
+                "엄마" to "오늘도 좋은 하루 보내렴.",
+                "홍정아" to "빵 정말 맛있어 보여요. 다음에는 같이 가요!").forEachIndexed { index, (name, text) ->
+                put(JSONObject().put("id", index + 1).put("author_name", name).put("text", text))
+            }
+        }
+        server { request -> when (request.path) {
+            "/api/posts/" -> jsonReply(JSONObject().put("posts", JSONArray().put(sample)))
+            "/api/posts/1/" -> jsonReply(JSONObject(sample.toString()).put("comments", comments))
+            else -> null
+        } }.use { api -> UiHarness(api, room(1, "우리 가족"), tutorialSeen = true).use { ui ->
+            ui.await { ui.all().any { it is FeedPostCard } }
+            tap(ui, "댓글 3")
+            ui.await { ui.all().any { it.tag == "sheet-comment" && it.width > 0 && !it.isLayoutRequested } }
+            val composer = ui.all().filterIsInstance<CommentComposer>().single()
+            // Capture after the dialog's entrance transition; sampling mid-fade measures
+            // the window animation's opacity rather than the panel's reading surface.
+            ui.screenshot("comment-sheet-readable.png")
+            val samplePoints = mutableListOf<Pair<Int, Int>>()
+            ui.test.runOnMainSync {
+                val panel = ui.all().single { it.tag == "comment-sheet-panel" }
+                val header = ui.all().single { it.tag == "comment-sheet-header" }
+                val list = ui.all().single { it.tag == "comment-list-scroll" }
+                val panelBounds = Rect(); val headerBounds = Rect(); val listBounds = Rect()
+                assertTrue(panel.getGlobalVisibleRect(panelBounds))
+                assertTrue(header.getGlobalVisibleRect(headerBounds))
+                assertTrue(list.getGlobalVisibleRect(listBounds))
+                assertTrue("Title must stay inside the reading surface", panelBounds.contains(headerBounds))
+                assertTrue("Comments must stay inside the reading surface", panelBounds.contains(listBounds))
+                samplePoints.add(headerBounds.centerX() to headerBounds.centerY())
+                samplePoints.add((listBounds.left + 4) to listBounds.centerY())
+            }
+            val screenshot = ui.test.uiAutomation.takeScreenshot()
+            try {
+                samplePoints.forEach { (x, y) ->
+                    assertEquals("The post behind the sheet must not bleed through", android.graphics.Color.WHITE, screenshot.getPixel(x, y))
+                }
+            } finally { screenshot.recycle() }
+
+            val draft = "맛있겠다! 다음에는 같이 먹어요.\n오늘도 좋은 하루 보내세요."
+            val keyboard = ui.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            ui.test.runOnMainSync { composer.input.setText(draft); composer.input.requestFocus() }
+            ui.await { composer.input.hasFocus() && keyboard.isActive(composer.input) }
+            ui.test.runOnMainSync { ViewCompat.getWindowInsetsController(composer.input)?.show(WindowInsetsCompat.Type.ime()) }
+            ui.await(timeout = 15000) { ViewCompat.getRootWindowInsets(composer)?.isVisible(WindowInsetsCompat.Type.ime()) == true }
+            ui.await {
+                val visible = Rect(); composer.getWindowVisibleDisplayFrame(visible)
+                val send = Rect(); val field = Rect(); val list = Rect()
+                val header = ui.all().single { it.tag == "comment-sheet-header" }; val title = Rect()
+                composer.sendButton.getGlobalVisibleRect(send) && composer.input.getGlobalVisibleRect(field) &&
+                    ui.all().single { it.tag == "comment-list-scroll" }.getGlobalVisibleRect(list) &&
+                    header.getGlobalVisibleRect(title) && title.height() == header.height && title.top >= visible.top &&
+                    send.height() == composer.sendButton.height && send.bottom <= visible.bottom &&
+                    field.height() == composer.input.height && list.bottom <= field.top
+            }
+            ui.screenshot("comment-sheet-typing.png")
+            tap(ui, "댓글 닫기")
+            ui.await { ui.all().none { it.tag == "sheet-comment" } }
+            tap(ui, "댓글 3")
+            ui.await { ui.all().filterIsInstance<CommentComposer>().any { it.input.text.toString() == draft } }
+            assertFalse("Closing a draft must not send it", api.paths().any { it.endsWith("/comments/") })
+        } }
+    }
+
     @Test fun visibleCancelPreventsLateSummaryFromStartingSpeech() {
         val gate = CountDownLatch(1)
         server { r -> if (r.path.endsWith("/message/")) { gate.await(12, TimeUnit.SECONDS); jsonReply(JSONObject().put("status", "ready").put("text", "늦게 도착한 요약")) } else null }
