@@ -11,6 +11,7 @@ from apps.families.utils.parent_terms import include_parent_name
 
 from . import prompts
 from .options import model_options, llm_response
+from integrations.telemetry import measured
 
 
 def select_budget(results, fact_limit=prompts.FACT_BUDGET, episode_limit=prompts.EPISODE_BUDGET):
@@ -55,7 +56,7 @@ def checked_text(response):
     return response.output_text
 
 
-@__import__("integrations.telemetry", fromlist=["measured"]).measured("llm_stream")
+@measured("llm_stream")
 async def qa_response(client, **options):
     stream = await llm_response(client, **options, stream=True)
     response = None

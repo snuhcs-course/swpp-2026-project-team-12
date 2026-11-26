@@ -152,7 +152,8 @@ CONSTRUCTION_IMAGE_MAX_DIMENSION = 1600
 # No user content or third-party log messages are serialized by this formatter.
 TELEMETRY_ENVIRONMENT = os.getenv("TELEMETRY_ENVIRONMENT", "development")
 TELEMETRY_VERSION = os.getenv("TELEMETRY_VERSION", "local")
-TELEMETRY_STATE_DIR = os.getenv("TELEMETRY_STATE_DIR", "")
+TELEMETRY_LOG_DIR = Path(os.getenv("TELEMETRY_LOG_DIR", BASE_DIR.parent / ".local" / "telemetry"))
+TELEMETRY_STATE_DIR = os.getenv("TELEMETRY_STATE_DIR", str(TELEMETRY_LOG_DIR / "runtime"))
 LOGGING = {
     "version": 1, "disable_existing_loggers": False,
     "formatters": {"telemetry": {"()": "integrations.telemetry.JsonFormatter"}},
@@ -162,3 +163,8 @@ LOGGING = {
                 "django.server": {"handlers": ["console"], "level": "WARNING", "propagate": False},
                 "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False}},
 }
+LOGGING["handlers"]["local"] = {"()": "integrations.telemetry.LocalLogHandler",
+                               "directory": str(TELEMETRY_LOG_DIR), "formatter": "telemetry"}
+LOGGING["root"]["handlers"].append("local")
+for _logger in LOGGING["loggers"].values():
+    _logger["handlers"].append("local")

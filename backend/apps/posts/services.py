@@ -92,8 +92,6 @@ def save_post(room, author, caption, images):
                 created_files.append((default_storage, name))
                 paths.append(name)
             post = Post.objects.create(room=room, author=author, caption=caption, images=paths)
-            from apps.telemetry.jobs import enqueue
-            enqueue("construction", f"post:{post.pk}", post.created_at)
         return post
     except Exception:
         for storage, name in created_files:

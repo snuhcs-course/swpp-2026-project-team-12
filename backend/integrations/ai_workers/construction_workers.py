@@ -78,6 +78,10 @@ def construct(family_id, once, stdout, stderr, *, stop_event=None):
                     int(name[5:]) for name in names
                     if name.startswith("post_") and name[5:].isdigit()
                 }
+                # Recover already-indexed jobs after a crash between graph commit and telemetry update.
+                from apps.telemetry.models import WorkItem
+                from django.utils import timezone
+                WorkItem.objects.filter(kind="construction", source_key__in=[f"post:{pk}" for pk in completed]).exclude(status="success").update(status="success", completed_at=timezone.now())
                 posts = Post.objects.filter(room_id=family_id, kind="news").exclude(pk__in=completed)
                 for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
                     if stop_event is not None and stop_event.is_set():

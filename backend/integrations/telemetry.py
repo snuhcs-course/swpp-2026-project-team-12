@@ -11,9 +11,19 @@ import threading
 import time
 import traceback
 import uuid
+from logging.handlers import RotatingFileHandler
 
 context = ContextVar("telemetry_context", default={})
 FIELDS = frozenset("operation_id request_id job_id notification_id component feature stage result attempt duration_ms elapsed_ms method route http_status error_code error_type reason model prompt_version count bytes cache_hit queue_wait_ms".split())
+
+
+class LocalLogHandler(RotatingFileHandler):
+    def __init__(self, directory):
+        from pathlib import Path
+        path = Path(directory)
+        path.mkdir(parents=True, exist_ok=True)
+        super().__init__(path / f"{os.getpid()}.jsonl", maxBytes=5 * 1024 * 1024,
+                         backupCount=2, encoding="utf-8", delay=True)
 
 
 def identifier(value=None):
