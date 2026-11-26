@@ -11,3 +11,9 @@ def model_options(group):
     if effort := getattr(settings, f"{group}_AI_REASONING_EFFORT"):
         options["reasoning"] = {"effort": effort}
     return options
+
+
+async def llm_response(client, **options):
+    from integrations.telemetry import stage
+    with stage("llm", model=options.get("model"), prompt_version="2026-11-26"):
+        return await client.responses.create(**options)

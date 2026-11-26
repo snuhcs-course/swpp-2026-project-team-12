@@ -10,7 +10,7 @@ from openai import AsyncOpenAI
 from apps.families.utils.parent_terms import include_parent_name
 
 from . import prompts
-from .options import model_options
+from .options import model_options, llm_response
 
 
 def select_budget(results, fact_limit=prompts.FACT_BUDGET, episode_limit=prompts.EPISODE_BUDGET):
@@ -55,8 +55,9 @@ def checked_text(response):
     return response.output_text
 
 
+@__import__("integrations.telemetry", fromlist=["measured"]).measured("llm_stream")
 async def qa_response(client, **options):
-    stream = await client.responses.create(**options, stream=True)
+    stream = await llm_response(client, **options, stream=True)
     response = None
     async with stream:
         # Drain the end of the stream so the SDK can reuse the connection.
@@ -150,7 +151,7 @@ async def answer(search, text, feature, *, images=(), timings=None, parent_terms
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         started = perf_counter()
         if not is_qa:
-            response = await client.responses.create(**options, input=items, max_output_tokens=prompts.ANSWER_MAX_TOKENS)
+            response = await llm_response(client, **options, input=items, max_output_tokens=prompts.ANSWER_MAX_TOKENS)
             timings['answer'] = perf_counter() - started
             return {'text': checked_text(response), 'query': None, 'queries': [], 'memories': []}
         first = await qa_response(client, **options, input=items, tools=tools, tool_choice='auto',

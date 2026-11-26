@@ -13,6 +13,8 @@ from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 
 from integrations.utils.family_graph import sync_family
+from apps.telemetry.jobs import enqueue, processing
+from integrations.telemetry import stage, runtime
 
 
 class WorkerAlreadyRunning(RuntimeError):
@@ -59,6 +61,7 @@ def construct(family_id, once, stdout, stderr, *, stop_event=None):
                 if stop_event is not None:
                     # Background threads don't get Django's request connection cleanup.
                     close_old_connections()
+                runtime("construction", last_poll=time.time())
                 try:
                     sync_family(graphiti, family_id, runner)
                     names = runner.run(episode_names(graphiti, family_id))
@@ -80,14 +83,17 @@ def construct(family_id, once, stdout, stderr, *, stop_event=None):
                     if stop_event is not None and stop_event.is_set():
                         return
                     try:
-                        if not post.description:
-                            post.description = runner.run(describe_post(post))
-                            post.save(update_fields=["description"])
-                        runner.run(add_memory(
-                            graphiti, family_id,
-                            f"작성자: {post.author.display_name}\n상세 설명: {post.description}",
-                            f"post_{post.pk}", post.created_at,
-                        ))
+                        with processing(enqueue("construction", f"post:{post.pk}", post.created_at)):
+                            if not post.description:
+                                with stage("description_generation"):
+                                    post.description = runner.run(describe_post(post))
+                                    post.save(update_fields=["description"])
+                            with stage("graphiti_save"):
+                                runner.run(add_memory(
+                                    graphiti, family_id,
+                                    f"작성자: {post.author.display_name}\n상세 설명: {post.description}",
+                                    f"post_{post.pk}", post.created_at,
+                                ))
                     except Exception as error:
                         if once:
                             raise RuntimeError(f"게시물 {post.pk} 저장에 실패했어요.") from error

@@ -5,6 +5,9 @@ import asyncio
 import json
 import logging
 from concurrent.futures import Future
+from contextvars import copy_context
+import time
+from integrations.telemetry import stage, runtime
 from functools import partial
 from queue import Queue
 from threading import Lock, Thread
@@ -18,6 +21,8 @@ class SearchPool:
             raise ValueError("max_workers must be greater than 0")
         self._max_workers = max_workers
         self._queue = Queue()
+        self._queue.active = 0
+        self._queue.active_lock = Lock()
         self._threads = []
         self._ready = []
         self._lock = Lock()
@@ -47,10 +52,13 @@ class SearchPool:
     def submit(self, feature, family_id, value, images=()):
         self.start()
         future = Future()
+        future.telemetry_context = copy_context()
+        future.queued_at = time.monotonic()
         with self._lock:
             if self._shutdown:
                 raise RuntimeError("Cannot submit searches after shutdown")
             self._queue.put((future, feature, family_id, value, images))
+            report_pool(self._queue)
         return future
 
     def shutdown(self, wait=True):
@@ -91,6 +99,14 @@ def run_search(feature, family_id, value, *, images=()):
         raise SearchUnavailable from error
 
 
+def report_pool(queue):
+    with queue.mutex:
+        requests = [row for row in queue.queue if row is not None]
+    oldest = min((row[0].queued_at for row in requests), default=time.monotonic())
+    runtime("search", waiting=len(requests), running=queue.active,
+            oldest_monotonic=oldest, last_poll=time.time())
+
+
 def search_worker(queue, ready):
     try:
         from .graphiti_client import close_graphiti, initialize_graphiti
@@ -102,7 +118,8 @@ def search_worker(queue, ready):
             async def search(family_id, queries, *, max_queries=3, **options):
                 from .searching_graphiti import search_many
 
-                return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
+                with stage("graphiti_search"):
+                    return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
 
             async def prefetch_posts(family_id, queries, **options):
                 from .post_evidence import prefetch_post_episodes
@@ -117,12 +134,25 @@ def search_worker(queue, ready):
                     future, feature, family_id, value, images = request
                     if not future.set_running_or_notify_cancel():
                         continue
+                    with queue.active_lock:
+                        queue.active += 1
+                        report_pool(queue)
+                    def execute():
+                        from integrations.telemetry import emit, bind
+                        with bind(component="search", feature=feature):
+                            emit("queue_wait", result="success", duration_ms=(time.monotonic() - future.queued_at) * 1000)
+                            with stage("search_execution"):
+                                return runner.run(answer_request(search, feature, family_id, value, images, prefetch_posts=prefetch_posts))
                     try:
-                        result = runner.run(answer_request(search, feature, family_id, value, images, prefetch_posts=prefetch_posts))
+                        result = future.telemetry_context.run(execute)
                     except BaseException as error:
                         future.set_exception(error)
                     else:
                         future.set_result(result)
+                    finally:
+                        with queue.active_lock:
+                            queue.active -= 1
+                            report_pool(queue)
             finally:
                 runner.run(close_graphiti(graphiti))
     except BaseException as error:

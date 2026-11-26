@@ -49,11 +49,13 @@ def enqueue(*, room, post, actor, key, kind, question=None, text="", recipient_i
             title, body = label, f"{preview(text, 140)}\nQ. {preview(question.post.caption)}"
         else:
             title, body = "토닥이 · 오늘의 질문", f"아직 오늘의 이야기를 들려주지 않으셨어요 💛\nQ. {preview(question.post.caption)}"
-        PushNotification.objects.get_or_create(device=device, event_key=key, defaults={
+        item, created = PushNotification.objects.get_or_create(device=device, event_key=key, defaults={
             "binding": device.binding, "recipient": user, "room": room, "post": post,
             "question": question, "kind": kind, "title": title, "body": body,
             "expires_at": expires,
         })
+        from apps.telemetry.jobs import enqueue as track
+        track("push", item.pk, item.created_at)
 
 
 def queue_reminders(now=None):
@@ -95,10 +97,16 @@ def dispatch_pending(send, limit=100):
         if item is None:
             continue
         if not is_eligible(item, now):
+            from apps.telemetry.models import WorkItem
+            WorkItem.objects.filter(kind="push", source_key=str(pk)).update(status="cancelled")
             PushNotification.objects.filter(pk=pk).update(status="cancelled")
             continue
         try:
-            send(item)
+            from apps.telemetry.jobs import enqueue as track, processing
+            from integrations.telemetry import bind, stage
+            with processing(track("push", item.pk, item.created_at)), bind(notification_id=str(item.pk)):
+                with stage("fcm_accepted"):
+                    send(item)
         except InvalidDevice:
             # A concurrently refreshed/reassigned token must survive an old send.
             PushDevice.objects.filter(pk=item.device_id, token=item.device.token, binding=item.binding).delete()
