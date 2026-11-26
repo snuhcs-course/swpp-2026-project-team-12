@@ -1,6 +1,7 @@
 """Small, read-only dashboard. No additional server or storage dependency."""
 from collections import Counter, defaultdict
 from datetime import datetime, timezone as dt_timezone
+import fcntl
 import json
 import math
 import os
@@ -131,6 +132,64 @@ def work_state():
     return result
 
 
+def replication_state(directory=None):
+    """Read the acknowledged backup result; the worker lock, not a saved PID, proves liveness."""
+    directory = Path(directory) if directory is not None else settings.BASE_DIR.parent / '.local/redundancy/worker'
+    result = {'state': 'not_started', 'running': False, 'host': 'swpp-b', 'last_success': None,
+              'age_seconds': None, 'interval': 60, 'stale_after_seconds': 120,
+              'files': None, 'bytes': None, 'duration_ms': None, 'last_error': None}
+    try:
+        try:
+            with (directory / 'worker.lock').open('rb') as lock:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    result['running'] = True
+        except FileNotFoundError:
+            pass
+        path = directory / 'status.json'
+        try:
+            if path.stat().st_size > 64 * 1024:
+                raise ValueError('Oversized status')
+            status = json.loads(path.read_text())
+        except FileNotFoundError:
+            result['state'] = 'starting' if result['running'] else 'not_started'
+            return result
+        if not isinstance(status, dict):
+            raise ValueError('Invalid status')
+        interval = float(status.get('interval', 60))
+        if not math.isfinite(interval * 2) or interval <= 0:
+            raise ValueError('Invalid interval')
+        result.update(interval=interval, stale_after_seconds=interval * 2)
+        if isinstance(status.get('host'), str):
+            result['host'] = status['host'][:200]
+        if status.get('last_success') is not None:
+            success = datetime.fromisoformat(status['last_success'].replace('Z', '+00:00'))
+            if success.utcoffset() is None:
+                raise ValueError('Expected a timezone-aware timestamp')
+            result.update(last_success=success.astimezone(dt_timezone.utc).isoformat(),
+                          age_seconds=round(max(0, time.time() - success.timestamp()), 1))
+        for name in ('files', 'bytes', 'duration_ms'):
+            value = status.get(name)
+            if type(value) in (int, float) and math.isfinite(value) and value >= 0:
+                result[name] = value
+        if isinstance(status.get('last_error'), str) and status['last_error']:
+            result['last_error'] = status['last_error'][:1500]
+        if not result['running']:
+            result['state'] = 'stopped'
+        elif result['last_error']:
+            result['state'] = 'error'
+        elif result['last_success'] is None:
+            result['state'] = 'starting'
+        elif result['age_seconds'] > result['stale_after_seconds']:
+            result['state'] = 'stale'
+        else:
+            result['state'] = 'healthy'
+    except (OSError, ValueError, TypeError, AttributeError, OverflowError):
+        result['state'] = 'unavailable'
+    return result
+
+
 def snapshot(params, extra_paths=()):
     rows, errors, truncated = read_logs(settings.TELEMETRY_LOG_DIR, extra_paths)
     minutes = min(1440, max(1, int(params.get('minutes', '60'))))
@@ -176,4 +235,4 @@ def snapshot(params, extra_paths=()):
             'parse_errors': errors, 'truncated': truncated, 'missing_logs': not rows,
             'series': [{'time': k, **v} for k, v in sorted(buckets.items())],
             'apis': sorted(ranking, key=lambda r: r['p95'] or 0, reverse=True),
-            'resources': resources(), 'work': work_state()}
+            'resources': resources(), 'work': work_state(), 'replication': replication_state()}

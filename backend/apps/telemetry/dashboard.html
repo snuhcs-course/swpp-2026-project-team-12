@@ -17,6 +17,7 @@
       --accent: #74e3cb;
       --blue: #81adff;
       --red: #ff8589;
+      --amber: #edc878;
       --shadow: 0 8px 35px #0002;
     }
     html[data-theme="light"] {
@@ -30,6 +31,7 @@
       --accent: #087c69;
       --blue: #326dcc;
       --red: #c94456;
+      --amber: #916000;
       --shadow: 0 6px 24px #182f4d08;
     }
     * {
@@ -312,6 +314,29 @@
     .cancelled {
       color: var(--muted);
     }
+    .stale {
+      color: var(--amber);
+    }
+    .starting {
+      color: var(--blue);
+    }
+    .replication-metrics {
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr;
+      gap: 22px;
+    }
+    .replication-value {
+      font-size: 21px;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      margin: 5px 0;
+      overflow-wrap: anywhere;
+    }
+    .replication-note {
+      font-size: 12px;
+      margin-top: 16px;
+      overflow-wrap: anywhere;
+    }
     .tablewrap {
       overflow: auto;
       max-height: 520px;
@@ -444,6 +469,13 @@
       .filters input {
         width: 100%;
       }
+      .replication-metrics {
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+      .replication-metrics > div:first-child {
+        grid-column: 1 / -1;
+      }
       .footer {
         gap: 12px;
         flex-wrap: wrap;
@@ -458,6 +490,7 @@
         <a href="#overview">◈ &nbsp; Overview</a
         ><a href="#performance">⌁ &nbsp; API performance</a
         ><a href="#workers">▤ &nbsp; Workers</a
+        ><a href="#replication">⇄ &nbsp; Replication</a
         ><a href="#logs">≡ &nbsp; Event explorer</a>
       </nav>
     </div>
@@ -527,6 +560,33 @@
     </div>
     <div class="warning" id="notice" hidden role="status"></div>
     <div class="cards" id="cards"></div>
+    <section class="panel logpanel" id="replication" aria-label="이중화 복제 상태">
+      <div class="panelhead">
+        <div>
+          <h2>Standby replication</h2>
+          <small id="replicationTarget">SQLite + media → swpp-b</small>
+        </div>
+        <span class="badge" id="replicationBadge" role="status">확인 중</span>
+      </div>
+      <div class="replication-metrics">
+        <div>
+          <small>마지막 복제 성공 · KST</small>
+          <div class="replication-value" id="replicationLastSuccess">—</div>
+          <small id="replicationAge">성공 기록을 확인하고 있습니다.</small>
+        </div>
+        <div>
+          <small>최근 성공한 복사본</small>
+          <div class="replication-value" id="replicationSize">—</div>
+          <small id="replicationFiles">—</small>
+        </div>
+        <div>
+          <small>복제 주기</small>
+          <div class="replication-value" id="replicationInterval">—</div>
+          <small id="replicationDuration">—</small>
+        </div>
+      </div>
+      <p class="replication-note" id="replicationDetail"></p>
+    </section>
     <div class="grid">
       <section class="panel" id="performance">
         <div class="panelhead">
@@ -652,6 +712,33 @@
       }
       return e;
     }
+    function replication(data) {
+      const states = {
+        healthy: ["정상", "success", "대상 서버의 검증·저장 확인 완료 · 5초마다 상태 갱신"],
+        error: ["최근 복제 실패", "error", "다음 주기에 재시도합니다. 마지막 성공 시각을 확인하세요."],
+        stale: ["복제 지연", "stale", "두 주기 이상 성공 기록이 없습니다. 복제 워커를 확인하세요."],
+        stopped: ["워커 중지", "cancelled", "복제 워커가 실행되고 있지 않습니다."],
+        starting: ["첫 복제 대기", "starting", "워커 실행 중 · 첫 성공 응답을 기다리고 있습니다."],
+        not_started: ["미실행", "cancelled", "아직 복제 실행 기록이 없습니다."],
+        unavailable: ["확인 불가", "error", "복제 상태 파일을 읽지 못했습니다."],
+      };
+      const [label, tone, detail] = states[data.state] || states.unavailable;
+      $("replicationBadge").textContent = label;
+      $("replicationBadge").className = "badge " + tone;
+      $("replicationTarget").textContent = "SQLite + media → " + data.host;
+      $("replicationLastSuccess").textContent = data.last_success ? kst(data.last_success) : "—";
+      const age = data.age_seconds;
+      $("replicationAge").textContent = age === null ? (data.state === "unavailable" ? "마지막 성공 시각을 확인할 수 없습니다." : "아직 성공한 복제 기록이 없습니다.")
+        : age < 60 ? `${Math.floor(age)}초 전`
+        : age < 3600 ? `${Math.floor(age / 60)}분 ${Math.floor(age % 60)}초 전`
+        : age < 86400 ? `${Math.floor(age / 3600)}시간 ${Math.floor(age % 3600 / 60)}분 전`
+        : `${Math.floor(age / 86400)}일 ${Math.floor(age % 86400 / 3600)}시간 전`;
+      $("replicationSize").textContent = data.bytes === null ? "—" : fmt(data.bytes / 1024 ** 2, " MiB");
+      $("replicationFiles").textContent = fmt(data.files, "개 파일");
+      $("replicationInterval").textContent = fmt(data.interval, "초마다");
+      $("replicationDuration").textContent = "최근 시도 소요 " + fmt(data.duration_ms, " ms");
+      $("replicationDetail").textContent = detail + (data.last_error ? " · " + data.last_error : "");
+    }
     function filters(data) {
       for (const key of ["service", "component", "route", "result"]) {
         const el = $(key),
@@ -729,6 +816,7 @@
     function render(data) {
       lastData = data;
       filters(data);
+      replication(data.replication);
       $("server").textContent =
         `${data.hostname} / ${data.environment} · ${data.layer} HTTP`;
       const s = data.summary,
