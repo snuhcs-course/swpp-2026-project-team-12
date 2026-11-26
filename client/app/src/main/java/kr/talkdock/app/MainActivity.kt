@@ -42,6 +42,7 @@ import kr.talkdock.app.ui.VoiceRecordingView
 import kr.talkdock.app.ui.IconView
 import kr.talkdock.app.ui.FeedCalendarSheet
 import kr.talkdock.app.ui.CommentComposer
+import kr.talkdock.app.ui.CommentSheetView
 import kr.talkdock.app.ui.ElderReplyPanel
 import kr.talkdock.app.ui.PostQuestionPanel
 import kr.talkdock.app.ui.FamilyMemoryPanel
@@ -1578,17 +1579,10 @@ class MainActivity : ComponentActivity() {
     /** A dialog leaves the scroll view and its reading position intact. */
     private fun openComments(post: JSONObject) {
         if (commentsDialog != null || busy) return
-        val dialog = Dialog(this); commentsDialog = dialog
-        val box = ui.column(20).apply { setBackgroundColor(ui.paper); isClickable = true }
-        val body = ui.column(); val footer = ui.column()
-        val sheet = FrameLayout(this).apply { setOnClickListener { dialog.dismiss() } }
-        sheet.addView(box, FrameLayout.LayoutParams(-1, -1, Gravity.BOTTOM))
-        val header = ui.row()
-        header.addView(ui.text("댓글", 23f, true), LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(ui.iconButton("close", "댓글 닫기") { dialog.dismiss() }); box.addView(header)
-        val status = newPostingStatus().also { sheetPostingStatus = it; box.addView(it); it.bind(currentUploads()) }
-        box.addView(ScrollView(this).apply { addView(body); tag = "comment-list-scroll" }, LinearLayout.LayoutParams(-1, 0, 1f))
-        box.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        val dialog = Dialog(this, R.style.Theme_TalkDock_CommentSheet); commentsDialog = dialog
+        val sheet = CommentSheetView(this, ui) { dialog.dismiss() }
+        val body = sheet.body; val footer = sheet.footer
+        val status = newPostingStatus().also { sheetPostingStatus = it; sheet.statusHost.addView(it); it.bind(currentUploads()) }
         dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         dialog.setContentView(sheet); dialog.setOnDismissListener {
             if (commentsDialog === dialog) commentsDialog = null
@@ -1601,20 +1595,13 @@ class MainActivity : ComponentActivity() {
         dialog.show(); dialog.window?.apply {
             setBackgroundDrawableResource(android.R.color.transparent); setGravity(Gravity.BOTTOM)
             androidx.core.view.WindowCompat.setDecorFitsSystemWindows(this, false)
-            setLayout(-1, -1); setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            setLayout(-1, -1)
+            // CommentSheetView positions the entire panel above IME insets. A second window
+            // resize/pan can otherwise push its title and close button off the top edge.
+            setSoftInputMode(if (android.os.Build.VERSION.SDK_INT >= 30)
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+            else android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
-        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(sheet) { view, insets ->
-            val bars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
-            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
-            val bottom = maxOf(bars.bottom, ime.bottom)
-            val height = view.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-            box.layoutParams = (box.layoutParams as FrameLayout.LayoutParams).apply {
-                this.height = minOf((height * .75f).toInt(), height - bars.top - bottom).coerceAtLeast(0)
-                bottomMargin = bottom; leftMargin = bars.left; rightMargin = bars.right
-            }
-            insets
-        }
-        sheet.post { androidx.core.view.ViewCompat.requestApplyInsets(sheet) }
         val client = api; val number = pageNumber
         val postId = post.getInt("id")
         fun refresh() {
