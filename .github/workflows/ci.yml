@@ -76,12 +76,17 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebugAndroidTest :app:assembleApks --console=plain
+      - run: ./gradlew :app:testDebugUnitTest :app:createDebugUnitTestCoverageReport :app:lintDebug :app:assembleDebugAndroidTest :app:assembleApks --console=plain
       - uses: actions/upload-artifact@v4
         with:
           name: android-distribution-apks
           path: client/app/build/outputs/apk/distribution/*.apk
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-unit-test-coverage
+          path: client/app/build/reports/coverage/test/
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -164,7 +169,7 @@ jobs:
             adb shell settings put global window_animation_scale 1
             adb shell settings put global transition_animation_scale 1
             adb shell settings put global animator_duration_scale 1
-            ./gradlew :app:connectedDebugAndroidTest --console=plain
+            ./gradlew :app:createDebugAndroidTestCoverageReport --console=plain
       - name: List failed instrumented tests
         if: failure()
         run: |
@@ -180,6 +185,29 @@ jobs:
                       where = " ".join(dict.fromkeys(frame for frame in (frames[0] if frames else "", test_frame) if frame))
                       print(f"::error title={case.get('classname')}.{case.get('name')}::{lines[0] if lines else ''} {where}")
           EOF
+      - name: Summarize instrumented test coverage
+        if: always()
+        run: |
+          python - <<'EOF'
+          import glob, os, xml.etree.ElementTree as ET
+          # JaCoCo report from createDebugAndroidTestCoverageReport; absent when a test failed.
+          reports = glob.glob("client/app/build/reports/coverage/androidTest/**/report.xml", recursive=True)
+          lines = ["### Android instrumented test coverage", ""]
+          if reports:
+              totals = {c.get("type"): c for c in ET.parse(reports[0]).getroot().findall("counter")}
+              lines += ["| Counter | Covered | Total | Coverage |", "|---|---:|---:|---:|"]
+              for kind in ("LINE", "BRANCH", "INSTRUCTION"):
+                  counter = totals.get(kind)
+                  if counter is None:
+                      continue
+                  covered, missed = int(counter.get("covered")), int(counter.get("missed"))
+                  lines.append(f"| {kind.title()} | {covered} | {covered + missed} | {100 * covered / max(covered + missed, 1):.2f}% |")
+          else:
+              lines.append("No coverage report: the instrumented tests did not all pass.")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          EOF
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -187,5 +215,6 @@ jobs:
           path: |
             client/app/build/reports/androidTests/
             client/app/build/outputs/androidTest-results/
+            client/app/build/reports/coverage/androidTest/
             runserver.log
           if-no-files-found: ignore
