@@ -44,7 +44,7 @@ class SearchWorkerTests(SimpleTestCase):
             self.assertIs(asyncio.get_running_loop(), graph.loop)
             self.assertEqual(get_ident(), graph.thread)
             calls.append((family_id, queries, max_queries))
-            return queries
+            return [{"query": query, "memories": []} for query in queries]
 
         async def close(graph):
             self.assertIs(asyncio.get_running_loop(), graph.loop)
@@ -59,12 +59,12 @@ class SearchWorkerTests(SimpleTestCase):
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock(side_effect=close)) as cleanup:
             with searching_workers.SearchPool(1) as pool:
                 self.assertEqual(pool.submit("memories", 1, ["first"]).result(timeout=3),
-                                 {"results": ["first"]})
+                                 {"results": [{"query": "first", "memories": []}]})
                 self.assertEqual(pool.submit("memories", 2, ["second"]).result(timeout=3),
-                                 {"results": ["second"]})
-                self.assertEqual(pool.submit("post_qa", 3, "qa").result(timeout=3), ["qa"])
+                                 {"results": [{"query": "second", "memories": []}]})
+                self.assertEqual(pool.submit("post_qa", 3, "qa").result(timeout=3), [{"query": "qa", "memories": []}])
                 self.assertEqual(pool.submit("memories", 1, ["last"]).result(timeout=3),
-                                 {"results": ["last"]})
+                                 {"results": [{"query": "last", "memories": []}]})
                 factory.assert_called_once()
                 cleanup.assert_not_awaited()
             graph = cleanup.await_args.args[0]

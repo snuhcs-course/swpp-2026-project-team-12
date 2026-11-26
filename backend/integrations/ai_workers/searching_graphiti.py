@@ -14,9 +14,9 @@ from graphiti_core.search.search_utils import rrf
 
 from integrations.ai.prompts import SUPPLEMENTAL_EPISODE_LIMIT
 
-from .episode_embeddings import search_dated_episodes, search_episodes
+from .episode_embeddings import action_keywords, search_episodes, search_lexical_episodes
 from .graphiti_client import family_group
-from .temporal_search import date_window, fact_time_filter, time_rank
+from .temporal_search import date_preference, fact_time_filter, time_rank
 
 
 RESULT_LIMIT = 5
@@ -29,24 +29,33 @@ SEARCH_CONFIG = SearchConfig(
 )
 
 
-async def _search(graphiti, group_id, query, question, reference_time, *, prefer_semantic=False):
-    window = date_window(question, reference_time)
-    filters = fact_time_filter(question, window, reference_time)
+async def excluded_post_episodes(graphiti, group_id, name):
+    records, _, _ = await graphiti.driver.execute_query(
+        "MATCH (e:Episodic {group_id: $group_id, name: $name}) RETURN e.uuid AS id",
+        group_id=group_id, name=name, routing_="r",
+    )
+    return {record["id"] for record in records}
+
+
+async def _search(graphiti, group_id, query, question, reference_time, vector, *,
+                  preference, prefer_semantic, exclude_post, excluded_ids, keywords=""):
+    cutoff = preference.cutoff if preference else None
+    filters = fact_time_filter(question, preference, reference_time)
     filter_options = {"search_filter": filters} if filters is not None else {}
-    config = SEARCH_CONFIG.model_copy(update={"episode_config": None}) if window else SEARCH_CONFIG
-    # Share one query embedding between fact and episode retrieval.
-    vector = await graphiti.embedder.create(input_data=[query.replace("\n", " ")])
+    lexical_search = cutoff is not None or exclude_post is not None or bool(keywords)
+    config = SEARCH_CONFIG.model_copy(update={"episode_config": None}) if lexical_search else SEARCH_CONFIG
     async with asyncio.TaskGroup() as group:
         graph = group.create_task(graphiti.search_(
             query=query, group_ids=[group_id], config=config, query_vector=vector, **filter_options,
         ))
         semantic = group.create_task(search_episodes(
             graphiti, group_id, vector, limit=2 * SEARCH_CONFIG.limit,
-            min_score=SEARCH_CONFIG.episode_config.sim_min_score, window=window,
+            min_score=SEARCH_CONFIG.episode_config.sim_min_score, cutoff=cutoff, exclude_post=exclude_post,
         ))
-        lexical = group.create_task(search_dated_episodes(
-            graphiti, group_id, query, limit=SEARCH_CONFIG.limit, window=window,
-        )) if window else None
+        lexical = group.create_task(search_lexical_episodes(
+            graphiti, group_id, query, limit=SEARCH_CONFIG.limit, cutoff=cutoff, exclude_post=exclude_post,
+            keywords=keywords,
+        )) if lexical_search else None
 
     result = graph.result()
     lexical_episodes = lexical.result() if lexical else result.episodes
@@ -65,11 +74,26 @@ async def _search(graphiti, group_id, query, question, reference_time, *, prefer
     ]
     ids.sort(key=lambda uuid: time_rank(
         episode_scores[uuid], episodes[uuid].valid_at if episodes[uuid].name.startswith("post_") else None,
-        reference_time, window,
+        reference_time, preference,
     ), reverse=True)
+    candidates = [(edge, score) for edge, score in zip(result.edges, edge_scores)
+                  if edge.group_id == group_id and excluded_ids.isdisjoint(edge.episodes)]
+    if cutoff is not None and candidates:
+        # A planned future event can already be known. Filter the records that
+        # support the fact by publication time, rather than its event date.
+        source_ids = list({source for edge, _ in candidates for source in edge.episodes})
+        records, _, _ = await graphiti.driver.execute_query(
+            "MATCH (e:Episodic {group_id: $group_id}) "
+            "WHERE e.uuid IN $ids AND e.valid_at <= $cutoff RETURN e.uuid AS id",
+            group_id=group_id, ids=source_ids, cutoff=cutoff, routing_="r",
+        )
+        known = {record["id"] for record in records}
+        candidates = [(edge, score) for edge, score in candidates if edge.episodes and known.issuperset(edge.episodes)]
+        for edge, _ in candidates:
+            if edge.invalid_at is not None and edge.invalid_at > cutoff:
+                edge.invalid_at = None
     ranked_edges = sorted(
-        ((edge, score) for edge, score in zip(result.edges, edge_scores) if edge.group_id == group_id),
-        key=lambda item: time_rank(item[1], item[0].valid_at, reference_time, window), reverse=True,
+        candidates, key=lambda item: time_rank(item[1], item[0].valid_at, reference_time, preference), reverse=True,
     )
     result.edges = [edge for edge, _ in ranked_edges[:RESULT_LIMIT]]
     episode_limit = SUPPLEMENTAL_EPISODE_LIMIT if prefer_semantic else RESULT_LIMIT
@@ -78,7 +102,7 @@ async def _search(graphiti, group_id, query, question, reference_time, *, prefer
 
 
 async def search_many(graphiti, family_id, queries, *, max_queries=3, question=None, reference_time=None,
-                      prefer_semantic=False):
+                      prefer_semantic=False, exclude_post=None):
     # Server-owned limit; never accept a query limit chosen by the model.
     if type(max_queries) is not int or not 1 <= max_queries <= 5:
         raise ValueError("검색 질문 상한은 1~5 사이 정수여야 합니다.")
@@ -89,12 +113,23 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3, question=N
         raise ValueError(f"검색 질문은 1~{max_queries}개, 각 1,000자 이내로 입력하세요.")
     group_id = family_group(family_id)
     reference_time = reference_time or timezone.now()
+    question_preference = date_preference(question, reference_time)
+    excluded_ids = await excluded_post_episodes(graphiti, group_id, exclude_post) if exclude_post else set()
+    # Fetch all query vectors in one request. Fact and episode retrieval share
+    # each vector and use the original query strings for lexical search.
+    embedding_inputs = [query.replace("\n", " ") for query in queries]
+    if len(embedding_inputs) == 1:
+        vectors = [await graphiti.embedder.create(input_data=embedding_inputs)]
+    else:
+        vectors = await graphiti.embedder.create_batch(embedding_inputs)
     # Cancel sibling searches before their shared client is closed on failure.
     async with asyncio.TaskGroup() as group:
         tasks = [group.create_task(_search(
             graphiti, group_id, query, question if question and len(queries) == 1 else query,
-            reference_time, prefer_semantic=prefer_semantic,
-        )) for query in queries]
+            reference_time, vector, preference=question_preference or date_preference(query, reference_time),
+            prefer_semantic=prefer_semantic, exclude_post=exclude_post, excluded_ids=excluded_ids,
+            keywords=action_keywords(query) if question else "",
+        )) for query, vector in zip(queries, vectors, strict=True)]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]
                          for task in tasks]

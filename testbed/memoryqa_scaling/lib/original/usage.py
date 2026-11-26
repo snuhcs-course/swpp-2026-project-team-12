@@ -9,6 +9,7 @@ from contextlib import contextmanager
 CALLS = contextvars.ContextVar("catalog_calls", default=None)
 DEPTH = contextvars.ContextVar("catalog_sdk_depth", default=0)
 OBSERVER = contextvars.ContextVar("catalog_request_observer", default=None)
+TERMINAL_EVENTS = {"response.completed", "response.incomplete", "response.failed"}
 
 
 @contextmanager
@@ -21,6 +22,38 @@ def capture(observer=None):
     finally:
         CALLS.reset(token)
         OBSERVER.reset(observer_token)
+
+
+def record_response(row, response):
+    usage = getattr(response, "usage", None)
+    row.update(response_id=getattr(response, "id", None), model=getattr(response, "model", row["requested_model"]),
+               service_tier=getattr(response, "service_tier", None), status=getattr(response, "status", "completed"),
+               usage=usage.model_dump() if usage else None)
+
+
+class MeasuredResponseStream:
+    def __init__(self, stream, row, started):
+        self.stream = stream
+        self.row = row
+        self.started = started
+
+    async def __aenter__(self):
+        await self.stream.__aenter__()
+        return self
+
+    async def __aexit__(self, error_type, error, traceback):
+        try:
+            return await self.stream.__aexit__(error_type, error, traceback)
+        finally:
+            self.row["seconds"] = time.perf_counter() - self.started
+            if error_type is not None:
+                self.row["error_type"] = error_type.__name__
+
+    async def __aiter__(self):
+        async for event in self.stream:
+            if event.type in TERMINAL_EVENTS:
+                record_response(self.row, event.response)
+            yield event
 
 
 def measured(original, endpoint):
@@ -37,11 +70,9 @@ def measured(original, endpoint):
             if OBSERVER.get() is not None:
                 OBSERVER.get()(endpoint, kwargs)
             response = await original(self, *args, **kwargs)
-            usage = getattr(response, "usage", None)
-            row.update(response_id=getattr(response, "id", None), model=getattr(response, "model", kwargs.get("model")),
-                       requested_service_tier=kwargs.get("service_tier"), service_tier=getattr(response, "service_tier", None),
-                       status=getattr(response, "status", "completed"), usage=usage.model_dump() if usage else None,
-                       output_limit=kwargs.get("max_output_tokens", kwargs.get("max_tokens")))
+            if endpoint == "responses" and kwargs.get("stream"):
+                return MeasuredResponseStream(response, row, started)
+            record_response(row, response)
             return response
         except Exception as error:
             row["error_type"] = type(error).__name__

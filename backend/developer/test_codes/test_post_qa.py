@@ -5,12 +5,14 @@ import io
 import json
 import tempfile
 from datetime import timedelta
+from itertools import repeat
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+from asgiref.sync import async_to_sync
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.storage import default_storage
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from PIL import Image
 
@@ -18,10 +20,47 @@ from apps.accounts.models import AccessToken, User
 from apps.families.models import FamilyRoom
 from apps.posts.models import AdaptedMessage, Post
 from apps.posts.services import save_post
-from integrations.ai import post_flow, prompts, provider
-from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
+from integrations.ai import post_flow, post_grounding, prompts, provider
+from integrations.ai_workers import graphiti_client, post_evidence, searching_graphiti, searching_workers
 
 from .family_fixtures import auth_headers, add_member, link_parent
+
+
+def mock_response_create(*responses):
+    replies = iter(responses) if len(responses) > 1 else repeat(responses[0])
+
+    def create(**options):
+        response = next(replies)
+        if not options.get("stream"):
+            return response
+        stream = MagicMock()
+        stream.__aenter__.return_value = stream
+        stream.__aiter__.return_value = [SimpleNamespace(type=f"response.{response.status}", response=response)]
+        return stream
+
+    return AsyncMock(side_effect=create)
+
+
+class PostEvidenceFieldsTests(TestCase):
+    def test_post_fields_use_the_room_scoped_sqlite_row_and_keep_legacy_descriptions(self):
+        author = User.objects.create_user(username="writer", display_name="실제 작성자")
+        room = FamilyRoom.objects.create(owner=author, name="가족", invite_code="SRC001", password_hash="x")
+        other = FamilyRoom.objects.create(owner=author, name="다른 가족", invite_code="SRC002", password_hash="x")
+        post = Post.objects.create(room=room, author=author, caption="작성자의 본문\n둘째 줄", description="저장된 사진 설명")
+        hidden = Post.objects.create(room=other, author=author, caption="다른 가족 본문")
+        sources = [
+            {"name": f"post_{post.pk}", "text": "작성자: 그래프 이름\n상세 설명: 예전 설명"},
+            {"name": f"post_{hidden.pk}", "text": "작성자: 이전 이름\n상세 설명: 그래프에 보관된 설명"},
+            {"name": "family_registry_1_v1", "text": "가족관계"},
+        ]
+        actual, legacy, registry = async_to_sync(post_evidence.attach_post_fields)(room.pk, sources)
+        self.assertEqual(actual["post_fields"], {
+            "게시글 작성자": "실제 작성자", "게시글 원문": "작성자의 본문\n둘째 줄", "게시글 설명": "저장된 사진 설명",
+        })
+        self.assertEqual(legacy["post_fields"], {
+            "게시글 작성자": "이전 이름", "게시글 원문": None, "게시글 설명": "그래프에 보관된 설명",
+        })
+        self.assertNotIn("post_fields", registry)
 
 
 @override_settings(OPENAI_API_KEY="test-only", SUMMARY_AI_MODEL="gpt-6-luna",
@@ -30,6 +69,10 @@ from .family_fixtures import auth_headers, add_member, link_parent
 class PostQATests(TestCase):
     def setUp(self):
         self.enterContext(patch.object(searching_graphiti, "search_episodes", new=AsyncMock(return_value=[])))
+        self.enterContext(patch.object(searching_graphiti, "search_lexical_episodes", new=AsyncMock(return_value=[])))
+        self.enterContext(patch.object(searching_graphiti, "excluded_post_episodes", new=AsyncMock(return_value=set())))
+        self.enterContext(patch.object(post_evidence, "attach_post_fields", new=AsyncMock(side_effect=lambda room, sources: sources)))
+        self.enterContext(patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[])))
         pool = searching_workers.SearchPool(1)
         self.enterContext(patch.object(searching_workers, "SEARCH_POOL", pool))
         self.enterContext(patch.object(graphiti_client, "close_graphiti", new=AsyncMock()))
@@ -68,6 +111,7 @@ class PostQATests(TestCase):
 
         def memory(key, fact):
             source = {"id": "episode", "name": "post_1", "text": fact, "recorded_at": "2026-10-14"}
+            source["post_fields"] = {"게시글 작성자": "지민", "게시글 원문": "화분을 옮겼어요.", "게시글 설명": fact}
             return {"id": key, "fact": fact, "source_episode_ids": [source["id"]], "sources": [source]}
 
         initial = [memory(f"initial{index}", "도윤이가 식물 사진을 올렸다.") for index in range(5)]
@@ -83,7 +127,7 @@ class PostQATests(TestCase):
                  patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
                 client = sdk.return_value.__aenter__.return_value
                 reviewed = SimpleNamespace(status="completed", output_text=json.dumps({"retry_query": retry_query}))
-                client.responses.create = AsyncMock(side_effect=[tool_response("initial", query), reviewed, final])
+                client.responses.create = mock_response_create(tool_response("initial", query), reviewed, final)
                 batches = [[{"query": query, "memories": initial}]]
                 if extra_search is not None:
                     batches.append(extra_search)
@@ -93,6 +137,8 @@ class PostQATests(TestCase):
 
                 self.assertEqual(response.status_code, 200, response.content)
                 self.assertEqual(search.await_count, len(batches))
+                for request in search.await_args_list:
+                    self.assertEqual(request.kwargs["exclude_post"], f"post_{self.post.pk}")
                 if extra_search is not None:
                     self.assertEqual(search.await_args.args[1:], (self.room.pk, [retry]))
                     self.assertTrue(search.await_args.kwargs["prefer_semantic"])
@@ -102,6 +148,8 @@ class PostQATests(TestCase):
                 outputs = {i["call_id"]: json.loads(i["output"]) for i in requests[-1]["input"]
                            if isinstance(i, dict) and i.get("type") == "function_call_output"}
                 self.assertEqual(outputs, {"initial": post_flow.context(retained)})
+                self.assertEqual(outputs["initial"]["sources"][0]["게시글 원문"], "화분을 옮겼어요.")
+                self.assertNotIn("text", outputs["initial"]["sources"][0])
                 if extra:
                     self.assertEqual(json.loads(requests[-1]["input"][-1]["content"]),
                                      {"보완 검색 결과": post_flow.context(extra)})
@@ -118,7 +166,7 @@ class PostQATests(TestCase):
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=initial)) as search:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, empty_review, final])
+            client.responses.create = mock_response_create(first, empty_review, final)
             response = self.ask({"question": "도윤이가 읽고 있는 책은 뭐야?"})
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -139,7 +187,7 @@ class PostQATests(TestCase):
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
              patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=memories)) as search:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, review, final])
+            client.responses.create = mock_response_create(first, review, final)
             response = self.ask({"question": "아빠가 어제 읽던 책은 뭐야?", "확인된 가족 호칭": {"아빠": "타인"}})
 
         self.assertEqual(response.status_code, 200, response.content)
@@ -171,26 +219,32 @@ class PostQATests(TestCase):
         first = SimpleNamespace(status="completed", output=calls, output_text="")
         final = SimpleNamespace(status="completed", output_text="가족 기록으로 확인한 답이에요.")
         sources = [{"id": f"e{i}", "name": f"post_{i}", "text": f"원문{i}", "recorded_at": "2026-10-01"} for i in range(25)]
+        def candidates(query):
+            n = int(query[-1])
+            return [0] + [n + rank * 5 for rank in range(1, 5)]
+
         async def search(**kw):
-            n = int(kw["query"][-1])
-            ids = [0] + [n + rank * 5 for rank in range(1, 5)]
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids], episodes=[
+                                     episodes=[f"e{i}"]) for i in candidates(kw["query"])], episodes=[])
+
+        async def lexical(_graph, group, query, **options):
+            return [
                 SimpleNamespace(uuid=f"episode{i}", group_id=f"family_{self.room.pk}",
                                 name=f"post_{i}", content=f"기록{i}", valid_at=timezone.now())
-                for i in ids
-            ])
-        graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
+                for i in candidates(query)
+            ]
+        graph = SimpleNamespace(embedder=SimpleNamespace(create_batch=AsyncMock(return_value=[[1.0, 0.0]] * 5)),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
         with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_lexical_episodes", side_effect=lexical), \
              patch.object(graphiti_client, "create_graphiti", return_value=graph), \
              patch.object(graphiti_client, "close_graphiti", new=AsyncMock()) as close, \
              searching_workers.SearchPool(1) as pool, \
              patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(side_effect=[first, final])
+            client.responses.create = mock_response_create(first, final)
             result = self.ask({"question": "학교와 악기 등 알려줘", "family_id": 999,
                                "caption": "공격자 본문", "prior_dialogue": [{"role": "assistant", "text": "이전 답"}]})
             close.assert_not_awaited()
@@ -210,10 +264,12 @@ class PostQATests(TestCase):
         self.assertEqual(initial["instructions"], prompts.POST_QA + "\n" + prompts.POST_QA_RETRIEVAL)
         self.assertEqual(initial["model"], "gpt-6-luna");self.assertEqual(initial["service_tier"], "fast")
         self.assertEqual(initial["reasoning"], {"effort": "none"})
+        self.assertTrue(initial["stream"])
+        self.assertTrue(last["stream"])
         payload = json.loads(initial["input"][0]["content"][0]["text"])
         self.assertEqual(payload["원문"], self.post.caption);self.assertEqual(payload["질문자"], self.viewer.display_name)
         self.assertEqual(payload["이전대화"], [{"role": "assistant", "text": "이전 답"}])
-        self.assertEqual(initial["input"][0]["content"][1]["detail"], "high")
+        self.assertEqual([item["type"] for item in initial["input"][0]["content"]], ["input_text"])
         outputs = [item for item in last["input"] if isinstance(item, dict) and item.get("type") == "function_call_output"]
         self.assertEqual([o["call_id"] for o in outputs], [f"call{i}" for i in range(5)])
         memories = [memory for output in outputs for memory in json.loads(output["output"])["facts"]]
@@ -232,50 +288,99 @@ class PostQATests(TestCase):
         response = SimpleNamespace(status="completed", output=[], output_text="초록이는 화분이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=response)
+            client.responses.create = mock_response_create(response)
             self.assertEqual(self.ask({"question": "초록이가 뭐야?"}).status_code, 200)
             result = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
             self.assertEqual(result.json()["status"], "ready")
             graph.assert_not_called()
             self.assertNotIn("tools", client.responses.create.call_args.kwargs)
+            self.assertNotIn("stream", client.responses.create.call_args.kwargs)
             self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.POST_SUMMARY)
 
-    def test_saved_description_defers_photo_until_model_requests_it(self):
-        self.post.description = "책상 위에 물건을 놓고 찍은 사진이에요."
+    def test_post_question_drains_provider_stream_after_completion(self):
+        completed = SimpleNamespace(status="completed", output=[], output_text="초록이는 화분이에요.")
+        drained = False
+
+        async def events():
+            nonlocal drained
+            yield SimpleNamespace(type="response.completed", response=completed)
+            drained = True
+
+        stream = MagicMock()
+        stream.__aenter__.return_value = stream
+        stream.__aiter__.side_effect = events
+        with patch.object(post_flow, "AsyncOpenAI") as sdk:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(return_value=stream)
+            result = self.ask({"question": "초록이가 뭐야?"})
+
+        self.assertEqual(result.json(), {"text": completed.output_text})
+        self.assertTrue(drained)
+
+    def test_post_question_reviews_structured_family_sources_without_photos_in_one_call(self):
+        self.post.description = "화분이 놓인 사진이에요."
         self.post.save(update_fields=["description"])
-        direct = SimpleNamespace(status="completed", output=[], output_text="책상 위를 찍었어요.")
-        photo_call = SimpleNamespace(type="function_call", name="view_current_post_photos",
-                                     call_id="photo", arguments="{}")
-        first = SimpleNamespace(status="completed", output=[photo_call])
-        final = SimpleNamespace(status="completed", output_text="파란색이에요.")
+        source = {"id": "episode", "name": "post_123", "recorded_at": "2026-11-10T12:00:00+00:00",
+                  "text": "작성자: 지민\n상세 설명: 화분을 초록이라고 불렀어요.",
+                  "post_fields": {"게시글 작성자": "지민", "게시글 원문": "선희가 나눠 준 화분.",
+                                  "게시글 설명": "화분을 초록이라고 불렀어요."}}
+        completed = SimpleNamespace(status="completed", output=[], output_text="선희가 줬어요.")
+        with patch.object(post_evidence, "prefetch_post_episodes", new=AsyncMock(return_value=[source])) as prefetch, \
+             patch.object(post_grounding, "AsyncOpenAI") as sdk:
+            create = mock_response_create(completed)
+            sdk.return_value.__aenter__.return_value.responses.create = create
+            question = "사진 속 초록이를 누가 줬어?"
+            response = self.ask({"question": question})
 
-        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
-             patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
-            create = sdk.return_value.__aenter__.return_value.responses.create
-            create.side_effect = [direct, first, final]
-            self.assertEqual(self.ask({"question": "어디를 찍었어?"}).json(), {"text": direct.output_text})
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {"text": completed.output_text})
+        prefetch.assert_awaited_once()
+        self.assertEqual(prefetch.await_args.args[1], self.room.pk)
+        self.assertEqual(prefetch.await_args.args[2][0], question)
+        self.assertEqual(prefetch.await_args.kwargs["exclude_post"], f"post_{self.post.pk}")
+        create.assert_awaited_once()
+        request = create.await_args.kwargs
+        self.assertEqual(request["model"], "gpt-6-luna")
+        self.assertEqual(request["service_tier"], "fast")
+        self.assertEqual(request["reasoning"], {"effort": "none"})
+        self.assertFalse(request["store"])
+        self.assertNotIn("게시글 ID", json.loads(request["input"][0]["content"][0]["text"]))
+        self.assertEqual([part["type"] for part in request["input"][0]["content"]], ["input_text"])
+        self.assertNotIn("tools", request)
+        evidence = json.loads(request["input"][1]["content"])["미리 찾은 가족 기록"]["게시글"]
+        self.assertEqual(evidence, [{"id": source["id"], "name": source["name"], "recorded_at": source["recorded_at"],
+                                     **source["post_fields"]}])
+
+    def test_post_question_never_offers_photo_tool_even_without_a_saved_description(self):
+        final = SimpleNamespace(status="completed", output=[], output_text="어떤 색인지는 확인되지 않아요.")
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(Post, "photo_files") as photos:
+            create = mock_response_create(final)
+            sdk.return_value.__aenter__.return_value.responses.create = create
             self.assertEqual(self.ask({"question": "사진 속 물건 색은?"}).json(), {"text": final.output_text})
-            search.assert_not_awaited()
-
-        requests = [call.kwargs for call in create.await_args_list]
-        for decision in requests[:2]:
-            content = decision["input"][0]["content"]
-            self.assertEqual([item["type"] for item in content], ["input_text"])
-            self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], self.post.description)
-        reply = requests[-1]["input"]
-        self.assertEqual(reply[-2]["call_id"], "photo")
-        self.assertEqual([item["type"] for item in reply[-1]["content"]], ["input_image"])
+        photos.assert_not_called()
+        request = create.await_args.kwargs
+        self.assertEqual(request["tools"], [prompts.POST_QA_SEARCH_TOOL])
+        content = request["input"][0]["content"]
+        self.assertEqual([item["type"] for item in content], ["input_text"])
+        self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], "")
 
     def test_six_calls_fail_without_retrieval_and_incomplete_answer_is_503(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i), arguments='{"query":"q"}') for i in range(6)]
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="completed", output=calls))
+            client.responses.create = mock_response_create(SimpleNamespace(status="completed", output=calls))
             self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
             graph.assert_not_called()
             client.responses.create.assert_awaited_once()
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="incomplete"))
+            client.responses.create = mock_response_create(SimpleNamespace(status="incomplete"))
             self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
+
+            stream = MagicMock()
+            stream.__aenter__.return_value = stream
+            stream.__aiter__.return_value = [SimpleNamespace(type="response.created")]
+            client.responses.create = AsyncMock(return_value=stream)
+            self.assertEqual(self.ask({"question": "질문"}).status_code, 503)
+            stream.__aexit__.assert_awaited_once()
 
     def test_search_failure_returns_retryable_error_and_shutdown_closes_graphiti(self):
         call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="one", arguments='{"query":"초록이"}')
@@ -287,7 +392,7 @@ class PostQATests(TestCase):
              searching_workers.SearchPool(1) as pool, \
              patch.object(searching_workers, "SEARCH_POOL", pool):
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=SimpleNamespace(status="completed", output=[call]))
+            client.responses.create = mock_response_create(SimpleNamespace(status="completed", output=[call]))
             self.assertEqual(self.ask({"question": "초록이는 뭐야?"}).status_code, 503)
             client.responses.create.assert_awaited_once()
             close.assert_not_awaited()
@@ -360,7 +465,7 @@ class PostQATests(TestCase):
         answer = SimpleNamespace(status="completed", output=[], output_text="산책 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=answer)
+            client.responses.create = mock_response_create(answer)
             question = self.ask({"question": "어떤 소식이야?"})
             summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(question.status_code, 200, question.content)
@@ -372,7 +477,7 @@ class PostQATests(TestCase):
             self.assertEqual(json.loads(content[0]["text"])["원문"], self.post.caption)
         graph.assert_not_called()
 
-    def test_summary_and_question_receive_every_photo_in_upload_order(self):
+    def test_summary_receives_every_photo_in_upload_order_and_question_uses_text(self):
         for position, color in [(1, "red"), (2, "blue")]:
             image = io.BytesIO(); Image.new("RGB", (3, 3), color).save(image, "JPEG")
             self.post.images.append(default_storage.save(f"extra-{position}.jpg",
@@ -385,17 +490,17 @@ class PostQATests(TestCase):
         answer = SimpleNamespace(status="completed", output=[], output_text="세 장의 사진 소식이에요.")
         with patch.object(post_flow, "AsyncOpenAI") as sdk, patch.object(graphiti_client, "create_graphiti") as graph:
             client = sdk.return_value.__aenter__.return_value
-            client.responses.create = AsyncMock(return_value=answer)
+            client.responses.create = mock_response_create(answer)
             question = self.ask({"question": "사진들을 설명해 줘"})
             summary = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(question.status_code, 200, question.content)
         self.assertEqual(summary.json()["status"], "ready")
         self.assertEqual(client.responses.create.await_count, 2)
-        for call in client.responses.create.await_args_list:
-            content = call.kwargs["input"][0]["content"]
-            images = [item for item in content if item["type"] == "input_image"]
-            self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in images], expected)
-            self.assertTrue(all(item["detail"] == "high" for item in images))
+        question_call, summary_call = client.responses.create.await_args_list
+        self.assertEqual([item["type"] for item in question_call.kwargs["input"][0]["content"]], ["input_text"])
+        images = [item for item in summary_call.kwargs["input"][0]["content"] if item["type"] == "input_image"]
+        self.assertEqual([base64.b64decode(item["image_url"].split(",", 1)[1]) for item in images], expected)
+        self.assertTrue(all(item["detail"] == "high" for item in images))
         graph.assert_not_called()
 
     def test_single_photo_policy_cache_is_regenerated_once(self):
@@ -418,3 +523,33 @@ class PostQATests(TestCase):
         with patch.object(provider, "adapt", side_effect=invalidate_then_fail):
             response = self.client.get(f"/api/posts/{self.post.pk}/message/", **self.auth)
         self.assertEqual(response.json(), {"text": "", "status": "pending"})
+
+
+class SelectBudgetTests(SimpleTestCase):
+    @staticmethod
+    def fact(i):
+        return {"id": f"fact{i}", "source_episode_ids": [f"e{i}"]}
+
+    @staticmethod
+    def episode(i):
+        return {"id": f"e{i}", "source_episode_ids": [f"e{i}"]}
+
+    def test_episodes_have_their_own_budget_after_many_facts(self):
+        results = [{"query": "q", "memories": [self.fact(i) for i in range(8)] + [self.episode(i) for i in range(8)]}]
+        selected = post_flow.select_budget(results)[0]["memories"]
+        self.assertEqual([m["id"] for m in selected],
+                         [f"fact{i}" for i in range(5)] + [f"e{i}" for i in range(5)])
+
+    def test_round_robin_skips_duplicates_and_caps_each_kind(self):
+        results = [{"query": "a", "memories": [self.fact(0), self.episode(0), self.fact(1)]},
+                   {"query": "b", "memories": [self.fact(0), self.episode(0), self.episode(1)]}]
+        selected = post_flow.select_budget(results, fact_limit=1, episode_limit=2)
+        self.assertEqual([[m["id"] for m in r["memories"]] for r in selected], [["fact0", "e0"], ["e1"]])
+        self.assertEqual([r["query"] for r in selected], ["a", "b"])
+
+    def test_supplemental_episode_budget_keeps_the_default_fact_budget(self):
+        memories = [self.fact(i) for i in range(6)] + [self.episode(i) for i in range(12)]
+        selected, = post_flow.select_budget(
+            [{"query": "retry", "memories": memories}], episode_limit=prompts.SUPPLEMENTAL_EPISODE_LIMIT,
+        )
+        self.assertEqual(selected["memories"], memories[:5] + memories[6:16])

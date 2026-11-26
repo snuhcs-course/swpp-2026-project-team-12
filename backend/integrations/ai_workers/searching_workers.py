@@ -104,6 +104,11 @@ def search_worker(queue, ready):
 
                 return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
 
+            async def prefetch_posts(family_id, queries, **options):
+                from .post_evidence import prefetch_post_episodes
+
+                return await prefetch_post_episodes(graphiti, family_id, queries, **options)
+
             try:
                 while True:
                     request = queue.get()
@@ -113,7 +118,7 @@ def search_worker(queue, ready):
                     if not future.set_running_or_notify_cancel():
                         continue
                     try:
-                        result = runner.run(answer_request(search, feature, family_id, value, images))
+                        result = runner.run(answer_request(search, feature, family_id, value, images, prefetch_posts=prefetch_posts))
                     except BaseException as error:
                         future.set_exception(error)
                     else:
@@ -127,11 +132,21 @@ def search_worker(queue, ready):
             logging.getLogger(__name__).exception("Search worker stopped unexpectedly")
 
 
-async def answer_request(search, feature, family_id, value, images=()):
+async def answer_request(search, feature, family_id, value, images=(), *, prefetch_posts=None):
     from .graphiti_client import family_group
 
     family_group(family_id)
     search = partial(search, family_id)
+
+    async def search_posts(queries, **options):
+        from .post_evidence import attach_post_fields
+
+        results = await search(queries, **options)
+        sources = [source for result in results for memory in result["memories"]
+                   for source in memory.get("sources", ())]
+        await attach_post_fields(family_id, sources)
+        return results
+
     if feature in {"post_summary", "post_qa"}:
         from integrations.ai.post_flow import answer
         from integrations.ai.prompts import MAX_QUERIES
@@ -144,18 +159,27 @@ async def answer_request(search, feature, family_id, value, images=()):
             except (TypeError, ValueError):
                 payload = None
             if isinstance(payload, dict):
+                post_id = payload.pop("게시글 ID", None)
+                if type(post_id) is int and post_id > 0:
+                    options["exclude_post"] = f"post_{post_id}"
+                    value = json.dumps(payload, ensure_ascii=False)
                 if isinstance(payload.get("질문"), str):
                     options["question"] = payload["질문"]
-                    answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
+                    if prefetch_posts is not None:
+                        answer_options["prefetch"] = partial(prefetch_posts, family_id, **options)
+                    answer_options["retry_search"] = partial(search_posts, max_queries=MAX_QUERIES, prefer_semantic=True,
                                                               **options)
                 if parent_terms := payload.get("확인된 가족 호칭"):
                     answer_options["parent_terms"] = parent_terms
-        return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
+            return await answer(partial(search_posts, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
+        return await answer(partial(search, max_queries=MAX_QUERIES), value, feature, **answer_options)
     if feature == "memories":
         return {"results": await search(value)}
 
     from integrations.ai.flow import answer_with_memory
 
+    if feature == "family_history":
+        return await answer_with_memory(partial(search_posts, question=value), value, feature, images=images)
     return await answer_with_memory(search, value, feature, images=images)
 
 

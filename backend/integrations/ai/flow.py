@@ -11,13 +11,9 @@ from openai import AsyncOpenAI
 from . import digest_output, prompts
 from . import history_evidence
 from .options import model_options
+from .post_flow import context as memory_context
 from .provider import FEATURE_INSTRUCTIONS
 
-def memory_context(memories):
-    """Send each source once, even when it supports multiple facts."""
-    sources = {source["id"]: source for memory in memories for source in memory.get("sources", [])}
-    return {"facts": [{key: value for key, value in memory.items() if key != "sources"}
-                      for memory in memories], "sources": list(sources.values())}
 
 def two_way_or_three_way(feature):
     if feature in {"post_summary", "digest"}:
@@ -139,7 +135,7 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
             items = json.dumps({
                 "질문": text, "현재 시각": timezone.now().isoformat(),
                 "기록": memory_context(list(memories.values())),
-            }, ensure_ascii=False)
+            }, ensure_ascii=False, separators=(",", ":"))
         started = perf_counter()
         final = await client.responses.create(
             **answer_options, instructions=instructions, input=items,

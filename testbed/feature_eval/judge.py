@@ -39,9 +39,11 @@ RUBRICS = {
         "tone": "읽는 사람에게 존댓말로 자연스럽게 전했다. 유행어의 뜻을 풀어 주는 문장은 허용한다.",
     },
     "digest": {
-        "coverage": "그날 모든 게시글의 중요한 소식이 빠짐없이 들어 있다.",
+        "coverage": "그날 모든 게시글의 중요한 소식(누가 무엇을 했거나 정했거나 바꿨는지, 장소·시각·숫자)이 빠짐없이 들어 있다. "
+                    "작성자의 짧은 감상·다짐·유행어 같은 부연이 빠진 것은 실패 사유가 아니다.",
         "accuracy": "누가 무엇을 했는지, 장소·숫자를 틀리게 바꾸거나 없는 사실을 덧붙이지 않았다. "
-                    "뜻이 달라지지 않는 표현 변경이나 행위자 생략은 허용한다.",
+                    "뜻이 달라지지 않는 표현 변경이나 행위자 생략은 허용한다. "
+                    "'같은 주제의 이전 게시글'에 나온 사실로 변경 전후를 연결한 것은 지어낸 사실이 아니다.",
         "no_mixing": "다른 게시글의 사진·사건을 섞지 않았고, 다른 날의 소식을 넣지 않았다.",
         "compression": "작성자마다 한 문단, 1~3문장으로 군더더기 없이 묶었다.",
     },
@@ -106,7 +108,10 @@ def file_digest(path):
 
 
 class Judge:
-    def __init__(self, cache_dir, model=None, reasoning_effort=None, api_key=None, client=None):
+    def __init__(self, cache_dir, model=None, reasoning_effort=None, api_key=None, client=None, votes=1):
+        if votes < 1 or votes % 2 == 0:
+            raise ValueError("judge votes는 1 이상의 홀수여야 합니다.")
+        self.votes = votes
         self.cache_dir = Path(cache_dir)
         self.model = model or os.getenv("JUDGE_AI_MODEL") or os.getenv("DEFAULT_AI_MODEL") or "gpt-6-luna"
         self.reasoning_effort = reasoning_effort or os.getenv("JUDGE_AI_REASONING_EFFORT") or None
@@ -122,17 +127,37 @@ class Judge:
             self._client = OpenAI(api_key=self.api_key or os.getenv("OPENAI_API_KEY"), timeout=120, max_retries=2)
         return self._client
 
-    def cache_key(self, feature, criteria, material, images):
-        return hashlib.sha256(json.dumps({
+    def cache_key(self, feature, criteria, material, images, vote=0):
+        key = {
             "model": self.model, "effort": self.reasoning_effort, "instructions": INSTRUCTIONS,
             "feature": feature, "criteria": criteria, "material": material,
             "images": [file_digest(path) for path in images],
-        }, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
+        }
+        if vote:  # vote 0 keeps the single-judge key, so earlier caches stay valid
+            key["vote"] = vote
+        return hashlib.sha256(json.dumps(key, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
 
     def evaluate(self, feature, case, output, material, images=()):
-        """material is the JSON the judge reads: input, reference, and the output under test."""
+        """material is the JSON the judge reads: input, reference, and the output under test.
+
+        With votes > 1 each criterion passes by majority of independent judge calls.
+        """
         criteria = criteria_for(feature, case, output)
-        key = self.cache_key(feature, criteria, material, images)
+        runs = [self.evaluate_once(feature, criteria, material, images, vote) for vote in range(self.votes)]
+        if self.votes == 1:
+            return runs[0]
+        verdicts = {}
+        for name in criteria:
+            passes = [run["verdicts"][name]["pass"] for run in runs]
+            majority = sum(passes) * 2 > len(passes)
+            reason = next(run["verdicts"][name]["reason"] for run in runs
+                          if run["verdicts"][name]["pass"] == majority)
+            verdicts[name] = {"pass": majority, "reason": reason, "votes": passes}
+        return {"model": self.model, "verdicts": verdicts, "votes": self.votes,
+                "cached": all(run["cached"] for run in runs)}
+
+    def evaluate_once(self, feature, criteria, material, images, vote=0):
+        key = self.cache_key(feature, criteria, material, images, vote)
         cached = self.cache_dir / f"{key}.json"
         if cached.is_file():
             return {**json.loads(cached.read_text(encoding="utf-8")), "cached": True}
@@ -170,10 +195,16 @@ def judge_material(feature, case, output):
                        "읽는 사람에게 작성자는": case["expected_relationship"], "원문": case["caption"]},
                 "평가할 출력": output["text"]}
     if feature == "digest":
-        return {"입력": {"날짜": case["day"], "게시글": [
+        material = {"입력": {"날짜": case["day"], "게시글": [
                     {"작성자": post["author_name"], "시각": post["created_at"], "원문": post["caption"],
                      "사진 수": len(post["image_paths"])} for post in case["posts"]]},
-                "평가할 출력": {item["author_name"]: item["text"] for item in output["summaries"]}}
+                    "평가할 출력": {item["author_name"]: item["text"] for item in output["summaries"]}}
+        if case.get("earlier_thread_posts"):
+            # Background only: coverage and no_mixing still judge the day's posts.
+            material["참고 자료"] = {"같은 주제의 이전 게시글": [
+                {"작성자": post["author_name"], "시각": post["created_at"], "원문": post["caption"]}
+                for post in case["earlier_thread_posts"]]}
+        return material
     if feature == "post_qa":
         return {"입력": {"작성자": case["author_name"], "원문": case["caption"], "질문자": case["viewer_name"],
                        "질문": case["question"]},
