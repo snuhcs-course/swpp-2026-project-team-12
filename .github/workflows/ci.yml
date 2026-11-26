@@ -32,10 +32,17 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r backend/requirements.txt
+      - name: Install nginx for proxy integration tests
+        run: sudo apt-get update && sudo apt-get install -y nginx
       - name: Check for missing migrations
         run: python backend/manage.py makemigrations --check --dry-run
       - name: Run pytest
         run: python -m pytest --cov --cov-report=term --cov-report=xml --junitxml=backend-test-results.xml
+      - name: Test telemetry dashboard in Chromium
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python backend/developer/check_telemetry_browser.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
