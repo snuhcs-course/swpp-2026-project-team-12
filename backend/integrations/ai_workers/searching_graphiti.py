@@ -14,7 +14,7 @@ from graphiti_core.search.search_utils import rrf
 
 from integrations.ai.prompts import SUPPLEMENTAL_EPISODE_LIMIT
 
-from .episode_embeddings import search_episodes, search_lexical_episodes
+from .episode_embeddings import action_keywords, search_episodes, search_lexical_episodes
 from .graphiti_client import family_group
 from .temporal_search import date_preference, fact_time_filter, time_rank
 
@@ -38,11 +38,11 @@ async def excluded_post_episodes(graphiti, group_id, name):
 
 
 async def _search(graphiti, group_id, query, question, reference_time, vector, *,
-                  preference, prefer_semantic, exclude_post, excluded_ids):
+                  preference, prefer_semantic, exclude_post, excluded_ids, keywords=""):
     cutoff = preference.cutoff if preference else None
     filters = fact_time_filter(question, preference, reference_time)
     filter_options = {"search_filter": filters} if filters is not None else {}
-    lexical_search = cutoff is not None or exclude_post is not None
+    lexical_search = cutoff is not None or exclude_post is not None or bool(keywords)
     config = SEARCH_CONFIG.model_copy(update={"episode_config": None}) if lexical_search else SEARCH_CONFIG
     async with asyncio.TaskGroup() as group:
         graph = group.create_task(graphiti.search_(
@@ -54,6 +54,7 @@ async def _search(graphiti, group_id, query, question, reference_time, vector, *
         ))
         lexical = group.create_task(search_lexical_episodes(
             graphiti, group_id, query, limit=SEARCH_CONFIG.limit, cutoff=cutoff, exclude_post=exclude_post,
+            keywords=keywords,
         )) if lexical_search else None
 
     result = graph.result()
@@ -127,6 +128,7 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3, question=N
             graphiti, group_id, query, question if question and len(queries) == 1 else query,
             reference_time, vector, preference=question_preference or date_preference(query, reference_time),
             prefer_semantic=prefer_semantic, exclude_post=exclude_post, excluded_ids=excluded_ids,
+            keywords=action_keywords(query) if question else "",
         )) for query, vector in zip(queries, vectors, strict=True)]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]

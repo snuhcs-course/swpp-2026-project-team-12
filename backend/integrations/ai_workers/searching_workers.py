@@ -178,7 +178,9 @@ async def answer_request(search, feature, family_id, value, images=(), *, prefet
 
     from integrations.ai.flow import answer_with_memory
 
-    return await answer_with_memory(search_posts if feature == "family_history" else search, value, feature, images=images)
+    if feature == "family_history":
+        return await answer_with_memory(partial(search_posts, question=value), value, feature, images=images)
+    return await answer_with_memory(search, value, feature, images=images)
 
 
 SEARCH_POOL = SearchPool(settings.GRAPHITI_SEARCH_WORKERS)

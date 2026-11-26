@@ -135,7 +135,7 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
             items = json.dumps({
                 "질문": text, "현재 시각": timezone.now().isoformat(),
                 "기록": memory_context(list(memories.values())),
-            }, ensure_ascii=False)
+            }, ensure_ascii=False, separators=(",", ":"))
         started = perf_counter()
         final = await client.responses.create(
             **answer_options, instructions=instructions, input=items,

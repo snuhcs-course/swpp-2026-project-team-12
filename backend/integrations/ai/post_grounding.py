@@ -18,10 +18,10 @@ from .options import model_options
 QUESTION_PARTS = re.compile(r'[,，]| 그리고 | 동시에 ')
 
 EVIDENCE_REVIEW = """
-두 번째 입력은 현재 질문을 위해 Graphiti에서 이미 검색한 기록이다. 질문의 항목별로 인물, 사건, 상태, 시점을 대조한다.
-현재 글의 원문과 설명에서 확인되는 내용이나 일반 상식에는 다른 기록을 끌어오지 않는다. 게시글 원문과 변경 기록을 우선한다.
-현재 상태와 이전 상태, 계획과 실제 완료를 구분한다. 조건이 붙은 기록은 조건과 함께 답한다.
-근거를 찾은 부분은 바로 답하고, 확인할 수 없는 부분만 구분해 말한다. 기록이나 사진에 없는 사실을 지어내지 않는다.
+질문의 각 항목에 필요한 인물·행동·상태를 확인하고, 요청한 사실과 그 사실에 필요한 조건만 답한다.
+게시시각과 recorded_at은 글을 올린 시각이다. 원문의 '오늘', '이번 주'는 그 글의 게시시각을 기준으로 해석하고, 질문의 날짜 표현은 현재시각을 기준으로 해석한다.
+해당 날짜에 적용되는 기록을 사용한다. 최신 담당이나 상태에 조건이 붙으면 그 조건을 밝히고, 실제로 조건이 충족됐는지는 근거가 있을 때만 말한다.
+가족 사실은 같은 대상의 원문과 변경 기록을 대조해 확인한다. 답변에 필요 없는 날짜, 이름, 과거 경위는 생략한다.
 """
 
 
@@ -61,7 +61,6 @@ async def grounded_answer(prefetch, text, timings, parent_terms):
         return None
     timings['search'] = perf_counter() - started
 
-    instructions = prompts.POST_QA + '\n' + prompts.POST_QA_FINAL_EVIDENCE
     evidence = {'게시글': [post_flow.source_context(source) for source in sources]}
     items = [{'role': 'user', 'content': [{'type': 'input_text', 'text': text}]}, {'role': 'user', 'content': json.dumps(
         {'미리 찾은 가족 기록': evidence}, ensure_ascii=False, separators=(',', ':'),
@@ -70,7 +69,7 @@ async def grounded_answer(prefetch, text, timings, parent_terms):
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
         started = perf_counter()
         response = await post_flow.qa_response(
-            client, **options, instructions=instructions + '\n' + EVIDENCE_REVIEW,
+            client, **options, instructions=prompts.POST_QA + EVIDENCE_REVIEW,
             input=items, max_output_tokens=prompts.DECISION_MAX_TOKENS,
         )
         timings['answer'] = perf_counter() - started

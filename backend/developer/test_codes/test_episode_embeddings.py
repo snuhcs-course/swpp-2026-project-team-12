@@ -107,6 +107,21 @@ class EpisodeEmbeddingTests(SimpleTestCase):
         result, = asyncio.run(searching_graphiti.search_many(graph, 1, ["반려견"]))
         self.assertEqual([m["id"] for m in result["memories"]], [shared.uuid, vector_only.uuid])
 
+    def test_qa_uses_inflected_action_and_subject_to_find_lexical_evidence(self):
+        graph = self.graph()
+        question = "유나가 예약했던 장소와 건우가 취소한 일정은?"
+        with patch.object(episode_embeddings, "fulltext_query",
+                          return_value='group_id:"family_1" AND (escaped question)'):
+            asyncio.run(searching_graphiti.search_many(graph, 1, [question], question=question))
+
+        lexical_call = next(call for call in graph.driver.execute_query.await_args_list
+                            if "fulltext.queryNodes" in call.args[0])
+        self.assertEqual(lexical_call.kwargs["query"],
+                         'group_id:"family_1" AND (escaped question 예약* (유나* AND 예약*)^2 취소* (건우* AND 취소*)^2)')
+        self.assertEqual(lexical_call.kwargs["group_id"], "family_1")
+        self.assertIsNone(graph.search_.await_args.kwargs["config"].episode_config)
+        graph.embedder.create.assert_awaited_once()
+
     def test_explicit_event_day_keeps_older_episodes_and_facts(self):
         now = datetime.fromisoformat("2026-10-16T01:00:00+09:00")
         earlier = now - timedelta(days=3)
