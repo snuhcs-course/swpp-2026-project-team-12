@@ -7,13 +7,19 @@ import time
 from pathlib import Path
 
 from django.conf import settings
+from django.db import close_old_connections
 
+from apps.families.models import FamilyRoom
 from apps.posts.models import Post
 
 from integrations.utils.family_graph import sync_family
 
 
-def run_worker(family_id, once, stdout, stderr):
+class WorkerAlreadyRunning(RuntimeError):
+    pass
+
+
+def run_worker(family_id, once, stdout, stderr, *, stop_event=None):
     lock_dir = Path(settings.MEDIA_ROOT) / ".graphiti-workers"
     lock_dir.mkdir(parents=True, exist_ok=True)
     with (lock_dir / f"family_{family_id}.lock").open("a+b") as lock:
@@ -31,12 +37,15 @@ def run_worker(family_id, once, stdout, stderr):
 
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError as error:
-            raise RuntimeError("이 가족의 저장 worker가 이미 실행 중이에요.") from error
+            raise WorkerAlreadyRunning("이 가족의 저장 worker가 이미 실행 중이에요.") from error
         # The OS releases this local family lock even after a process crash.
-        construct(family_id, once, stdout, stderr)
+        if stop_event is None:
+            construct(family_id, once, stdout, stderr)
+        else:
+            construct(family_id, once, stdout, stderr, stop_event=stop_event)
 
 
-def construct(family_id, once, stdout, stderr):
+def construct(family_id, once, stdout, stderr, *, stop_event=None):
     from integrations.ai.feed_description import describe_post
 
     from .construction_graphiti import add_memory, episode_names
@@ -46,16 +55,21 @@ def construct(family_id, once, stdout, stderr):
         graphiti = runner.run(initialize_graphiti())
         try:
             runner.run(graphiti.build_indices_and_constraints())
-            while True:
+            while stop_event is None or not stop_event.is_set():
+                if stop_event is not None:
+                    # Background threads don't get Django's request connection cleanup.
+                    close_old_connections()
                 try:
                     sync_family(graphiti, family_id, runner)
                     names = runner.run(episode_names(graphiti, family_id))
+                except FamilyRoom.DoesNotExist:
+                    return
                 except Exception as error:
                     if once:
                         raise RuntimeError("가족 기록 동기화에 실패했어요.") from error
                     logging.getLogger(__name__).exception("Family graph sync or episode embedding failed")
                     stderr.write("가족 기록 동기화 실패. 5초 후 다시 시도해요.")
-                    time.sleep(5)
+                    pause(stop_event)
                     continue
                 completed = {
                     int(name[5:]) for name in names
@@ -63,6 +77,8 @@ def construct(family_id, once, stdout, stderr):
                 }
                 posts = Post.objects.filter(room_id=family_id, kind="news").exclude(pk__in=completed)
                 for post in posts.select_related("author").order_by("created_at", "pk")[:100]:
+                    if stop_event is not None and stop_event.is_set():
+                        return
                     try:
                         if not post.description:
                             post.description = runner.run(describe_post(post))
@@ -82,8 +98,15 @@ def construct(family_id, once, stdout, stderr):
                     stdout.flush()
                 if once:
                     return
-                time.sleep(5)
+                pause(stop_event)
         except KeyboardInterrupt:
             stdout.write("가족 기록 저장 worker를 종료합니다.")
         finally:
             runner.run(close_graphiti(graphiti))
+
+
+def pause(stop_event):
+    if stop_event is None:
+        time.sleep(5)
+    else:
+        stop_event.wait(5)

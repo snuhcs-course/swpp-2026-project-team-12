@@ -113,18 +113,24 @@ Accounts, family rooms, uploads, and text comments do not require AI credentials
 | Post summaries and questions; nonempty daily digests | `OPENAI_API_KEY` and the existing AI model settings |
 | Listening to summaries | `ELEVENLABS_API_KEY`, plus voice IDs in `TTS_VOICES` (`backend/configs/settings.py`) |
 | Voice replies | `ELEVENLABS_API_KEY`, `OPENAI_API_KEY`, browser microphone permission |
-| Memory search and questions requiring historical context | OpenAI configuration, running Neo4j, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`, and the family construction worker |
+| Memory search and questions requiring historical context | OpenAI configuration, running Neo4j, `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`; family construction workers start automatically with the web server |
 | Automatically generating digests at the scheduled time | A separately running `run_digest_scheduler` process |
 
-Run family history construction and the digest scheduler in separate terminals with the same Python environment activated. To find a family room ID, sign in and inspect the `rooms` list in the `/api/families/` response in your browser's Network developer tools. The web app sends the room it shows as the `X-Family-Room` header and remembers the last opened room per account in `localStorage`.
+Family history construction starts automatically: the server recovers existing rooms
+at startup and starts a worker thread after a new room commits. Failed workers are
+retried, and duplicate workers share a per-family file lock. A new family needs no
+extra terminal. Keep the digest scheduler in a separate terminal with the same
+Python environment activated. The web app sends the room it shows as the
+`X-Family-Room` header and remembers the last opened room per account in `localStorage`.
 
 ```powershell
-# Replace 12 with the actual room ID. Run one worker per family room.
-python backend\manage.py run_construction_worker --family-id 12
-
 # In another terminal: check the digest schedules for all rooms.
 python backend\manage.py run_digest_scheduler
 ```
+
+For manual construction, set `GRAPHITI_AUTO_CONSTRUCTION=0` in `.env`, restart the
+server, and run `python backend/manage.py run_construction_worker --family-id 12`
+with the actual room ID. Add `--once` for a single batch.
 
 AI actions use the existing API when requested. If credentials or a service are unavailable, the UI displays an error; ordinary posts and comments remain available.
 
