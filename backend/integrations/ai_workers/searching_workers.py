@@ -2,6 +2,7 @@
 
 import atexit
 import asyncio
+import json
 import logging
 from concurrent.futures import Future
 from functools import partial
@@ -98,10 +99,10 @@ def search_worker(queue, ready):
             graphiti = runner.run(initialize_graphiti())
             ready.set_result(None)
 
-            async def search(family_id, queries, *, max_queries=3):
+            async def search(family_id, queries, *, max_queries=3, **options):
                 from .searching_graphiti import search_many
 
-                return await search_many(graphiti, family_id, queries, max_queries=max_queries)
+                return await search_many(graphiti, family_id, queries, max_queries=max_queries, **options)
 
             try:
                 while True:
@@ -135,7 +136,21 @@ async def answer_request(search, feature, family_id, value, images=()):
         from integrations.ai.post_flow import answer
         from integrations.ai.prompts import MAX_QUERIES
 
-        return await answer(partial(search, max_queries=MAX_QUERIES), value, feature, images=images)
+        options = {}
+        answer_options = {"images": images}
+        if feature == "post_qa":
+            try:
+                payload = json.loads(value)
+            except (TypeError, ValueError):
+                payload = None
+            if isinstance(payload, dict):
+                if isinstance(payload.get("질문"), str):
+                    options["question"] = payload["질문"]
+                    answer_options["retry_search"] = partial(search, max_queries=MAX_QUERIES, prefer_semantic=True,
+                                                              **options)
+                if parent_terms := payload.get("확인된 가족 호칭"):
+                    answer_options["parent_terms"] = parent_terms
+        return await answer(partial(search, max_queries=MAX_QUERIES, **options), value, feature, **answer_options)
     if feature == "memories":
         return {"results": await search(value)}
 

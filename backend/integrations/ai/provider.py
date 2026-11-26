@@ -90,11 +90,14 @@ def summarize(posts):
     )
 
 
-def ask(post, relation, question, prior_dialogue, viewer_name):
+def ask(post, relation, question, prior_dialogue, viewer_name, *, parent_terms=None):
+    payload = {"작성자": post.author.display_name, "관계": relation, "원문": post.caption,
+               "게시시각": post.created_at.isoformat(), "질문": question, "질문자": viewer_name,
+               "이전대화": prior_dialogue, "현재시각": timezone.now().isoformat()}
+    if parent_terms:
+        payload["확인된 가족 호칭"] = parent_terms
+    if post.description.strip():
+        payload["게시글 설명"] = post.description
     return answer_with_memory(
-        "post_qa", post.room_id,
-        json.dumps({"작성자": post.author.display_name, "관계": relation, "원문": post.caption,
-                    "게시시각": post.created_at.isoformat(), "질문": question,
-                    "질문자": viewer_name, "이전대화": prior_dialogue, "현재시각": timezone.now().isoformat()}, ensure_ascii=False),
-        post.photo_files(),
+        "post_qa", post.room_id, json.dumps(payload, ensure_ascii=False), post.photo_files(),
     )

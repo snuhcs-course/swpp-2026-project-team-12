@@ -2,6 +2,7 @@
 
 import asyncio
 
+from django.utils import timezone
 from graphiti_core.search.search_config import (
     EdgeSearchConfig,
     EdgeSearchMethod,
@@ -11,40 +12,73 @@ from graphiti_core.search.search_config import (
 )
 from graphiti_core.search.search_utils import rrf
 
-from .episode_embeddings import search_episodes
+from integrations.ai.prompts import SUPPLEMENTAL_EPISODE_LIMIT
+
+from .episode_embeddings import search_dated_episodes, search_episodes
 from .graphiti_client import family_group
+from .temporal_search import date_window, fact_time_filter, time_rank
 
 
+RESULT_LIMIT = 5
 SEARCH_CONFIG = SearchConfig(
     edge_config=EdgeSearchConfig(
         search_methods=[EdgeSearchMethod.bm25, EdgeSearchMethod.cosine_similarity],
     ),
     episode_config=EpisodeSearchConfig(search_methods=[EpisodeSearchMethod.bm25]),
-    limit=5,
+    limit=20,
 )
 
 
-async def _search(graphiti, group_id, query):
+async def _search(graphiti, group_id, query, question, reference_time, *, prefer_semantic=False):
+    window = date_window(question, reference_time)
+    filters = fact_time_filter(question, window, reference_time)
+    filter_options = {"search_filter": filters} if filters is not None else {}
+    config = SEARCH_CONFIG.model_copy(update={"episode_config": None}) if window else SEARCH_CONFIG
     # Share one query embedding between fact and episode retrieval.
     vector = await graphiti.embedder.create(input_data=[query.replace("\n", " ")])
     async with asyncio.TaskGroup() as group:
         graph = group.create_task(graphiti.search_(
-            query=query, group_ids=[group_id], config=SEARCH_CONFIG, query_vector=vector,
+            query=query, group_ids=[group_id], config=config, query_vector=vector, **filter_options,
         ))
         semantic = group.create_task(search_episodes(
             graphiti, group_id, vector, limit=2 * SEARCH_CONFIG.limit,
-            min_score=SEARCH_CONFIG.episode_config.sim_min_score,
+            min_score=SEARCH_CONFIG.episode_config.sim_min_score, window=window,
         ))
+        lexical = group.create_task(search_dated_episodes(
+            graphiti, group_id, query, limit=SEARCH_CONFIG.limit, window=window,
+        )) if window else None
+
     result = graph.result()
+    lexical_episodes = lexical.result() if lexical else result.episodes
     ranked_lists = [[episode for episode in episodes if episode.group_id == group_id]
-                    for episodes in [result.episodes, semantic.result()]]
+                    for episodes in [lexical_episodes, semantic.result()]]
     episodes = {episode.uuid: episode for ranked in ranked_lists for episode in ranked}
-    ids, _ = rrf([[episode.uuid for episode in ranked] for ranked in ranked_lists])
-    result.episodes = [episodes[uuid] for uuid in ids[:SEARCH_CONFIG.limit]]
+    rankings = [[episode.uuid for episode in ranked] for ranked in ranked_lists]
+    if prefer_semantic:
+        rankings.append(rankings[-1])
+    ids, scores = rrf(rankings)
+    # A 2:1 semantic weight broadens retries while retaining the time boost's scale.
+    score_scale = 2 / len(rankings)
+    episode_scores = {uuid: score * score_scale for uuid, score in zip(ids, scores)}
+    edge_scores = getattr(result, "edge_reranker_scores", None) or [
+        1 / rank for rank in range(1, len(result.edges) + 1)
+    ]
+    ids.sort(key=lambda uuid: time_rank(
+        episode_scores[uuid], episodes[uuid].valid_at if episodes[uuid].name.startswith("post_") else None,
+        reference_time, window,
+    ), reverse=True)
+    ranked_edges = sorted(
+        ((edge, score) for edge, score in zip(result.edges, edge_scores) if edge.group_id == group_id),
+        key=lambda item: time_rank(item[1], item[0].valid_at, reference_time, window), reverse=True,
+    )
+    result.edges = [edge for edge, _ in ranked_edges[:RESULT_LIMIT]]
+    episode_limit = SUPPLEMENTAL_EPISODE_LIMIT if prefer_semantic else RESULT_LIMIT
+    result.episodes = [episodes[uuid] for uuid in ids[:episode_limit]]
     return result
 
 
-async def search_many(graphiti, family_id, queries, *, max_queries=3):
+async def search_many(graphiti, family_id, queries, *, max_queries=3, question=None, reference_time=None,
+                      prefer_semantic=False):
     # Server-owned limit; never accept a query limit chosen by the model.
     if type(max_queries) is not int or not 1 <= max_queries <= 5:
         raise ValueError("검색 질문 상한은 1~5 사이 정수여야 합니다.")
@@ -54,9 +88,13 @@ async def search_many(graphiti, family_id, queries, *, max_queries=3):
     ):
         raise ValueError(f"검색 질문은 1~{max_queries}개, 각 1,000자 이내로 입력하세요.")
     group_id = family_group(family_id)
+    reference_time = reference_time or timezone.now()
     # Cancel sibling searches before their shared client is closed on failure.
     async with asyncio.TaskGroup() as group:
-        tasks = [group.create_task(_search(graphiti, group_id, query)) for query in queries]
+        tasks = [group.create_task(_search(
+            graphiti, group_id, query, question if question and len(queries) == 1 else query,
+            reference_time, prefer_semantic=prefer_semantic,
+        )) for query in queries]
     edges_by_query = [[edge for edge in task.result().edges if edge.group_id == group_id] for task in tasks]
     episodes_by_query = [[episode for episode in task.result().episodes if episode.group_id == group_id]
                          for task in tasks]

@@ -1,6 +1,6 @@
 # Post summary and follow-up QA
 
-Adopted prompts live in `prompts.py`. Runtime code does not import developer scripts or read ignored experiment artifacts. `post_flow.py` implements the adopted October 16 evaluation policy.
+`prompts.py` defines the prompts, and `post_flow.py` runs the post summary and follow-up QA flows.
 
 ## Calls
 
@@ -21,7 +21,11 @@ Example request (Bearer token and `Content-Type: application/json` required):
 
 Response: `{"text": "..."}`. Responses are `no-store`. Question length: 1–1,000 characters. Optional history: at most 10 turns, each `user` or `assistant` with 1–1,000 characters of `text`. History is not persisted; clients send preceding turns on the next question. Temporary provider/search failures return HTTP 503; invalid inputs return 400/415. Authentication and family membership are required. Cross-family posts are not exposed.
 
-QA uses C (`decomposed_5`): search decision → at most five parallel queries in one batch → answer with `tool_choice=none`. If no search is requested, it returns the first answer without retrieval. Each query retrieves five facts. Round-robin deduplication selects **five facts total**, and returns a tool output for every call, including calls receiving no selected facts. Sources are attached and deduplicated within each tool output. This preserves the evaluated policy, including its documented evidence-loss limitation; no additional retrieval loop or new ranking policy was introduced.
+QA returns the first answer when the model can answer from the post and conversation. Otherwise it runs the initial queries in parallel and independently checks the retrieved text against the question. When the review identifies missing evidence and the five-query budget allows it, QA can run one shorter follow-up query. That query gives semantic episode ranking twice the weight of keyword ranking. The initial five-fact and five-episode budget stays in the final input. A retry can add up to five new sourced facts and ten new sourced episodes. Every tool call receives an output, even when it contributes no selected evidence.
+
+When a post already has a saved description, QA starts with its caption and description. The model can ask to see the current post's photos for the final answer when the question requires details missing from the description. If the worker has yet to generate a description, QA sends the photos with the initial request.
+
+Search uses Korean calendar days for explicit event dates such as `10월 15일` and `어제`. Approximate dates such as `10월 15일쯤` include the adjacent days, with the requested day ranked first. Fact dates use `valid_at`, and standalone episode dates use the post's timestamp. Questions about a scheduled event leave the date in the relevance query because the fact can describe an earlier arrangement. Current-state queries exclude facts with a known end time at or before the request time. For other undated searches, a bounded recency boost is applied to the relevance ranking before selecting five facts and five episodes per query.
 
 The Android follow-up question button/screen is not part of this backend change.
 
@@ -104,7 +108,7 @@ Include the runtime modules, worker/router/provider changes, settings example, p
 ## Known limitations
 
 - The follow-up Android UI is a separate change; this PR provides the backend endpoint.
-- A five-fact final budget can drop relevant evidence, even when search found it. The policy is kept fixed in this PR; improving ranking/coverage needs a separate measured change.
+- Each evidence type has five slots in the final input. Retrieval ranking and the separate limits can still omit relevant facts or episodes.
 - Graphiti searches extracted facts. An original post/episode can exist without a searchable fact edge, so storage completeness does not guarantee recall.
 - Search is scoped to the server-selected family, with no server-enforced historical snapshot filter. A timestamp in the prompt or query is not a guarantee that later records are excluded.
 - Previous dialogue is request context, not persistent conversation storage.

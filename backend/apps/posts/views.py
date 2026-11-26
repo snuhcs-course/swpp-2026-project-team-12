@@ -7,6 +7,7 @@ from django.utils import timezone
 from apps.api import APIError, api, body, required
 from apps.families.services import room_for
 from apps.families.utils import relationship
+from apps.families.utils.parent_terms import question_parent_terms
 from integrations.ai import provider
 
 from .models import AdaptedMessage, Post
@@ -30,7 +31,8 @@ def question(request, pk):
         clean.append({"role": turn["role"], "text": required(turn, "text", 1000)})
     try:
         return {"text": provider.ask(post, relationship(request.user, post.author, post.room),
-                                     text, clean, request.user.display_name)}
+                                     text, clean, request.user.display_name,
+                                     parent_terms=question_parent_terms(request.user, post.room, text))}
     except provider.AIUnavailable as error:
         raise APIError("답변을 준비하지 못했어요. 잠시 후 다시 시도해 주세요.", 503) from error
 

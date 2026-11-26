@@ -58,7 +58,114 @@ class PostQATests(TestCase):
     def ask(self, data, **auth):
         return self.client.post(self.path, json.dumps(data), content_type="application/json", **(auth or self.auth))
 
-    def test_five_searches_are_scoped_budgeted_and_have_five_tool_outputs(self):
+    def test_post_question_can_recover_missing_evidence_with_one_new_query(self):
+        query, retry = "도윤이가 기르는 식물", "도윤 자주 식물 옮긴 장소"
+
+        def tool_response(call_id, query_text):
+            call = SimpleNamespace(type="function_call", name="search_family_memory", call_id=call_id,
+                                   arguments=json.dumps({"query": query_text}))
+            return SimpleNamespace(status="completed", output=[call])
+
+        def memory(key, fact):
+            source = {"id": "episode", "name": "post_1", "text": fact, "recorded_at": "2026-10-14"}
+            return {"id": key, "fact": fact, "source_episode_ids": [source["id"]], "sources": [source]}
+
+        initial = [memory(f"initial{index}", "도윤이가 식물 사진을 올렸다.") for index in range(5)]
+        found = memory("found", "도윤이가 자주를 서재 창가로 옮겼다.")
+        final = SimpleNamespace(status="completed", output=[], output_text="서재 창가로 옮겼어요.")
+        cases = (
+            ("new", retry, [{"query": retry, "memories": [initial[0], found]}], initial, [found]),
+            ("duplicate", query + "  ", None, initial, []),
+            ("failed", retry, RuntimeError("offline"), initial, []),
+        )
+        for label, retry_query, extra_search, retained, extra in cases:
+            with self.subTest(case=label), patch.object(post_flow, "AsyncOpenAI") as sdk, \
+                 patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
+                client = sdk.return_value.__aenter__.return_value
+                reviewed = SimpleNamespace(status="completed", output_text=json.dumps({"retry_query": retry_query}))
+                client.responses.create = AsyncMock(side_effect=[tool_response("initial", query), reviewed, final])
+                batches = [[{"query": query, "memories": initial}]]
+                if extra_search is not None:
+                    batches.append(extra_search)
+                search.side_effect = batches
+
+                response = self.ask({"question": "도윤이가 자주를 옮긴 곳은 어디야?"})
+
+                self.assertEqual(response.status_code, 200, response.content)
+                self.assertEqual(search.await_count, len(batches))
+                if extra_search is not None:
+                    self.assertEqual(search.await_args.args[1:], (self.room.pk, [retry]))
+                    self.assertTrue(search.await_args.kwargs["prefer_semantic"])
+                requests = [call.kwargs for call in client.responses.create.await_args_list]
+                self.assertEqual([request.get("tool_choice") for request in requests], ["auto", None, "none"])
+                self.assertIsInstance(requests[1]["input"], str)
+                outputs = {i["call_id"]: json.loads(i["output"]) for i in requests[-1]["input"]
+                           if isinstance(i, dict) and i.get("type") == "function_call_output"}
+                self.assertEqual(outputs, {"initial": post_flow.context(retained)})
+                if extra:
+                    self.assertEqual(json.loads(requests[-1]["input"][-1]["content"]),
+                                     {"보완 검색 결과": post_flow.context(extra)})
+                else:
+                    self.assertEqual(requests[-1]["input"][-1]["type"], "function_call_output")
+
+    def test_post_question_uses_original_evidence_when_review_returns_no_answer(self):
+        call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="original",
+                               arguments='{"query":"도윤이 읽는 책"}')
+        first = SimpleNamespace(status="completed", output=[call])
+        empty_review = SimpleNamespace(status="completed", output=[], output_text="")
+        final = SimpleNamespace(status="completed", output_text="청의 엑소시스트예요.")
+        initial = [{"query": "도윤이 읽는 책", "memories": []}]
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=initial)) as search:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, empty_review, final])
+            response = self.ask({"question": "도윤이가 읽고 있는 책은 뭐야?"})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json()["text"], final.output_text)
+        search.assert_awaited_once()
+        self.assertEqual(client.responses.create.await_args.kwargs["tool_choice"], "none")
+
+    def test_post_question_uses_viewers_parent_for_search_and_answer(self):
+        father = User.objects.create_user(username="doyun", display_name="도윤", gender="male")
+        add_member(self.room, father)
+        link_parent(self.room, father, self.viewer)
+        tool_call = SimpleNamespace(type="function_call", name="search_family_memory", call_id="parent",
+                                    arguments=json.dumps({"query": "아버지가 읽던 책"}))
+        first = SimpleNamespace(status="completed", output=[tool_call])
+        review = SimpleNamespace(status="completed", output_text='{"retry_query":""}')
+        final = SimpleNamespace(status="completed", output=[], output_text="청의 엑소시스트예요.")
+        memories = [{"query": "책 제목", "memories": []}]
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock(return_value=memories)) as search:
+            client = sdk.return_value.__aenter__.return_value
+            client.responses.create = AsyncMock(side_effect=[first, review, final])
+            response = self.ask({"question": "아빠가 어제 읽던 책은 뭐야?", "확인된 가족 호칭": {"아빠": "타인"}})
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {"text": final.output_text})
+        self.assertEqual(search.await_args.args[1:], (self.room.pk, ["도윤 아버지가 읽던 책"]))
+        self.assertEqual(search.await_args.kwargs["question"], "아빠가 어제 읽던 책은 뭐야?")
+        for request in client.responses.create.await_args_list[::2]:
+            payload = json.loads(request.kwargs["input"][0]["content"][0]["text"])
+            self.assertEqual(payload["확인된 가족 호칭"], {"아빠": "도윤", "아버지": "도윤", "부친": "도윤"})
+
+    def test_post_question_leaves_other_peoples_or_ambiguous_parents_unresolved(self):
+        father = User.objects.create_user(username="father", display_name="도윤", gender="male")
+        add_member(self.room, father)
+        link_parent(self.room, father, self.viewer)
+        with patch.object(provider, "ask", return_value="가족 기록 답변") as ask:
+            for text in ("지민이 아빠가 읽던 책은 뭐야?", "아빠의 아버지는 누구야?", "아빠랑 엄마는 뭐 읽었어?"):
+                with self.subTest(text=text):
+                    self.assertEqual(self.ask({"question": text}).status_code, 200)
+                    self.assertEqual(ask.call_args.kwargs["parent_terms"], {})
+            another = User.objects.create_user(username="another-father", display_name="정우", gender="male")
+            add_member(self.room, another)
+            link_parent(self.room, another, self.viewer)
+            self.assertEqual(self.ask({"question": "아빠가 읽던 책은 뭐야?"}).status_code, 200)
+            self.assertEqual(ask.call_args.kwargs["parent_terms"], {})
+
+    def test_five_searches_send_five_facts_and_five_episodes_in_tool_outputs(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=f"call{i}",
                                  arguments=json.dumps({"query": f"단위{i}"})) for i in range(5)]
         first = SimpleNamespace(status="completed", output=calls, output_text="")
@@ -69,7 +176,11 @@ class PostQATests(TestCase):
             ids = [0] + [n + rank * 5 for rank in range(1, 5)]
             return SimpleNamespace(edges=[SimpleNamespace(uuid=f"fact{i}", group_id=f"family_{self.room.pk}",
                                      fact=f"사실{i}", valid_at=None, invalid_at=None,
-                                     episodes=[f"e{i}"]) for i in ids], episodes=[])
+                                     episodes=[f"e{i}"]) for i in ids], episodes=[
+                SimpleNamespace(uuid=f"episode{i}", group_id=f"family_{self.room.pk}",
+                                name=f"post_{i}", content=f"기록{i}", valid_at=timezone.now())
+                for i in ids
+            ])
         graph = SimpleNamespace(embedder=SimpleNamespace(create=AsyncMock(return_value=[1.0, 0.0])),
                                 search_=AsyncMock(side_effect=search), driver=SimpleNamespace(
             execute_query=AsyncMock(return_value=(sources, None, None))))
@@ -86,7 +197,11 @@ class PostQATests(TestCase):
         self.assertEqual(result.status_code, 200);self.assertEqual(result.json(), {"text": final.output_text})
         self.assertEqual(result["Cache-Control"], "no-store")
         self.assertEqual(graph.search_.await_count, 5)
-        self.assertTrue(all(c.kwargs["group_ids"] == [f"family_{self.room.pk}"] and c.kwargs["config"].limit == 5 for c in graph.search_.await_args_list))
+        self.assertTrue(all(
+            call.kwargs["group_ids"] == [f"family_{self.room.pk}"]
+            and call.kwargs["config"].limit == searching_graphiti.SEARCH_CONFIG.limit
+            for call in graph.search_.await_args_list
+        ))
         requests = client.responses.create.await_args_list
         self.assertEqual(len(requests), 2)
         initial, last = requests[0].kwargs, requests[1].kwargs
@@ -101,9 +216,15 @@ class PostQATests(TestCase):
         self.assertEqual(initial["input"][0]["content"][1]["detail"], "high")
         outputs = [item for item in last["input"] if isinstance(item, dict) and item.get("type") == "function_call_output"]
         self.assertEqual([o["call_id"] for o in outputs], [f"call{i}" for i in range(5)])
-        facts = [f for o in outputs for f in json.loads(o["output"])["facts"]]
+        memories = [memory for output in outputs for memory in json.loads(output["output"])["facts"]]
+        facts = [memory for memory in memories if memory["source_episode_ids"] != [memory["id"]]]
+        episodes = [memory for memory in memories if memory["source_episode_ids"] == [memory["id"]]]
         self.assertEqual({f["id"] for f in facts}, {"fact0", "fact5", "fact6", "fact7", "fact8"})
         self.assertEqual(len(facts), 5)
+        self.assertEqual({episode["id"] for episode in episodes}, {
+            "episode0", "episode5", "episode6", "episode7", "episode8",
+        })
+        self.assertEqual(len(episodes), 5)
         self.assertEqual(json.loads(outputs[-1]["output"]), {"facts": [], "sources": []})
         close.assert_awaited_once_with(graph)
 
@@ -118,6 +239,32 @@ class PostQATests(TestCase):
             graph.assert_not_called()
             self.assertNotIn("tools", client.responses.create.call_args.kwargs)
             self.assertEqual(client.responses.create.call_args.kwargs["instructions"], prompts.POST_SUMMARY)
+
+    def test_saved_description_defers_photo_until_model_requests_it(self):
+        self.post.description = "책상 위에 물건을 놓고 찍은 사진이에요."
+        self.post.save(update_fields=["description"])
+        direct = SimpleNamespace(status="completed", output=[], output_text="책상 위를 찍었어요.")
+        photo_call = SimpleNamespace(type="function_call", name="view_current_post_photos",
+                                     call_id="photo", arguments="{}")
+        first = SimpleNamespace(status="completed", output=[photo_call])
+        final = SimpleNamespace(status="completed", output_text="파란색이에요.")
+
+        with patch.object(post_flow, "AsyncOpenAI") as sdk, \
+             patch.object(searching_graphiti, "search_many", new=AsyncMock()) as search:
+            create = sdk.return_value.__aenter__.return_value.responses.create
+            create.side_effect = [direct, first, final]
+            self.assertEqual(self.ask({"question": "어디를 찍었어?"}).json(), {"text": direct.output_text})
+            self.assertEqual(self.ask({"question": "사진 속 물건 색은?"}).json(), {"text": final.output_text})
+            search.assert_not_awaited()
+
+        requests = [call.kwargs for call in create.await_args_list]
+        for decision in requests[:2]:
+            content = decision["input"][0]["content"]
+            self.assertEqual([item["type"] for item in content], ["input_text"])
+            self.assertEqual(json.loads(content[0]["text"])["게시글 설명"], self.post.description)
+        reply = requests[-1]["input"]
+        self.assertEqual(reply[-2]["call_id"], "photo")
+        self.assertEqual([item["type"] for item in reply[-1]["content"]], ["input_image"])
 
     def test_six_calls_fail_without_retrieval_and_incomplete_answer_is_503(self):
         calls = [SimpleNamespace(type="function_call", name="search_family_memory", call_id=str(i), arguments='{"query":"q"}') for i in range(6)]
