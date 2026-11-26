@@ -55,8 +55,9 @@ INSTALLED_APPS = [
     "apps.digests",
     "apps.searching",
     "apps.notifications.apps.NotificationsConfig",
+    "apps.telemetry",
 ]
-MIDDLEWARE = []
+MIDDLEWARE = ["integrations.telemetry.RequestMiddleware"]
 ROOT_URLCONF = "configs.urls"
 WSGI_APPLICATION = "configs.wsgi.application"
 
@@ -147,3 +148,17 @@ MAX_IMAGE_DIMENSION = 1600
 # Each photo sent to graph construction is downsampled until it fits both limits.
 CONSTRUCTION_IMAGE_MAX_BYTES = 1 * 1024 * 1024
 CONSTRUCTION_IMAGE_MAX_DIMENSION = 1600
+
+# No user content or third-party log messages are serialized by this formatter.
+TELEMETRY_ENVIRONMENT = os.getenv("TELEMETRY_ENVIRONMENT", "development")
+TELEMETRY_VERSION = os.getenv("TELEMETRY_VERSION", "local")
+TELEMETRY_STATE_DIR = os.getenv("TELEMETRY_STATE_DIR", "")
+LOGGING = {
+    "version": 1, "disable_existing_loggers": False,
+    "formatters": {"telemetry": {"()": "integrations.telemetry.JsonFormatter"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "telemetry"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {"talkdock.telemetry": {"handlers": ["console"], "level": "INFO", "propagate": False},
+                "django.server": {"handlers": ["console"], "level": "WARNING", "propagate": False},
+                "django.request": {"handlers": ["console"], "level": "WARNING", "propagate": False}},
+}
