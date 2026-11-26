@@ -41,7 +41,9 @@ def emit(stage, **fields):
 class JsonFormatter(logging.Formatter):
     def format(self, record):
         from django.conf import settings
-        data = {"schema_version": 1, "event_id": str(uuid.uuid4()),
+        if not hasattr(record, "telemetry_event_id"):
+            record.telemetry_event_id = str(uuid.uuid4())
+        data = {"schema_version": 1, "event_id": record.telemetry_event_id,
                 "timestamp": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
                 "environment": settings.TELEMETRY_ENVIRONMENT, "server_version": settings.TELEMETRY_VERSION,
                 "component": record.name, "service": os.getenv("TELEMETRY_SERVICE", "api"),

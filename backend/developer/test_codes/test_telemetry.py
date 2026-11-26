@@ -50,6 +50,8 @@ class TelemetryTests(TestCase):
         self.assertNotIn('PRIVATE', self.output.getvalue())
         record = logging.LogRecord('provider', logging.ERROR, __file__, 1, 'PRIVATE', (), None)
         self.assertNotIn('PRIVATE', JsonFormatter().format(record))
+        self.assertEqual(json.loads(JsonFormatter().format(record))['event_id'],
+                         json.loads(JsonFormatter().format(record))['event_id'])
 
     def test_durable_context_and_retry_identity(self):
         op, req = str(uuid.uuid4()), uuid.uuid4().hex

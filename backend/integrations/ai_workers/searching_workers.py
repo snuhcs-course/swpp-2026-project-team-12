@@ -7,7 +7,7 @@ import logging
 from concurrent.futures import Future
 from contextvars import copy_context
 import time
-from integrations.telemetry import stage, runtime
+from integrations.telemetry import stage, runtime, emit
 from functools import partial
 from queue import Queue
 from threading import Lock, Thread
@@ -47,6 +47,8 @@ class SearchPool:
         except BaseException:
             self.shutdown()
             raise
+        runtime("search", configured=self._max_workers, alive=sum(thread.is_alive() for thread in self._threads))
+        report_pool(self._queue)
         return self
 
     def submit(self, feature, family_id, value, images=()):
@@ -58,6 +60,7 @@ class SearchPool:
             if self._shutdown:
                 raise RuntimeError("Cannot submit searches after shutdown")
             self._queue.put((future, feature, family_id, value, images))
+            emit("search_queued", component="search", feature=feature, result="success")
             report_pool(self._queue)
         return future
 
@@ -133,6 +136,8 @@ def search_worker(queue, ready):
                         return
                     future, feature, family_id, value, images = request
                     if not future.set_running_or_notify_cancel():
+                        report_pool(queue)
+                        future.telemetry_context.run(emit, "search_cancelled", component="search", result="cancelled")
                         continue
                     with queue.active_lock:
                         queue.active += 1
