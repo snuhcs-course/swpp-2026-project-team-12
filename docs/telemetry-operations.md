@@ -110,3 +110,5 @@ cd client
 Python 테스트는 실제 임시 nginx 프록시의 정상·기능 오류·점검·upstream 장애, ID 전달·개인정보 제외, 작업 재시도와 대시보드 HTTP·집계를 검사한다. nginx가 없으면 해당 통합 검사는 건너뛰며 CI는 nginx를 설치한다. 브라우저 검사는 페이지 추가·상세·ID 필터·빠른 초기화·테마·모바일 레이아웃을 실제 Chromium으로 검증한다. Android 단위 테스트는 실제 로컬 HTTP 서버로 실행 ID 유지·시도 3회·오류 분류·개인정보 제외를 검사한다. 기존 에뮬레이터 CI는 화면 통합 검사를 계속 수행한다.
 
 현재 서버에서 기존 ADC로 운영 설정을 복구했고 `kr.talkdock.app.memorydemo` 검수 앱을 같은 Firebase 프로젝트에 등록했다. Analytics 연결 정보 조회는 현재 서비스 계정에서 HTTP 403으로 거절되어, Analytics 연결 상태는 콘솔 권한으로 확인해야 한다. `firebase_crashlytics` BigQuery 데이터셋 조회는 HTTP 404로 반환되어 내보내기 설정도 아직 필요하다. 앱·SQL 구현과 로컬 테스트는 이 콘솔 설정과 독립적으로 제공한다.
+
+로컬 검증 APK는 `.local/telemetry-builds/`에 보관했다. `talkdock_telemetry_check.apk`는 별도 `.memorydemo` 패키지다. 이 서버의 debug 서명은 기존 배포 APK의 서명과 다르므로, 기존 설치를 업데이트할 운영 APK는 기존 서명 키로 빌드해야 한다.
