@@ -7,6 +7,7 @@ import android.text.InputFilter
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import org.json.JSONArray
@@ -31,6 +32,8 @@ class PostQuestionPanel(
     private val pastList = ui.column().apply { visibility = GONE; tag = "question-history-list" }
     private var generation = 0
     private var pending = false
+    private var telemetryOperation: Telemetry.Operation? = null
+    private var telemetryQuestion: String? = null
     private var task: Future<*>? = null
     private val body = ui.column().apply { visibility = GONE }
     private val dialogue = ui.column()
@@ -105,6 +108,11 @@ class PostQuestionPanel(
 
     private fun ask(question: String) {
         if (pending || question.isBlank()) return
+        if (telemetryOperation == null || telemetryQuestion != question) {
+            telemetryOperation = Telemetry.start("post_qa")
+            telemetryQuestion = question
+        }
+        val operation = telemetryOperation!!
         pending = true
         composer.setSending(true)
         val request = ++generation
@@ -117,7 +125,7 @@ class PostQuestionPanel(
         val input = JSONObject().put("question", question).put("prior_dialogue", prior)
         task = executor.submit {
             val result = runCatching {
-                client.request("posts/$postId/questions/", "POST", input).getString("text").also {
+                client.tracked(operation).request("posts/$postId/questions/", "POST", input).getString("text").also {
                     check(it.isNotBlank()) { "Empty answer" }
                 }
             }
@@ -125,6 +133,9 @@ class PostQuestionPanel(
                 if (request != generation || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
                 task = null; pending = false
                 result.fold({ answer ->
+                    operation.stage("answer_received")
+                    post { operation.stage("screen_shown") }
+                    telemetryOperation = null
                     turns.add(question to answer)
                     remember?.invoke(question, answer)
                     if (turns.size > 1) ui.gap(dialogue, 16)
@@ -154,6 +165,7 @@ class PostQuestionPanel(
                         }
                     }
                 }, { error ->
+                    operation.stage("answer_received", "error")
                     val message = if (error is ApiException && error.status == 401)
                         "로그인이 만료되었어요. 질문은 유지돼요. 다시 로그인해 주세요."
                     else (error as? ApiException)?.message ?: "답변을 불러오지 못했어요. 질문은 유지돼요. 다시 시도해 주세요."
@@ -164,6 +176,7 @@ class PostQuestionPanel(
     }
 
     override fun onDetachedFromWindow() {
+        if (pending) telemetryOperation?.stage("screen_shown", "cancelled")
         generation++; task?.cancel(true); task = null
         pending = false
         composer.setSending(false)

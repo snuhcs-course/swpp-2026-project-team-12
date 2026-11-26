@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.device.Recorder
@@ -34,6 +35,7 @@ class ElderReplyPanel(
     private enum class Stage { IDLE, RECORDING, CONVERTING, REVIEW }
 
     private var stage = Stage.IDLE
+    private var voiceOperation: Telemetry.Operation? = null
     private var recorder: Recorder? = null
     private var task: Future<*>? = null
     private var generation = 0
@@ -116,40 +118,50 @@ class ElderReplyPanel(
 
     fun startRecording() {
         if (stage == Stage.CONVERTING) return
+        if (voiceOperation == null) voiceOperation = Telemetry.start("voice_reply")
         if (!hasMicrophone()) { requestMicrophone(this); return }
         cancel()
         beforeRecording()
         val request = generation
         val engine = Recorder(activity) { activity.runOnUiThread { if (request == generation && recorder?.active == true) finishRecording() } }
         recorder = engine
-        runCatching { engine.start() }.fold({ stage = Stage.RECORDING; message = "" }, {
+        runCatching { engine.start(voiceOperation) }.fold({ stage = Stage.RECORDING; message = "" }, {
             recorder = null; stage = Stage.IDLE; message = "녹음을 시작하지 못했어요. 마이크 사용을 확인해 주세요."
         })
         render()
     }
 
     fun microphoneDenied() {
+        voiceOperation?.stage("microphone_permission", "error", fields = mapOf("error_code" to "permission_denied"))
+        voiceOperation = null
         stage = Stage.IDLE; message = "말로 답장하려면 마이크 사용을 허용해 주세요."; render()
     }
 
     private fun finishRecording() {
         val audio = runCatching { recorder?.finish() }.getOrNull()
+        val operation = recorder?.operation ?: Telemetry.start("voice_reply")
         recorder = null
+        val tracked = client.tracked(operation)
         if (audio == null) { stage = Stage.IDLE; message = "조금 더 길게 다시 말씀해 주세요."; render(); return }
         stage = Stage.CONVERTING; message = ""; render()
         val request = ++generation
         task = executor.submit {
             val result = runCatching {
                 try {
-                    val recognized = client.transcribe(post.getInt("id"), audio).getString("recognized")
-                    client.request("posts/${post.getInt("id")}/replies/prepare/", "POST",
+                    val recognized = tracked.transcribe(post.getInt("id"), audio).getString("recognized")
+                    operation.stage("stt_completed")
+                    tracked.request("posts/${post.getInt("id")}/replies/prepare/", "POST",
                         JSONObject().put("recognized", recognized))
                 } finally { audio.delete() }
             }
             activity.runOnUiThread {
                 if (request != generation || activity.isDestroyed) return@runOnUiThread
                 task = null
-                result.fold({ value -> draft = value; stage = Stage.REVIEW; render() },
+                result.fold({ value ->
+                    value.put("_telemetry_operation_id", operation.id)
+                    draft = value; stage = Stage.REVIEW; render()
+                    post { operation.stage("draft_shown", fields = mapOf("draft_edited" to false)) }
+                },
                     { error -> failed(error, "말씀을 글로 바꾸지 못했어요. 다시 말씀해 주세요.") })
             }
         }

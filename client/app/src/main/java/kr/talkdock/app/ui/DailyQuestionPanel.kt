@@ -9,6 +9,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.*
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import org.json.JSONObject
 import java.time.LocalDate
@@ -107,9 +108,12 @@ class DailyQuestionPanel(
         }
     }
 
+    private var answerOperation = Telemetry.start("daily_question")
+    private var answerCompleted = false
+
     private fun load(id: Int? = null) {
         resetViews(); ui.label(this, "질문을 불러오고 있어요.", bodySize, color = ui.muted)
-        request({ api.request(if (id == null) "daily-questions/today/" else "daily-questions/$id/") }, { data ->
+        request({ api.tracked(answerOperation).request(if (id == null) "daily-questions/today/" else "daily-questions/$id/") }, { data ->
             question = data
             val mine = objects(data, "answers").firstOrNull { it.optInt("author_id") == userId }
             val restoreDraft = !restoredApplied && restored?.getInt("questionId", 0) == data.getInt("id")
@@ -122,6 +126,7 @@ class DailyQuestionPanel(
             }
             restoredApplied = true
             onSeen(data); render()
+            post { answerOperation.stage("question_shown") }
         })
     }
 
@@ -286,6 +291,7 @@ class DailyQuestionPanel(
             compactFieldHeight = if (large) 80 else 56,
             onVoice = { capture(); onVoice(data.getInt("post_id"), "comment") }) { text ->
             if (!working) {
+                if (answerCompleted) { answerOperation = Telemetry.start("daily_question"); answerCompleted = false }
                 capture()
                 if (text.length > 2000) composer?.showError("댓글은 2,000자까지 남길 수 있어요.") else {
                     composer?.setSending(true)
@@ -350,16 +356,21 @@ class DailyQuestionPanel(
         }
         val send = ui.button(parent, if (objects(data, "answers").any { it.optInt("author_id") == userId }) "답변 수정하기" else "답변 남기기", height = if (large) 64 else 48) {
             if (!working) {
+                if (answerCompleted) { answerOperation = Telemetry.start("daily_question"); answerCompleted = false }
                 capture()
                 if (choice == "기타" && otherText.isBlank()) {
                     otherInput?.error = "기타 내용을 입력해 주세요."; otherInput?.requestFocus(); return@button
                 }
                 val payload = JSONObject().put("choice", choice).put("other_text", if (choice == "기타") otherText else "")
                     .put("text", draftText).put("tiers", tiers).put("source", source)
-                request({ api.request("daily-questions/${data.getInt("id")}/answer/", "PUT", payload) }, { updated ->
+                request({ api.tracked(answerOperation).request("daily-questions/${data.getInt("id")}/answer/", "PUT", payload) }, { updated ->
+                    answerOperation.stage("server_saved")
                     question = updated; editing = false
                     otherText = objects(updated, "answers").firstOrNull { it.optInt("author_id") == userId }?.optString("other_text").orEmpty()
                     onSeen(updated); hideKeyboard(); render()
+                    val completedOperation = answerOperation
+                    post { completedOperation.stage("answer_shown") }
+                    answerCompleted = true
                 }, { message -> error?.text = message; error?.visibility = VISIBLE })
             }
         }

@@ -7,6 +7,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.view.doOnLayout
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.device.Speaker
@@ -242,6 +243,7 @@ class InlinePostAudio(
     }
 
     private fun startSpeech(text: String) {
+        val operation = Telemetry.start("read_aloud")
         val pendingSummaryRetry = summaryRetry
         val request = begin("", generatingSpeech = true)
         // Listening to the original caption must keep summary recovery available.
@@ -249,7 +251,7 @@ class InlinePostAudio(
         revealLoadingIndicator()
         task = executor.submit {
             val result = runCatching {
-                val bytes = client.speech(kr.talkdock.app.data.ReplyPrompt.spoken(text, speechClosing))
+                val bytes = client.tracked(operation).speech(kr.talkdock.app.data.ReplyPrompt.spoken(text, speechClosing))
                 val file = File.createTempFile("post-listen-", ".mp3", activity.cacheDir)
                 try { file.writeBytes(bytes); file } catch (error: Exception) { file.delete(); throw error }
             }
@@ -260,6 +262,7 @@ class InlinePostAudio(
                 result.fold({ file ->
                     status = ""
                     render()
+                    speaker.nextOperation = operation
                     speaker.play(file, completed = {
                         if (current(request)) { active = false; status = ""; render(); finished() }
                     }, failed = { message ->

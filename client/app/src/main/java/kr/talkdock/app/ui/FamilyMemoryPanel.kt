@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import androidx.core.view.doOnLayout
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.data.RequestCancellation
@@ -58,6 +59,8 @@ class FamilyMemoryPanel(
     private var voiceGeneration = 0
     private var generation = 0
     private var pending = false
+    private var telemetryOperation: Telemetry.Operation? = null
+    private var telemetryQuestion: String? = null
     private var task: Future<*>? = null
     private var cancellation: RequestCancellation? = null
     private var answeredQuestion = initial?.getString("question").orEmpty()
@@ -153,6 +156,11 @@ class FamilyMemoryPanel(
     private fun search() {
         val question = input.text.toString().trim()
         if (pending || question.isBlank() || !isAttachedToWindow) return
+        if (telemetryOperation == null || telemetryQuestion != question) {
+            telemetryOperation = Telemetry.start("family_history")
+            telemetryQuestion = question
+        }
+        val operation = telemetryOperation!!
         pending = true
         error.visibility = GONE; login.visibility = GONE
         answeredQuestion = ""; answer = ""; evidence = null; result.removeAllViews()
@@ -163,11 +171,14 @@ class FamilyMemoryPanel(
         val request = ++generation
         val cancel = RequestCancellation().also { cancellation = it }
         task = executor.submit {
-            val response = runCatching { client.searchHistory(question, cancel) }
+            val response = runCatching { client.tracked(operation).searchHistory(question, cancel) }
             activity.runOnUiThread {
                 if (generation != request || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
                 task = null; cancellation = null; pending = false
                 response.fold({ found ->
+                    operation.stage("answer_received")
+                    post { operation.stage("screen_shown") }
+                    telemetryOperation = null
                     answeredQuestion = question; answer = found.text; evidence = found
                     revealAnswer(showAnswer())
                     remember?.invoke(question, found)
@@ -176,6 +187,7 @@ class FamilyMemoryPanel(
                     while (pastSearches.size > 20) pastSearches.removeAt(pastSearches.lastIndex)
                     renderHistory()
                 }, { failure ->
+                    operation.stage("answer_received", "error")
                     error.text = when {
                         failure is ApiException && failure.status == 401 -> "로그인이 만료되었어요. 다시 로그인해 주세요."
                         failure is ApiException -> failure.message
@@ -324,6 +336,7 @@ class FamilyMemoryPanel(
     override fun onDetachedFromWindow() {
         cancelVoice()
         generation++
+        if (pending) telemetryOperation?.stage("screen_shown", "cancelled")
         cancellation?.cancel(); cancellation = null
         task?.cancel(true); task = null
         pending = false
