@@ -87,13 +87,14 @@ class HistoryEvidenceAPITests(FamilyFixture, TestCase):
         post = {"id": "episode", "fact": source["text"], "source_episode_ids": ["episode"], "sources": [source]}
         search = AsyncMock(return_value=[{"memories": [{**fact, "sources": [source, registry]}, post]}])
         reply = json.dumps({"text": "부산으로 다녀왔어요.", "source_episode_ids": ["episode", "invalid"]})
+        question = "가족 여행은 어디였어?"
         with patch.object(flow, "AsyncOpenAI") as sdk:
             create = AsyncMock(return_value=SimpleNamespace(status="completed", output_text=reply))
             sdk.return_value.__aenter__.return_value.responses.create = create
             with self.assertNumQueries(1):
-                result = async_to_sync(answer_request)(search, "family_history", self.room.pk, "가족 여행은 어디였어?")
+                result = async_to_sync(answer_request)(search, "family_history", self.room.pk, question)
 
-        search.assert_awaited_once_with(self.room.pk, ["가족 여행은 어디였어?"])
+        search.assert_awaited_once_with(self.room.pk, [question], question=question)
         create.assert_awaited_once()
         self.assertEqual(create.await_args.kwargs["text"], history_evidence.ANSWER_FORMAT)
         record = json.loads(create.await_args.kwargs["input"])["기록"]
