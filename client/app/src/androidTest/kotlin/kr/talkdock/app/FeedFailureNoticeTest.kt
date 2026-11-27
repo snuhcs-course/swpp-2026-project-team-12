@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kr.talkdock.app.data.ApiFailureMessages
+import kr.talkdock.app.notifications.TodakNotifications
 import kr.talkdock.app.ui.FeedPostCard
 import org.json.JSONArray
 import org.json.JSONObject
@@ -64,7 +65,8 @@ class FeedFailureNoticeTest {
         try {
             feedServer(AtomicBoolean(false), failPost).use { api -> UiHarness(api, family, tutorialSeen = true).use { ui ->
                 ui.await { ui.feedCards() == 2 }
-                val open = Intent(context, MainActivity::class.java)
+                // The same extras the real notification's tap intent carries (TodakNotifications).
+                val open = Intent(context, MainActivity::class.java).putExtra(TodakNotifications.EXTRA, true)
                     .putExtra("event_id", "event-1").putExtra("binding", "test-binding").putExtra("user_id", "999")
                     .putExtra("room_id", "1").putExtra("post_id", "2").putExtra("kind", "comment")
                 ui.invoke("onNewIntent", Intent::class.java to open)
@@ -74,12 +76,14 @@ class FeedFailureNoticeTest {
                 ui.screenshot("notification-failure.png")
                 assertEquals("The loaded feed is not replaced by the feed error screen", 2, ui.feedCards())
                 assertFalse(ui.has(ApiFailureMessages.Task.FEED.title))
+                val failedRequests = api.requests.count { it.path == "/api/posts/2/" }
                 failPost.set(false)
                 val retry = ui.test.uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText("다시 열기").first()
                 assertTrue(retry.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
                 ui.await { ui.hasPostDetail() }
                 assertTrue(ui.has("오늘은 공원에서 단풍을 봤어요 2"))
-                assertEquals(2, api.requests.count { it.path == "/api/posts/2/" })
+                // 다시 열기 fetched the same post again (the detail screen may then load it once more).
+                assertTrue(api.requests.count { it.path == "/api/posts/2/" } > failedRequests)
             } }
         } finally {
             push.edit().putString("binding", savedBinding).commit()
