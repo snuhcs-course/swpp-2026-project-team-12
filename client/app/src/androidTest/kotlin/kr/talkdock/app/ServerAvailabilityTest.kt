@@ -28,7 +28,8 @@ class ServerAvailabilityTest {
                 "/api/posts/" -> if (attempts.incrementAndGet() == 1) maintenance() else emptyFeed()
                 else -> emptyFeed()
             } }.use { api -> UiHarness(api, room(1, "점검 안내 테스트"), large = large).use { ui ->
-                ui.await { ui.has(ApiFailureMessages.UNAVAILABLE) && ui.has("다시 불러오기") }
+                val notice = ApiFailureMessages.Failure(ApiFailureMessages.Task.FEED, ApiFailureMessages.Cause.SERVER)
+                ui.await { ui.has(notice.title) && ui.has(notice.body) && ui.has("다시 불러오기") }
                 ui.test.waitForIdleSync(); SystemClock.sleep(400)
                 ui.screenshot(if (large) "maintenance-feed-large.png" else "maintenance-feed.png")
                 ui.click("다시 불러오기")
@@ -51,7 +52,7 @@ class ServerAvailabilityTest {
             val draft = "  가족 여행은 어디로 갔었지?  "
             fun panel() = ui.all().filterIsInstance<FamilyMemoryPanel>().single()
             ui.test.runOnMainSync { panel().input.setText(draft); panel().searchButton.performClick() }
-            ui.await { ui.has(ApiFailureMessages.UNAVAILABLE) }
+            ui.await { ui.has(ApiFailureMessages.Failure(ApiFailureMessages.Task.MEMORY, ApiFailureMessages.Cause.SERVER).text) }
             ui.test.runOnMainSync {
                 assertEquals(draft, panel().input.text.toString())
                 assertTrue(panel().searchButton.isEnabled)
@@ -78,7 +79,8 @@ class ServerAvailabilityTest {
             }
             ui.await {
                 val window = ui.test.uiAutomation.rootInActiveWindow
-                contains(window, "잠시 이용이 어려워요") && contains(window, ApiFailureMessages.UNAVAILABLE)
+                val notice = ApiFailureMessages.Failure(ApiFailureMessages.Task.ROOM_SYNC, ApiFailureMessages.Cause.SERVER)
+                contains(window, notice.title) && contains(window, notice.body)
             }
             ui.test.runOnMainSync { assertTrue(ui.has("다시 연결하기")) }
             assertNotNull(ui.test.targetContext.getSharedPreferences("talkdock-session", Context.MODE_PRIVATE).getString("current", null))

@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.ApiFailureMessages
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.ExecutorService
@@ -35,6 +36,7 @@ class PostQuestionPanel(
     private var telemetryOperation: Telemetry.Operation? = null
     private var telemetryQuestion: String? = null
     private var task: Future<*>? = null
+    private var waiting: View? = null
     private val body = ui.column().apply { visibility = GONE }
     private val dialogue = ui.column()
     val composer = CommentComposer(activity, ui, large,
@@ -115,6 +117,7 @@ class PostQuestionPanel(
         val operation = telemetryOperation!!
         pending = true
         composer.setSending(true)
+        showWaiting()
         val request = ++generation
         // The API accepts at most ten prior messages, each at most 1,000 characters.
         val prior = JSONArray()
@@ -131,7 +134,7 @@ class PostQuestionPanel(
             }
             activity.runOnUiThread {
                 if (request != generation || !isAttachedToWindow || activity.isDestroyed) return@runOnUiThread
-                task = null; pending = false
+                task = null; pending = false; hideWaiting()
                 result.fold({ answer ->
                     operation.stage("answer_received")
                     post { operation.stage("screen_shown") }
@@ -168,7 +171,8 @@ class PostQuestionPanel(
                     operation.stage("answer_received", "error")
                     val message = if (error is ApiException && error.status == 401)
                         "로그인이 만료되었어요. 질문은 유지돼요. 다시 로그인해 주세요."
-                    else (error as? ApiException)?.message ?: "답변을 불러오지 못했어요. 질문은 유지돼요. 다시 시도해 주세요."
+                    else ApiFailureMessages.failure(ApiFailureMessages.Task.POST_QUESTION, error)?.text
+                        ?: (error as? ApiException)?.message ?: ApiFailureMessages.Task.POST_QUESTION.let { it.title + "\n" + it.next }
                     composer.showError(message)
                 })
             }
@@ -178,8 +182,20 @@ class PostQuestionPanel(
     override fun onDetachedFromWindow() {
         if (pending) telemetryOperation?.stage("screen_shown", "cancelled")
         generation++; task?.cancel(true); task = null
-        pending = false
+        pending = false; hideWaiting()
         composer.setSending(false)
         super.onDetachedFromWindow()
+    }
+
+    /** The answer can take several seconds, so the wait is shown where the answer will appear. */
+    private fun showWaiting() {
+        hideWaiting()
+        waiting = ui.waiting(dialogue, "토닥이가 답변을 찾고 있어요.", large).also { row ->
+            row.post { if (row.isAttachedToWindow) row.requestRectangleOnScreen(Rect(0, 0, row.width, row.height), true) }
+        }
+    }
+
+    private fun hideWaiting() {
+        waiting?.let { dialogue.removeView(it) }; waiting = null
     }
 }

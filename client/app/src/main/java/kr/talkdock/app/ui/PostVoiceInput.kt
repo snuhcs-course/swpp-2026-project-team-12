@@ -14,7 +14,7 @@ import java.util.concurrent.Future
 
 /** A reviewed, editable transcript is inserted into the post only by an explicit tap. */
 class PostVoiceInput(
-    private val ui: Ui, large: Boolean, private val client: ApiClient,
+    private val ui: Ui, private val large: Boolean, private val client: ApiClient,
     private val executor: ExecutorService, private val requestPermission: () -> Unit,
     initial: String, private val remember: (String) -> Unit, private val beforeRecording: () -> Unit,
     private val insert: (String) -> Boolean,
@@ -65,18 +65,22 @@ class PostVoiceInput(
     private fun transcribe(audio: File) {
         pendingAudio = audio
         val request = ++epoch
-        toggle.isEnabled = false; status.text = "말씀을 글로 바꾸고 있어요."
+        toggle.isEnabled = false
+        // A visible spinner replaces the hint line while speech is being converted.
+        status.visibility = GONE; review.removeAllViews()
+        ui.waiting(review, "말씀을 글로 바꾸고 있어요.", large)
         task = executor.submit {
             val result = runCatching { client.transcribePost(audio).getString("recognized") }
             audio.delete()
             post {
                 if (stopped || request != epoch) return@post
                 toggle.isEnabled = true
+                review.removeAllViews(); status.visibility = VISIBLE
                 result.fold({ showReview(it) }, {
-                    status.text = ApiFailureMessages.actionTitle("voice", (it as? ApiException)?.status ?: 0,
-                        connection = it is java.io.IOException || it.cause is java.io.IOException,
-                        timedOut = it is java.net.SocketTimeoutException || it.cause is java.net.SocketTimeoutException) +
-                        "\n" + (it.message ?: "말로 쓰기를 눌러 녹음해 주세요.")
+                    val task = ApiFailureMessages.Task.POST_VOICE
+                    status.text = ApiFailureMessages.failure(task, it)?.text
+                        ?: if (it is ApiException) ApiFailureMessages.actionTitle("voice", it.status) + "\n" + (it.message ?: task.next)
+                        else task.title + "\n" + task.next
                 })
             }
         }

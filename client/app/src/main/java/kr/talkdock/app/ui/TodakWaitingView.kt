@@ -10,7 +10,12 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 
 /** Indeterminate waiting feedback; no invented completion percentages. */
-class TodakWaitingView(context: Context, message: String) : LinearLayout(context) {
+class TodakWaitingView(context: Context, message: String, hint: String = DEFAULT_HINT) : LinearLayout(context) {
+    companion object {
+        const val DEFAULT_HINT = "토닥토닥, 잠시만 기다려 주세요."
+        /** For AI work that can take noticeably longer than an ordinary request. */
+        const val SLOW_HINT = "AI가 정리하고 있어서 조금 오래 걸릴 수 있어요."
+    }
     private val ui = Ui(context)
     private val art = TodakArtView(context, "together", 168)
     private var motion: ObjectAnimator? = null
@@ -28,7 +33,7 @@ class TodakWaitingView(context: Context, message: String) : LinearLayout(context
             gravity = Gravity.CENTER; accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         ui.gap(this, 8)
-        ui.label(this, "토닥토닥, 잠시만 기다려 주세요.", 16f, color = ui.muted).gravity = Gravity.CENTER
+        ui.label(this, hint, 16f, color = ui.muted).gravity = Gravity.CENTER
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()

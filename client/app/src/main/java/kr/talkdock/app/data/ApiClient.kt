@@ -271,7 +271,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             if (maintenance) onMaintenance?.invoke()
             throw ApiException(message ?: ApiFailureMessages.http(code), code, isMaintenance = maintenance, field = json?.optString("field")?.takeIf { it.isNotBlank() })
         }
-        return json ?: throw ApiException("서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요.", code)
+        return json ?: throw ApiException(ApiFailureMessages.UNREADABLE, code)
     }
 
     private fun networkFailure(error: IOException): Exception = when (error) {
