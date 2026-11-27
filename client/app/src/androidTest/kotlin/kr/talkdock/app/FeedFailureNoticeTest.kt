@@ -60,16 +60,19 @@ class FeedFailureNoticeTest {
         val failPost = AtomicBoolean(true)
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val push = context.getSharedPreferences("talkdock-push", Context.MODE_PRIVATE)
-        val savedBinding = push.getString("binding", null)
-        push.edit().putString("binding", "test-binding").commit()
+        val saved = push.all.toMap()
         try {
             feedServer(AtomicBoolean(false), failPost).use { api -> UiHarness(api, family, tutorialSeen = true).use { ui ->
                 ui.await { ui.feedCards() == 2 }
+                // App start runs PushRegistration.sync, which drops a binding whose identity is not the
+                // current account; bind this account now, the way a completed registration would.
+                push.edit().putString("identity", "${api.base}|mock-review-token").putString("binding", "test-binding").commit()
                 // The same extras the real notification's tap intent carries (TodakNotifications).
                 val open = Intent(context, MainActivity::class.java).putExtra(TodakNotifications.EXTRA, true)
                     .putExtra("event_id", "event-1").putExtra("binding", "test-binding").putExtra("user_id", "999")
                     .putExtra("room_id", "1").putExtra("post_id", "2").putExtra("kind", "comment")
                 ui.invoke("onNewIntent", Intent::class.java to open)
+                ui.await { api.requests.any { it.path == "/api/posts/2/" } }  // the notification was accepted
                 val dialogText = { text: String -> ui.test.uiAutomation.rootInActiveWindow
                     ?.findAccessibilityNodeInfosByText(text)?.isNotEmpty() == true }
                 ui.await { dialogText(ApiFailureMessages.Task.NOTIFICATION.title) && dialogText("다시 열기") }
@@ -86,7 +89,7 @@ class FeedFailureNoticeTest {
                 assertTrue(api.requests.count { it.path == "/api/posts/2/" } > failedRequests)
             } }
         } finally {
-            push.edit().putString("binding", savedBinding).commit()
+            push.edit().clear().apply { saved.forEach { (key, value) -> if (value is String) putString(key, value) } }.commit()
         }
     }
 }
