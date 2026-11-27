@@ -32,7 +32,7 @@ class ElderReplyPanel(
     private val submitText: (String) -> Unit,
     private val submitVoice: (JSONObject) -> Unit,
 ) : LinearLayout(activity) {
-    private enum class Stage { IDLE, RECORDING, CONVERTING, REVIEW }
+    private enum class Stage { IDLE, RECORDING, CONVERTING, PREPARING, REVIEW }
 
     private var stage = Stage.IDLE
     private var voiceOperation: Telemetry.Operation? = null
@@ -67,6 +67,7 @@ class ElderReplyPanel(
             Stage.IDLE -> idle()
             Stage.RECORDING -> recording()
             Stage.CONVERTING -> waiting("말씀을 글로 바꾸고 있어요.")
+            Stage.PREPARING -> waiting("가족에게 전할 댓글을 정리하고 있어요.")
             Stage.REVIEW -> review()
         }
     }
@@ -117,7 +118,7 @@ class ElderReplyPanel(
     }
 
     fun startRecording() {
-        if (stage == Stage.CONVERTING) return
+        if (stage == Stage.CONVERTING || stage == Stage.PREPARING) return
         if (voiceOperation == null) voiceOperation = Telemetry.start("voice_reply")
         if (!hasMicrophone()) { requestMicrophone(this); return }
         cancel()
@@ -150,6 +151,10 @@ class ElderReplyPanel(
                 try {
                     val recognized = tracked.transcribe(post.getInt("id"), audio).getString("recognized")
                     operation.stage("stt_completed")
+                    // The second AI step gets its own wait text instead of still saying "converting".
+                    activity.runOnUiThread {
+                        if (request == generation && stage == Stage.CONVERTING) { stage = Stage.PREPARING; render() }
+                    }
                     tracked.request("posts/${post.getInt("id")}/replies/prepare/", "POST",
                         JSONObject().put("recognized", recognized))
                 } finally { audio.delete() }
@@ -183,7 +188,8 @@ class ElderReplyPanel(
     private fun failed(error: Throwable, fallback: String) {
         if (error is ApiException && error.status == 401) { stage = Stage.IDLE; render(); login(); return }
         stage = Stage.IDLE
-        message = (error as? ApiException)?.message ?: fallback
+        message = kr.talkdock.app.data.ApiFailureMessages.failure(kr.talkdock.app.data.ApiFailureMessages.Task.ELDER_REPLY, error)?.text
+            ?: (error as? ApiException)?.message ?: fallback
         render()
     }
 

@@ -16,10 +16,10 @@ import androidx.core.view.doOnLayout
 import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.ApiFailureMessages
 import kr.talkdock.app.data.RequestCancellation
 import kr.talkdock.app.data.MemorySearchResult
 import org.json.JSONObject
-import java.net.SocketTimeoutException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Future
 
@@ -190,9 +190,9 @@ class FamilyMemoryPanel(
                     operation.stage("answer_received", "error")
                     error.text = when {
                         failure is ApiException && failure.status == 401 -> "로그인이 만료되었어요. 다시 로그인해 주세요."
-                        failure is ApiException -> failure.message
-                        failure is SocketTimeoutException -> "응답이 늦어지고 있어요. 질문은 유지돼요. 잠시 후 다시 시도해 주세요."
-                        else -> "추억을 찾지 못했어요. 질문은 유지돼요. 연결 상태를 확인하고 다시 시도해 주세요."
+                        else -> ApiFailureMessages.failure(ApiFailureMessages.Task.MEMORY, failure)?.text
+                            ?: (failure as? ApiException)?.message
+                            ?: ApiFailureMessages.Task.MEMORY.let { it.title + "\n" + it.next }
                     }
                     error.visibility = VISIBLE
                     login.visibility = if (failure is ApiException && failure.status == 401) VISIBLE else GONE
@@ -306,7 +306,7 @@ class FamilyMemoryPanel(
         recorder = null
         if (audio == null) { voiceIdle("조금 더 길게 다시 말씀해 주세요."); return }
         voiceArea.removeAllViews()
-        ui.label(voiceArea, "말씀을 글로 바꾸고 있어요.", if (large) 20f else 16f, true, ui.skyDeep)
+        ui.waiting(voiceArea, "말씀을 글로 바꾸고 있어요.", large)
         val request = ++voiceGeneration
         voiceTask = executor.submit {
             val result = runCatching {

@@ -292,7 +292,9 @@ class FamilyMemorySearchTest {
     @Test fun invalidOrEmptyAnswerIsAnErrorAndKeepsDraft() {
         for (reply in listOf("{\"text\":\"\"}", "{}", "not-json")) Server { Reply(reply) }.use { server -> Screen(server).use { screen ->
             screen.open(); screen.ask("기록을 찾아줘")
-            screen.await { screen.views().filterIsInstance<TextView>().any { it.isShown && it.text.contains("다시 시도해 주세요") } }
+            // Empty answers explain themselves; an unreadable reply is a server failure that names the retry button.
+            screen.await { screen.views().filterIsInstance<TextView>().any { it.isShown &&
+                (it.text.contains("다시 시도해 주세요") || it.text.contains("'추억 찾기'를 다시 눌러 주세요")) } }
             screen.test.runOnMainSync {
                 assertEquals("기록을 찾아줘", screen.panel().input.text.toString())
                 assertTrue(screen.panel().searchButton.isEnabled); assertFalse(screen.views().any { it.tag == "memory-answer" })

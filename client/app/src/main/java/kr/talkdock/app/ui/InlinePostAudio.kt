@@ -10,6 +10,7 @@ import androidx.core.view.doOnLayout
 import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.ApiFailureMessages
 import kr.talkdock.app.device.Speaker
 import org.json.JSONObject
 import java.io.File
@@ -278,8 +279,10 @@ class InlinePostAudio(
         summaryLoading = false
         speechLoading = false
         needsLogin = error is ApiException && error.status == 401
+        val task = if (summary) ApiFailureMessages.Task.SUMMARY else ApiFailureMessages.Task.SPEECH
         status = if (needsLogin) "로그인이 만료되었어요. 다시 로그인해 주세요."
-            else (error as? ApiException)?.message ?: if (summary) "설명을 불러오지 못했어요. 다시 시도해 주세요."
+            else ApiFailureMessages.failure(task, error)?.text ?: (error as? ApiException)?.message
+            ?: if (summary) "설명을 불러오지 못했어요. 다시 시도해 주세요."
             else "소리를 재생하지 못했어요. 다시 시도해 주세요."
         summaryRetry = if (needsLogin) null else if (summary) true else summaryRetry
         speechRetry = if (!needsLogin) speech else null

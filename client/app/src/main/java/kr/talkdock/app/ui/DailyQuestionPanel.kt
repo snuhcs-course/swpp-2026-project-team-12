@@ -11,6 +11,8 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.*
 import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
+import kr.talkdock.app.data.ApiException
+import kr.talkdock.app.data.ApiFailureMessages
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -88,7 +90,8 @@ class DailyQuestionPanel(
         (context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(windowToken, 0)
     }
 
-    private fun <T> request(work: () -> T, done: (T) -> Unit, failed: ((String) -> Unit)? = null) {
+    private fun <T> request(work: () -> T, done: (T) -> Unit, task: ApiFailureMessages.Task = ApiFailureMessages.Task.DAILY_QUESTION,
+                            failed: ((String) -> Unit)? = null) {
         if (working) return
         working = true
         val current = ++generation
@@ -98,7 +101,8 @@ class DailyQuestionPanel(
                 if (!isAttachedToWindow || current != generation) return@post
                 working = false
                 result.fold(done) { problem ->
-                    val message = problem.message ?: "질문을 불러오지 못했어요. 다시 시도해 주세요."
+                    val message = ApiFailureMessages.failure(task, problem)?.text ?: (problem as? ApiException)?.message
+                        ?: (task.title + "\n" + task.next)
                     if (failed != null) failed(message) else {
                         resetViews(); ui.note(this, message, large)
                         ui.ghost(this, "다시 불러오기") { load(question?.optInt("id")) }
@@ -306,7 +310,7 @@ class DailyQuestionPanel(
                         }
                     }, { updated ->
                         question = updated; commentDraft = ""; onSeen(updated); hideKeyboard(); render()
-                    }, { message -> composer?.showError(message) })
+                    }, ApiFailureMessages.Task.DAILY_COMMENT, { message -> composer?.showError(message) })
                 }
             }
         }
@@ -371,7 +375,7 @@ class DailyQuestionPanel(
                     val completedOperation = answerOperation
                     post { completedOperation.stage("answer_shown") }
                     answerCompleted = true
-                }, { message -> error?.text = message; error?.visibility = VISIBLE })
+                }, ApiFailureMessages.Task.DAILY_ANSWER, { message -> error?.text = message; error?.visibility = VISIBLE })
             }
         }
         send.contentDescription = "오늘의 질문 답변 저장"
@@ -393,7 +397,7 @@ class DailyQuestionPanel(
             result.optString("next_before").takeIf { it.isNotBlank() && it != "null" }?.let { next ->
                 ui.ghost(this, "이전 질문 더 보기") { history(next) }
             }
-        })
+        }, ApiFailureMessages.Task.DAILY_HISTORY)
     }
 
     override fun onDetachedFromWindow() {

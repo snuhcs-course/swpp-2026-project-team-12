@@ -154,6 +154,21 @@ class Ui(val context: Context) {
         parent.addView(box, LinearLayout.LayoutParams(-1, -2))
         return label(box, value, if (large) 23f else 17f, color = skyDeep)
     }
+    /**
+     * A visible spinner with what is being prepared, for AI requests that take seconds.
+     * Returns the row (tag "ai-waiting") so the caller can remove it; [text] is announced to screen readers.
+     */
+    fun waiting(parent: LinearLayout, value: String, large: Boolean = false): LinearLayout {
+        val row = row().apply { tag = "ai-waiting"; setPadding(0, dp(8), 0, dp(8)) }
+        row.addView(ProgressBar(context).apply { indeterminateTintList = ColorStateList.valueOf(coralDeep) },
+            LinearLayout.LayoutParams(dp(if (large) 32 else 24), dp(if (large) 32 else 24)))
+        row.addView(text(value, if (large) 20f else 16f, true, skyDeep).apply {
+            setPadding(dp(12), 0, 0, 0)
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }, LinearLayout.LayoutParams(0, -2, 1f))
+        parent.addView(row, LinearLayout.LayoutParams(-1, -2))
+        return row
+    }
 }
 
 class IconView(context: Context, private val symbol: String, private val color: Int, private val buttonInset: Boolean = false) : View(context) {

@@ -234,7 +234,7 @@ class MainActivity : ComponentActivity() {
             toast("사진은 모두 5장까지 추가할 수 있어요. 먼저 첨부 사진을 빼 주세요.")
             return
         }
-        async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.") { files ->
+        async({ copyGalleryPhotos(uris) }, "선택한 사진을 확인하고 있어요.", task = ApiFailureMessages.Task.PHOTO_PICK) { files ->
             val combined = selectedPhotos() + files
             photo = combined.first(); extraPhotos.clear(); extraPhotos.addAll(combined.drop(1)); composer()
         }
@@ -468,7 +468,7 @@ class MainActivity : ComponentActivity() {
             val target = client.request("families/current/")
             val post = if (targetQuestion == null) client.request("posts/$targetPost/") else null
             target to post
-        }, "알림의 이야기를 열고 있어요.") { (target, post) ->
+        }, "알림의 이야기를 열고 있어요.", task = ApiFailureMessages.Task.NOTIFICATION) { (target, post) ->
             if (room.optInt("id") != targetRoom) resetRoomState()
             saveSession(account.put("room", target), large)
             if (targetQuestion != null) {
@@ -921,11 +921,11 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, blockNavigation: Boolean = true, complete: (T) -> Unit) {
+    private fun <T> async(work: () -> T, message: String = "잠시만 기다려 주세요.", refresh: SwipeRefreshLayout? = null, showLoading: Boolean = true, failure: ((Throwable) -> Boolean)? = null, blockNavigation: Boolean = true, task: ApiFailureMessages.Task? = null, waitHint: String = TodakWaitingView.DEFAULT_HINT, complete: (T) -> Unit) {
         if (blockNavigation && busy) { refresh?.isRefreshing = false; return }
         if (blockNavigation) busy = true
         val number = pageNumber
-        val cover = if (refresh == null && showLoading) TodakWaitingView(this, message) else null
+        val cover = if (refresh == null && showLoading) TodakWaitingView(this, message, waitHint) else null
         if (cover != null) root.addView(cover, FrameLayout.LayoutParams(-1, -1))
         refresh?.isRefreshing = true
         network.execute {
@@ -948,18 +948,25 @@ class MainActivity : ComponentActivity() {
                             .setMessage("비밀번호를 입력해 다시 로그인해 주세요.")
                             .setPositiveButton("확인", null).show()
                     } else {
-                        val message = (error as? ApiException)?.message ?: "서버에 연결하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요."
+                        val failedTask = task ?: ApiFailureMessages.taskFor(screen)
+                        // Network and generic server failures name the failed task and the next step;
+                        // a server's own explanation (validation etc.) keeps its wording.
+                        val failure = ApiFailureMessages.failure(failedTask, error)
+                        val message = failure?.body ?: (error as? ApiException)?.message
+                            ?: (ApiFailureMessages.UNEXPECTED + "\n" + failedTask.next)
                         if (screen == "home" && refresh == null) { feedError(message); return@runOnUiThread }
                         if (screen == "roomSync") {
                             content.removeAllViews()
                             ui.art(content, "grandchild_sad", 180); ui.gap(content, 20)
-                            heading("잠시 이용이 어려워요", message)
+                            heading(failure?.title ?: "잠시 이용이 어려워요", message)
                             ui.button(content, "다시 연결하기") { recreate() }
                             return@runOnUiThread
                         }
-                        val title = ApiFailureMessages.actionTitle(screen, (error as? ApiException)?.status ?: 0,
-                            connection = error is java.io.IOException || error.cause is java.io.IOException,
-                            timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
+                        val title = when {
+                            failure != null -> failure.title
+                            error !is ApiException -> failedTask.title
+                            else -> ApiFailureMessages.actionTitle(screen, error.status)
+                        }
                         AlertDialog.Builder(this).setTitle(title).setMessage(message)
                             .setPositiveButton("확인", null).show()
                     }
@@ -1009,7 +1016,8 @@ class MainActivity : ComponentActivity() {
                 else upload.error?.let { error ->
                     val message = if ((error as? ApiException)?.status == 401)
                         "로그인이 만료되었어요. 작성한 댓글은 유지돼요. 다시 로그인해 주세요."
-                    else (error as? ApiException)?.message ?: "댓글을 보내지 못했어요. 작성한 내용은 유지돼요. 다시 시도해 주세요."
+                    else ApiFailureMessages.failure(ApiFailureMessages.Task.COMMENT, error)?.text
+                        ?: (error as? ApiException)?.message ?: ApiFailureMessages.Task.COMMENT.let { it.title + "\n" + it.next }
                     target.composer.showError(message)
                 }
             }
@@ -1094,7 +1102,7 @@ class MainActivity : ComponentActivity() {
         val account = JSONObject((session ?: return).toString()).put("room", value.getJSONObject("room"))
         val expected = value.getJSONObject("room").getInt("id")
         val previous = room.optInt("id", -1)
-        async({ loadRoom(account) }, "가족방을 확인하고 있어요.") { current ->
+        async({ loadRoom(account) }, "가족방을 확인하고 있어요.", task = ApiFailureMessages.Task.ROOM_OPEN) { current ->
             saveSession(current, big)
             if (previous != room.optInt("id", -1)) resetRoomState()
             if (room.optInt("id", -1) == expected) complete()
@@ -1181,7 +1189,7 @@ class MainActivity : ComponentActivity() {
         if (room.optInt("id", -1) == id) return home()
         val account = JSONObject((session ?: return login()).toString()).put("room", JSONObject().put("id", id))
         val big = large
-        async({ loadRoom(account) }, "가족방을 열고 있어요.") { current ->
+        async({ loadRoom(account) }, "가족방을 열고 있어요.", task = ApiFailureMessages.Task.ROOM_OPEN) { current ->
             saveSession(current, big); resetRoomState()
             if (room.has("id")) home() else roomChoice()
         }
@@ -1496,8 +1504,13 @@ class MainActivity : ComponentActivity() {
                             sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
                             login(username, userId, big)
                         } else roomChoice()
-                    } else if (cached != null) toast("새 소식을 불러오지 못했어요. 아래로 당겨 다시 시도해 주세요.")
-                    else feedError((error as? ApiException)?.message ?: "인터넷 연결을 확인하고 다시 시도해 주세요.")
+                    } else if (cached != null) {
+                        val task = ApiFailureMessages.Task.FEED_REFRESH
+                        toast(ApiFailureMessages.failure(task, error)?.text
+                            ?: listOfNotNull(task.title, (error as? ApiException)?.message, task.next).joinToString("\n"))
+                    }
+                    else feedError(ApiFailureMessages.failure(ApiFailureMessages.Task.FEED, error)?.body
+                        ?: (error as? ApiException)?.message ?: (ApiFailureMessages.UNEXPECTED + "\n" + ApiFailureMessages.Task.FEED.next))
                 })
                 root.post { openPushIfReady() }
             }
@@ -1891,7 +1904,7 @@ class MainActivity : ComponentActivity() {
                     runCatching { OffsetDateTime.parse(it.optString("created_at")).atZoneSameInstant(ZoneId.of("Asia/Seoul")).toLocalDate() == chosen }.getOrDefault(false)
                 }
             Triple(days, summary, posts)
-        }) { (days, summary, posts) ->
+        }, "가족의 하루 이야기를 정리하고 있어요.", waitHint = TodakWaitingView.SLOW_HINT) { (days, summary, posts) ->
             if (large) { elderDigest(chosen, summary, posts, client); return@async }
             content.addView(FeedCalendarSheet(this, ui, large, chosen, LocalDate.now(ZoneId.of("Asia/Seoul")), days,
                 allowEmptyDays = true) { picked -> digest(picked.toString()) })
@@ -2616,11 +2629,12 @@ class MainActivity : ComponentActivity() {
                             if (status in setOf(401, 403, 404) || (error as? ApiException)?.isMaintenance == true) false
                             else {
                                 val rerecord = status in setOf(400, 413, 415, 422)
-                                val title = ApiFailureMessages.actionTitle("voice", status,
-                                    connection = error is java.io.IOException || error.cause is java.io.IOException,
-                                    timedOut = error is java.net.SocketTimeoutException || error.cause is java.net.SocketTimeoutException)
+                                val failure = ApiFailureMessages.failure(ApiFailureMessages.Task.VOICE_REPLY, error)
+                                val title = failure?.title ?: if (error is ApiException) ApiFailureMessages.actionTitle("voice", status)
+                                    else ApiFailureMessages.Task.VOICE_REPLY.title
                                 AlertDialog.Builder(this@MainActivity).setTitle(title)
-                                    .setMessage(error.message ?: "말씀을 글로 바꾸지 못했어요. 다시 시도해 주세요.")
+                                    .setMessage(failure?.body ?: (error as? ApiException)?.message
+                                        ?: (ApiFailureMessages.UNEXPECTED + "\n" + ApiFailureMessages.Task.VOICE_REPLY.next))
                                     .setPositiveButton(if (rerecord) "다시 말하기" else "다시 시도") { _, _ ->
                                         if (rerecord) voice(post, voiceFromDetail) else voiceButton?.performClick()
                                     }.setNegativeButton("나중에", null).show()
@@ -2711,7 +2725,7 @@ class MainActivity : ComponentActivity() {
             return
         }
         val client = api.tracked(voiceOperation ?: Telemetry.start("voice_reply")); val data = json("recognized" to recognized)
-        async({ client.request("posts/" + post.getInt("id") + "/replies/prepare/", "POST", data) }, "가족에게 전할 댓글을 정리하고 있어요.") { review(post, it) }
+        async({ client.request("posts/" + post.getInt("id") + "/replies/prepare/", "POST", data) }, "가족에게 전할 댓글을 정리하고 있어요.", task = ApiFailureMessages.Task.REPLY_PREPARE, waitHint = TodakWaitingView.SLOW_HINT) { review(post, it) }
     }
     private fun review(post: JSONObject, draft: JSONObject) {
         voiceOperation?.stage("draft_shown")
@@ -2753,7 +2767,9 @@ class MainActivity : ComponentActivity() {
         // A failed date list must not replace the feed with the home error screen; maintenance and 401 keep their shared handling.
         async({ client.request("digests/history/") }, showLoading = false, failure = { error ->
             val handled = !(error is ApiException && error.status == 401)
-            if (handled) toast((error as? ApiException)?.message ?: "날짜 목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+            val task = ApiFailureMessages.Task.DIGEST_DATES
+            if (handled) toast(ApiFailureMessages.failure(task, error)?.text
+                ?: listOfNotNull(task.title, (error as? ApiException)?.message, task.next).joinToString("\n"))
             handled
         }) { data ->
             val list = data.optJSONArray("dates") ?: org.json.JSONArray()
@@ -2820,7 +2836,8 @@ class MainActivity : ComponentActivity() {
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = ui.dp(8) }
         }
         ui.gap(letter, 24)
-        async({ if (retry) client.request("digests/", "POST", json("date" to date)) else client.request("digests/?date=" + date) }) { data ->
+        async({ if (retry) client.request("digests/", "POST", json("date" to date)) else client.request("digests/?date=" + date) }, "가족의 하루 이야기를 정리하고 있어요.",
+            waitHint = TodakWaitingView.SLOW_HINT) { data ->
             when (data.getString("status")) {
                 "ready" -> {
                     val posts = objects(data.getJSONArray("posts"))
@@ -3073,13 +3090,13 @@ class MainActivity : ComponentActivity() {
                     val parts = room.getString("digest_time").split(":")
                     TimePickerDialog(this, { _, h, m ->
                         val time = "%02d:%02d".format(h, m)
-                        async({ client.request("families/current/", "PATCH", json("digest_time" to time)) }) { room = it; members() }
+                        async({ client.request("families/current/", "PATCH", json("digest_time" to time)) }, task = ApiFailureMessages.Task.DIGEST_TIME) { room = it; members() }
                     }, parts[0].toInt(), parts[1].toInt(), true).show()
                 }
             }
             ui.button(content, "로그아웃", false) {
                 val client = api
-                async({ client.request("accounts/logout/", "POST", JSONObject()) }) {
+                async({ client.request("accounts/logout/", "POST", JSONObject()) }, task = ApiFailureMessages.Task.LOGOUT) {
                     session?.optInt("user_id")?.let { user -> drafts.clearAccount(sessions.serverUrl(), user).forEach { it.delete() } }
                     resetPhotoDraft(); postDraftScope = null
                     sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear(); welcome()

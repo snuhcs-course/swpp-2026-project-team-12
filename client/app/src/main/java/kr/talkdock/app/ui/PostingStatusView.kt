@@ -79,7 +79,7 @@ internal class PostingStatusView(
         val status = when {
             post && failure is ApiException && failure.status in 400..499 ->
                 ApiFailureMessages.actionTitle("post", failure.status)
-            failure != null -> if (post) "게시글을 올리지 못했어요" else "댓글을 보내지 못했어요"
+            failure != null -> if (post) ApiFailureMessages.Task.POST.title else ApiFailureMessages.Task.COMMENT.title
             post && next.progress == 100 -> "게시 확인 중"
             post -> "게시글 업로드 중"
             else -> "댓글 전송 중"
@@ -92,7 +92,10 @@ internal class PostingStatusView(
         percent.text = "${next.progress}%"
         progress.visibility = if (post && next.running) VISIBLE else GONE
         progress.progress = next.progress
-        val message = (failure as? ApiException)?.message
+        // Connection and server failures say what is kept and that 다시 시도 recovers it.
+        val message = ApiFailureMessages.failure(ApiFailureMessages.Task.POST, failure)?.body
+            ?: (failure as? ApiException)?.message
+            ?: failure?.let { ApiFailureMessages.UNEXPECTED + "\n" + ApiFailureMessages.Task.POST.next }
         failureMessage.visibility = if (post && !message.isNullOrBlank()) VISIBLE else GONE
         failureMessage.text = message.orEmpty()
         actions.visibility = if (failure != null) VISIBLE else GONE
