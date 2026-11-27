@@ -114,3 +114,8 @@ playing, stopped, or completed message cards.
 The compact detail composer keeps text drafts on failed requests and reserves space beside its send/microphone controls. Text input, photo picking, gallery order and the reviewed voice-reply APIs continue using the existing backend endpoints.
 
 Local validation on 2026-10-30 passed 33 JVM tests, 89 device UI tests, and the local Django API round-trip test. Debug/release APKs and Android Lint passed. For a local API test server, clear `PUBLIC_ORIGIN` in that process so uploaded-photo URLs resolve to the local server rather than the public deployment; use a temporary `DJANGO_DB_PATH` and `DJANGO_MEDIA_ROOT` to isolate test accounts/uploads.
+
+
+## Telemetry
+
+Crashlytics, Analytics and FCM share the Firebase BoM. Unconfigured local builds still work; the default debug package does not collect telemetry. Use the separately registered `.memorydemo` package for Firebase test reports. HTTP attempts carry `X-Operation-ID` and record response timing without request content. Upload retries keep one feature operation, while each HTTP attempt is counted separately. See [setup and verification](../docs/telemetry-operations.md#firebase-설정과-실제-기기-검수) for Analytics/BigQuery configuration and the opt-in debug crash/ANR screen.

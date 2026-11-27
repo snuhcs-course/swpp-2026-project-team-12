@@ -14,6 +14,7 @@ from pathlib import Path
 from django.conf import settings
 
 from . import voices
+from integrations.telemetry import measured, emit
 
 
 class SpeechUnavailable(Exception):
@@ -28,6 +29,7 @@ _locks = [threading.Lock() for _ in range(32)]
 MAX_AUDIO_BYTES = 16 * 1024 * 1024
 
 
+@measured("stt")
 def transcribe(audio):
     if not settings.ELEVENLABS_API_KEY:
         raise SpeechUnavailable("Speech recognition is not configured.")
@@ -69,6 +71,7 @@ def transcribe(audio):
         raise SpeechUnavailable("Speech recognition failed.") from error
 
 
+@measured("tts")
 def synthesize(text, room_id, voice=None):
     voice_id = voices.voice_id(voice)
     if not voice_id:
@@ -79,7 +82,9 @@ def synthesize(text, room_id, voice=None):
     path = Path(settings.MEDIA_ROOT) / "speech" / (key + ".mp3")
     with _locks[int(key[:8], 16) % len(_locks)]:
         if path.exists():
+            emit("tts_cache", cache_hit=True, result="success")
             return path.read_bytes()
+        emit("tts_cache", cache_hit=False, result="success")
         audio = render(text, voice_id)
         try:
             write_atomically(path, audio)

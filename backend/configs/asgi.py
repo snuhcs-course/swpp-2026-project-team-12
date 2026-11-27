@@ -10,3 +10,9 @@ SEARCH_POOL.start()
 from integrations.ai_workers.construction_manager import CONSTRUCTION_MANAGER
 
 CONSTRUCTION_MANAGER.start()
+
+from integrations.telemetry import emit, runtime
+import time
+
+emit("service_started", component="api", result="success")
+runtime("api", started=time.time(), search_workers=len(SEARCH_POOL._threads))

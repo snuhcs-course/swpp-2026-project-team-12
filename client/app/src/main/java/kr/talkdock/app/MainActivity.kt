@@ -111,6 +111,12 @@ class MainActivity : ComponentActivity() {
     private var session: JSONObject? = null
     private var room = JSONObject()
     private var screen = "welcome"
+    private lateinit var startupOperation: Telemetry.Operation
+    private var voiceOperation: Telemetry.Operation? = null
+    private var awaitingVoicePermission = false
+    private var pushDestination: Pair<Telemetry.Operation, String>? = null
+    private var firstFeedObserved = false
+    private val pendingPostTelemetry = mutableMapOf<Int, Telemetry.Operation>()
     private val voiceSamples = Executors.newFixedThreadPool(2)
     private val sampleCache = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.Future<ByteArray>>()
     private var sampleGeneration = 0
@@ -236,6 +242,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
+        Telemetry.initialize(applicationContext)
+        startupOperation = Telemetry.start("app_start")
+        startupOperation.stage("app_created", fields = mapOf("reason" to if (state == null) "cold" else "recreated"))
         ui = Ui(this); sessions = SessionStore(this); drafts = LocalDrafts(this); session = sessions.current()
         outgoing = ViewModelProvider(this)[OutgoingPosts::class.java]
         outgoing.onChange = ::updatePosting
@@ -451,8 +460,10 @@ class MainActivity : ComponentActivity() {
         val targetRoom = data["room_id"]?.toIntOrNull()?.takeIf { it > 0 } ?: return
         val targetPost = data["post_id"]?.toIntOrNull()?.takeIf { it > 0 } ?: return
         val targetQuestion = data["question_id"]?.toIntOrNull()?.takeIf { it > 0 }
+        val pushOperation = Telemetry.start("notification_open")
+        pushOperation.stage("notification_opened", fields = mapOf("notification_id" to data["event_id"].orEmpty()))
         val account = JSONObject(session!!.toString())
-        val client = apiClient(account.getString("token"), roomId = targetRoom)
+        val client = apiClient(account.getString("token"), roomId = targetRoom).tracked(pushOperation)
         async({
             val target = client.request("families/current/")
             val post = if (targetQuestion == null) client.request("posts/$targetPost/") else null
@@ -460,8 +471,12 @@ class MainActivity : ComponentActivity() {
         }, "알림의 이야기를 열고 있어요.") { (target, post) ->
             if (room.optInt("id") != targetRoom) resetRoomState()
             saveSession(account.put("room", target), large)
-            if (targetQuestion != null) dailyQuestions(saved = null, questionId = targetQuestion)
+            if (targetQuestion != null) {
+                pushDestination = pushOperation to data["event_id"].orEmpty()
+                dailyQuestions(saved = null, questionId = targetQuestion)
+            }
             else if (post != null) detail(post, focusComment = data["kind"] == "comment")
+            if (targetQuestion == null) root.post { pushOperation.stage("destination_shown", fields = mapOf("notification_id" to data["event_id"].orEmpty())) }
         }
     }
     private fun json(vararg pairs: Pair<String, Any>) = JSONObject().apply { pairs.forEach { put(it.first, it.second) } }
@@ -483,6 +498,7 @@ class MainActivity : ComponentActivity() {
         if (name !in setOf("home", "post", "detail", "voice", "review", "roomSync")) guideStep = null
         feedReady = false
         stopVoicePreview(); resetVoicePreview = null
+        Telemetry.screen(name)
         screen = name; pageNumber++; captionInput = null; currentBack = back
         voiceButton = null; voiceControlLabel = null; voiceWave = null
         speaker.stop(); recorder?.close(); recorder = null
@@ -629,6 +645,10 @@ class MainActivity : ComponentActivity() {
         dailyPanel = DailyQuestionPanel(this, ui, large, api, questions, session!!.getInt("user_id"), room.getInt("id"),
             sessions.serverUrl(), restored, openToday,
             onSeen = { data ->
+                pushDestination?.let { (operation, notificationId) ->
+                    pushDestination = null
+                    root.post { operation.stage("destination_shown", fields = mapOf("notification_id" to notificationId)) }
+                }
                 if (data.optString("date") == LocalDate.now(ZoneId.of("Asia/Seoul")).toString()) {
                     dailyStatus = data
                     getSharedPreferences("talkdock-daily-questions", MODE_PRIVATE).edit()
@@ -997,6 +1017,7 @@ class MainActivity : ComponentActivity() {
         outgoing.takeCompleted().forEach { (upload, response) ->
             if (scope != upload.scope) return@forEach
             if (upload.kind == OutgoingPosts.Kind.POST) {
+                pendingPostTelemetry[response.optInt("id")] = upload.operation
                 if (screen == "home") loadFeed(background = true)
                 else if (feedSnapshotScope == feedScope() && response.optInt("id") > 0) {
                     feedSnapshot?.let { snapshot ->
@@ -1412,7 +1433,8 @@ class MainActivity : ComponentActivity() {
         content.addView(big); ui.gap(content, 24)
         ui.button(content, "가족 방에 들어가기") {
             val data = draft.payload().put("invite_code", invitation.getString("invite_code")).put("password", invitation.getString("password"))
-            val client = api
+            val joinOperation = Telemetry.start("family_join")
+            val client = api.tracked(joinOperation)
             async({ client.request("families/join/", "POST", data) }, failure = { error ->
                 if (error is ApiException && error.status == 409) {
                     AlertDialog.Builder(this).setTitle("가계도가 변경되었어요")
@@ -1428,7 +1450,8 @@ class MainActivity : ComponentActivity() {
                 } else false
             }) {
                 treeDraft = null; invitation = JSONObject()
-                saveRoom(it, big.isChecked) { home() }
+                joinOperation.stage("server_saved")
+                saveRoom(it, big.isChecked) { home(); root.post { joinOperation.stage("room_shown") } }
             }
         }
     }
@@ -1437,7 +1460,7 @@ class MainActivity : ComponentActivity() {
     private fun loadFeed(refresh: SwipeRefreshLayout? = null, background: Boolean = false, afterSubmit: Boolean = false) {
         if (refresh != null) feedCommentCache.clear()
         if (refresh == null && !background) navigation("토닥", name = "home")
-        val client = api
+        val client = if (!firstFeedObserved) api.tracked(startupOperation) else api
         val scope = feedScope()
         val cached = feedSnapshot?.takeIf { feedSnapshotScope == scope }
         if (cached != null && refresh == null && !background) displayHome(JSONObject(cached.toString()), client)
@@ -1491,6 +1514,15 @@ class MainActivity : ComponentActivity() {
 
     private fun displayHome(data: JSONObject, client: ApiClient) {
         feedReady = true
+        root.post {
+            if (!firstFeedObserved && screen == "home") {
+                firstFeedObserved = true
+                startupOperation.stage("first_feed_shown")
+            }
+            objects(data.getJSONArray("posts")).forEach { post ->
+                pendingPostTelemetry.remove(post.optInt("id"))?.stage("feed_shown")
+            }
+        }
         dailyStatus = data.optJSONObject("daily_question"); updateDailyEntry()
         if (dailyStatus != null && dailyStatus?.optString("title").isNullOrBlank()) loadDailyPreview(client)
         feedPostTargets.clear(); feedCards.clear(); content.removeAllViews()
@@ -2481,7 +2513,7 @@ class MainActivity : ComponentActivity() {
                     finishReplyGuide(post.optInt("id"))
                     val draftId = draft.getInt("id")
                     outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.VOICE_REPLY,
-                        draft.optString("converted").ifBlank { draft.optString("recognized") }, post.getInt("id")) { client, _ ->
+                        draft.optString("converted").ifBlank { draft.optString("recognized") }, post.getInt("id"), operation = Telemetry.resume(draft.optString("_telemetry_operation_id"), "voice_reply")) { client, _ ->
                         client.request("replies/$draftId/send/", "POST", JSONObject())
                     }, postingClient())
                 }
@@ -2579,7 +2611,7 @@ class MainActivity : ComponentActivity() {
                     if (audio == null) toast("조금 더 길게 다시 말씀해 주세요.")
                     else {
                         val client = api
-                        async({ client.transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.", failure = { error ->
+                        async({ client.tracked(voiceOperation ?: Telemetry.start("voice_reply")).transcribe(post.getInt("id"), audio) }, "말씀을 글로 바꾸고 있어요.", failure = { error ->
                             val status = (error as? ApiException)?.status ?: 0
                             if (status in setOf(401, 403, 404) || (error as? ApiException)?.isMaintenance == true) false
                             else {
@@ -2595,6 +2627,7 @@ class MainActivity : ComponentActivity() {
                                 true
                             }
                         }) {
+                            voiceOperation?.stage("stt_completed")
                             recognized = it.getString("recognized"); voiceText?.text = recognized
                             voiceStatus?.text = "이렇게 들었어요."
                             audio.delete(); recording = null; prepareVoice(post)
@@ -2624,13 +2657,16 @@ class MainActivity : ComponentActivity() {
     private fun startVoice(post: JSONObject) {
         narrator.interrupt()
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            voiceOperation = Telemetry.start("voice_reply"); awaitingVoicePermission = true
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), microphoneCode); return
         }
+        if (!awaitingVoicePermission) voiceOperation = Telemetry.start("voice_reply")
+        awaitingVoicePermission = false
         recognized = ""; speaker.stop(); recording?.delete(); recording = null
         recorder?.close()
         val number = pageNumber
         recorder = Recorder(this) { runOnUiThread { if (number == pageNumber) finishRecording() } }
-        runCatching { recorder?.start() }.fold({
+        runCatching { recorder?.start(voiceOperation); voiceOperation = recorder?.operation }.fold({
             voiceStartedAt = android.os.SystemClock.elapsedRealtime()
             voiceState("말하기 마치기", true)
             voiceStatus?.text = "듣고 있어요"
@@ -2639,6 +2675,10 @@ class MainActivity : ComponentActivity() {
     }
     override fun onRequestPermissionsResult(code: Int, permissions: Array<String>, results: IntArray) {
         super.onRequestPermissionsResult(code, permissions, results)
+        if (permissions.contains(Manifest.permission.RECORD_AUDIO) && pendingReplyPanel == null && pendingMemoryPanel == null) {
+            voiceOperation?.stage("microphone_permission", if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED) "success" else "error",
+                fields = mapOf("error_code" to if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED) "none" else "permission_denied"))
+        }
         if (code == microphoneCode) {
             if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "post" && foreground) postVoiceInput?.start()
             else if (results.firstOrNull() == PackageManager.PERMISSION_GRANTED && screen == "voice" && foreground) selectedPost?.let { startVoice(it) }
@@ -2670,10 +2710,11 @@ class MainActivity : ComponentActivity() {
             toast("글로 바꿨어요. 내용을 확인한 뒤 보내 주세요.")
             return
         }
-        val client = api; val data = json("recognized" to recognized)
+        val client = api.tracked(voiceOperation ?: Telemetry.start("voice_reply")); val data = json("recognized" to recognized)
         async({ client.request("posts/" + post.getInt("id") + "/replies/prepare/", "POST", data) }, "가족에게 전할 댓글을 정리하고 있어요.") { review(post, it) }
     }
     private fun review(post: JSONObject, draft: JSONObject) {
+        voiceOperation?.stage("draft_shown")
         navigation("답장 확인", { voice(post, voiceFromDetail) }, name = "review")
         heading("이렇게 전할까요?", "보내기를 누르면 가족 모두가 볼 수 있어요.")
         author(content, post); postPhotos(content, post); ui.gap(content, 24)
@@ -2693,7 +2734,7 @@ class MainActivity : ComponentActivity() {
             narrator.interrupt()
             if (guideStep == GuideStep.REPLYING) closeGuide()
             outgoing.submit(OutgoingPosts.Upload(scope, OutgoingPosts.Kind.VOICE_REPLY, draft.getString("converted"),
-                post.getInt("id")) { client, _ ->
+                post.getInt("id"), operation = voiceOperation ?: Telemetry.start("voice_reply")) { client, _ ->
                 client.request("replies/$draftId/send/", "POST", JSONObject())
             }, postingClient())
             detail(post, afterSubmit = true)

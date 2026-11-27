@@ -23,6 +23,8 @@ class Command(BaseCommand):
             while True:
                 close_old_connections()
                 try:
+                    from integrations.telemetry import runtime
+                    runtime("push", last_poll=time.time())
                     queue_reminders()
                     dispatch_pending(firebase_send)
                 except Exception:

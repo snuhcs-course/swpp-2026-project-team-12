@@ -7,6 +7,7 @@ plugins { id("com.android.application") }
 if (listOf("google-services.json", "src/debug/google-services.json", "src/release/google-services.json")
         .any { file(it).isFile }) {
     apply(plugin = "com.google.gms.google-services")
+    apply(plugin = "com.google.firebase.crashlytics")
 }
 
 val dotenvOrigin = providers.fileContents(rootProject.layout.projectDirectory.file("../.env"))
@@ -89,7 +90,10 @@ tasks.register<Copy>("assembleApks") {
 }
 
 dependencies {
-    implementation("com.google.firebase:firebase-messaging:25.0.1")
+    implementation(platform("com.google.firebase:firebase-bom:34.5.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-crashlytics")
+    implementation("com.google.firebase:firebase-analytics")
     // Play Services pulls Fragment 1.1; Activity Result requires 1.3 or later.
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("com.caverock:androidsvg-aar:1.4")

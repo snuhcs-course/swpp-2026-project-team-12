@@ -1,0 +1,20 @@
+[Unit]
+Description=TalkDock %i
+After=network.target
+
+[Service]
+Type=simple
+# Replace these paths and user before installing this example.
+User=swpp26-13
+WorkingDirectory=/home/swpp26-13/talkdock/swpp-2026-project-team-12
+Environment=TALKDOCK_PYTHON=/home/swpp26-13/miniconda3/envs/talkdock/bin/python
+Environment=TELEMETRY_ENVIRONMENT=production
+ExecStart=/bin/bash /home/swpp26-13/talkdock/swpp-2026-project-team-12/deploy/run-service.sh %i
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=180
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -431,3 +431,10 @@ AI generated the project's code. Because this applies to nearly the entire codeb
 
 See the [AI Collaboration Report](https://github.com/DaehyeopKim/SWPP_team12/wiki/AI-Collaboration-Report) for more details.
 
+
+
+## Telemetry and SSH dashboard
+
+The API and workers emit content-free JSON logs with shared operation/request IDs. Run `python backend/manage.py migrate`, restart the processes, then run `python backend/manage.py run_telemetry_dashboard --port 8765 --nginx-log "$PWD/deploy/nginx/run/access.log"`. From your laptop, forward `127.0.0.1:13000` to the server's `127.0.0.1:8765` with SSH and open `http://127.0.0.1:13000`. The dashboard has live cards, API latency, worker state, filters and expandable logs; no extra observability stack or CDN is required.
+
+See [telemetry operations](docs/telemetry-operations.md) for exact server/laptop commands, paths and limits, Firebase setup, test builds, service management, and troubleshooting. Requirements are in [telemetry.md](docs/telemetry.md), with a [command-only cheatsheet](docs/CHEETSHEET.md).

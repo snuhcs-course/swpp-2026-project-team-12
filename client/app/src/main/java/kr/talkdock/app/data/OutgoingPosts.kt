@@ -20,6 +20,11 @@ internal class OutgoingPosts : ViewModel() {
         val postId: Int? = null,
         val thumbnail: Bitmap? = null,
         val files: List<File> = emptyList(),
+        val operation: Telemetry.Operation = Telemetry.start(when(kind) {
+            Kind.POST -> "photo_post"
+            Kind.TEXT_COMMENT -> "text_reply"
+            Kind.VOICE_REPLY -> "voice_reply"
+        }),
         val send: (ApiClient, (Int) -> Unit) -> JSONObject
     ) {
         var running = false
@@ -55,13 +60,14 @@ internal class OutgoingPosts : ViewModel() {
         onChange?.invoke()
         worker.execute {
             val result = runCatching {
-                upload.send(client) { progress ->
+                upload.send(client.tracked(upload.operation)) { progress ->
                     main.post {
                         upload.progress = progress
                         onChange?.invoke()
                     }
                 }
             }
+            upload.operation.stage("server_saved", if (result.isSuccess) "success" else "error")
             main.post {
                 if (cleared || result.isSuccess) {
                     uploads.remove(upload)

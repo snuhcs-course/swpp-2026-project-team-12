@@ -10,7 +10,7 @@ from openai import AsyncOpenAI
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from . import prompts
-from .options import model_options
+from .options import model_options, llm_response
 
 
 def construction_jpeg(data):
@@ -65,7 +65,7 @@ async def describe_post(post):
         raise RuntimeError("게시물 설명을 생성하려면 OPENAI_API_KEY를 설정하세요.")
     content = await sync_to_async(_description_content, thread_sensitive=True)(post)
     async with AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=60, max_retries=1) as client:
-        response = await client.responses.create(
+        response = await llm_response(client, 
             **model_options("SUMMARY"), instructions=prompts.POST_DESCRIPTION,
             input=[{"role": "user", "content": content}],
             max_output_tokens=2000, store=False,

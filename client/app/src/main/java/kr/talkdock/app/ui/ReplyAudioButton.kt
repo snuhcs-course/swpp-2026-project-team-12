@@ -8,6 +8,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.Toast
+import kr.talkdock.app.data.Telemetry
 import kr.talkdock.app.data.ApiClient
 import kr.talkdock.app.data.ApiException
 import kr.talkdock.app.device.Speaker
@@ -91,13 +92,14 @@ class ReplyAudioButton(
     }
 
     private fun play() {
+        val operation = Telemetry.start("read_aloud")
         onPlay()
         stop(); speaker.stop()
         active = true; render(loading = true)
         val token = request
         task = executor.submit {
             val result = runCatching {
-                val bytes = client.speech(text)
+                val bytes = client.tracked(operation).speech(text)
                 val file = File.createTempFile("reply-preview-", ".mp3", activity.cacheDir)
                 try { file.writeBytes(bytes); file } catch (error: Exception) { file.delete(); throw error }
             }
@@ -106,6 +108,7 @@ class ReplyAudioButton(
                 task = null
                 result.fold({ file ->
                     render()
+                    speaker.nextOperation = operation
                     speaker.play(file, completed = { if (current(token)) { stop(); onFinished() } }, failed = { message ->
                         if (current(token)) fail(message)
                     })

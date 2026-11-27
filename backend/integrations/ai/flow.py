@@ -10,7 +10,7 @@ from openai import AsyncOpenAI
 
 from . import digest_output, prompts
 from . import history_evidence
-from .options import model_options
+from .options import model_options, llm_response
 from .post_flow import context as memory_context
 from .provider import FEATURE_INSTRUCTIONS
 
@@ -94,7 +94,7 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
         if ways == 3:
             # Decide whether to search or answer directly, and make up to three search queries.
             started = perf_counter()
-            first = await client.responses.create(
+            first = await llm_response(client, 
                 **query_options, instructions=instructions, input=items,
                 tools=[prompts.SEARCH_TOOL], tool_choice="auto", parallel_tool_calls=True,
                 max_output_tokens=700, store=False,
@@ -137,7 +137,7 @@ async def answer_with_memory(search, text, feature, *, images=(), timings=None):
                 "기록": memory_context(list(memories.values())),
             }, ensure_ascii=False, separators=(",", ":"))
         started = perf_counter()
-        final = await client.responses.create(
+        final = await llm_response(client, 
             **answer_options, instructions=instructions, input=items,
             max_output_tokens=1200 if two_way or feature == "digest" else 700, store=False, **options,
         )

@@ -19,6 +19,7 @@ class ApiException(message: String, val status: Int = 0, cause: Throwable? = nul
 /** A single request's connection, so leaving a slow AI screen also releases its worker. */
 class RequestCancellation {
     private var cancelled = false
+    val isCancelled get() = synchronized(this) { cancelled }
     private var connection: HttpURLConnection? = null
 
     @Synchronized fun attach(value: HttpURLConnection) {
@@ -40,6 +41,31 @@ class RequestCancellation {
 /** [roomId] picks the family room for room-scoped endpoints such as the feed and digests. */
 class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_URL, val roomId: Int? = null,
                 private val onMaintenance: (() -> Unit)? = null) {
+    var operation: Telemetry.Operation? = null
+    fun tracked(value: Telemetry.Operation) = ApiClient(token, baseUrl, roomId, onMaintenance).also { it.operation = value }
+    private data class Attempt(val operation: Telemetry.Operation, val attempt: Int, val started: Long)
+    private val attempts = java.util.Collections.synchronizedMap(java.util.WeakHashMap<HttpURLConnection, Attempt>())
+    private fun completed(connection: HttpURLConnection, failure: Throwable? = null) {
+        val record = attempts.remove(connection) ?: return
+        val status = if (failure is IOException) 0 else runCatching { connection.responseCode }.getOrDefault(0)
+        val cause = failure?.cause ?: failure
+        val result = when {
+            cause is SocketTimeoutException -> "timeout"
+            cause is InterruptedIOException -> "cancelled"
+            failure != null || status !in 200..299 -> "error"
+            else -> "success"
+        }
+        Telemetry.event("api_result", mapOf("operation_id" to record.operation.id,
+            "feature" to record.operation.feature, "attempt" to record.attempt,
+            "method" to connection.requestMethod, "route" to route(connection.url.path),
+            "duration_ms" to (System.nanoTime() - record.started) / 1_000_000,
+            "result" to result) + (if (status > 0) mapOf("http_status" to status) else emptyMap()) +
+            (if (status > 0) connection.getHeaderField("X-Request-ID")?.let { mapOf("request_id" to it) } ?: emptyMap() else emptyMap()) +
+            (if (failure != null) mapOf("error_code" to if (status>0) "http_$status" else result) else emptyMap()))
+    }
+    private fun route(path: String): String = (if (path.startsWith("/api/")) path.replace(Regex("/voices/[^/]+/sample/"), "/voices/{key}/sample/") else "/asset/").split('/').joinToString("/") {
+        when { it.toLongOrNull()!=null -> "{id}"; it.length>40 -> "{key}"; else -> it }
+    }.substringBefore('?')
     fun request(path: String, method: String = "GET", data: JSONObject? = null,
                 readTimeoutMillis: Int = 80_000, cancellation: RequestCancellation? = null): JSONObject {
         val connection = open(baseUrl + path, method)
@@ -52,8 +78,9 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
                 connection.outputStream.use { it.write(data.toString().toByteArray(StandardCharsets.UTF_8)) }
             }
             return response(connection)
-        } catch (error: IOException) { throw networkFailure(error) }
-        finally { cancellation?.release(connection); connection.disconnect() }
+        } catch (error: IOException) { val failure = if (cancellation?.isCancelled == true) InterruptedIOException("Request cancelled") else error; completed(connection, failure); throw networkFailure(failure) }
+        catch (error: Exception) { completed(connection, error); throw error }
+        finally { completed(connection); cancellation?.release(connection); connection.disconnect() }
     }
 
     fun searchHistory(question: String, cancellation: RequestCancellation): MemorySearchResult {
@@ -155,9 +182,11 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
                 stream.write(suffix)
             }
             onProgress?.invoke(100)
+            operation?.stage("upload_completed", fields = mapOf("bytes" to files.sumOf { it.file.length() }, "count" to files.size))
             return response(connection)
-        } catch (error: IOException) { throw networkFailure(error) }
-        finally { connection.disconnect() }
+        } catch (error: IOException) { completed(connection, error); throw networkFailure(error) }
+        catch (error: Exception) { completed(connection, error); throw error }
+        finally { completed(connection); connection.disconnect() }
     }
 
     fun speech(text: String, cancellation: RequestCancellation? = null, timeoutMillis: Int? = null): ByteArray {
@@ -177,8 +206,9 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             if (connection.contentType?.lowercase()?.startsWith("audio/") != true)
                 throw ApiException("음성을 준비하지 못했어요. 다시 시도해 주세요.", connection.responseCode)
             return connection.inputStream.use { it.readBytes() }
-        } catch (error: IOException) { throw networkFailure(error) }
-        finally { cancellation?.release(connection); connection.disconnect() }
+        } catch (error: IOException) { val failure = if (cancellation?.isCancelled == true) InterruptedIOException("Request cancelled") else error; completed(connection, failure); throw networkFailure(failure) }
+        catch (error: Exception) { completed(connection, error); throw error }
+        finally { completed(connection); cancellation?.release(connection); connection.disconnect() }
     }
 
     fun maintenanceMessage(): String {
@@ -189,7 +219,7 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             if (connection.responseCode != 200) return ""
             return connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
                 .removePrefix("\uFEFF").trim()
-        } finally { connection.disconnect() }
+        } finally { completed(connection); connection.disconnect() }
     }
 
     fun voiceSample(key: String): ByteArray {
@@ -197,8 +227,9 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
         try {
             if (connection.responseCode !in 200..299) response(connection)
             return connection.inputStream.use { it.readBytes() }
-        } catch (error: IOException) { throw networkFailure(error) }
-        finally { connection.disconnect() }
+        } catch (error: IOException) { completed(connection, error); throw networkFailure(error) }
+        catch (error: Exception) { completed(connection, error); throw error }
+        finally { completed(connection); connection.disconnect() }
     }
 
     fun image(url: String): ByteArray {
@@ -209,13 +240,17 @@ class ApiClient(var token: String = "", val baseUrl: String = BuildConfig.API_UR
             if (status != 200) throw ApiException(
                 if (status in 500..599) ApiFailureMessages.UNAVAILABLE else "사진을 불러오지 못했어요.", status)
             return connection.inputStream.use { it.readBytes() }
-        } catch (error: IOException) { throw networkFailure(error) }
-        finally { connection.disconnect() }
+        } catch (error: IOException) { completed(connection, error); throw networkFailure(error) }
+        catch (error: Exception) { completed(connection, error); throw error }
+        finally { completed(connection); connection.disconnect() }
     }
 
     private fun open(url: String, method: String): HttpURLConnection {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.requestMethod = method
+        val current = operation ?: Telemetry.Operation("api")
+        connection.setRequestProperty("X-Operation-ID", current.id)
+        attempts[connection] = Attempt(current, current.attempt(), System.nanoTime())
         connection.connectTimeout = 10_000
         connection.readTimeout = 80_000
         if (token.isNotEmpty()) connection.setRequestProperty("Authorization", "Bearer " + token)
