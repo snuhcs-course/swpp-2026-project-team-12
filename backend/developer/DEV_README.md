@@ -38,7 +38,13 @@ Run the account, family, post, comment, speech, voice reply, and digest API/mode
 python backend/manage.py test developer.test_codes
 ```
 
-For family graph ingestion, run this in a separate terminal:
+Family graph ingestion runs automatically in WSGI/ASGI server processes. The
+supervisor restores existing families at startup, is notified after a new room's
+transaction commits, and retries failed workers every 5 seconds. Management
+commands and ordinary test setup register the signal but do not start threads.
+
+For manual ingestion, set `GRAPHITI_AUTO_CONSTRUCTION=0` and restart the server,
+then run this in a separate terminal:
 
 ```bash
 python backend/manage.py run_construction_worker --family-id 12
@@ -48,7 +54,7 @@ Add `--once` for one batch of up to 100 posts. This replaces `run_memory_worker`
 Searching uses the Django process's
 shared thread pool automatically; it does not require a separate worker command.
 Run the mocked history and construction tests with
-`python backend/manage.py test developer.test_codes.test_searching`.
+`python backend/manage.py test developer.test_codes.test_searching developer.test_codes.test_construction_manager`.
 
 ### 1. `test_codes\test_accounts.py`
 

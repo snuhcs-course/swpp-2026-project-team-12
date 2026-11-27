@@ -10,6 +10,7 @@ from django.test import SimpleTestCase
 
 from integrations.ai import post_flow
 from integrations.ai_workers import graphiti_client, searching_graphiti, searching_workers
+from integrations.ai_workers.construction_manager import CONSTRUCTION_MANAGER
 
 
 class SearchWorkerTests(SimpleTestCase):
@@ -17,10 +18,12 @@ class SearchWorkerTests(SimpleTestCase):
         for protocol in ("wsgi", "asgi"):
             with self.subTest(protocol=protocol), \
                  patch(f"django.core.{protocol}.get_{protocol}_application") as application, \
-                 patch.object(searching_workers.SEARCH_POOL, "start") as start:
+                 patch.object(searching_workers.SEARCH_POOL, "start") as start, \
+                 patch.object(CONSTRUCTION_MANAGER, "start") as construction:
                 module = runpy.run_module(f"configs.{protocol}")
                 application.assert_called_once_with()
                 start.assert_called_once_with()
+                construction.assert_called_once_with()
                 self.assertIs(module["application"], application.return_value)
 
     def test_start_creates_all_clients_before_any_request_and_is_idempotent(self):

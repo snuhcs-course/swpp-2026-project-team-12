@@ -41,9 +41,7 @@ The server reads process environment variables in `.env`.
 python backend/manage.py migrate
 python backend/manage.py runserver 127.0.0.1:8000
 
-# Run Graphiti Construction Worker
-python backend/manage.py run_construction_worker --family-id 12
-# Note that Searching Workers are automatically started when the first searching occurs.
+# Construction and search workers start automatically inside the web server.
 ```
 
 Open `client/` in Android Studio with JDK 21 and Android SDK 36. The debug app connects to `http://10.0.2.2:8000/api/` on an emulator. 
@@ -234,7 +232,15 @@ Graphiti stores each family's post history in Neo4j. Start Neo4j and configure
 
 ### Construction (storing posts)
 
-Run this in a separate terminal for each family and keep it running:
+The WSGI/ASGI server automatically starts a construction supervisor. It starts one
+background thread per existing family, and a committed new family wakes it to
+start that family's worker. Room creation does not wait for Neo4j or AI calls.
+Every 5 seconds the supervisor also discovers rooms created by other processes,
+restarts failed workers, and stops workers for deleted rooms. Existing rooms
+resume automatically after restarting the server.
+
+Set `GRAPHITI_AUTO_CONSTRUCTION=0` in `.env` and restart the server to manage
+construction manually instead:
 
 ```powershell
 python backend/manage.py run_construction_worker --family-id 12
@@ -243,13 +249,19 @@ python backend/manage.py run_construction_worker --family-id 12
 Uploading a post saves it to the app DB. The worker finds posts not yet stored in
 Graphiti, processes up to 100 author/caption records in creation order, then waits
 5 seconds before checking again. Uploads do not enqueue work directly.
-Add `--once` to process one batch and exit; use `Ctrl+C` to stop a running worker.
+The manual command accepts `--once` to process one batch and exit; use `Ctrl+C`
+to stop a manually started worker. The supervisor and manual command share the
+same per-family lock under `MEDIA_ROOT/.graphiti-workers`, so only one worker
+on the same host with the same media directory can own a family at a time.
+Keep that directory shared when running multiple web processes on one host.
+Automatic threads finish their current operation, close their Graphiti clients
+and database connections, and release the locks when the web server shuts down.
 
 The worker embeds each post episode's author and detailed description with the shared
 Graphiti embedder and stores it as `Episodic.content_embedding`. On each pass, it also
 fills missing embeddings on existing post episodes in batches of 100, without
-regenerating descriptions or extracting facts again. Restart the worker for each
-family after upgrading to make existing posts available to vector search.
+regenerating descriptions or extracting facts again. Restart the web server after
+upgrading to make existing posts available to vector search.
 
 Before posts, the worker syncs confirmed family members and their relationships.
 Creation, joining, and name edits leave a pending tree version; failures retry on
