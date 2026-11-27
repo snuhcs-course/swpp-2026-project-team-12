@@ -61,6 +61,13 @@ class ApiFailureMessagesTest {
         }
     }
 
+    @Test fun toastsFitTheTwoLinesAndroidShows() {
+        // Android 12+ cuts text toasts after two lines; the next step must be on them.
+        val lines = ApiFailureMessages.DIGEST_DATES_TOAST.lines()
+        assertTrue(lines.size <= 2)
+        assertTrue(lines.last().endsWith("주세요."))
+    }
+
     @Test fun screensMapToTheirMainTask() {
         assertEquals(Task.LOGIN, ApiFailureMessages.taskFor("login"))
         assertEquals(Task.LOOKUP_ROOM, ApiFailureMessages.taskFor("join"))

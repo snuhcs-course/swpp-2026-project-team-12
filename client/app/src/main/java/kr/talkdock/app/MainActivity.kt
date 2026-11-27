@@ -129,6 +129,7 @@ class MainActivity : ComponentActivity() {
     private var pageNumber = 0
     private var busy = false
     private var pendingPush: Map<String, String>? = null
+    private var feedNotice: View? = null
     private val pushPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         PushRegistration.sync(this)
     }
@@ -468,7 +469,20 @@ class MainActivity : ComponentActivity() {
             val target = client.request("families/current/")
             val post = if (targetQuestion == null) client.request("posts/$targetPost/") else null
             target to post
-        }, "알림의 이야기를 열고 있어요.", task = ApiFailureMessages.Task.NOTIFICATION) { (target, post) ->
+        }, "알림의 이야기를 열고 있어요.", task = ApiFailureMessages.Task.NOTIFICATION, failure = handled@{ error ->
+            if (error is ApiException && error.status == 401) return@handled false  // shared re-login flow
+            // The current screen stays. A connection or server failure can reopen the same notification;
+            // a server explanation (e.g. the post was deleted) is shown as is.
+            val task = ApiFailureMessages.Task.NOTIFICATION
+            val failure = ApiFailureMessages.failure(task, error)
+            val dialog = AlertDialog.Builder(this).setTitle(task.title)
+            if (error is ApiException && failure == null) dialog.setMessage(error.message).setPositiveButton("확인", null)
+            else dialog.setMessage(failure?.body ?: (ApiFailureMessages.UNEXPECTED + "\n" + task.next))
+                .setPositiveButton("다시 열기") { _, _ -> pendingPush = data; openPushIfReady() }
+                .setNegativeButton("닫기", null)
+            dialog.show()
+            true
+        }) { (target, post) ->
             if (room.optInt("id") != targetRoom) resetRoomState()
             saveSession(account.put("room", target), large)
             if (targetQuestion != null) {
@@ -954,7 +968,11 @@ class MainActivity : ComponentActivity() {
                         val failure = ApiFailureMessages.failure(failedTask, error)
                         val message = failure?.body ?: (error as? ApiException)?.message
                             ?: (ApiFailureMessages.UNEXPECTED + "\n" + failedTask.next)
-                        if (screen == "home" && refresh == null) { feedError(message); return@runOnUiThread }
+                        // Only a failed feed request may replace the feed; other requests started on home
+                        // (a notification, a room switch) keep the feed and report in a dialog.
+                        if (screen == "home" && refresh == null && failedTask == ApiFailureMessages.Task.FEED) {
+                            feedError(message); return@runOnUiThread
+                        }
                         if (screen == "roomSync") {
                             content.removeAllViews()
                             ui.art(content, "grandchild_sad", 180); ui.gap(content, 20)
@@ -1486,7 +1504,7 @@ class MainActivity : ComponentActivity() {
                 if (isDestroyed || number != pageNumber || request != feedRequest || scope != feedScope()) return@runOnUiThread
                 result.fold({ data ->
                     val changed = cached?.toString() != data.toString()
-                    feedSnapshot = JSONObject(data.toString()); feedSnapshotScope = scope
+                    feedSnapshot = JSONObject(data.toString()); feedSnapshotScope = scope; hideFeedNotice()
                     // Keep a live player or open comment sheet intact; the next visit uses the fresh snapshot.
                     // An elderly reply being written or recorded inside a card is also kept intact.
                     if (cached == null || refresh != null || (changed && commentsDialog == null && activePostAudio?.isPlaying != true &&
@@ -1504,11 +1522,7 @@ class MainActivity : ComponentActivity() {
                             sessions.removeCurrent(); session = null; room = JSONObject(); imageLoader.clear()
                             login(username, userId, big)
                         } else roomChoice()
-                    } else if (cached != null) {
-                        val task = ApiFailureMessages.Task.FEED_REFRESH
-                        toast(ApiFailureMessages.failure(task, error)?.text
-                            ?: listOfNotNull(task.title, (error as? ApiException)?.message, task.next).joinToString("\n"))
-                    }
+                    } else if (cached != null) feedRefreshFailed(error)
                     else feedError(ApiFailureMessages.failure(ApiFailureMessages.Task.FEED, error)?.body
                         ?: (error as? ApiException)?.message ?: (ApiFailureMessages.UNEXPECTED + "\n" + ApiFailureMessages.Task.FEED.next))
                 })
@@ -2101,6 +2115,40 @@ class MainActivity : ComponentActivity() {
         val view = target ?: return
         view.post { if (tabTour == step && view.isAttachedToWindow && foreground) showCue(view, line, reveal = true) }
     }
+    /**
+     * A refresh failed while an earlier feed is on screen: the feed stays, and the user is told how to retry.
+     * The banner (not a toast, which disappears and is cut to two lines on Android 12+) is pinned above
+     * the feed, so the cause and the retry button stay visible at any restored scroll position.
+     */
+    private fun feedRefreshFailed(error: Throwable) {
+        val task = ApiFailureMessages.Task.FEED_REFRESH
+        hideFeedNotice()
+        val body = (assistantViewport as? SwipeRefreshLayout) ?: return
+        val cause = ApiFailureMessages.cause(error)?.line ?: (error as? ApiException)?.message ?: ApiFailureMessages.UNEXPECTED
+        val notice = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; tag = "feed-refresh-notice"
+            background = ui.shape(ui.blush, 16)
+            setPadding(ui.dp(14), ui.dp(10), ui.dp(6), ui.dp(10))
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }
+        val text = ui.column()
+        ui.label(text, task.title, if (large) 19f else 16f, true)
+        ui.label(text, cause, if (large) 17f else 14f, color = ui.muted)
+        notice.addView(text, LinearLayout.LayoutParams(0, -2, 1f))
+        notice.addView(ui.ghost(LinearLayout(this), "다시 불러오기", if (large) 56 else 44) { home(body) }.apply {
+            (parent as? android.view.ViewGroup)?.removeView(this)
+        }, LinearLayout.LayoutParams(-2, -2).apply { marginStart = ui.dp(8) })
+        notice.addView(ui.iconButton("close", "안내 닫기") { hideFeedNotice() })
+        page.addView(notice, page.indexOfChild(body), LinearLayout.LayoutParams(-1, -2).apply {
+            marginStart = ui.dp(16); marginEnd = ui.dp(16); bottomMargin = ui.dp(4)
+        })
+        feedNotice = notice
+    }
+
+    private fun hideFeedNotice() {
+        feedNotice?.let { (it.parent as? android.view.ViewGroup)?.removeView(it) }; feedNotice = null
+    }
+
     private fun feedError(message: String) {
         content.removeAllViews()
         ui.art(content, "grandchild_sad", 180); ui.gap(content, 20)
@@ -2767,9 +2815,9 @@ class MainActivity : ComponentActivity() {
         // A failed date list must not replace the feed with the home error screen; maintenance and 401 keep their shared handling.
         async({ client.request("digests/history/") }, showLoading = false, failure = { error ->
             val handled = !(error is ApiException && error.status == 401)
-            val task = ApiFailureMessages.Task.DIGEST_DATES
-            if (handled) toast(ApiFailureMessages.failure(task, error)?.text
-                ?: listOfNotNull(task.title, (error as? ApiException)?.message, task.next).joinToString("\n"))
+            // Two-line toast: a longer one is cut off before the next step on Android 12+.
+            if (handled) toast(if (ApiFailureMessages.cause(error) != null) ApiFailureMessages.DIGEST_DATES_TOAST
+                else (error as? ApiException)?.message ?: ApiFailureMessages.DIGEST_DATES_TOAST)
             handled
         }) { data ->
             val list = data.optJSONArray("dates") ?: org.json.JSONArray()

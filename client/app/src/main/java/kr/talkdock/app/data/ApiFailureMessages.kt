@@ -12,6 +12,8 @@ object ApiFailureMessages {
     const val CONNECTION = "서버에 연결하지 못했어요.\n인터넷 연결을 확인해 주세요. 서버 점검 중일 수 있으니 잠시 후 다시 시도해 주세요."
     const val TIMEOUT = "서버 응답이 늦어지고 있어요.\n잠시 후 다시 시도해 주세요."
     const val UNREADABLE = "서버 응답을 읽지 못했어요. 잠시 후 다시 시도해 주세요."
+    // Android 12+ shows at most two lines of a text toast, so toasts lead with the next step and stay short.
+    const val DIGEST_DATES_TOAST = "날짜 목록을 불러오지 못했어요.\n잠시 후 달력을 다시 열어 주세요."
     /** Lead line for a failure on the phone itself (not the server), followed by the task's next step. */
     const val UNEXPECTED = "일시적인 문제가 생겼어요."
 
@@ -42,7 +44,7 @@ object ApiFailureMessages {
         FEED("소식을 불러오지 못했어요", "잠시 후 아래 '다시 불러오기'를 눌러 주세요."),
         FEED_REFRESH("새 소식을 불러오지 못했어요", "지금 보이는 소식은 그대로 있어요. 잠시 후 아래로 당겨 다시 불러와 주세요."),
         DETAIL("소식을 열지 못했어요", "잠시 후 소식을 다시 눌러 주세요."),
-        NOTIFICATION("알림의 소식을 열지 못했어요", "잠시 후 알림을 다시 누르거나 소식 목록에서 찾아 주세요."),
+        NOTIFICATION("알림의 소식을 열지 못했어요", "보던 화면은 그대로 있어요. 잠시 후 '다시 열기'를 눌러 주세요."),
         POST("소식을 올리지 못했어요", "쓴 내용과 사진은 그대로 있어요. 잠시 후 '다시 시도'를 눌러 주세요."),
         POST_VOICE("말씀을 글로 바꾸지 못했어요", "잠시 후 '말로 쓰기'를 눌러 다시 말씀해 주세요."),
         VOICE_REPLY("말씀을 글로 바꾸지 못했어요", "녹음은 그대로 있어요. 잠시 후 '다시 시도'를 눌러 주세요."),
