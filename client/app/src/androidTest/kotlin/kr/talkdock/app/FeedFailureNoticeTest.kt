@@ -75,14 +75,20 @@ class FeedFailureNoticeTest {
                 ui.await { api.requests.any { it.path == "/api/posts/2/" } }  // the notification was accepted
                 val dialogText = { text: String -> ui.test.uiAutomation.rootInActiveWindow
                     ?.findAccessibilityNodeInfosByText(text)?.isNotEmpty() == true }
-                ui.await { dialogText(ApiFailureMessages.Task.NOTIFICATION.title) && dialogText("다시 열기") }
+                // findAccessibilityNodeInfosByText matches substrings, and the dialog body itself says
+                // "'다시 열기'를 눌러 주세요", so pick the clickable button whose whole label is 다시 열기.
+                val retryButton = { ui.test.uiAutomation.rootInActiveWindow
+                    ?.findAccessibilityNodeInfosByText("다시 열기")
+                    ?.firstOrNull { it.isClickable && it.text?.toString() == "다시 열기" } }
+                ui.await { dialogText(ApiFailureMessages.Task.NOTIFICATION.title) && retryButton() != null }
                 ui.screenshot("notification-failure.png")
                 assertEquals("The loaded feed is not replaced by the feed error screen", 2, ui.feedCards())
                 assertFalse(ui.has(ApiFailureMessages.Task.FEED.title))
                 val failedRequests = api.requests.count { it.path == "/api/posts/2/" }
                 failPost.set(false)
-                val retry = ui.test.uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText("다시 열기").first()
-                assertTrue(retry.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
+                val retry = retryButton()
+                assertNotNull("The 다시 열기 button is shown", retry)
+                assertTrue(retry!!.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))
                 ui.await { ui.hasPostDetail() }
                 assertTrue(ui.has("오늘은 공원에서 단풍을 봤어요 2"))
                 // 다시 열기 fetched the same post again (the detail screen may then load it once more).
